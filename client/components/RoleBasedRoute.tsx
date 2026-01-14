@@ -6,20 +6,24 @@ import { UserRole } from "@/lib/auth";
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
-  allowedRoles: UserRole[];
+  allowedRoles?: UserRole[];
+  requiredModule?: string;
+  requiredAction?: string;
   fallbackPath?: string;
 }
 
 export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   children,
   allowedRoles,
+  requiredModule,
+  requiredAction,
   fallbackPath = "/dashboard",
 }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { hasAnyRole } = useRole();
+  const { hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading } = useRole();
 
   // Show loading while checking authentication
-  if (isLoading) {
+  if (isLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -35,11 +39,18 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user has any of the required roles
-  const hasAccess = hasAnyRole(allowedRoles);
+  // Check role-based access if roles are specified
+  if (allowedRoles && !hasAnyRole(allowedRoles)) {
+    return <Navigate to={fallbackPath} replace />;
+  }
 
-  // Redirect to fallback path if user doesn't have access
-  if (!hasAccess) {
+  // Check module-based access if module is specified
+  if (requiredModule && !hasModuleAccess(requiredModule)) {
+    return <Navigate to={fallbackPath} replace />;
+  }
+
+  // Check action-based access if both module and action are specified
+  if (requiredModule && requiredAction && !canPerformModuleAction(requiredModule, requiredAction)) {
     return <Navigate to={fallbackPath} replace />;
   }
 
@@ -50,11 +61,25 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
 // Higher-order component for specific role checks
 export const withRoleAccess = (
   Component: React.ComponentType<any>,
-  allowedRoles: UserRole[]
+  options: {
+    allowedRoles?: UserRole[];
+    requiredModule?: string;
+    requiredAction?: string;
+    fallbackPath?: string;
+  }
 ) => {
   return (props: any) => (
-    <RoleBasedRoute allowedRoles={allowedRoles}>
+    <RoleBasedRoute {...options}>
       <Component {...props} />
     </RoleBasedRoute>
   );
+};
+
+// Module-based protection components
+export const withModuleAccess = (
+  Component: React.ComponentType<any>,
+  module: string,
+  action?: string
+) => {
+  return withRoleAccess(Component, { requiredModule: module, requiredAction: action });
 };

@@ -107,6 +107,7 @@ import {
   Building2,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -174,15 +175,22 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
+    label: "Role & Module Access Debug",
+    icon: <Settings className="w-5 h-5" />,
+    path: "/debug/roles",
+    roles: ["admin"],
+    moduleName: "organization",
+  },
+  {
     label: "Employee Management",
     icon: <Users className="w-5 h-5" />,
-    roles: ["admin", "hr", "manager"],
+    roles: ["admin", "HR"],
     moduleName: "employees",
     submenu: [
       {
         label: "Employee List",
         path: "/employees",
-        roles: ["admin", "hr", "manager"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "employees",
       },
@@ -191,43 +199,43 @@ const navigationItems: NavItem[] = [
   {
     label: "Attendance Management",
     icon: <Clock className="w-5 h-5" />,
-    roles: ["admin", "hr", "manager", "employee"],
+    roles: ["admin", "HR", "employee"],
     moduleName: "attendance",
     submenu: [
       {
         label: "Check-In/Out",
         path: "/attendance/capture",
-        roles: ["employee", "manager"],
+        roles: ["employee"],
         icon: <div />,
         moduleName: "attendance",
       },
       {
         label: "Attendance Log",
         path: "/attendance/log",
-        roles: ["admin", "hr", "manager", "employee"],
+        roles: ["admin", "HR", "employee"],
         icon: <div />,
         moduleName: "attendance",
       },
       {
         label: "Override Management",
         path: "/attendance/override",
-        roles: ["admin", "hr"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "attendance",
       },
       {
         label: "Shift Management",
         path: "/attendance/shift",
-        roles: ["admin", "hr"],
+        roles: ["admin", "HR"],
         icon: <div />,
-        moduleName: "attendance",
+        moduleName: "shift management",
       },
     ],
   },
   {
     label: "Leave Management",
     icon: <Calendar className="w-5 h-5" />,
-    roles: ["admin", "hr", "manager", "employee"],
+    roles: ["admin", "HR", "employee"],
     moduleName: "leave",
     submenu: [
       {
@@ -240,21 +248,21 @@ const navigationItems: NavItem[] = [
       {
         label: "Leave Balance",
         path: "/leave/balance",
-        roles: ["admin", "hr", "employee"],
+        roles: ["admin", "HR", "employee"],
         icon: <div />,
         moduleName: "leave",
       },
       {
         label: "Leave Approvals",
         path: "/leave/approvals",
-        roles: ["manager", "hr"],
+        roles: ["HR"],
         icon: <div />,
         moduleName: "leave",
       },
       {
         label: "Leave Config",
         path: "/leave/config",
-        roles: ["admin", "hr"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "leave",
       },
@@ -263,13 +271,13 @@ const navigationItems: NavItem[] = [
   {
     label: "Payroll",
     icon: <DollarSign className="w-5 h-5" />,
-    roles: ["admin", "finance", "hr", "manager", "employee"],
+    roles: ["admin", "HR", "employee"],
     moduleName: "payroll",
     submenu: [
       {
         label: "Salary Structure",
         path: "/payroll/structure",
-        roles: ["admin", "finance", "hr", "manager"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "salary-structure",
@@ -277,7 +285,7 @@ const navigationItems: NavItem[] = [
       {
         label: "Process Payroll",
         path: "/payroll/process",
-        roles: ["admin", "finance"],
+        roles: ["admin"],
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "processing",
@@ -285,7 +293,7 @@ const navigationItems: NavItem[] = [
       {
         label: "Payslips",
         path: "/payroll/payslips",
-        roles: ["admin", "finance", "employee", "manager"],
+        roles: ["admin", "HR", "employee"],
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "payslips",
@@ -295,7 +303,7 @@ const navigationItems: NavItem[] = [
   {
     label: "Expenses",
     icon: <CreditCard className="w-5 h-5" />,
-    roles: ["admin", "finance", "employee"],
+    roles: ["admin", "employee"],
     moduleName: "expenses",
     submenu: [
       {
@@ -308,7 +316,7 @@ const navigationItems: NavItem[] = [
       {
         label: "Approve Claims",
         path: "/expenses/approvals",
-        roles: ["finance", "admin"],
+        roles: ["admin"],
         icon: <div />,
         moduleName: "expenses",
       },
@@ -317,13 +325,13 @@ const navigationItems: NavItem[] = [
   {
     label: "Assets",
     icon: <Package className="w-5 h-5" />,
-    roles: ["admin", "hr"],
+    roles: ["admin"],
     moduleName: "assets",
     submenu: [
       {
         label: "Asset List",
         path: "/assets/list",
-        roles: ["admin", "hr"],
+        roles: ["admin"],
         icon: <div />,
         moduleName: "assets",
       },
@@ -339,20 +347,20 @@ const navigationItems: NavItem[] = [
   {
     label: "Exit & Offboarding",
     icon: <LogOut className="w-5 h-5" />,
-    roles: ["admin", "hr"],
+    roles: ["admin", "HR"],
     moduleName: "exit",
     submenu: [
       {
         label: "Resignations",
         path: "/exit/resignations",
-        roles: ["admin", "hr"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "exit",
       },
       {
         label: "Exit Checklist",
         path: "/exit/checklist",
-        roles: ["admin", "hr"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "exit",
       },
@@ -361,34 +369,34 @@ const navigationItems: NavItem[] = [
   {
     label: "Reports",
     icon: <FileText className="w-5 h-5" />,
-    roles: ["admin", "hr", "finance", "manager"],
+    roles: ["admin", "HR"],
     moduleName: "reports",
     submenu: [
       {
         label: "Attendance Reports",
         path: "/reports/attendance",
-        roles: ["admin", "hr", "manager"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "reports",
       },
       {
         label: "Leave Reports",
         path: "/reports/leave",
-        roles: ["admin", "hr"],
+        roles: ["admin", "HR"],
         icon: <div />,
         moduleName: "reports",
       },
       {
         label: "Payroll Reports",
         path: "/reports/payroll",
-        roles: ["admin", "finance"],
+        roles: ["admin"],
         icon: <div />,
         moduleName: "reports",
       },
       {
         label: "Finance Reports",
         path: "/reports/finance",
-        roles: ["admin", "finance"],
+        roles: ["admin"],
         icon: <div />,
         moduleName: "reports",
       },
@@ -400,7 +408,7 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { hasRole, hasAnyRole } = useRole();
+  const { hasRole, hasAnyRole, hasModuleAccess, loading: roleLoading } = useRole();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -428,19 +436,40 @@ export const Sidebar: React.FC = () => {
       return true;
     }
 
-    // For items with module names, check if user has access to that module
-    // Since we only have role-based access, we'll use the existing role check
+    // Don't show items while loading permissions
+    if (roleLoading) {
+      return false;
+    }
+
+    // First check if user has any of the required roles (backward compatibility)
     if (!hasAnyRole(item.roles as any[])) {
       return false;
     }
 
-    // Simple access check - if user has any of the required roles, they have access
-    let hasAccess = hasAnyRole(item.roles as any[]);
+    // Then check specific module access
+    if (item.moduleName && !hasModuleAccess(item.moduleName)) {
+      return false;
+    }
 
-    return hasAccess;
+    return true;
   };
 
   const filteredItems = navigationItems.filter((item) => hasItemAccess(item));
+
+  // Debug: Log filtered items
+  if (process.env.NODE_ENV === "development") {
+    console.log("Sidebar Debug - Filtered Items:", {
+      totalItems: navigationItems.length,
+      filteredCount: filteredItems.length,
+      filteredItems: filteredItems.map(item => ({
+        label: item.label,
+        moduleName: item.moduleName,
+        roles: item.roles
+      })),
+      userRoles: user.roles,
+      roleLoading
+    });
+  }
 
   const NavItemComponent: React.FC<{ item: NavItem; level?: number }> = ({
     item,

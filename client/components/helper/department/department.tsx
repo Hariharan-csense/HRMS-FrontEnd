@@ -22,7 +22,7 @@ export const departmentApi = {
           id: d.id?.toString() || d._id?.toString() || "",
           name: d.name || d.department_name || "",
           costCenter: d.cost_center || d.costCenter || "",
-          head: d.head || d.department_head || "",
+          head: d.head_name || d.head || d.department_head || "",
           createdAt: d.created_at || d.createdAt,
         }));
         return { data: mapped };
@@ -34,7 +34,7 @@ export const departmentApi = {
           id: d.id?.toString() || d._id?.toString() || "",
           name: d.name || "",
           costCenter: d.cost_center || d.costCenter || "",
-          head: d.head || "",
+          head: d.head_name || d.head || "",
           createdAt: d.created_at,
         }));
         return { data: mapped };

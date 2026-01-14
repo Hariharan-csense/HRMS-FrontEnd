@@ -1,12 +1,33 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { UserRole } from '@/lib/auth';
+
+interface ModulePermission {
+  view: number;
+  create: number;
+  edit: number;
+  approve: number;
+}
+
+interface RoleData {
+  id: string;
+  role_id: string;
+  name: string;
+  approval_authority: string;
+  data_visibility: string;
+  modules: Record<string, ModulePermission>;
+  description?: string;
+}
 
 type RoleContextType = {
   hasRole: (role: UserRole) => boolean;
   hasAnyRole: (roles: UserRole[]) => boolean;
   hasSubModuleAccess: (role: UserRole, module: string, subModule: string) => boolean;
   canPerformAction: (role: UserRole, module: string, action: string) => boolean;
+  hasModuleAccess: (module: string) => boolean;
+  canPerformModuleAction: (module: string, action: string) => boolean;
+  userRoles: RoleData[];
+  loading: boolean;
 };
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -17,6 +38,120 @@ type RoleProviderProps = {
 
 export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const { user } = useAuth();
+  const [userRoles, setUserRoles] = useState<RoleData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch user roles from backend
+  useEffect(() => {
+    const fetchRoles = async () => {
+      if (!user) {
+        setUserRoles([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/role', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken') || localStorage.getItem('authToken')}`
+          }
+        });
+
+        if (!response.ok) {
+          console.error('Failed to fetch roles:', response.status, response.statusText);
+          setUserRoles([]);
+          setLoading(false);
+          return;
+        }
+
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Role API returned non-JSON response:', contentType);
+          const text = await response.text();
+          console.error('Response text:', text.substring(0, 200));
+          setUserRoles([]);
+          setLoading(false);
+          return;
+        }
+
+        const data = await response.json();
+        console.log('Role API response:', data);
+        setUserRoles(data.roles || []);
+      } catch (error) {
+        console.error('Error fetching roles:', error);
+        // Fallback to mock role data for development
+        const mockRoles = [
+          {
+            id: "4",
+            role_id: "ROLE001",
+            name: "admin",
+            approval_authority: "Full Authority",
+            data_visibility: "All Employees",
+            modules: {
+              "employees": { view: 1, create: 1, edit: 1, approve: 1 },
+              "payroll": { view: 1, create: 1, edit: 1, approve: 1 },
+              "attendance": { view: 1, create: 1, edit: 1, approve: 1 },
+              "leave": { view: 1, create: 1, edit: 1, approve: 1 },
+              "expenses": { view: 1, create: 0, edit: 0, approve: 1 },
+              "assets": { view: 1, create: 1, edit: 1, approve: 1 },
+              "exit": { view: 1, create: 1, edit: 1, approve: 1 },
+              "reports": { view: 1, create: 0, edit: 0, approve: 0 },
+              "organization": { view: 1, create: 1, edit: 1, approve: 1 },
+              "shift management": { view: 1, create: 1, edit: 1, approve: 1 }
+            },
+            description: null,
+            created_at: "2025-12-31T04:24:38.000Z",
+            updated_at: "2026-01-13T07:13:16.000Z"
+          },
+          {
+            id: "6",
+            role_id: "ROLE02",
+            name: "employee",
+            approval_authority: "No Authority",
+            data_visibility: "Self Only",
+            modules: {
+              "employees": { view: 1, create: 0, edit: 0, approve: 0 },
+              "payroll": { view: 1, create: 0, edit: 0, approve: 0 },
+              "attendance": { view: 1, create: 0, edit: 1, approve: 0 },
+              "leave": { view: 1, create: 1, edit: 0, approve: 0 },
+              "expenses": { view: 0, create: 0, edit: 0, approve: 0 },
+              "assets": { view: 0, create: 0, edit: 0, approve: 0 }
+            },
+            description: null,
+            created_at: "2026-01-06T06:15:42.000Z",
+            updated_at: "2026-01-06T06:22:14.000Z"
+          },
+          {
+            id: "5",
+            role_id: "ROLE01",
+            name: "HR",
+            approval_authority: "Full Authority",
+            data_visibility: "Department Employees",
+            modules: {
+              "employees": { view: 1, create: 0, edit: 0, approve: 0 },
+              "payroll": { view: 1, create: 0, edit: 0, approve: 0 },
+              "attendance": { view: 1, create: 1, edit: 0, approve: 0 },
+              "shift management": { view: 1, create: 0, edit: 0, approve: 0 },
+              "leave": { view: 1, create: 1, edit: 0, approve: 0 },
+              "expenses": { view: 1, create: 0, edit: 0, approve: 0 },
+              "assets": { view: 0, create: 0, edit: 0, approve: 0 },
+              "exit": { view: 1, create: 0, edit: 0, approve: 0 },
+              "reports": { view: 1, create: 0, edit: 0, approve: 0 }
+            },
+            description: null,
+            created_at: "2025-12-31T05:24:37.000Z",
+            updated_at: "2026-01-13T12:03:53.000Z"
+          }
+        ];
+        setUserRoles(mockRoles);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoles();
+  }, [user]);
 
   const hasRole = (role: UserRole): boolean => {
     if (!user?.roles) return false;
@@ -28,97 +163,145 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     return user.roles.some(role => roles.includes(role));
   };
 
+  // Check if user has access to a specific module based on their role permissions
+  const hasModuleAccess = (module: string): boolean => {
+    if (!user?.roles || userRoles.length === 0) return false;
+    
+    // Debug logging
+    if (process.env.NODE_ENV === "development") {
+      console.log("hasModuleAccess Debug:", {
+        userRoles: user.roles,
+        availableRoles: userRoles.map(r => r.name),
+        module,
+        userRolesData: userRoles
+      });
+    }
+    
+    // Check if any of the user's roles has access to this module
+    return userRoles.some(role => {
+      // Check if user has this role assigned (case-insensitive match)
+      const userHasRole = user.roles.some(userRole => 
+        userRole.toLowerCase() === role.name.toLowerCase()
+      );
+      
+      if (!userHasRole) {
+        return false;
+      }
+      
+      // Try exact match first
+      let modulePermission = role.modules[module];
+      
+      // If not found, try lowercase version
+      if (!modulePermission) {
+        modulePermission = role.modules[module.toLowerCase()];
+      }
+      
+      // If still not found, try some common variations
+      if (!modulePermission) {
+        const variations = {
+          'shiftmanagement': 'shift management',
+          'shift': 'shift management',
+          'organization': 'organization',
+          'organisation': 'organization',
+        };
+        const variationKey = variations[module.toLowerCase()];
+        if (variationKey) {
+          modulePermission = role.modules[variationKey];
+        }
+      }
+      
+      const hasAccess = modulePermission && modulePermission.view === 1;
+      
+      // Debug logging
+      if (process.env.NODE_ENV === "development") {
+        console.log(`Role ${role.name} access to ${module}:`, {
+          userHasRole,
+          modulePermission,
+          hasAccess,
+          availableModules: Object.keys(role.modules)
+        });
+      }
+      
+      return hasAccess;
+    });
+  };
+
+  // Check if user can perform a specific action on a module
+  const canPerformModuleAction = (module: string, action: string): boolean => {
+    if (!user?.roles || userRoles.length === 0) return false;
+    
+    // Check if any of the user's roles has permission for this action
+    return userRoles.some(role => {
+      // Check if user has this role assigned (case-insensitive match)
+      const userHasRole = user.roles.some(userRole => 
+        userRole.toLowerCase() === role.name.toLowerCase()
+      );
+      
+      if (!userHasRole) {
+        return false;
+      }
+      
+      // Try exact match first
+      let modulePermission = role.modules[module];
+      
+      // If not found, try lowercase version
+      if (!modulePermission) {
+        modulePermission = role.modules[module.toLowerCase()];
+      }
+      
+      // If still not found, try some common variations
+      if (!modulePermission) {
+        const variations = {
+          'shiftmanagement': 'shift management',
+          'shift': 'shift management',
+          'organization': 'organization',
+          'organisation': 'organization',
+        };
+        const variationKey = variations[module.toLowerCase()];
+        if (variationKey) {
+          modulePermission = role.modules[variationKey];
+        }
+      }
+      
+      if (!modulePermission) return false;
+      
+      switch (action) {
+        case 'view':
+          return modulePermission.view === 1;
+        case 'create':
+          return modulePermission.create === 1;
+        case 'edit':
+          return modulePermission.edit === 1;
+        case 'approve':
+          return modulePermission.approve === 1;
+        default:
+          return false;
+      }
+    });
+  };
+
+  // Legacy functions for backward compatibility
   const hasSubModuleAccess = (role: UserRole, module: string, subModule: string): boolean => {
-    // Define sub-module permissions for each role
-    const subModulePermissions: Record<UserRole, Record<string, string[]>> = {
-      admin: { "*": ["*"] }, // Admin has access to all sub-modules
-      employee: {
-        payroll: ["payslips"], // Employees can only view their payslips
-      },
-      manager: {
-        payroll: ["payslips"], // Managers can view payslips
-      },
-      hr: {
-        payroll: ["payslips"], // HR can view payslips
-      },
-      finance: {
-        payroll: ["*"], // Finance has access to all payroll sub-modules
-      },
-      "admin-delegate": {
-        payroll: ["payslips"], // Admin delegates have limited access
-      },
-    };
-
-    const rolePermissions = subModulePermissions[role];
-    if (!rolePermissions) return false;
-
-    // Check if role has access to all modules
-    if (rolePermissions["*"] && rolePermissions["*"].includes("*")) return true;
-
-    // Check if role has access to all sub-modules in the specified module
-    const modulePermissions = rolePermissions[module];
-    if (modulePermissions && modulePermissions.includes("*")) return true;
-
-    // Check if role has access to the specific sub-module
-    return modulePermissions ? modulePermissions.includes(subModule) : false;
+    // For now, delegate to module access check
+    return hasModuleAccess(module);
   };
 
   const canPerformAction = (role: UserRole, module: string, action: string): boolean => {
-    // Define action permissions for each role and module
-    const actionPermissions: Record<UserRole, Record<string, string[]>> = {
-      admin: { "*": ["*"] }, // Admin can perform all actions
-      employee: {
-        employees: ["view"], // Employees can only view their own profile
-        attendance: ["view", "create"], // Can view and mark attendance
-        leave: ["view", "create"], // Can view and apply for leave
-        payroll: ["view"], // Can view their own payslips
-        expenses: ["view", "create"], // Can view and create expense claims
-        assets: ["view"], // Can view their assigned assets
-      },
-      manager: {
-        employees: ["view"], // Can view team members
-        attendance: ["view", "override"], // Can view and override attendance
-        leave: ["view", "approve"], // Can view and approve leave
-        payroll: ["view"], // Can view team payslips
-        reports: ["view"], // Can view reports
-      },
-      hr: {
-        employees: ["view", "create", "update", "delete"], // Full employee management
-        attendance: ["view", "override"], // Can view and override attendance
-        leave: ["view", "approve", "config"], // Full leave management
-        payroll: ["view"], // Can view payslips
-        assets: ["view", "create", "update"], // Asset management
-        exit: ["view", "create", "update"], // Exit management
-        reports: ["view"], // Can view reports
-      },
-      finance: {
-        payroll: ["view", "create", "update"], // Full payroll management
-        expenses: ["view", "approve"], // Can approve expense claims
-        reports: ["view"], // Can view financial reports
-      },
-      "admin-delegate": {
-        employees: ["view", "update"], // Limited employee management
-        attendance: ["view"], // Can view attendance
-        reports: ["view"], // Limited reports
-      },
-    };
-
-    const roleActionPermissions = actionPermissions[role];
-    if (!roleActionPermissions) return false;
-
-    // Check if role has access to all modules and actions
-    if (roleActionPermissions["*"] && roleActionPermissions["*"].includes("*")) return true;
-
-    // Check if role has access to all actions in the specified module
-    const moduleActions = roleActionPermissions[module];
-    if (moduleActions && moduleActions.includes("*")) return true;
-
-    // Check if role has access to the specific action
-    return moduleActions ? moduleActions.includes(action) : false;
+    // For now, delegate to module action check
+    return canPerformModuleAction(module, action);
   };
 
   return (
-    <RoleContext.Provider value={{ hasRole, hasAnyRole, hasSubModuleAccess, canPerformAction }}>
+    <RoleContext.Provider value={{ 
+      hasRole, 
+      hasAnyRole, 
+      hasSubModuleAccess, 
+      canPerformAction,
+      hasModuleAccess,
+      canPerformModuleAction,
+      userRoles,
+      loading
+    }}>
       {children}
     </RoleContext.Provider>
   );

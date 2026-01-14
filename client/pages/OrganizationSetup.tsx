@@ -1197,7 +1197,7 @@ export default function OrganizationSetup() {
                             <Edit className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDelete(seq.id)}
+                            onClick={() => handleDelete(seq.id.toString())}
                             className="p-1 sm:p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1258,7 +1258,7 @@ export default function OrganizationSetup() {
                                 <Edit className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => handleDelete(seq.id)}
+                                onClick={() => handleDelete(seq.id.toString())}
                                 className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

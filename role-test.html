@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Role API Test</title>
+</head>
+<body>
+    <h1>Role API Test</h1>
+    <button onclick="testRoleAPI()">Test Role API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testRoleAPI() {
+            const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+            
+            if (!token) {
+                document.getElementById('result').innerHTML = 'No token found. Please login first.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/role', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Response Status: ${response.status}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h3>Error:</h3>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

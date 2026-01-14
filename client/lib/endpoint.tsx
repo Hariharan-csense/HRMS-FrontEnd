@@ -71,6 +71,7 @@
   // roles
 
   getRoles: () => api.get("/role"),
+  getRoleById: (id: string) => api.get(`/role/${id}`),
   createRole: (data: any) => api.post("/role/add", data),
   updateRole: (id: string, data: any) => api.put(`/role/${id}`, data),
   deleteRole: (id: string) => api.delete(`/role/${id}`),
