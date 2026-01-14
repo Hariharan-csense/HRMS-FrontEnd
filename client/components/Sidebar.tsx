@@ -178,8 +178,8 @@ const navigationItems: NavItem[] = [
     label: "Role & Module Access Debug",
     icon: <Settings className="w-5 h-5" />,
     path: "/debug/roles",
-    roles: ["admin"],
-    moduleName: "organization",
+    roles: ["admin", "employee"],
+    moduleName: "role_access",
   },
   {
     label: "Employee Management",

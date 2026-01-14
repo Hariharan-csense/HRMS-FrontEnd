@@ -49,7 +49,7 @@ export default function RoleAccessDebug() {
     try {
       console.log('Creating default admin role...');
       const modules: { [key: string]: ModulePermission } = {};
-      const defaultModules = ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin'];
+      const defaultModules = ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin', 'role_access'];
       
       defaultModules.forEach(module => {
         modules[module] = { view: true, create: true, edit: true, approve: true };
@@ -232,7 +232,7 @@ export default function RoleAccessDebug() {
 
   const modules = allRoles.length > 0 && allRoles[0].modules ? 
     Object.keys(allRoles[0].modules) : 
-    ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin'];
+    ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin', 'role_access'];
   const actions = ['view', 'create', 'edit', 'approve'];
 
   return (

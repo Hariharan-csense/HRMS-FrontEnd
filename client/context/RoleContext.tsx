@@ -98,6 +98,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
               "exit": { view: 1, create: 1, edit: 1, approve: 1 },
               "reports": { view: 1, create: 0, edit: 0, approve: 0 },
               "organization": { view: 1, create: 1, edit: 1, approve: 1 },
+              "role_access": { view: 1, create: 1, edit: 1, approve: 1 },
               "shift management": { view: 1, create: 1, edit: 1, approve: 1 }
             },
             description: null,
@@ -116,7 +117,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
               "attendance": { view: 1, create: 0, edit: 1, approve: 0 },
               "leave": { view: 1, create: 1, edit: 0, approve: 0 },
               "expenses": { view: 0, create: 0, edit: 0, approve: 0 },
-              "assets": { view: 0, create: 0, edit: 0, approve: 0 }
+              "assets": { view: 0, create: 0, edit: 0, approve: 0 },
+              "role_access": { view: 1, create: 0, edit: 0, approve: 0 }
             },
             description: null,
             created_at: "2026-01-06T06:15:42.000Z",
