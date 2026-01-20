@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { AuthContextType, User } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
-import ENDPOINTS from "../lib/endpoint";
+import ENDPOINTS, { BASE_URL } from "../lib/endpoint";
 
 type LoginParams = {
   email: string;
@@ -125,7 +125,7 @@ const login = async (email: string, password: string): Promise<{ success: boolea
     };
 
     try {
-      await fetch("http://localhost:3000/api/auth/logout", {
+      await fetch(`${BASE_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
         headers: {

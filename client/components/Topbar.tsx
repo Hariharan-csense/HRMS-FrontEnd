@@ -19,82 +19,28 @@ import {
   AlertCircle,
   Info,
   LayoutDashboard,
+  X,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { handleLogout } from "@/components/helper/login/login";
+import { useNotifications } from "@/hooks/useNotifications";
 
-interface Notification {
-  id: string;
-  type: "success" | "warning" | "info";
-  title: string;
-  description: string;
-  timestamp: string;
-}
 
 export const Topbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const getLeaveNotifications = () => {
-    const leaveNotifications: Notification[] = [];
-
-    // Manager approval notifications
-    if (hasRole(user, "manager") || hasRole(user, "hr")) {
-      leaveNotifications.push(
-        {
-          id: "1",
-          type: "info",
-          title: "Leave Request from Sarah Johnson",
-          description: "Sarah Johnson has applied for 3 days leave (Dec 20-22)",
-          timestamp: "30 minutes ago",
-        },
-        {
-          id: "2",
-          type: "info",
-          title: "Leave Request from Michael Chen",
-          description: "Michael Chen has applied for 2 days leave (Dec 24-25)",
-          timestamp: "1 hour ago",
-        }
-      );
-    }
-
-    // Employee application notifications
-    if (hasRole(user, "employee")) {
-      leaveNotifications.push(
-        {
-          id: "3",
-          type: "success",
-          title: "Leave Application Submitted",
-          description: "Your leave request for Dec 24-25 has been submitted to Michael Manager",
-          timestamp: "1 hour ago",
-        }
-      );
-    }
-
-    // HR sees all leave notifications
-    if (hasRole(user, "hr")) {
-      leaveNotifications.push(
-        {
-          id: "4",
-          type: "success",
-          title: "Leave Approved",
-          description: "Leave request from John Doe (Dec 10-12) has been approved by Michael Manager",
-          timestamp: "2 hours ago",
-        },
-        {
-          id: "5",
-          type: "warning",
-          title: "Leave Rejected",
-          description: "Leave request from Emma Wilson (Dec 20) has been rejected",
-          timestamp: "3 hours ago",
-        }
-      );
-    }
-
-    return leaveNotifications;
-  };
-
-  const [notifications] = useState<Notification[]>(getLeaveNotifications());
+  const { 
+    notifications, 
+    unreadCount, 
+    loading, 
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification, 
+    refresh 
+  } = useNotifications();
 
   if (!user) return null;
 
@@ -112,11 +58,37 @@ export const Topbar: React.FC = () => {
         return <CheckCircle2 className="w-4 h-4 text-green-600" />;
       case "warning":
         return <AlertCircle className="w-4 h-4 text-amber-600" />;
+      case "error":
+        return <AlertCircle className="w-4 h-4 text-red-600" />;
       case "info":
-        return <Info className="w-4 h-4 text-teal-600" />;
       default:
-        return <Bell className="w-4 h-4" />;
+        return <Info className="w-4 h-4 text-teal-600" />;
     }
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    
+    // Navigate to the relevant page if actionUrl is provided
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+    }
+  };
+
+  const handleMarkAsRead = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation();
+    await markAsRead(notificationId);
+  };
+
+  const handleDeleteNotification = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation();
+    await deleteNotification(notificationId);
+  };
+
+  const handleRefreshNotifications = async () => {
+    await refresh();
   };
 
   const handleViewProfile = () => {
@@ -158,25 +130,49 @@ export const Topbar: React.FC = () => {
               title="Notifications"
             >
               <Bell className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-              {notifications.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-600 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
               )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-96">
             <DropdownMenuLabel className="flex justify-between items-center">
               <span>Notifications</span>
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                {notifications.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefreshNotifications}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                  title="Refresh notifications"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length > 0 ? (
+              {loading ? (
+                <div className="px-4 py-8 text-center text-muted-foreground">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p>Loading notifications...</p>
+                </div>
+              ) : notifications.length > 0 ? (
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className="px-4 py-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors"
+                    className={`px-4 py-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors relative group ${
+                      !notification.read ? 'bg-blue-50/50' : ''
+                    }`}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3">
                       <div className="pt-0.5">{getNotificationIcon(notification.type)}</div>
@@ -191,11 +187,30 @@ export const Topbar: React.FC = () => {
                           {notification.timestamp}
                         </span>
                       </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!notification.read && (
+                          <button
+                            onClick={(e) => handleMarkAsRead(e, notification.id)}
+                            className="p-1 hover:bg-muted rounded transition-colors"
+                            title="Mark as read"
+                          >
+                            <Check className="w-4 h-4 text-green-600" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDeleteNotification(e, notification.id)}
+                          className="p-1 hover:bg-muted rounded transition-colors"
+                          title="Delete notification"
+                        >
+                          <X className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="px-4 py-8 text-center text-muted-foreground">
+                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No notifications</p>
                 </div>
               )}

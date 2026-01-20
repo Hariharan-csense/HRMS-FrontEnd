@@ -57,20 +57,59 @@ export default function AttendanceCapture() {
 
   const startWebcam = async () => {
     try {
-      // Check if mediaDevices API is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast.error("Camera access is not supported on this device or browser.");
+      // Check if we're on a secure context (required for camera access)
+      const isSecureOrigin = window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+      if (!isSecureOrigin) {
+        toast.error("Camera access requires a secure context (HTTPS or localhost).");
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        // Check if this is an iOS device
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        if (isIOS) {
+          toast.error("For iOS devices, please use Safari and ensure camera permissions are granted in Settings > Safari > Camera.");
+        } else {
+          toast.error("Camera access is not supported on this device or browser. Please try using Chrome, Firefox, or Edge.");
+        }
+        return;
+      }
+
+      // Check camera permissions
+      try {
+        const permissionResult = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        if (permissionResult.state === 'denied') {
+          toast.error("Camera access was denied. Please enable camera permissions in your browser settings and refresh the page.");
+          return;
+        }
+      } catch (e) {
+        console.warn("Permissions API not supported, continuing with camera access");
+      }
+
+      // Try to get user media with constraints
+      const constraints = {
         video: {
-          facingMode: "user", // Front-facing camera on mobile
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          facingMode: { ideal: "user" }, // Front-facing camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
         },
-        audio: false,
-      });
+        audio: false
+      };
+
+      // Try with ideal constraints first
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        console.warn("Couldn't get ideal camera, trying with basic constraints");
+        // Fallback to basic constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
 
       if (videoRef.current) {
         // Ensure video element is ready before attaching stream
@@ -94,26 +133,44 @@ export default function AttendanceCapture() {
         };
       }
     } catch (err: any) {
-      // Detailed error handling for different failure types
+      console.error("Camera access error:", err);
+      
       let errorMessage = "Failed to access camera.";
+      let showHelpLink = false;
 
+      // Handle different error types
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        errorMessage =
-          "Camera permission denied. Please check browser permissions and grant camera access.";
+        errorMessage = "Camera permission was denied. Please check your browser settings and grant camera access.";
+        showHelpLink = true;
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        errorMessage = "No camera device found. Please check if a camera is connected.";
+        errorMessage = "No camera found. Please ensure your device has a working camera.";
       } else if (err.name === "NotReadableError") {
-        errorMessage =
-          "Camera is in use by another application. Please close other apps using the camera.";
+        errorMessage = "Camera is in use by another application. Please close other apps using the camera and refresh the page.";
       } else if (err.name === "SecurityError") {
-        errorMessage =
-          "Camera access is blocked for security reasons. Ensure you are using HTTPS or localhost.";
+        errorMessage = "Camera access is blocked for security reasons. Please use HTTPS or localhost.";
       } else if (err.name === "TypeError") {
-        errorMessage = "Invalid camera constraints. Please try a different device.";
+        errorMessage = "Invalid camera constraints. Please try a different device or browser.";
+      } else if (err.name === "OverconstrainedError") {
+        errorMessage = "Unable to satisfy camera constraints. Please try different camera settings.";
       }
 
-      console.error("Camera access error:", err);
-      toast.error(errorMessage);
+      // Show error message with help link if needed
+      toast.error(
+        <div className="space-y-2">
+          <p>{errorMessage}</p>
+          {showHelpLink && (
+            <a
+              href="https://support.google.com/chrome/answer/2693767"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline text-sm inline-flex items-center"
+            >
+              How to enable camera access <ExternalLink className="w-3 h-3 ml-1" />
+            </a>
+          )}
+        </div>,
+        { duration: 10000 }
+      );
     }
   };
 

@@ -1,58 +1,61 @@
   // src/components/utils/api.ts
-  import axios from "axios";
+import axios from "axios";
 
-  const api = axios.create({
-    baseURL: "http://192.168.1.8:3000/api",
-    withCredentials: true,
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json"
-    },
-  });
+// Export the base URL for use in other components
+export const BASE_URL = "http://192.168.1.9:3000";
 
-  // Attach token dynamically on EVERY request
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("accessToken"); 
+const api = axios.create({
+  baseURL: `${BASE_URL}/api`,
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  },
+});
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Attach token dynamically on EVERY request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("accessToken"); 
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+// ✅ Global response handler
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+      localStorage.removeItem("userRole");
+      // window.location.href = "/login";
     }
+    return Promise.reject(error);
+  }
+);
 
-    return config;
-  });
+const ENDPOINTS = {
+  // Auth
+  login: (email: string, password: string) =>
+    api.post("/auth/login", { email, password }),
+  register: (data: any) => api.post("/auth/register", data),
+  logout: () => api.post("/auth/logout"),
+  
+  // Company
+  getCompany: () => api.get("/company"),
+  createCompany: (data: any) => api.post("/company", data),
+  updateCompany: (id: string, data: any) => api.put(`/company/update`, { id, ...data }),
+  deleteCompany: (id: string) => api.delete(`/company/${id}`),
 
-  // ✅ Global response handler
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("user");
-        localStorage.removeItem("userRole");
-        // window.location.href = "/login";
-      }
-      return Promise.reject(error);
-    }
-  );
-
-  const ENDPOINTS = {
-    // Auth
-    login: (email: string, password: string) =>
-      api.post("/auth/login", { email, password }),
-    register: (data: any) => api.post("/auth/register", data),
-    logout: () => api.post("/auth/logout"),
-    
-    // Company
-    getCompany: () => api.get("/company"),
-    createCompany: (data: any) => api.post("/company", data),
-    updateCompany: (id: string, data: any) => api.put(`/company/update`, { id, ...data }),
-    deleteCompany: (id: string) => api.delete(`/company/${id}`),
-
-    // Branch
-    getBranches: () => api.get("/branch"),
-    createBranch: (data: any) => api.post("/branch", data),
-    updateBranch: (id: string, data: any) => api.put(`/branch/${id}`, data),
-    deleteBranch: (id: string) => api.delete(`/branch/${id}`),
+  // Branch
+  getBranches: () => api.get("/branch"),
+  createBranch: (data: any) => api.post("/branch", data),
+  updateBranch: (id: string, data: any) => api.put(`/branch/${id}`, data),
+  deleteBranch: (id: string) => api.delete(`/branch/${id}`),
 
   //department
 
@@ -205,7 +208,7 @@ checkOut: (data: FormData) =>
   updateSalaryStructure: (id: string, data: any) => api.put(`/payroll/structure/${id}`, data),
   deleteSalaryStructure: (id: string) => api.delete(`/payroll/structure/${id}`),
 
-  getpayslip:()=>api.get("/payroll/payslips"),
+  getpayslip:()=>api.get("/payroll"),
   
   getEmployeePayslips: ()=>api.get("/payroll/employee/payslips"),
 
@@ -220,18 +223,98 @@ checkOut: (data: FormData) =>
 
   //shifts
 
-  getshifts: () => api.get("/shifts"),
-  createShift: (data: any) => api.post("/shifts", data),
-  updateShift: (id: string, data: any) => api.put(`/shifts/${id}`, data),
-  deleteShift: (id: string) => api.delete(`/shifts/${id}`),
+getshifts: () => api.get("/shifts"),
+createShift: (data: any) => api.post("/shifts", data),
+updateShift: (id: string, data: any) => api.put(`/shifts/${id}`, data),
+deleteShift: (id: string) => api.delete(`/shifts/${id}`),
 
-  //dashboard
-  getAdminDashboardData: () => api.get("/dashboard/admin-dashboard"),
+//dashboard
+getAdminDashboardData: () => api.get("/dashboard/admin-dashboard"),
 
-  //attendance 
+//notifications
+getNotifications: () => api.get("/notifications"),
+createNotification: (data: any) => api.post("/notifications", data),
+markNotificationAsRead: (notificationId: string) => api.put(`/notifications/${notificationId}/read`),
+markAllNotificationsAsRead: () => api.put("/notifications/read-all"),
+deleteNotification: (notificationId: string) => api.delete(`/notifications/${notificationId}`),
 
-  
+// Custom attendance and payslip functions
+getAttendance: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
+  try {
+    const response = await api.get(`/attendance/${employeeId}/${month}`);
+    if (response.data && response.data.success) {
+      return { data: response.data.attendance };
+    }
+    return { error: 'No attendance data available' };
+  } catch (error: any) {
+    console.error('Error fetching attendance:', error);
+    return { 
+      error: error.response?.data?.message || 'Failed to fetch attendance' 
+    };
+  }
+},
 
+getPayslip: async (): Promise<{ data?: any; error?: string }> => {
+  try {
+    let response;
+    
+    // Check if user is employee and use employee-specific endpoint
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const isEmployee = user.roles && user.roles.includes("employee") && !user.roles.includes("admin") && !user.roles.includes("hr") && !user.roles.includes("finance");
+    
+    if (isEmployee) {
+      console.log('Employee user, trying /payroll/employee/payslips endpoint');
+      try {
+        response = await api.get("/payroll/employee/payslips");
+      } catch (error) {
+        console.log('Employee payslips endpoint failed, trying general payslips endpoint');
+        response = await api.get("/payroll/payslips");
+      }
+    } else {
+      console.log('Admin/HR/Finance user, trying /payroll/payslips endpoint');
+      try {
+        response = await api.get("/payroll/payslips");
+      } catch (error) {
+        console.log('/payroll/payslips failed, trying /payroll');
+        // Fallback to the general payroll endpoint
+        response = await api.get("/payroll");
+      }
+    }
+
+    console.log('Raw API response:', response.data);
+    
+    if (response.data && (response.data.payrolls || response.data)) {
+      const payrollsData = response.data.payrolls || response.data;
+      console.log('Found payrolls array:', payrollsData);
+      // Transform API response to match the expected payslip interface
+      const transformedData = payrollsData.map((item: any) => ({
+        id: item.id.toString(),
+        employeeId: (item.employee_id || item.employeeId || '').toString(),
+        employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
+        month: item.month,
+        payableDays: item.payable_days || 0,
+        lopAmount: parseFloat(item.lop_amount) || 0,
+        gross: parseFloat(item.gross) || 0,
+        deductions: parseFloat(item.deductions) || 0,
+        net: parseFloat(item.net) || 0,
+        status: item.status || 'draft',
+        number: `PS/${item.month?.replace('-', '/')}/${item.id?.toString().padStart(3, '0') || '001'}`,
+        generatedOn: item.created_at ? new Date(item.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
+        createdAt: item.created_at || new Date().toISOString(),
+      }));
+      console.log('Transformed data:', transformedData);
+      return { data: transformedData };
+    } else if (response.data) {
+      return { data: response.data };
+    }
+    return { error: 'No payslip data available' };
+  } catch (error: any) {
+    console.error('Error fetching payslips:', error);
+    return { 
+      error: error.response?.data?.message || 'Failed to fetch payslips' 
+    };
+  }
+},
 
 
   };

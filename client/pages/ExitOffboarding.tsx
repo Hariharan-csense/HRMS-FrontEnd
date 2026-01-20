@@ -96,6 +96,7 @@ useEffect(() => {
     const result = await resignationApi.getEmployees();
     
     console.log("Employees API Result:", result);  // ← Idhu paaru!
+    console.log("Employees array:", result.data);  // ← Array check
 
     if (result.data) {
       setEmployees(result.data);
@@ -550,11 +551,17 @@ const toggleChecklistItem = async (
       value={formData.employeeName || ""}
       onChange={(e) => {
         const selectedName = e.target.value;
+        console.log('Selected employee name:', selectedName);
         const selectedEmployee = employees.find(emp => emp.name === selectedName);
-        setFormData({
-          ...formData,
-          employeeName: selectedName,
-          employeeId: selectedEmployee?.id || "",
+        console.log('Found employee:', selectedEmployee);
+        setFormData((prevFormData) => {
+          const newFormData = {
+            ...prevFormData,
+            employeeName: selectedName,
+            employeeId: selectedEmployee?.id || "",
+          };
+          console.log('Updated formData:', newFormData); // Log the updated formData
+          return newFormData;
         });
       }}
       className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background text-sm focus:ring-2 focus:ring-primary"

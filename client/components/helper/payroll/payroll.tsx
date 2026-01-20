@@ -1,5 +1,6 @@
-import ENDPOINTS from "@/lib/endpoint";
+import ENDPOINTS, { BASE_URL } from "@/lib/endpoint";
 import axios from "axios";
+import NotificationTriggerService from "@/services/notificationTriggerService";
 
 export interface SalaryStructure {
   id: string;
@@ -97,10 +98,66 @@ export const payrollApi = {
     }
   },
 
+  getPayrollProcessing: async (): Promise<{ data?: any; error?: string }> => {
+    try {
+      const api = axios.create({
+        baseURL: `${BASE_URL}/api`,
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+      });
+
+      // Attach token dynamically on EVERY request
+      api.interceptors.request.use((config) => {
+        const token = localStorage.getItem("accessToken"); 
+
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        return config;
+      });
+
+      console.log('Fetching payroll processing data from /payroll endpoint');
+      const response = await api.get("/payroll");
+      console.log('Raw payroll processing API response:', response.data);
+      
+      if (response.data && response.data.payrolls) {
+        console.log('Found payrolls array for processing:', response.data.payrolls);
+        // Transform API response to match the expected payroll processing interface
+        const transformedData = response.data.payrolls.map((item: any) => ({
+          id: item.id.toString(),
+          employeeId: (item.employee_id || item.employeeId || '').toString(),
+          employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
+          month: item.month,
+          payableDays: item.payable_days || 0,
+          lopAmount: parseFloat(item.lop_amount) || 0,
+          gross: parseFloat(item.gross) || 0,
+          deductions: parseFloat(item.deductions) || 0,
+          net: parseFloat(item.net) || 0,
+          status: item.status || 'draft',
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
+        console.log('Transformed payroll processing data:', transformedData);
+        return { data: transformedData };
+      } else if (response.data) {
+        return { data: response.data };
+      }
+      return { error: 'No payroll processing data available' };
+    } catch (error: any) {
+      console.error('Error fetching payroll processing:', error);
+      return { 
+        error: error.response?.data?.message || 'Failed to fetch payroll processing' 
+      };
+    }
+  },
+
   getPayslip: async (): Promise<{ data?: any; error?: string }> => {
     try {
       const api = axios.create({
-        baseURL: "http://192.168.1.8:3000/api",
+        baseURL: `${BASE_URL}/api`,
         withCredentials: true,
         headers: {
           "Content-Type": "application/json",
@@ -197,7 +254,7 @@ export const payrollApi = {
   getAttendance: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
     try {
       const api = axios.create({
-        baseURL: "http://localhost:3000/api",
+        baseURL: `${BASE_URL}/api`,
         withCredentials: true,
         headers: {
           "Content-Type": "application/json",
@@ -223,6 +280,35 @@ export const payrollApi = {
       console.error('Error fetching attendance:', error);
       return { 
         error: error.response?.data?.message || 'Failed to fetch attendance' 
+      };
+    }
+  },
+
+  generatePayslip: async (payslipData: any): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await axios.post(`${BASE_URL}/api/payroll/generate`, payslipData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (response.data?.success) {
+        // Trigger notification for payslip generation
+        const notificationService = NotificationTriggerService.getInstance();
+        await notificationService.triggerPayslipGenerated({
+          employeeId: payslipData.employeeId,
+          employeeName: payslipData.employeeName,
+          month: payslipData.month,
+        });
+
+        return { data: response.data };
+      }
+      return { error: 'Failed to generate payslip' };
+    } catch (error: any) {
+      console.error('Error generating payslip:', error);
+      return { 
+        error: error.response?.data?.message || 'Failed to generate payslip' 
       };
     }
   },

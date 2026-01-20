@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { hasRole } from "@/lib/auth";
@@ -20,6 +20,7 @@ import {
 import { Search, Download, AlertTriangle, CheckCircle2, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"
+import { BASE_URL } from "@/lib/endpoint";
 
 
 // src/api/attendanceApi.ts
@@ -65,8 +66,8 @@ const mockData: AttendanceLogRecord[] = [
     inConfidence: 92,
     outConfidence: 95,
     imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=emp001",
-    imageIn: "http://192.168.1.8:3000/uploads/attendance/checkin001.jpg",
-    imageOut: "http://192.168.1.8:3000/uploads/attendance/checkout001.jpg",
+    imageIn: "http://192.168.1.9:3000/uploads/attendance/checkin001.jpg",
+    imageOut: "http://192.168.1.9:3000/uploads/attendance/checkout001.jpg",
     device: "Browser Webcam",
     location: {
       latitude: 13.0827,
@@ -91,8 +92,8 @@ const mockData: AttendanceLogRecord[] = [
     inConfidence: 88,
     outConfidence: 92,
     imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=emp002",
-    imageIn: "http://192.168.1.8:3000/uploads/attendance/checkin002.jpg",
-    imageOut: "http://192.168.1.8:3000/uploads/attendance/checkout002.jpg",
+    imageIn: "http://192.168.1.9:3000/uploads/attendance/checkin002.jpg",
+    imageOut: "http://192.168.1.9:3000/uploads/attendance/checkout002.jpg",
     device: "Desktop Webcam",
     location: {
       latitude: 12.9716,
@@ -117,8 +118,8 @@ const mockData: AttendanceLogRecord[] = [
     inConfidence: 91,
     outConfidence: 89,
     imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=emp003",
-    imageIn: "http://192.168.1.8:3000/uploads/attendance/checkin003.jpg",
-    imageOut: "http://192.168.1.8:3000/uploads/attendance/checkout003.jpg",
+    imageIn: "http://192.168.1.9:3000/uploads/attendance/checkin003.jpg",
+    imageOut: "http://192.168.1.9:3000/uploads/attendance/checkout003.jpg",
     device: "Mobile Camera",
     location: {
       latitude: 19.0760,
@@ -171,8 +172,8 @@ const mockData: AttendanceLogRecord[] = [
     inConfidence: 95,
     outConfidence: 93,
     imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=emp001",
-    imageIn: "http://192.168.1.8:3000/uploads/attendance/checkin005.jpg",
-    imageOut: "http://192.168.1.8:3000/uploads/attendance/checkout005.jpg",
+    imageIn: "http://192.168.1.9:3000/uploads/attendance/checkin005.jpg",
+    imageOut: "http://192.168.1.9:3000/uploads/attendance/checkout005.jpg",
     device: "Browser Webcam",
     location: {
       latitude: 13.0827,
@@ -489,7 +490,7 @@ const fetchAttendanceLogs = async () => {
           // If it's already a full URL (starts with http), return as is
           if (relativePath.startsWith("http")) return relativePath;
           // Otherwise, prepend the backend base URL
-          const fullUrl = `http://192.168.1.8:3000${relativePath}`;
+          const fullUrl = `${BASE_URL}${relativePath}`;
           console.log("Constructing image URL:", { relativePath, fullUrl });
           return fullUrl;
         };

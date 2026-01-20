@@ -49,7 +49,7 @@ export default function RoleAccessDebug() {
     try {
       console.log('Creating default admin role...');
       const modules: { [key: string]: ModulePermission } = {};
-      const defaultModules = ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin', 'role_access'];
+      const defaultModules = ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin', 'Role & Module Access'];
       
       defaultModules.forEach(module => {
         modules[module] = { view: true, create: true, edit: true, approve: true };
@@ -237,14 +237,14 @@ export default function RoleAccessDebug() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header Section */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Shield className="w-12 h-12 text-blue-600" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Role Management System
+          <div className="text-center space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600" />
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Role Management
               </h1>
             </div>
             <p className="text-lg text-slate-600">Manage user roles and permissions efficiently</p>
@@ -255,14 +255,14 @@ export default function RoleAccessDebug() {
           </div>
 
           {/* Quick Actions Bar */}
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <Settings className="w-5 h-5 text-slate-600" />
                   <span className="font-medium text-slate-700">Quick Actions</span>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <Button 
                     onClick={fetchAllRoles} 
                     disabled={rolesLoading}
@@ -279,7 +279,7 @@ export default function RoleAccessDebug() {
                       disabled={creatingDefault}
                       variant="default"
                       size="sm"
-                      className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
                     >
                       <Shield className="w-4 h-4" />
                       {creatingDefault ? 'Creating...' : 'Create Default Admin Role'}
@@ -289,7 +289,7 @@ export default function RoleAccessDebug() {
               </div>
               
               {/* Status Indicators */}
-              <div className="mt-4 flex gap-4 text-sm">
+              <div className="mt-4 flex flex-wrap gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`} />
                   <span className="text-slate-600">Role Status: <span className="font-medium">{loading ? 'Loading...' : 'Ready'}</span></span>
@@ -305,9 +305,9 @@ export default function RoleAccessDebug() {
       
 
         {/* All Roles in System */}
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
             <CardHeader className="pb-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <CardTitle className="text-2xl font-bold text-slate-800 flex items-center gap-3">
                     <Users className="w-6 h-6 text-blue-600" />
@@ -320,7 +320,7 @@ export default function RoleAccessDebug() {
                 <Button 
                   onClick={startAddNewRole} 
                   size="sm"
-                  className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md"
+                  className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
                 >
                   <Plus className="w-4 h-4" />
                   Add New Role
@@ -345,9 +345,9 @@ export default function RoleAccessDebug() {
             ) : addingNewRole ? (
               // New Role Form
               <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <Plus className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                    <Plus className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-slate-800">Create New Role</h3>
@@ -355,7 +355,7 @@ export default function RoleAccessDebug() {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-slate-700">Role Name</label>
                       <input
@@ -393,7 +393,7 @@ export default function RoleAccessDebug() {
                       <Settings className="w-4 h-4" />
                       Module Permissions
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {Object.entries(newRoleData.modules || {}).map(([moduleName, permissions]) => (
                         <div key={moduleName} className="border-2 border-slate-200 rounded-lg p-4 bg-white hover:border-blue-300 transition-colors">
                           <h5 className="font-semibold text-slate-800 capitalize mb-3 flex items-center gap-2">
@@ -411,7 +411,7 @@ export default function RoleAccessDebug() {
                                     onChange={(e) => handleNewRoleModulePermissionChange(moduleName, perm, e.target.checked)}
                                     className="sr-only peer"
                                   />
-                                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600"></div>
                                 </div>
                               </label>
                             ))}
@@ -421,7 +421,7 @@ export default function RoleAccessDebug() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-3 pt-4 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200">
                     <Button 
                       onClick={saveNewRole} 
                       size="sm"
@@ -459,14 +459,14 @@ export default function RoleAccessDebug() {
                             <p className="text-sm text-slate-600">Modify role permissions and settings</p>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                           <div className="space-y-2">
                             <label className="block text-sm font-semibold text-slate-700">Role Name</label>
                             <input
                               type="text"
                               value={editFormData.name || ''}
                               onChange={(e) => handleEditFormChange('name', e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-200"
                             />
                           </div>
                           <div className="space-y-2">
@@ -475,7 +475,7 @@ export default function RoleAccessDebug() {
                               type="text"
                               value={editFormData.approvalAuthority || ''}
                               onChange={(e) => handleEditFormChange('approvalAuthority', e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-200"
                             />
                           </div>
                           <div className="space-y-2">
@@ -484,7 +484,7 @@ export default function RoleAccessDebug() {
                               type="text"
                               value={editFormData.dataVisibility || ''}
                               onChange={(e) => handleEditFormChange('dataVisibility', e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-200"
                             />
                           </div>
                         </div>
@@ -494,7 +494,7 @@ export default function RoleAccessDebug() {
                             <Settings className="w-4 h-4" />
                             Module Permissions
                           </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                             {Object.entries(editFormData.modules || {}).map(([moduleName, permissions]) => (
                               <div key={moduleName} className="border-2 border-slate-200 rounded-lg p-4 bg-white hover:border-blue-300 transition-colors">
                                 <h5 className="font-semibold text-slate-800 capitalize mb-3 flex items-center gap-2">
@@ -522,11 +522,11 @@ export default function RoleAccessDebug() {
                           </div>
                         </div>
                         
-                        <div className="flex gap-3 pt-4 border-t border-slate-200">
+                        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200">
                           <Button 
                             onClick={() => saveEditedRole(role.id)} 
                             size="sm"
-                            className="gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                            className="gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
                           >
                             <Save className="w-4 h-4" />
                             Save Changes
@@ -545,14 +545,14 @@ export default function RoleAccessDebug() {
                     ) : (
                       // Display Mode
                       <>
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
                                 <Shield className="w-6 h-6 text-white" />
                               </div>
                               <div>
-                                <h3 className="text-xl font-bold text-slate-800">{role.name}</h3>
+                                <h3 className="text-xl font-bold text-slate-800 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{role.name}</h3>
                                 <p className="text-sm text-slate-600">
                                   <span className="font-medium">Authority:</span> {role.approvalAuthority} • 
                                   <span className="font-medium"> Visibility:</span> {role.dataVisibility}
@@ -564,7 +564,7 @@ export default function RoleAccessDebug() {
                             onClick={() => startEditRole(role)} 
                             variant="outline" 
                             size="sm"
-                            className="gap-2 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700"
+                            className="w-full sm:w-auto gap-2 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700"
                           >
                             <Edit2 className="w-4 h-4" />
                             Edit Role
@@ -583,14 +583,14 @@ export default function RoleAccessDebug() {
                               return (
                                 <div key={moduleName} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                                   <h5 className="font-semibold text-slate-800 capitalize mb-2 text-sm">{moduleName}</h5>
-                                  <div className="grid grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {Object.entries(permissions).map(([perm, allowed]) => (
                                       <div
                                         key={perm}
                                         className={`text-center text-xs px-2 py-1 rounded-md font-medium transition-colors ${
                                           allowed
-                                            ? "bg-green-100 text-green-700 border border-green-200"
-                                            : "bg-slate-100 text-slate-500 border border-slate-200"
+                                            ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                                            : "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 transition-colors"
                                         }`}
                                       >
                                         {perm.charAt(0).toUpperCase() + perm.slice(1)}

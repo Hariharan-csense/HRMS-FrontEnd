@@ -128,47 +128,47 @@ const navigationItems: NavItem[] = [
     label: "Dashboard",
     icon: <LayoutDashboard className="w-5 h-5" />,
     path: "/dashboard",
-    roles: ["*"],
+    roles: [], // Empty roles - access controlled by moduleName being undefined
     moduleName: undefined, // Always accessible
   },
   {
     label: "Organization Setup",
     icon: <Building2 className="w-5 h-5" />,
-    roles: ["admin"],
+    roles: [], // Empty roles - access controlled by module permissions
     moduleName: "organization",
     submenu: [
       {
         label: "Company Master",
         path: "/organization/company",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "organization",
       },
       {
         label: "Branches",
         path: "/organization/branches",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "organization",
       },
       {
         label: "Departments",
         path: "/organization/departments",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "organization",
       },
       {
         label: "Designations",
         path: "/organization/designations",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "organization",
       },
       {
         label: "Roles & Permissions",
         path: "/organization/roles",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "organization",
       },
@@ -178,19 +178,19 @@ const navigationItems: NavItem[] = [
     label: "Role & Module Access Debug",
     icon: <Settings className="w-5 h-5" />,
     path: "/debug/roles",
-    roles: ["admin", "employee"],
+    roles: [],
     moduleName: "role_access",
   },
   {
     label: "Employee Management",
     icon: <Users className="w-5 h-5" />,
-    roles: ["admin", "HR"],
+    roles: [],
     moduleName: "employees",
     submenu: [
       {
         label: "Employee List",
         path: "/employees",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "employees",
       },
@@ -199,34 +199,34 @@ const navigationItems: NavItem[] = [
   {
     label: "Attendance Management",
     icon: <Clock className="w-5 h-5" />,
-    roles: ["admin", "HR", "employee"],
+    roles: [],
     moduleName: "attendance",
     submenu: [
       {
         label: "Check-In/Out",
         path: "/attendance/capture",
-        roles: ["employee"],
+        roles: [],
         icon: <div />,
         moduleName: "attendance",
       },
       {
         label: "Attendance Log",
         path: "/attendance/log",
-        roles: ["admin", "HR", "employee"],
+        roles: [],
         icon: <div />,
         moduleName: "attendance",
       },
       {
         label: "Override Management",
         path: "/attendance/override",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "attendance",
       },
       {
         label: "Shift Management",
         path: "/attendance/shift",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "shift management",
       },
@@ -235,34 +235,34 @@ const navigationItems: NavItem[] = [
   {
     label: "Leave Management",
     icon: <Calendar className="w-5 h-5" />,
-    roles: ["admin", "HR", "employee"],
+    roles: [],
     moduleName: "leave",
     submenu: [
       {
         label: "Apply Leave",
         path: "/leave/apply",
-        roles: ["employee"],
+        roles: [],
         icon: <div />,
         moduleName: "leave",
       },
       {
         label: "Leave Balance",
         path: "/leave/balance",
-        roles: ["admin", "HR", "employee"],
+        roles: [],
         icon: <div />,
         moduleName: "leave",
       },
       {
         label: "Leave Approvals",
         path: "/leave/approvals",
-        roles: ["HR"],
+        roles: [],
         icon: <div />,
         moduleName: "leave",
       },
       {
         label: "Leave Config",
         path: "/leave/config",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "leave",
       },
@@ -271,13 +271,13 @@ const navigationItems: NavItem[] = [
   {
     label: "Payroll",
     icon: <DollarSign className="w-5 h-5" />,
-    roles: ["admin", "HR", "employee"],
+    roles: [],
     moduleName: "payroll",
     submenu: [
       {
         label: "Salary Structure",
         path: "/payroll/structure",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "salary-structure",
@@ -285,7 +285,7 @@ const navigationItems: NavItem[] = [
       {
         label: "Process Payroll",
         path: "/payroll/process",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "processing",
@@ -293,7 +293,7 @@ const navigationItems: NavItem[] = [
       {
         label: "Payslips",
         path: "/payroll/payslips",
-        roles: ["admin", "HR", "employee"],
+        roles: [],
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "payslips",
@@ -303,20 +303,21 @@ const navigationItems: NavItem[] = [
   {
     label: "Expenses",
     icon: <CreditCard className="w-5 h-5" />,
-    roles: ["admin", "employee"],
+    roles: [],
     moduleName: "expenses",
+    path: "/expenses/claims", // Default path - will redirect to first accessible submenu
     submenu: [
       {
         label: "Expense Claims",
         path: "/expenses/claims",
-        roles: ["employee"],
+        roles: [],
         icon: <div />,
         moduleName: "expenses",
       },
       {
         label: "Approve Claims",
         path: "/expenses/approvals",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "expenses",
       },
@@ -325,20 +326,14 @@ const navigationItems: NavItem[] = [
   {
     label: "Assets",
     icon: <Package className="w-5 h-5" />,
-    roles: ["admin"],
+    roles: [],
     moduleName: "assets",
+    path: "/assets/list", // Default path - will redirect to first accessible submenu
     submenu: [
       {
         label: "Asset List",
         path: "/assets/list",
-        roles: ["admin"],
-        icon: <div />,
-        moduleName: "assets",
-      },
-      {
-        label: "My Assets",
-        path: "/assets/my-assets",
-        roles: ["employee"],
+        roles: [],
         icon: <div />,
         moduleName: "assets",
       },
@@ -347,20 +342,21 @@ const navigationItems: NavItem[] = [
   {
     label: "Exit & Offboarding",
     icon: <LogOut className="w-5 h-5" />,
-    roles: ["admin", "HR"],
+    roles: [],
     moduleName: "exit",
+    path: "/exit/resignations", // Default path - will redirect to first accessible submenu
     submenu: [
       {
         label: "Resignations",
         path: "/exit/resignations",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "exit",
       },
       {
         label: "Exit Checklist",
         path: "/exit/checklist",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "exit",
       },
@@ -369,34 +365,34 @@ const navigationItems: NavItem[] = [
   {
     label: "Reports",
     icon: <FileText className="w-5 h-5" />,
-    roles: ["admin", "HR"],
+    roles: [],
     moduleName: "reports",
     submenu: [
       {
         label: "Attendance Reports",
         path: "/reports/attendance",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "reports",
       },
       {
         label: "Leave Reports",
         path: "/reports/leave",
-        roles: ["admin", "HR"],
+        roles: [],
         icon: <div />,
         moduleName: "reports",
       },
       {
         label: "Payroll Reports",
         path: "/reports/payroll",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "reports",
       },
       {
         label: "Finance Reports",
         path: "/reports/finance",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "reports",
       },
@@ -408,7 +404,7 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { hasRole, hasAnyRole, hasModuleAccess, loading: roleLoading } = useRole();
+  const { hasRole, hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -430,29 +426,58 @@ export const Sidebar: React.FC = () => {
   };
 
   // Check if user has access to a navigation item based on module permissions
-  const hasItemAccess = (item: NavItem): boolean => {
-    // Dashboard is always accessible
-    if (item.moduleName === undefined) {
-      return true;
-    }
-
-    // Don't show items while loading permissions
-    if (roleLoading) {
-      return false;
-    }
-
-    // First check if user has any of the required roles (backward compatibility)
-    if (!hasAnyRole(item.roles as any[])) {
-      return false;
-    }
-
-    // Then check specific module access
-    if (item.moduleName && !hasModuleAccess(item.moduleName)) {
-      return false;
-    }
-
+ const hasItemAccess = (item: NavItem): boolean => {
+  // Dashboard is always accessible
+  if (item.moduleName === undefined) {
     return true;
-  };
+  }
+
+  // Don't show items while loading permissions
+  if (roleLoading) {
+    return false;
+  }
+
+  // For Role & Module Access Debug, check if user has the specific module
+  if (item.moduleName === "role_access") {
+    return hasModuleAccess("Role & Modules Access");
+  }
+
+  // Check module access - this will use the dynamic permissions from API
+  if (item.moduleName && !hasModuleAccess(item.moduleName)) {
+    return false;
+  }
+
+  // For sub-modules, check specific permissions
+  if (item.subModuleName) {
+    // Special handling for payroll sub-modules
+    if (item.moduleName === "payroll") {
+      switch (item.subModuleName) {
+        case "payslips":
+          // Anyone with payroll view access can see payslips
+          return canPerformModuleAction("payroll", "view");
+        case "salary-structure":
+        case "processing":
+          // These require higher permissions, but HR with view access should see them
+          // The actual permissions will be enforced at the route/component level
+          return canPerformModuleAction("payroll", "view");
+        default:
+          return true;
+      }
+    }
+  }
+
+  // For reports, ensure view permission
+  if (item.moduleName === "reports") {
+    return canPerformModuleAction("reports", "view");
+  }
+
+  // If we get here and have a module name, check view permission
+  if (item.moduleName) {
+    return canPerformModuleAction(item.moduleName, "view");
+  }
+
+  return true;
+};
 
   const filteredItems = navigationItems.filter((item) => hasItemAccess(item));
 
@@ -464,10 +489,11 @@ export const Sidebar: React.FC = () => {
       filteredItems: filteredItems.map(item => ({
         label: item.label,
         moduleName: item.moduleName,
-        roles: item.roles
+        hasAccess: hasItemAccess(item)
       })),
       userRoles: user.roles,
-      roleLoading
+      roleLoading,
+      userRoleData: userRoles
     });
   }
 

@@ -29,7 +29,7 @@ export const rolePermissions: Record<string, ModulePermissions> = {
     reports: { view: true, create: true, edit: true, approve: true },
     organization: { view: true, create: true, edit: true, approve: true },
   },
-  "HR Manager": {
+  HR: {
     employees: { view: true, create: true, edit: true, approve: false },
     payroll: { view: true, create: false, edit: false, approve: false },
     attendance: { view: true, create: false, edit: false, approve: false },

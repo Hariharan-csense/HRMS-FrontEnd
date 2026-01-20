@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BASE_URL } from "@/lib/endpoint";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -29,10 +30,11 @@ interface PayrollProcessing {
   reportingManager?: string;
   month: string;
   payableDays: number;
+  lopAmount: number;
   gross: number;
   deductions: number;
   net: number;
-  status: "draft" | "final" | "paid";
+  status: "draft" | "final" | "paid" | "processed";
   createdAt: string;
 }
 
@@ -888,6 +890,41 @@ export default function PayrollSetup() {
     }
   }, [activeTab, canViewPayslips]);
 
+  // Fetch payroll processing data when processing tab is active
+  useEffect(() => {
+    const fetchPayrollProcessing = async () => {
+      if (activeTab !== "processing") return;
+      
+      console.log('Fetching payroll processing for processing tab...');
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const result = await payrollApi.getPayrollProcessing();
+        console.log('Payroll processing API result:', result);
+        
+        if (result.data) {
+          console.log('Setting payroll processing with API data:', result.data);
+          setPayrollProcessing(result.data);
+        } else if (result.error) {
+          console.log('API error:', result.error);
+          setError(result.error);
+          // Fallback to mock data in case of error
+          setPayrollProcessing(mockPayrollProcessing);
+        }
+      } catch (err) {
+        console.error('Error fetching payroll processing:', err);
+        setError('Failed to fetch payroll processing. Using mock data instead.');
+        // Fallback to mock data in case of error
+        setPayrollProcessing(mockPayrollProcessing);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPayrollProcessing();
+  }, [activeTab, canViewProcessPayroll]);
+
   // Filter functions
   const filteredStructures = useMemo(() => {
     let filtered = salaryStructures;
@@ -995,7 +1032,7 @@ export default function PayrollSetup() {
     setLoading(true); // Set loading immediately
     try {
       const api = axios.create({
-        baseURL: "http://localhost:3000/api",
+        baseURL: `${BASE_URL}/api`,
         withCredentials: true,
         headers: {
           "Content-Type": "application/json",
@@ -1306,6 +1343,18 @@ export default function PayrollSetup() {
           <TabsContent value="structure">
             <Card>
               <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
+                {/* Header with Add Button */}
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-slate-900">Salary Structures</h2>
+                  <Button
+                    onClick={() => handleOpenDialog()}
+                    className="bg-[#17c491] hover:bg-[#15b381] text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Salary Structure
+                  </Button>
+                </div>
+                
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-4">
                   {filteredStructures.map((struct) => {

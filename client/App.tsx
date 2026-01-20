@@ -231,11 +231,11 @@ function AppRoutes() {
         }
       />
 
-      {/* Payroll - Role-based access */}
+      {/* Payroll - Module-based access */}
       <Route
         path="/payroll/structure"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="payroll" requiredAction="view">
             <PayrollSetup />
           </RoleBasedRoute>
         }
@@ -243,7 +243,7 @@ function AppRoutes() {
       <Route
         path="/payroll/process"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="payroll" requiredAction="view">
             <PayrollSetup />
           </RoleBasedRoute>
         }
@@ -251,17 +251,17 @@ function AppRoutes() {
       <Route
         path="/payroll/payslips"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR", "employee"]}>
+          <RoleBasedRoute requiredModule="payroll" requiredAction="view">
             <PayrollSetup />
           </RoleBasedRoute>
         }
       />
 
-      {/* Expenses - Role-based access */}
+      {/* Expenses - Module-based access */}
       <Route
         path="/expenses/claims"
         element={
-          <RoleBasedRoute allowedRoles={["employee"]}>
+          <RoleBasedRoute requiredModule="expenses" requiredAction="view">
             <ExpenseClaims />
           </RoleBasedRoute>
         }
@@ -269,17 +269,17 @@ function AppRoutes() {
       <Route
         path="/expenses/approvals"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="expenses" requiredAction="approve">
             <ExpenseApprovals />
           </RoleBasedRoute>
         }
       />
 
-      {/* Assets - Role-based access */}
+      {/* Assets - Module-based access */}
       <Route
         path="/assets/list"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="assets" requiredAction="view">
             <AssetList />
           </RoleBasedRoute>
         }
@@ -287,17 +287,17 @@ function AppRoutes() {
       <Route
         path="/assets/my-assets"
         element={
-          <RoleBasedRoute allowedRoles={["employee"]}>
+          <RoleBasedRoute requiredModule="assets" requiredAction="view">
             <MyAssets />
           </RoleBasedRoute>
         }
       />
 
-      {/* Exit & Offboarding - Role-based access */}
+      {/* Exit & Offboarding - Module-based access */}
       <Route
         path="/exit/resignations"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="exit" requiredAction="view">
             <ExitOffboarding />
           </RoleBasedRoute>
         }
@@ -305,17 +305,17 @@ function AppRoutes() {
       <Route
         path="/exit/checklist"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="exit" requiredAction="view">
             <ExitOffboarding />
           </RoleBasedRoute>
         }
       />
 
-      {/* Reports - Role-based access */}
+      {/* Reports - Module-based access */}
       <Route
         path="/reports/attendance"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
             <ReportsAnalytics />
           </RoleBasedRoute>
         }
@@ -323,7 +323,7 @@ function AppRoutes() {
       <Route
         path="/reports/leave"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
             <ReportsAnalytics />
           </RoleBasedRoute>
         }
@@ -331,7 +331,7 @@ function AppRoutes() {
       <Route
         path="/reports/payroll"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
             <ReportsAnalytics />
           </RoleBasedRoute>
         }
@@ -339,7 +339,7 @@ function AppRoutes() {
       <Route
         path="/reports/finance"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
             <ReportsAnalytics />
           </RoleBasedRoute>
         }
@@ -347,7 +347,7 @@ function AppRoutes() {
       <Route
         path="/reports/analytics"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
             <ReportsAnalytics />
           </RoleBasedRoute>
         }

@@ -1,4 +1,4 @@
-import ENDPOINTS from '../../../lib/endpoint'; // Your Axios endpoints
+import ENDPOINTS, { BASE_URL } from '../../../lib/endpoint'; // Your Axios endpoints
 
 type LoginParams = {
   email: string;
@@ -50,7 +50,7 @@ export async function handleLogout(): Promise<{ success: boolean; message: strin
 
   try {
     // Try to call the logout endpoint with credentials
-    await fetch('http://localhost:3000/api/auth/logout', {
+    await fetch(`${BASE_URL}/api/auth/logout`, {
       method: 'POST',
       credentials: 'include', // Important for sending cookies
       headers: {

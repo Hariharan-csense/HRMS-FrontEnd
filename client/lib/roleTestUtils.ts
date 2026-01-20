@@ -40,7 +40,7 @@ const roleModulePermissions: RoleModulePermissions = {
       organization: { view: true, create: true, edit: true, approve: true },
     },
   },
-  "HR Manager": {
+  HR: {
     modules: [
       "employees",
       "payroll",

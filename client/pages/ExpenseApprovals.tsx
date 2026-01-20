@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Check, X, Eye } from "lucide-react";
 import expenseApi from "@/components/helper/expense/expense";
 import { useAuth } from "@/context/AuthContext";
+import NotificationTriggerService from "@/services/notificationTriggerService";
 
 // Base URL for static files (without /api)
 
@@ -84,6 +85,27 @@ const confirmDecision = async () => {
     const result = await expenseApi.updateExpense(selectedExpense.id, payload); // ← use ID, not expense_id
     
     if (result.data) {
+      // Trigger notification for expense approval/rejection
+      const notificationService = NotificationTriggerService.getInstance();
+      
+      if (decision === "approved") {
+        await notificationService.triggerExpenseApproved({
+          employeeId: selectedExpense.employeeId,
+          employeeName: selectedExpense.employeeName,
+          amount: selectedExpense.amount,
+          expenseType: selectedExpense.category,
+          description: selectedExpense.description,
+        });
+      } else {
+        await notificationService.triggerExpenseRejected({
+          employeeId: selectedExpense.employeeId,
+          employeeName: selectedExpense.employeeName,
+          amount: selectedExpense.amount,
+          expenseType: selectedExpense.category,
+          description: selectedExpense.description,
+        });
+      }
+
       // Refetch updated expenses
       const fetchResult = await expenseApi.getExpense();
       console.log("Refetched expenses after update:", fetchResult);

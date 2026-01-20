@@ -127,7 +127,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
           {
             id: "5",
             role_id: "ROLE01",
-            name: "HR",
+            name: "hr",
             approval_authority: "Full Authority",
             data_visibility: "Department Employees",
             modules: {

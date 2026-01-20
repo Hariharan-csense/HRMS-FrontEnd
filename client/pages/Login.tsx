@@ -306,28 +306,7 @@ const handleLogin = async (e: React.FormEvent) => {
             </form>
 
             {/* Demo Accounts */}
-            <div className="mt-8 pt-6 border-t border-slate-200 animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
-              <p className="text-sm font-medium text-slate-700 mb-4">
-                Demo Accounts (for testing):
-              </p>
-              <div className="space-y-2">
-                {demoAccounts.map((account, idx) => (
-                  <button
-                    key={account.email}
-                    onClick={() => fillDemoAccount(account.email, account.password)}
-                    className="demo-account-hover w-full text-left p-3 rounded-lg border border-slate-200 transition-all duration-300 text-sm bg-white"
-                    style={{ animationDelay: `${0.6 + idx * 0.1}s` }}
-                  >
-                    <div className="font-medium text-slate-900">
-                      {account.role}
-                    </div>
-                    <div className="text-xs text-slate-600 truncate">
-                      {account.email}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            
           </CardContent>
         </Card>
 

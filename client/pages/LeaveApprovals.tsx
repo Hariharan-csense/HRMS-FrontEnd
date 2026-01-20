@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Calendar } from "lucide-react";
+import NotificationTriggerService from "@/services/notificationTriggerService";
 
 interface LeaveApplication {
   id: string;
@@ -108,10 +109,44 @@ export default function LeaveApprovals() {
     return filtered;
   }, [leaveApplications, user]);
 
-  const handleApproveReject = (id: string, approved: boolean) => {
+  const handleApproveReject = async (id: string, approved: boolean) => {
+    const application = leaveApplications.find(la => la.id === id);
+    
+    // Update local state first for immediate UI feedback
     setLeaveApplications((prev) =>
       prev.map((la) => (la.id === id ? { ...la, status: approved ? "approved" : "rejected" } : la))
     );
+
+    // Trigger notification if application found
+    if (application) {
+      const notificationService = NotificationTriggerService.getInstance();
+      
+      if (approved) {
+        await notificationService.triggerLeaveApproved({
+          employeeId: application.employeeId,
+          employeeName: application.employeeName,
+          managerId: user?.id,
+          managerName: user?.name,
+          leaveType: application.leaveType,
+          fromDate: application.fromDate,
+          toDate: application.toDate,
+          days: application.days,
+          reason: application.reason,
+        });
+      } else {
+        await notificationService.triggerLeaveRejected({
+          employeeId: application.employeeId,
+          employeeName: application.employeeName,
+          managerId: user?.id,
+          managerName: user?.name,
+          leaveType: application.leaveType,
+          fromDate: application.fromDate,
+          toDate: application.toDate,
+          days: application.days,
+          reason: application.reason,
+        });
+      }
+    }
   };
 
   if (!canApprove) {

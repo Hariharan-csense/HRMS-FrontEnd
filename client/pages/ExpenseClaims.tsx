@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useRole } from "@/context/RoleContext";
 import { hasRole } from "@/lib/auth";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit, Trash2, Search, CreditCard, Upload, X } from "lucide-react";
 import expenseApi from "@/components/helper/expense/expense";
+import NotificationTriggerService from "@/services/notificationTriggerService";
 
 interface BillFile {
   name: string;
@@ -34,35 +36,10 @@ interface ExpenseClaim {
   billFile?: BillFile;
 }
 
-const mockExpenses: ExpenseClaim[] = [
-  {
-    id: "EXP001",
-    employeeId: "EMP001",
-    employeeName: "John Doe",
-    category: "Travel",
-    amount: 150,
-    date: "2024-03-10",
-    description: "Client meeting travel - taxi",
-    status: "approved",
-    approvedBy: "Sarah Smith",
-    createdAt: "2024-03-11",
-  },
-  {
-    id: "EXP002",
-    employeeId: "EMP002",
-    employeeName: "Sarah Smith",
-    category: "Meals",
-    amount: 45,
-    date: "2024-03-12",
-    description: "Team lunch during conference",
-    status: "pending",
-    createdAt: "2024-03-13",
-  },
-];
-
 export default function ExpenseClaims() {
   const { user } = useAuth();
-  const [expenses, setExpenses] = useState<ExpenseClaim[]>(mockExpenses);
+  const { canPerformModuleAction } = useRole();
+  const [expenses, setExpenses] = useState<ExpenseClaim[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -76,6 +53,53 @@ export default function ExpenseClaims() {
   const [approvalNotes, setApprovalNotes] = useState("");
   const [billFile, setBillFile] = useState<BillFile | null>(null);
   const [billFileType, setBillFileType] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch expenses from API
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const result = await expenseApi.getExpense();
+
+        console.log("Final expenses from API helper:", result);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        if (!Array.isArray(result.data)) {
+          throw new Error("Expenses data is invalid");
+        }
+
+        // Transform API data to match ExpenseClaim interface
+        setExpenses(
+          result.data.map((e) => ({
+            id: e.id,
+            employeeId: e.employeeId || "",
+            employeeName: e.employeeName || "Unknown Employee",
+            category: e.category || "",
+            amount: e.amount || 0,
+            date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN"),
+            description: e.description || "",
+            status: (e.status as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
+            createdAt: e.createdAt || new Date().toISOString(),
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching expenses:", error);
+        setError(error instanceof Error ? error.message : "Failed to load expenses");
+        setExpenses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExpenses();
+  }, []);
 
   // Helper function to map user ID to employee ID (e.g., "2" -> "EMP002")
   const getEmployeeIdForUser = (userId: string) => {
@@ -146,21 +170,88 @@ export default function ExpenseClaims() {
     setBillFileType("");
   };
 
-  const handleSave = () => {
-    if (editingId) {
-      setExpenses((prev) =>
-        prev.map((e) => (e.id === editingId ? { ...e, ...formData, billFile: billFile || undefined } : e))
-      );
-    } else {
-      const newExpense = {
-        id: `EXP${String(expenses.length + 1).padStart(3, "0")}`,
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      
+      const expenseData = {
         ...formData,
-        createdAt: new Date().toISOString().split("T")[0],
-        billFile: billFile || undefined,
-      } as ExpenseClaim;
-      setExpenses((prev) => [newExpense, ...prev]);
+        amount: Number(formData.amount) || 0,
+        date: formData.date || new Date().toISOString().split('T')[0],
+      };
+
+      if (editingId) {
+        // Update existing expense
+        const result = await expenseApi.updateExpense(editingId, expenseData);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        // Refetch expenses to get updated data
+        const fetchResult = await expenseApi.getExpense();
+        if (fetchResult.data && !fetchResult.error) {
+          setExpenses(
+            fetchResult.data.map((e) => ({
+              id: e.id,
+              employeeId: e.employeeId || "",
+              employeeName: e.employeeName || "Unknown Employee",
+              category: e.category || "",
+              amount: e.amount || 0,
+              date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN"),
+              description: e.description || "",
+              status: (e.status as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
+              createdAt: e.createdAt || new Date().toISOString(),
+            }))
+          );
+        }
+      } else {
+        // Create new expense
+        const result = await expenseApi.createExpense(expenseData);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        // Trigger notification for expense application
+        const notificationService = NotificationTriggerService.getInstance();
+        await notificationService.triggerExpenseApplied({
+          employeeId: user?.id || "",
+          employeeName: user?.name || "Unknown Employee",
+          amount: formData.amount || 0,
+          expenseType: formData.category || "",
+          description: formData.description || "",
+          managerId: "", // Will be populated by backend
+          hrId: "", // Will be populated by backend
+        });
+        
+        // Refetch expenses to get updated data
+        const fetchResult = await expenseApi.getExpense();
+        if (fetchResult.data && !fetchResult.error) {
+          setExpenses(
+            fetchResult.data.map((e) => ({
+              id: e.id,
+              employeeId: e.employeeId || "",
+              employeeName: e.employeeName || "Unknown Employee",
+              category: e.category || "",
+              amount: e.amount || 0,
+              date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN"),
+              description: e.description || "",
+              status: (e.status as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
+              createdAt: e.createdAt || new Date().toISOString(),
+            }))
+          );
+        }
+      }
+      
+      setIsDialogOpen(false);
+      setFormData({});
+      setBillFile(null);
+      setBillFileType("");
+    } catch (error) {
+      console.error("Error saving expense:", error);
+      alert(error instanceof Error ? error.message : "Failed to save expense");
+    } finally {
+      setLoading(false);
     }
-    setIsDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -168,10 +259,43 @@ export default function ExpenseClaims() {
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteId) {
-      setExpenses((prev) => prev.filter((e) => e.id !== deleteId));
-      setIsDeleteDialogOpen(false);
+      try {
+        setLoading(true);
+        
+        // Call delete API
+        const result = await expenseApi.deleteExpense(deleteId);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        // Refetch expenses to get updated data
+        const fetchResult = await expenseApi.getExpense();
+        if (fetchResult.data && !fetchResult.error) {
+          setExpenses(
+            fetchResult.data.map((e) => ({
+              id: e.id,
+              employeeId: e.employeeId || "",
+              employeeName: e.employeeName || "Unknown Employee",
+              category: e.category || "",
+              amount: e.amount || 0,
+              date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN"),
+              description: e.description || "",
+              status: (e.status as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
+              createdAt: e.createdAt || new Date().toISOString(),
+            }))
+          );
+        }
+        
+        setIsDeleteDialogOpen(false);
+        setDeleteId(null);
+      } catch (error) {
+        console.error("Error deleting expense:", error);
+        alert(error instanceof Error ? error.message : "Failed to delete expense");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -182,24 +306,52 @@ export default function ExpenseClaims() {
     setActionDialogOpen(true);
   };
 
-  const confirmApprovalAction = () => {
+  const confirmApprovalAction = async () => {
     if (actionExpenseId && approvalAction) {
-      const newStatus = approvalAction === "approve" ? "approved" : "rejected";
-      setExpenses((prev) =>
-        prev.map((e) =>
-          e.id === actionExpenseId
-            ? {
-                ...e,
-                status: newStatus as "approved" | "rejected",
-                approvedBy: user?.name,
-              }
-            : e
-        )
-      );
-      setActionDialogOpen(false);
-      setApprovalAction(null);
-      setActionExpenseId(null);
-      setApprovalNotes("");
+      try {
+        setLoading(true);
+        
+        const newStatus = approvalAction === "approve" ? "approved" : "rejected";
+        const payload = {
+          status: newStatus.charAt(0).toUpperCase() + newStatus.slice(1),
+          approval_note: approvalNotes || null,
+          approved_by: user?.name || "Finance User",
+        };
+
+        // Call update API
+        const result = await expenseApi.updateExpense(actionExpenseId, payload);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        // Refetch expenses to get updated data
+        const fetchResult = await expenseApi.getExpense();
+        if (fetchResult.data && !fetchResult.error) {
+          setExpenses(
+            fetchResult.data.map((e) => ({
+              id: e.id,
+              employeeId: e.employeeId || "",
+              employeeName: e.employeeName || "Unknown Employee",
+              category: e.category || "",
+              amount: e.amount || 0,
+              date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN"),
+              description: e.description || "",
+              status: (e.status as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
+              createdAt: e.createdAt || new Date().toISOString(),
+            }))
+          );
+        }
+
+        setActionDialogOpen(false);
+        setApprovalAction(null);
+        setActionExpenseId(null);
+        setApprovalNotes("");
+      } catch (error) {
+        console.error("Error updating expense status:", error);
+        alert(error instanceof Error ? error.message : "Failed to update expense status");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -309,10 +461,12 @@ export default function ExpenseClaims() {
           </Card>
         ) : (
           <div>
-            <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
-              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-              Submit Claim
-            </Button>
+            {canPerformModuleAction("expenses", "create") && (
+              <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                Submit Claim
+              </Button>
+            )}
           </div>
         )}
 
@@ -322,8 +476,18 @@ export default function ExpenseClaims() {
             <CardDescription className="text-xs sm:text-sm">Total: ₹{totalAmount.toLocaleString()}</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-2 sm:space-y-3">
+            {loading ? (
+              <div className="text-center py-8 sm:py-12">
+                <p className="text-xs sm:text-sm text-muted-foreground">Loading expenses...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 sm:py-12">
+                <p className="text-xs sm:text-sm text-red-600">{error}</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-2 sm:space-y-3">
               {filteredExpenses.map((expense) => (
                 <div key={expense.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
                   <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
@@ -373,20 +537,24 @@ export default function ExpenseClaims() {
                           </span>
                         )}
                       </div>
-                    ) : !hasRole(user, "employee") ? (
+                    ) : !hasRole(user, "employee") && canPerformModuleAction("expenses", "edit") ? (
                       <div className="flex gap-1 sm:gap-2">
                         <button
                           onClick={() => handleOpenDialog(expense)}
                           className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
+                          title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canPerformModuleAction("expenses", "edit") && (
+                          <button
+                            onClick={() => handleDelete(expense.id)}
+                            className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
@@ -448,20 +616,24 @@ export default function ExpenseClaims() {
                               </span>
                             )}
                           </div>
-                        ) : !hasRole(user, "employee") ? (
+                        ) : !hasRole(user, "employee") && canPerformModuleAction("expenses", "edit") ? (
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleOpenDialog(expense)}
                               className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
+                              title="Edit"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => handleDelete(expense.id)}
-                              className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {canPerformModuleAction("expenses", "edit") && (
+                              <button
+                                onClick={() => handleDelete(expense.id)}
+                                className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -472,6 +644,8 @@ export default function ExpenseClaims() {
                 </tbody>
               </table>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
       </div>
