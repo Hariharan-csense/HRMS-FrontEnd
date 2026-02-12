@@ -10,6 +10,7 @@ import { Plus, LogOut } from "lucide-react";
 import { resignationApi, Resignation } from "@/components/helper/resignation/resignation"; // Adjust path as needed
 import { Loader2 } from "lucide-react";
 import { checklistApi } from "@/components/helper/checklist/checklist";
+import { showToast } from "@/utils/toast";
 //import { employeeApi,type Employee   } from "@/components/helper/employee/employee";
 
 interface OffboardingChecklist {
@@ -134,10 +135,13 @@ useEffect(() => {
   const handleOpenDialog = (resignation?: Resignation) => {
     if (resignation) {
       setEditingId(resignation.id);
-      setFormData(resignation);
+      setFormData({
+        ...resignation,
+        status: resignation.status || "pending"
+      });
     } else {
       setEditingId(null);
-      setFormData({ approvalStatus: "pending" });
+      setFormData({ status: "pending" });
     }
     setIsDialogOpen(true);
   };
@@ -183,15 +187,15 @@ useEffect(() => {
 
 const handleSave = async () => {
   if (!formData.employeeName?.trim()) {
-    alert("Employee Name is required");
+    showToast.error("Employee Name is required");
     return;
   }
   if (!formData.resignationDate) {
-    alert("Resignation Date is required");
+    showToast.error("Resignation Date is required");
     return;
   }
   if (!formData.lastWorkingDate) {
-    alert("Last Working Day is required");
+    showToast.error("Last Working Day is required");
     return;
   }
 
@@ -201,6 +205,7 @@ const handleSave = async () => {
     lastWorkingDate: formData.lastWorkingDate,
     reason: formData.reason?.trim() || "",
     noticePeriod: formData.noticePeriod,
+    status: formData.status || "pending",
   };
 
   try {
@@ -225,11 +230,11 @@ const handleSave = async () => {
       setFormData({});
       setEditingId(null);
     } else {
-      alert(result.error || "Failed to save resignation");
+      showToast.error(result.error || "Failed to save resignation");
     }
   } catch (err) {
     console.error(err);
-    alert("An error occurred. Please try again.");
+    showToast.error("An error occurred. Please try again.");
   }
 };
 
@@ -283,7 +288,7 @@ const toggleChecklistItem = async (
       setChecklists((prev) =>
         prev.map((c) => (c.id === checklistId ? checklist : c))
       );
-      alert(result.error);
+      showToast.error(result.error);
       return;
     }
 
@@ -298,7 +303,7 @@ const toggleChecklistItem = async (
     setChecklists((prev) =>
       prev.map((c) => (c.id === checklistId ? checklist : c))
     );
-    alert("Failed to save changes");
+    showToast.error("Failed to save changes");
   }
 };
   const getStatusColor = (status: string) => {
@@ -591,7 +596,7 @@ const toggleChecklistItem = async (
                   <Label>Last Working Day *</Label>
                   <Input
                     type="date"
-                    value={formData.lastWorkingDate || formData.lastWorkingDay || ""}
+                    value={formData.lastWorkingDate || ""}
                     onChange={(e) => setFormData({ ...formData, lastWorkingDate: e.target.value })}
                     className="mt-2"
                   />
@@ -611,7 +616,7 @@ const toggleChecklistItem = async (
               <div>
                 <Label>Status</Label>
                 <select
-                  value={formData.status || formData.approvalStatus || "pending"}
+                  value={formData.status || "pending"}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
                 >

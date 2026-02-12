@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader, ArrowRight } from "lucide-react";
-import { handleLogin } from '../components/helper/login/login';  
-
+import { Loader, ArrowRight } from "lucide-react";
+import { handleLogin } from '../components/helper/login/login';
+import { showToast } from '@/utils/toast';  
+import logo from "../assets/logo.png";
 const styles = `
   @keyframes fadeInDown {
     from {
@@ -161,7 +161,6 @@ const styles = `
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [isRegisterClicked, setIsRegisterClicked] = useState(false);
   const [pageEntered, setPageEntered] = useState(false);
   const { login, isLoading } = useAuth();
@@ -179,17 +178,19 @@ export default function Login() {
   };
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
-  setError("");
   
   try {
     const result: { success: boolean; message?: string } = await login(email, password);
     if (result.success) {
-      navigate("/dashboard"); // Redirect to dashboard on successful login
+      showToast.success("Login successful! Redirecting...");
+      
+      // Always redirect to dashboard for successful login
+      navigate("/dashboard");
     } else {
-      setError(result.message || "Login failed. Please try again.");
+      showToast.error(result.message || "Login failed. Please try again.");
     }
   } catch (error) {
-    setError("An error occurred during login. Please try again.");
+    showToast.error("An error occurred during login. Please try again.");
     console.error("Login error:", error);
   }
 };
@@ -219,11 +220,17 @@ const handleLogin = async (e: React.FormEvent) => {
         <div className="w-full max-w-md relative z-10 login-page-container">
           {/* Logo */}
           <div className="text-center mb-8 animate-fade-in-down">
-            <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 animate-float shadow-lg">
-              HR
+            <div 
+              className="w-48 h-48 flex items-center justify-center mx-auto mb-2 animate-float cursor-pointer hover:scale-105 transition-transform duration-300"
+              onClick={() => navigate("/landing")}
+            >
+              <img 
+                src={logo}
+                alt="HRMS Logo" 
+                className="w-full h-full object-contain p-2"
+              />
             </div>
-            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">HRMS</h1>
-            <p className="text-slate-600 mt-2 text-sm">Human Resource Management System</p>
+            {/* <p className="text-slate-600 text-sm">Human Resource Management System</p> */}
           </div>
 
           {/* Login Card */}
@@ -235,20 +242,13 @@ const handleLogin = async (e: React.FormEvent) => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="w-4 h-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2 animate-slide-in" style={{ animationDelay: "0.1s" }}>
                 <Label htmlFor="email" className="text-slate-700">Email Address</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@company.com"
+                  placeholder="virat@bcci.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -269,6 +269,15 @@ const handleLogin = async (e: React.FormEvent) => {
                   disabled={isLoading}
                   className="input-focus border-slate-200 focus:border-primary focus:ring-primary/10 bg-white"
                 />
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgot-password")}
+                    className="text-xs text-teal-600 hover:text-teal-700 hover:underline transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               </div>
 <Button
         type="submit"
@@ -312,7 +321,7 @@ const handleLogin = async (e: React.FormEvent) => {
 
         {/* Footer */}
         <p className="text-center text-sm text-slate-600 mt-8 animate-fade-in-up" style={{ animationDelay: "1.1s" }}>
-          © {new Date().getFullYear()} HRMS System. All rights reserved.
+          © {new Date().getFullYear()} Procease HRMS System. All rights reserved.
         </p>
       </div>
     </div>

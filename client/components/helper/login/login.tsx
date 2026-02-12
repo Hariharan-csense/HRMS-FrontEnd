@@ -81,3 +81,51 @@ export async function handleLogout(): Promise<{ success: boolean; message: strin
     };
   }
 }
+
+type ChangePasswordParams = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+type ChangePasswordResult = {
+  success: boolean;
+  message: string;
+  data?: any;
+};
+
+export async function handleChangePassword({ currentPassword, newPassword, confirmPassword }: ChangePasswordParams): Promise<ChangePasswordResult> {
+  try {
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      return {
+        success: false,
+        message: 'Passwords do not match',
+      };
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return {
+        success: false,
+        message: 'Password must be at least 6 characters long',
+      };
+    }
+
+    const response = await ENDPOINTS.changePassword({
+      currentPassword,
+      newPassword,
+    });
+
+    return {
+      success: true,
+      message: 'Password changed successfully',
+      data: response.data,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message || 'Failed to change password',
+    };
+  }
+}

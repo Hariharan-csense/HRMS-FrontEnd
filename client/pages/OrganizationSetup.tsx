@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { useRole } from "@/context/RoleContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,14 +9,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Trash2, Search, Building2, AlertCircle, Upload, X, Hash } from "lucide-react";
 import { companyApi, Company } from "@/components/helper/company/company";
 import { branchApi, Branch } from "@/components/helper/branch/branch";
 import { departmentApi, Department } from "@/components/helper/department/department";
 import { designationApi, Designation } from "@/components/helper/designation/designation";
-import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles";
 import { sequenceApi, Sequence } from "@/components/helper/range/range";
+import { showToast } from "@/utils/toast";
 
 // Mock Data
 const mockCompany: Company = {
@@ -62,93 +60,6 @@ const mockDesignations: Designation[] = [
   { id: "DG003", name: "Manager", level: "3" },
 ];
 
-const mockRoles: Role[] = [
-  {
-    id: "R001",
-    name: "Admin",
-    modules: {
-      employees: { view: true, create: true, edit: true, approve: true },
-      payroll: { view: true, create: true, edit: true, approve: true },
-      attendance: { view: true, create: true, edit: true, approve: true },
-      leave: { view: true, create: true, edit: true, approve: true },
-      expenses: { view: true, create: true, edit: true, approve: true },
-      assets: { view: true, create: true, edit: true, approve: true },
-      exit: { view: true, create: true, edit: true, approve: true },
-      reports: { view: true, create: true, edit: true, approve: true },
-      organization: { view: true, create: true, edit: true, approve: true },
-    },
-    approvalAuthority: "Full Authority",
-    dataVisibility: "All Employees",
-  },
-  {
-    id: "R002",
-    name: "HR Manager",
-    modules: {
-      employees: { view: true, create: true, edit: true, approve: false },
-      payroll: { view: true, create: false, edit: false, approve: false },
-      attendance: { view: true, create: false, edit: false, approve: false },
-      leave: { view: true, create: false, edit: false, approve: true },
-      expenses: { view: true, create: false, edit: false, approve: false },
-      assets: { view: true, create: true, edit: true, approve: false },
-      exit: { view: true, create: false, edit: false, approve: false },
-      reports: { view: true, create: false, edit: false, approve: false },
-      organization: { view: false, create: false, edit: false, approve: false },
-    },
-    approvalAuthority: "Leave Requests",
-    dataVisibility: "Department Employees",
-  },
-  {
-    id: "R003",
-    name: "Manager",
-    modules: {
-      employees: { view: true, create: false, edit: false, approve: false },
-      payroll: { view: true, create: false, edit: false, approve: false },
-      attendance: { view: true, create: false, edit: false, approve: false },
-      leave: { view: true, create: false, edit: false, approve: true },
-      expenses: { view: false, create: false, edit: false, approve: false },
-      assets: { view: false, create: false, edit: false, approve: false },
-      exit: { view: false, create: false, edit: false, approve: false },
-      reports: { view: true, create: false, edit: false, approve: false },
-      organization: { view: false, create: false, edit: false, approve: false },
-    },
-    approvalAuthority: "Leave Requests",
-    dataVisibility: "Team Members",
-  },
-  {
-    id: "R004",
-    name: "Finance",
-    modules: {
-      employees: { view: true, create: false, edit: false, approve: false },
-      payroll: { view: true, create: true, edit: true, approve: true },
-      attendance: { view: false, create: false, edit: false, approve: false },
-      leave: { view: false, create: false, edit: false, approve: false },
-      expenses: { view: true, create: false, edit: false, approve: true },
-      assets: { view: false, create: false, edit: false, approve: false },
-      exit: { view: false, create: false, edit: false, approve: false },
-      reports: { view: true, create: false, edit: false, approve: false },
-      organization: { view: false, create: false, edit: false, approve: false },
-    },
-    approvalAuthority: "Expense Claims",
-    dataVisibility: "All Employees",
-  },
-  {
-    id: "R005",
-    name: "Employee",
-    modules: {
-      employees: { view: false, create: false, edit: false, approve: false },
-      payroll: { view: false, create: false, edit: false, approve: false },
-      attendance: { view: true, create: true, edit: false, approve: false },
-      leave: { view: true, create: true, edit: false, approve: false },
-      expenses: { view: true, create: true, edit: true, approve: false },
-      assets: { view: true, create: false, edit: false, approve: false },
-      exit: { view: false, create: false, edit: false, approve: false },
-      reports: { view: false, create: false, edit: false, approve: false },
-      organization: { view: false, create: false, edit: false, approve: false },
-    },
-    approvalAuthority: "No Authority",
-    dataVisibility: "Self Only",
-  },
-];
 
 const mockSequences: Sequence[] = [
   {
@@ -252,16 +163,12 @@ const mockSequences: Sequence[] = [
   },
 ];
 
-const modulesList = ["Employees", "Payroll", "Attendance", "Leave", "Expenses", "Assets", "Exit", "Reports", "Organization"];
-
 export default function OrganizationSetup() {
   const location = useLocation();
-  //const { setRoles: setRolesInContext } = useRole();
   const [company, setCompany] = useState<Company | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [sequences, setSequences] = useState<Sequence[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -285,8 +192,6 @@ export default function OrganizationSetup() {
       setActiveTab("departments");
     } else if (pathname.includes("/designations")) {
       setActiveTab("designations");
-    } else if (pathname.includes("/roles")) {
-      setActiveTab("roles");
     } else if (pathname.includes("/sequences")) {
       setActiveTab("sequences");
     } else {
@@ -363,22 +268,6 @@ export default function OrganizationSetup() {
     }
   };
 
-  const fetchRoles = async () => {
-    setLoading(prev => ({ ...prev, roles: true }));
-    setError(prev => ({ ...prev, roles: '' }));
-    try {
-      const result = await roleApi.getRoles();
-      if (result.data) {
-        setRoles(result.data);
-      } else if (result.error) {
-        setError(prev => ({ ...prev, roles: result.error }));
-      }
-    } catch (err) {
-      setError(prev => ({ ...prev, roles: 'Failed to fetch roles' }));
-    } finally {
-      setLoading(prev => ({ ...prev, roles: false }));
-    }
-  };
 
   const fetchSequences = async () => {
     setLoading(prev => ({ ...prev, sequences: true }));
@@ -403,11 +292,16 @@ export default function OrganizationSetup() {
     fetchBranches();
     fetchDepartments();
     fetchDesignations();
-    fetchRoles();
     fetchSequences();
   }, []);
 
-  // Sync roles with RoleContext whenever they change
+  // Debug formData changes for sequences
+  useEffect(() => {
+    if (activeTab === "sequences") {
+      console.log('FormData changed:', formData);
+    }
+  }, [formData, activeTab]);
+
 
   // Filter functions
   const filteredBranches = useMemo(
@@ -425,10 +319,6 @@ export default function OrganizationSetup() {
     [designations, searchTerm]
   );
 
-  const filteredRoles = useMemo(
-    () => roles.filter((r) => r.name.toLowerCase().includes(searchTerm.toLowerCase())),
-    [roles, searchTerm]
-  );
 
   const filteredSequences = useMemo(
     () => sequences.filter((s) =>
@@ -452,7 +342,7 @@ export default function OrganizationSetup() {
 
   const handleSave = async () => {
     if (!formData.name && activeTab !== "company" && activeTab !== "sequences") {
-      alert("Please fill in all required fields");
+      showToast.error("Please fill in all required fields");
       return;
     }
 
@@ -465,7 +355,7 @@ export default function OrganizationSetup() {
             setCompany(result.data);
             await fetchCompany();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         }
@@ -475,7 +365,7 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchBranches();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         } else {
@@ -483,7 +373,7 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchBranches();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         }
@@ -493,7 +383,7 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchDepartments();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         } else {
@@ -501,7 +391,7 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchDepartments();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         }
@@ -515,7 +405,7 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchDesignations();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         } else {
@@ -523,35 +413,18 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchDesignations();
           } else if (result.error) {
-            alert(result.error);
-            return;
-          }
-        }
-      } else if (activeTab === "roles") {
-        if (editingId) {
-          const result = await roleApi.updateRole(editingId, formData);
-          if (result.data) {
-            await fetchRoles();
-          } else if (result.error) {
-            alert(result.error);
-            return;
-          }
-        } else {
-          const result = await roleApi.createRole(formData);
-          if (result.data) {
-            await fetchRoles();
-          } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         }
       } else if (activeTab === "sequences") {
+        console.log('Saving sequence data:', formData);
         if (editingId) {
           const result = await sequenceApi.updateSequence(editingId, formData);
           if (result.data) {
             await fetchSequences();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         } else {
@@ -559,14 +432,14 @@ export default function OrganizationSetup() {
           if (result.data) {
             await fetchSequences();
           } else if (result.error) {
-            alert(result.error);
+            showToast.error(result.error);
             return;
           }
         }
       }
       setIsDialogOpen(false);
     } catch (error) {
-      alert("An error occurred while saving. Please try again.");
+      showToast.error("An error occurred while saving. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -587,7 +460,7 @@ export default function OrganizationSetup() {
         if (result.success) {
           await fetchBranches();
         } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
           return;
         }
       } else if (activeTab === "departments") {
@@ -595,7 +468,7 @@ export default function OrganizationSetup() {
         if (result.success) {
           await fetchDepartments();
         } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
           return;
         }
       } else if (activeTab === "designations") {
@@ -603,15 +476,7 @@ export default function OrganizationSetup() {
         if (result.success) {
           await fetchDesignations();
         } else if (result.error) {
-          alert(result.error);
-          return;
-        }
-      } else if (activeTab === "roles") {
-        const result = await roleApi.deleteRole(deleteId);
-        if (result.success) {
-          await fetchRoles();
-        } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
           return;
         }
       } else if (activeTab === "sequences") {
@@ -619,13 +484,13 @@ export default function OrganizationSetup() {
         if (result.success) {
           await fetchSequences();
         } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
           return;
         }
       }
       setIsDeleteDialogOpen(false);
     } catch (error) {
-      alert("An error occurred while deleting. Please try again.");
+      showToast.error("An error occurred while deleting. Please try again.");
     } finally {
       setDeleting(false);
     }
@@ -699,7 +564,7 @@ export default function OrganizationSetup() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="overflow-x-auto">
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1 md:gap-2 bg-muted p-1 h-auto min-w-max md:min-w-full">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-1 md:gap-2 bg-muted p-1 h-auto min-w-max md:min-w-full">
               <TabsTrigger value="company" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">Company</TabsTrigger>
               <TabsTrigger value="branches" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">
                 <span className="hidden sm:inline">Branches</span>
@@ -716,7 +581,6 @@ export default function OrganizationSetup() {
                 <span className="sm:hidden">Desig</span>
                 <span className="hidden md:inline"> ({designations.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="roles" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">Roles <span className="hidden md:inline">({roles.length})</span></TabsTrigger>
               <TabsTrigger value="sequences" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">
                 <span className="hidden sm:inline">Sequences</span>
                 <span className="sm:hidden">Seq</span>
@@ -727,77 +591,151 @@ export default function OrganizationSetup() {
 
           {/* Company Tab */}
           <TabsContent value="company">
-            <Card>
-              <CardHeader className="pb-3 md:pb-6">
-                <CardTitle className="text-lg md:text-xl">Company Master</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Configure company information and settings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {error.company && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error.company}</p>
-                  </div>
-                )}
-                {loading.company ? (
-                  <div className="flex justify-center items-center py-8">
-                    <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-                    <span className="ml-2 text-sm text-muted-foreground">Loading company data...</span>
-                  </div>
-                ) : company ? (
-                  <div className="space-y-4 md:space-y-6 max-w-2xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                      <div className="min-w-0">
-                        <Label className="text-xs md:text-sm font-semibold block">Company ID</Label>
-                        <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.companyId}</p>
+            <div className="space-y-6">
+              {/* Header */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {company?.logo && (
+                        <img
+                          src={`${company.logo.startsWith('http') ? company.logo : `http://192.168.1.11:3000${company.logo}`}`}
+                          alt="Company Logo"
+                          className="w-16 h-16 rounded-lg border-2 border-white shadow-md object-cover"
+                          onError={(e) => {
+                            console.error('Logo failed to load:', company.logo);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                          {!company?.logo && (
+                            <div className="p-2 bg-blue-600 rounded-lg">
+                              <Building2 className="w-6 h-6 text-white" />
+                            </div>
+                          )}
+                          {company?.name || 'Company Information'}
+                        </h2>
+                        <p className="text-gray-600 mt-1">{company?.legalName}</p>
                       </div>
-                      <div className="min-w-0">
-                        <Label className="text-xs md:text-sm font-semibold block">Company Name</Label>
-                        <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.name}</p>
+                    </div>
+                    <Button 
+                      onClick={() => handleOpenDialog(company)} 
+                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-200 hover:shadow-lg"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Company
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Company Information Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Basic Information Card */}
+                <Card className="shadow-sm border-0 bg-white">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      Basic Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-1">Company ID</Label>
+                        <p className="text-sm font-semibold text-gray-900">{company?.companyId}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-1">Industry</Label>
+                        <p className="text-sm font-semibold text-gray-900">{company?.industry}</p>
                       </div>
                     </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-xs md:text-sm font-semibold block">Legal Name</Label>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.legalName}</p>
+                    <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
+                      <Label className="text-xs font-medium text-blue-700 uppercase tracking-wider block mb-1">GSTIN/PAN</Label>
+                      <p className="text-lg font-bold text-blue-900">{company?.gstin}</p>
                     </div>
-                    <div className="min-w-0">
-                      <Label className="text-xs md:text-sm font-semibold block">GSTIN/PAN</Label>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.gstin}</p>
+                  </CardContent>
+                </Card>
+
+                {/* Operational Settings Card */}
+                <Card className="shadow-sm border-0 bg-white">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                      Operational Settings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <Label className="text-xs font-medium text-blue-700 uppercase tracking-wider block mb-1">Payroll Cycle</Label>
+                        <p className="text-sm font-semibold text-blue-900">{company?.payrollCycle}</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <Label className="text-xs font-medium text-blue-700 uppercase tracking-wider block mb-1">Timezone</Label>
+                        <p className="text-sm font-semibold text-blue-900">{company?.timezone}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Address Card */}
+              <Card className="shadow-sm border-0 bg-white">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+                    Company Address
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-orange-50 rounded-lg p-6 border-l-4 border-orange-600">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-orange-600 rounded-lg">
+                        <Building2 className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="text-xs font-medium text-orange-700 uppercase tracking-wider block mb-2">Registered Address</Label>
+                        <p className="text-gray-900 leading-relaxed">{company?.address}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-xs md:text-sm font-semibold block">Industry</Label>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.industry}</p>
-                    </div>
-                    <div className="min-w-0">
-                      <Label className="text-xs md:text-sm font-semibold block">Timezone</Label>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.timezone}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-xs md:text-sm font-semibold block">Payroll Cycle</Label>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.payrollCycle}</p>
-                    </div>
-                  </div>
-                  <div className="min-w-0">
-                    <Label className="text-xs md:text-sm font-semibold block">Address</Label>
-                    <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{company.address}</p>
-                  </div>
-                  <Button onClick={() => handleOpenDialog(company)} className="w-full md:w-auto text-xs md:text-sm py-2 md:py-2.5">
-                    Edit Company
-                  </Button>
-                </div>
-                ) : null}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Branches Tab */}
           <TabsContent value="branches">
-            <Card>
-              <CardContent className="pt-6">
+            <div className="space-y-4">
+              {/* Header Card */}
+              <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#17c419] rounded-lg">
+                        <Building2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">Branches</h2>
+                        <p className="text-gray-600 text-sm mt-1">Manage office locations and geographical boundaries</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-[#17c419]">{branches.length}</p>
+                        <p className="text-xs text-gray-500">Total Branches</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Data Card */}
+              <Card className="shadow-sm border-0 bg-white">
+                <CardContent className="pt-6">
                 {error.branches && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error.branches}</p>
@@ -811,38 +749,49 @@ export default function OrganizationSetup() {
                 ) : (
                   <>
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
+                <div className="md:hidden space-y-3">
                   {filteredBranches.map((branch) => (
-                    <div key={branch.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                        <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{branch.name}</h3>
-                        <div className="flex gap-1 flex-shrink-0">
+                    <div key={branch.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-blue-50/50 to-cyan-50/30 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                              <Building2 className="w-4 h-4 text-[#17c419]" />
+                            </div>
+                            <h3 className="font-bold text-base text-gray-900">{branch.name}</h3>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(branch)}
-                            className="p-1 sm:p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(branch.id)}
-                            className="p-1 sm:p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Address:</span>
-                          <span className="font-medium text-right">{branch.address}</span>
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between p-3 bg-white rounded-lg border border-gray-100">
+                          <span className="text-sm font-medium text-gray-500">Address</span>
+                          <span className="font-medium text-gray-900 text-right ml-2">{branch.address}</span>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Coordinates:</span>
-                          <span className="font-medium text-xs">{branch.coordinates}</span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Radius:</span>
-                          <span className="font-medium">{branch.radius} km</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                            <span className="text-sm font-medium text-gray-500">Coordinates</span>
+                            <span className="font-mono text-xs font-bold text-[#17c419]">{branch.coordinates}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                            <span className="text-sm font-medium text-gray-500">Radius</span>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                              {branch.radius} km
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -850,55 +799,100 @@ export default function OrganizationSetup() {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-2 font-semibold">Name</th>
-                        <th className="text-left px-3 py-2 font-semibold">Address</th>
-                        <th className="text-left px-3 py-2 font-semibold">Coordinates</th>
-                        <th className="text-left px-3 py-2 font-semibold">Radius</th>
-                        <th className="text-left px-3 py-2 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredBranches.map((branch) => (
-                        <tr key={branch.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-2 font-medium">{branch.name}</td>
-                          <td className="px-3 py-2 text-xs">{branch.address}</td>
-                          <td className="px-3 py-2 text-xs">{branch.coordinates}</td>
-                          <td className="px-3 py-2 text-xs">{branch.radius} km</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleOpenDialog(branch)}
-                                className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(branch.id)}
-                                className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Branch Name</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Address</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Coordinates</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Radius</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredBranches.map((branch, index) => (
+                          <tr key={branch.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                                  <Building2 className="w-4 h-4 text-[#17c419]" />
+                                </div>
+                                <span className="font-semibold text-gray-900">{branch.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-gray-900 max-w-xs truncate" title={branch.address}>
+                              {branch.address}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419] font-mono">
+                                {branch.coordinates}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                                {branch.radius} km
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleOpenDialog(branch)}
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(branch.id)}
+                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 </>
                 )}
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
 
           {/* Departments Tab */}
           <TabsContent value="departments">
-            <Card>
-              <CardContent className="pt-6">
+            <div className="space-y-4">
+              {/* Header Card */}
+              <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#17c419] rounded-lg">
+                        <Building2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">Departments</h2>
+                        <p className="text-gray-600 text-sm mt-1">Manage organizational departments and cost centers</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-[#17c419]">{departments.length}</p>
+                        <p className="text-xs text-gray-500">Total Departments</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Data Card */}
+              <Card className="shadow-sm border-0 bg-white">
+                <CardContent className="pt-6">
                 {error.departments && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error.departments}</p>
@@ -912,34 +906,41 @@ export default function OrganizationSetup() {
                 ) : (
                   <>
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
+                <div className="md:hidden space-y-3">
                   {filteredDepartments.map((dept) => (
-                    <div key={dept.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                        <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{dept.name}</h3>
-                        <div className="flex gap-1 flex-shrink-0">
+                    <div key={dept.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                              <Building2 className="w-4 h-4 text-[#17c419]" />
+                            </div>
+                            <h3 className="font-bold text-base text-gray-900">{dept.name}</h3>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(dept)}
-                            className="p-1 sm:p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(dept.id)}
-                            className="p-1 sm:p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Cost Center:</span>
-                          <span className="font-medium">{dept.costCenter}</span>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                          <span className="text-sm font-medium text-gray-500">Cost Center</span>
+                          <span className="font-bold text-[#17c419]">{dept.costCenter}</span>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Head:</span>
-                          <span className="font-medium">{dept.head}</span>
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                          <span className="text-sm font-medium text-gray-500">Department Head</span>
+                          <span className="font-bold text-gray-900">{dept.head}</span>
                         </div>
                       </div>
                     </div>
@@ -947,78 +948,126 @@ export default function OrganizationSetup() {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-2 font-semibold">Name</th>
-                        <th className="text-left px-3 py-2 font-semibold">Cost Center</th>
-                        <th className="text-left px-3 py-2 font-semibold">Head</th>
-                        <th className="text-left px-3 py-2 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDepartments.map((dept) => (
-                        <tr key={dept.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-2 font-medium">{dept.name}</td>
-                          <td className="px-3 py-2 text-xs">{dept.costCenter}</td>
-                          <td className="px-3 py-2 text-xs">{dept.head}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleOpenDialog(dept)}
-                                className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(dept.id)}
-                                className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Department Name</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Cost Center</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Department Head</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredDepartments.map((dept, index) => (
+                          <tr key={dept.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                                  <Building2 className="w-4 h-4 text-[#17c419]" />
+                                </div>
+                                <span className="font-semibold text-gray-900">{dept.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419]">
+                                {dept.costCenter}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 font-medium text-gray-900">{dept.head}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleOpenDialog(dept)}
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(dept.id)}
+                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 </>
                 )}
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
 
           {/* Designations Tab */}
           <TabsContent value="designations">
-            <Card>
-              <CardContent className="pt-6">
+            <div className="space-y-4">
+              {/* Header Card */}
+              <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-100 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#17c419] rounded-lg">
+                        <Hash className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">Designations</h2>
+                        <p className="text-gray-600 text-sm mt-1">Manage job roles and career levels</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-[#17c419]">{designations.length}</p>
+                        <p className="text-xs text-gray-500">Total Designations</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Data Card */}
+              <Card className="shadow-sm border-0 bg-white">
+                <CardContent className="pt-6">
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
+                <div className="md:hidden space-y-3">
                   {filteredDesignations.map((des) => (
-                    <div key={des.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                        <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{des.name}</h3>
-                        <div className="flex gap-1 flex-shrink-0">
+                    <div key={des.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-purple-50/50 to-indigo-50/30 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                              <Hash className="w-4 h-4 text-[#17c419]" />
+                            </div>
+                            <h3 className="font-bold text-base text-gray-900">{des.name}</h3>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(des)}
-                            className="p-1 sm:p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(des.id)}
-                            className="p-1 sm:p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Level/Grade:</span>
-                          <span className="font-medium">Level {des.level}</span>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                          <span className="text-sm font-medium text-gray-500">Career Level</span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419]">
+                            Level {des.level}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1026,200 +1075,138 @@ export default function OrganizationSetup() {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-2 font-semibold">Name</th>
-                        <th className="text-left px-3 py-2 font-semibold">Level/Grade</th>
-                        <th className="text-left px-3 py-2 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDesignations.map((des) => (
-                        <tr key={des.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-2 font-medium">{des.name}</td>
-                          <td className="px-3 py-2 text-xs">Level {des.level}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleOpenDialog(des)}
-                                className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(des.id)}
-                                className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Designation Name</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Career Level</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Roles Tab */}
-          <TabsContent value="roles">
-            <Card>
-              <CardContent className="pt-6">
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
-                  {filteredRoles.map((role) => {
-                    const allowedModules = Object.entries(role.modules || {})
-                      .filter(([_, perms]) => Object.values(perms).some(p => p))
-                      .map(([name]) => name.charAt(0).toUpperCase() + name.slice(1));
-                    return (
-                      <div key={role.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                        <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                          <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{role.name}</h3>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <button
-                              onClick={() => handleOpenDialog(role)}
-                              className="p-1 sm:p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(role.id)}
-                              className="p-1 sm:p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground flex-shrink-0">Approval Authority:</span>
-                            <span className="font-medium text-right">{role.approvalAuthority}</span>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground flex-shrink-0">Data Visibility:</span>
-                            <span className="font-medium text-right">{role.dataVisibility}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground text-xs font-medium block mb-1">Modules:</span>
-                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                              {allowedModules.map((module) => (
-                                <span key={module} className="bg-primary/15 text-primary px-2 py-0.5 sm:py-1 rounded text-xs font-medium whitespace-nowrap">
-                                  {module}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-2 font-semibold">Role Name</th>
-                        <th className="text-left px-3 py-2 font-semibold">Approval Authority</th>
-                        <th className="text-left px-3 py-2 font-semibold">Data Visibility</th>
-                        <th className="text-left px-3 py-2 font-semibold">Modules</th>
-                        <th className="text-left px-3 py-2 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRoles.map((role) => {
-                        const allowedModules = Object.entries(role.modules || {})
-                          .filter(([_, perms]) => Object.values(perms).some(p => p))
-                          .map(([name]) => name.charAt(0).toUpperCase() + name.slice(1));
-                        return (
-                          <tr key={role.id} className="border-b border-border hover:bg-muted/50">
-                            <td className="px-3 py-2 font-medium whitespace-nowrap">{role.name}</td>
-                            <td className="px-3 py-2 text-xs whitespace-nowrap">{role.approvalAuthority}</td>
-                            <td className="px-3 py-2 text-xs whitespace-nowrap">{role.dataVisibility}</td>
-                            <td className="px-3 py-2 text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {allowedModules.map((module) => (
-                                  <span key={module} className="bg-primary/15 text-primary px-2 py-1 rounded text-xs font-medium">
-                                    {module}
-                                  </span>
-                                ))}
+                      </thead>
+                      <tbody>
+                        {filteredDesignations.map((des, index) => (
+                          <tr key={des.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                                  <Hash className="w-4 h-4 text-[#17c419]" />
+                                </div>
+                                <span className="font-semibold text-gray-900">{des.name}</span>
                               </div>
                             </td>
-                            <td className="px-3 py-2">
-                              <div className="flex gap-2">
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419]">
+                                Level {des.level}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
                                 <button
-                                  onClick={() => handleOpenDialog(role)}
-                                  className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
+                                  onClick={() => handleOpenDialog(des)}
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
                                 >
-                                  <Edit className="w-3.5 h-3.5" />
+                                  <Edit className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleDelete(role.id)}
-                                  className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
+                                  onClick={() => handleDelete(des.id)}
+                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
+
 
           {/* Sequences Tab */}
           <TabsContent value="sequences">
-            <Card>
-              <CardContent className="pt-6">
+            <div className="space-y-4">
+              {/* Header Card */}
+              <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-100 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#17c419] rounded-lg">
+                        <Hash className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">Sequences</h2>
+                        <p className="text-gray-600 text-sm mt-1">Manage ID generation patterns and formats</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-[#17c419]">{sequences.length}</p>
+                        <p className="text-xs text-gray-500">Active Sequences</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Data Card */}
+              <Card className="shadow-sm border-0 bg-white">
+                <CardContent className="pt-6">
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
+                <div className="md:hidden space-y-3">
                   {filteredSequences.map((seq) => (
-                    <div key={seq.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                    <div key={seq.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-orange-50/50 to-amber-50/30 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm sm:text-base break-words capitalize">{seq.module}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">Prefix: <span className="font-mono font-semibold text-foreground">{seq.prefix}</span></p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                              <Hash className="w-4 h-4 text-[#17c419]" />
+                            </div>
+                            <h3 className="font-bold text-base text-gray-900 capitalize">{seq.module}</h3>
+                          </div>
+                          <p className="text-xs text-gray-500 font-mono">Prefix: <span className="font-bold text-[#17c419]">{seq.prefix}</span></p>
                         </div>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(seq)}
-                            className="p-1 sm:p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(seq.id.toString())}
-                            className="p-1 sm:p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm bg-white dark:bg-slate-950 rounded p-2 sm:p-3">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Start:</span>
-                          <span className="font-medium">{seq.start_number}</span>
+                      <div className="space-y-3 bg-white rounded-lg p-3 border border-gray-100">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center p-2 bg-orange-50 rounded-lg">
+                            <p className="text-xs text-gray-500">Start</p>
+                            <p className="font-bold text-[#17c419]">{seq.start_number}</p>
+                          </div>
+                          <div className="text-center p-2 bg-blue-50 rounded-lg">
+                            <p className="text-xs text-gray-500">Current</p>
+                            <p className="font-bold text-blue-600">{seq.current_number}</p>
+                          </div>
+                          <div className="text-center p-2 bg-green-50 rounded-lg">
+                            <p className="text-xs text-gray-500">Length</p>
+                            <p className="font-bold text-green-600">{seq.number_length}</p>
+                          </div>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Current:</span>
-                          <span className="font-medium">{seq.current_number}</span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Length:</span>
-                          <span className="font-medium">{seq.number_length} digits</span>
-                        </div>
-                        <div className="border-t pt-2 mt-2">
-                          <span className="text-muted-foreground text-xs block mb-1">Sample:</span>
-                          <span className="font-mono text-xs sm:text-sm font-semibold">{seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}</span>
+                        <div className="border-t pt-3">
+                          <p className="text-xs text-gray-500 mb-2">Sample Format:</p>
+                          <div className="bg-[#17c419] text-white p-2 rounded font-mono text-sm text-center">
+                            {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1227,51 +1214,81 @@ export default function OrganizationSetup() {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-2 font-semibold">Module</th>
-                        <th className="text-left px-3 py-2 font-semibold">Prefix</th>
-                        <th className="text-center px-3 py-2 font-semibold">Start</th>
-                        <th className="text-center px-3 py-2 font-semibold">Current</th>
-                        <th className="text-center px-3 py-2 font-semibold">Length</th>
-                        <th className="text-left px-3 py-2 font-semibold">Sample Format</th>
-                        <th className="text-left px-3 py-2 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSequences.map((seq) => (
-                        <tr key={seq.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-2 font-medium capitalize">{seq.module}</td>
-                          <td className="px-3 py-2 font-mono font-semibold text-primary">{seq.prefix}</td>
-                          <td className="px-3 py-2 text-center">{seq.start_number}</td>
-                          <td className="px-3 py-2 text-center">{seq.current_number}</td>
-                          <td className="px-3 py-2 text-center">{seq.number_length} digits</td>
-                          <td className="px-3 py-2 font-mono text-xs bg-muted/30 px-2 py-1 rounded">{seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleOpenDialog(seq)}
-                                className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(seq.id.toString())}
-                                className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Module</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Prefix</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Start</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Current</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Length</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Sample Format</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredSequences.map((seq, index) => (
+                          <tr key={seq.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
+                                  <Hash className="w-4 h-4 text-[#17c419]" />
+                                </div>
+                                <span className="font-semibold text-gray-900 capitalize">{seq.module}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419] font-mono">
+                                {seq.prefix}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c419]/50 text-[#17c419]">
+                                {seq.start_number}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-blue-50 text-blue-700">
+                                {seq.current_number}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-green-50 text-green-700">
+                                {seq.number_length}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="bg-[#17c419] text-white px-3 py-1 rounded font-mono text-sm text-center">
+                                {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleOpenDialog(seq)}
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(seq.id.toString())}
+                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -1281,7 +1298,7 @@ export default function OrganizationSetup() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Edit" : "Add New"} {activeTab === "company" ? "Company" : activeTab === "branches" ? "Branch" : activeTab === "departments" ? "Department" : activeTab === "designations" ? "Designation" : activeTab === "roles" ? "Role" : "Sequence"}
+              {editingId ? "Edit" : "Add New"} {activeTab === "company" ? "Company" : activeTab === "branches" ? "Branch" : activeTab === "departments" ? "Department" : activeTab === "designations" ? "Designation" : "Sequence"}
             </DialogTitle>
           </DialogHeader>
 
@@ -1361,12 +1378,22 @@ export default function OrganizationSetup() {
                 <div>
                   <Label>Company Logo</Label>
                   <div className="mt-2">
-                    {formData.logo && (
+                    {(formData.logo || company?.logo) && (
                       <div className="flex items-center gap-2 mb-2">
                         <img
-                          src={typeof formData.logo === 'string' && formData.logo.startsWith('data:') ? formData.logo : undefined}
+                          src={
+                            formData.logo && formData.logo.startsWith('data:') 
+                              ? formData.logo 
+                              : (formData.logo || company?.logo)?.startsWith('http') 
+                                ? (formData.logo || company?.logo)
+                                : `http://192.168.1.11:3000${formData.logo || company?.logo}`
+                          }
                           alt="Company Logo"
-                          className="w-12 h-12 rounded border"
+                          className="w-12 h-12 rounded border object-cover"
+                          onError={(e) => {
+                            console.error('Dialog logo failed to load:', formData.logo || company?.logo);
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                         <button
                           onClick={() => setFormData({ ...formData, logo: undefined })}
@@ -1495,72 +1522,6 @@ export default function OrganizationSetup() {
               </>
             )}
 
-            {activeTab === "roles" && (
-              <>
-                <div>
-                  <Label>Role Name *</Label>
-                  <Input
-                    value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <Label>Approval Authority *</Label>
-                  <Select value={formData.approvalAuthority || ""} onValueChange={(val) => setFormData({ ...formData, approvalAuthority: val })}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Full Authority">Full Authority</SelectItem>
-                      <SelectItem value="Leave Requests">Leave Requests</SelectItem>
-                      <SelectItem value="Expense Claims">Expense Claims</SelectItem>
-                      <SelectItem value="No Authority">No Authority</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Data Visibility Scope *</Label>
-                  <Select value={formData.dataVisibility || ""} onValueChange={(val) => setFormData({ ...formData, dataVisibility: val })}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="All Employees">All Employees</SelectItem>
-                      <SelectItem value="Department Employees">Department Employees</SelectItem>
-                      <SelectItem value="Reporting Line">Reporting Line</SelectItem>
-                      <SelectItem value="Self Only">Self Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Module Access Checkboxes */}
-                <div className="border-t pt-4">
-                  <Label className="text-base font-semibold">Module Access</Label>
-                  <p className="text-xs text-muted-foreground mb-4">Configure permissions for each module</p>
-                  <div className="space-y-3">
-                    {modulesList.map((module) => (
-                      <div key={module} className="border rounded-lg p-3">
-                        <p className="font-medium text-sm mb-2">{module}</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {["view", "create", "edit", "approve"].map((permission) => (
-                            <label key={permission} className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={formData.modules?.[module.toLowerCase()]?.[permission as "view" | "create" | "edit" | "approve"] || false}
-                                onCheckedChange={(checked) =>
-                                  handleModulePermissionChange(module.toLowerCase(), permission as "view" | "create" | "edit" | "approve", checked as boolean)
-                                }
-                              />
-                              <span className="text-sm capitalize">{permission}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
 
             {activeTab === "sequences" && (
               <>
@@ -1601,7 +1562,11 @@ export default function OrganizationSetup() {
                     <Label>Current Number *</Label>
                     <Input
                       value={formData.current_number || ""}
-                      onChange={(e) => setFormData({ ...formData, current_number: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const newValue = parseInt(e.target.value) || 0;
+                        console.log('Current number changed:', e.target.value, '->', newValue);
+                        setFormData({ ...formData, current_number: newValue });
+                      }}
                       type="number"
                       placeholder="e.g., 0"
                       className="mt-2"
@@ -1624,7 +1589,7 @@ export default function OrganizationSetup() {
                 <div className="bg-muted/50 p-3 rounded-lg border border-border">
                   <p className="text-sm font-medium mb-2">Preview:</p>
                   <p className="text-lg font-mono">
-                    {formData.prefix || "PREFIX"}{String(formData.currentNumber || 0).padStart(formData.numberLength || 4, "0")}
+                    {formData.prefix || "PREFIX"}{String(formData.current_number || 0).padStart(formData.number_length || 4, "0")}
                   </p>
                 </div>
               </>

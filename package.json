@@ -21,9 +21,18 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
+    "@tanstack/react-table": "^8.21.3",
+    "@types/xlsx": "^0.0.35",
     "axios": "^1.13.2",
     "dotenv": "^17.2.1",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {

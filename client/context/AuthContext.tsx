@@ -91,7 +91,10 @@ const login = async (email: string, password: string): Promise<{ success: boolea
         localStorage.setItem("userRole", 'employee');
       }
       
-      return { success: true };
+      // Return success without temporary password check
+      return { 
+        success: true
+      };
     }
     
     // If we get here, the response format is unexpected
@@ -112,11 +115,12 @@ const login = async (email: string, password: string): Promise<{ success: boolea
      ======================= */
   const logout = async () => {
     const clearAuthData = () => {
-      localStorage.removeItem("authToken");
       localStorage.removeItem("user");
       localStorage.removeItem("accessToken");
+      localStorage.removeItem("token");
       localStorage.removeItem("userRole");
-
+      
+      // Clear any auth-related keys
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith("auth_") || key.startsWith("user_")) {
           localStorage.removeItem(key);
@@ -153,6 +157,7 @@ const login = async (email: string, password: string): Promise<{ success: boolea
         login,
         logout,
         isLoading,
+        setUser,
       }}
     >
       {children}

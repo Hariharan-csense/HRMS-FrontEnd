@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { hasRole } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
+import { useRole } from "@/context/RoleContext";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { AdminDashboardData, getAdminDashboardData } from "@/components/helper/dashboard/dashboard";
+import SubscriptionStatus from "@/components/SubscriptionStatus";
+import { AdminDashboardData, getAdminDashboardData, EmployeeDashboardData, getEmployeeDashboardData, ManagerDashboardData, getManagerDashboardData, HRDashboardData, getHRDashboardData, FinanceDashboardData, getFinanceDashboardData } from "@/components/helper/dashboard/dashboard";
 
 const dashboardStyles = `
   @keyframes dashboardEnter {
@@ -17,8 +19,112 @@ const dashboardStyles = `
     }
   }
 
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
   .dashboard-content-enter {
     animation: dashboardEnter 0.6s ease-out;
+  }
+
+  .stat-card-enter {
+    animation: fadeInUp 0.5s ease-out;
+    animation-fill-mode: both;
+  }
+
+  .stat-card-enter:nth-child(1) { animation-delay: 0.1s; }
+  .stat-card-enter:nth-child(2) { animation-delay: 0.2s; }
+  .stat-card-enter:nth-child(3) { animation-delay: 0.3s; }
+  .stat-card-enter:nth-child(4) { animation-delay: 0.4s; }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .gradient-bg-blue {
+    background: linear-gradient(135deg, #17c491 0%, #0fa372 100%);
+  }
+
+  .gradient-bg-green {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  }
+
+  .gradient-bg-orange {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  }
+
+  .gradient-bg-purple {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  }
+
+  .gradient-bg-red {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  }
+
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .hover-lift {
+    transition: all 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .chart-container {
+    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .metric-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+  }
+
+  .metric-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+  }
+
+  .dashboard-header {
+    background: linear-gradient(135deg, #17c491 0%, #0fa372 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 25px -5px rgba(23, 196, 145, 0.4);
+  }
+
+  .icon-gradient {
+    background: linear-gradient(135deg, #17c491 0%, #0fa372 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 `;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +137,8 @@ import {
   AlertCircle,
   CheckCircle,
   BarChart3,
+  Building,
+  MapPin,
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -61,23 +169,24 @@ const StatCard: React.FC<{
   icon: React.ReactNode;
   trend?: string;
   description?: string;
-}> = ({ title, value, icon, trend, description }) => (
-  <Card>
+  colorClass?: string;
+}> = ({ title, value, icon, trend, description, colorClass = "gradient-bg-blue" }) => (
+  <Card className={`metric-card hover-lift stat-card-enter border-0 shadow-lg`}>
     <CardContent className="pt-6">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
+          <p className="text-3xl font-bold mt-2 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
           {description && (
-            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+            <p className="text-xs text-gray-500 mt-2 font-medium">{description}</p>
           )}
           {trend && (
-            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+            <p className="text-xs text-green-600 mt-2 flex items-center gap-1 font-semibold">
               <TrendingUp className="w-3 h-3" /> {trend}
             </p>
           )}
         </div>
-        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+        <div className={`w-14 h-14 ${colorClass} rounded-xl flex items-center justify-center text-white shadow-lg transform rotate-3 hover:rotate-6 transition-transform duration-300`}>
           {icon}
         </div>
       </div>
@@ -89,6 +198,7 @@ const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -139,84 +249,211 @@ const AdminDashboard = () => {
   // Ensure charts data is properly initialized
   const monthlyAttendance = charts?.monthlyAttendance || [];
   const departmentData = charts?.departmentData || [];
+  const departmentAttendanceData = charts?.departmentAttendanceData || [];
   const leaveData = charts?.leaveData || [];
 
   return (
     <div className="space-y-8">
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
+        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+        <p className="text-white/80">Welcome back! Here's your organization overview</p>
+      </div>
+
       {/* KPI Cards */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">Key Metrics</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Employees"
             value={kpis.totalEmployees?.toString() || '0'}
-            icon={<Users className="w-6 h-6" />}
+            icon={<Users className="w-7 h-7" />}
             description="Active employees"
+            colorClass="gradient-bg-blue"
           />
           <StatCard
             title="Present Today"
             value={kpis.presentToday?.toString() || '0'}
-            icon={<CheckCircle className="w-6 h-6" />}
+            icon={<CheckCircle className="w-7 h-7" />}
             trend={kpis.presentTrend || ''}
             description="Current attendance"
+            colorClass="gradient-bg-green"
           />
           <StatCard
             title="On Leave"
             value={kpis.onLeave?.toString() || '0'}
-            icon={<Calendar className="w-6 h-6" />}
+            icon={<Calendar className="w-7 h-7" />}
             trend={kpis.onLeaveTrend || ''}
             description="Approved leaves"
+            colorClass="gradient-bg-orange"
           />
           <StatCard
             title="Pending Approvals"
             value={kpis.pendingApprovals?.toString() || '0'}
-            icon={<AlertCircle className="w-6 h-6" />}
+            icon={<AlertCircle className="w-7 h-7" />}
             trend={kpis.pendingTrend || ''}
             description="Awaiting action"
+            colorClass="gradient-bg-red"
           />
         </div>
       </div>
 
+      {/* Subscription Status */}
+      <SubscriptionStatus />
+
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          <Card className="hover-lift cursor-pointer border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100" onClick={() => navigate('/client-assignment')}>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-14 h-14 gradient-bg-blue rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
+                  <Building className="w-7 h-7" />
+                </div>
+                <h3 className="font-bold text-gray-800">Client Assignment</h3>
+                <p className="text-sm text-gray-600 mt-1">Manage clients</p>
+              </div>
+            </CardContent>
+          </Card>
+          {/* <Card className="hover-lift cursor-pointer border-0 shadow-lg bg-gradient-to-br from-orange-50 to-amber-100" onClick={() => navigate('/sales-attendance-report')}>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-14 h-14 gradient-bg-orange rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
+                  <BarChart3 className="w-7 h-7" />
+                </div>
+                <h3 className="font-bold text-gray-800">Sales Attendance</h3>
+                <p className="text-sm text-gray-600 mt-1">View reports</p>
+              </div>
+            </CardContent>
+          </Card> */}
+          <Card className="hover-lift cursor-pointer border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-100" onClick={() => navigate('/client-geo-fence')}>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-14 h-14 gradient-bg-green rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
+                  <MapPin className="w-7 h-7" />
+                </div>
+                <h3 className="font-bold text-gray-800">Geo-Fence</h3>
+                <p className="text-sm text-gray-600 mt-1">Set boundaries</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Attendance</CardTitle>
-            <CardDescription>Attendance trends over time</CardDescription>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+            <CardTitle className="text-gray-800 font-bold">Monthly Attendance</CardTitle>
+            <CardDescription className="text-gray-600">Attendance trends over time</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyAttendance}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
                 <Legend />
-                <Line type="monotone" dataKey="present" name="Present" stroke="#10b981" />
-                <Line type="monotone" dataKey="absent" name="Absent" stroke="#ef4444" />
-                <Line type="monotone" dataKey="half" name="Half Day" stroke="#f59e0b" />
+                <Line type="monotone" dataKey="present" name="Present" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} />
+                <Line type="monotone" dataKey="absent" name="Absent" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }} />
+                <Line type="monotone" dataKey="half" name="Half Day" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Headcount by Department</CardTitle>
-            <CardDescription>Employee distribution across departments</CardDescription>
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+            <CardTitle className="text-gray-800 font-bold">Headcount by Department</CardTitle>
+            <CardDescription className="text-gray-600">Employee distribution across departments</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={departmentData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+                <Bar dataKey="count" fill="#8b5cf6" radius={[12, 12, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Department-wise Attendance */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Department-wise Attendance Today</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Present by Department</CardTitle>
+              <CardDescription>Number of employees present in each department today</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={departmentAttendanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="present" fill="#10b981" radius={[8, 8, 0, 0]} name="Present" />
+                  <Bar dataKey="half" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Half Day" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Department Attendance Summary</CardTitle>
+              <CardDescription>Detailed attendance breakdown by department</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {departmentAttendanceData.length > 0 ? (
+                  departmentAttendanceData.map((dept, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{dept.dept}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Total: {dept.total} employees
+                        </p>
+                      </div>
+                      <div className="flex gap-4 text-sm">
+                        <div className="text-center">
+                          <p className="font-bold text-green-600">{dept.present}</p>
+                          <p className="text-xs text-muted-foreground">Present</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-yellow-600">{dept.half}</p>
+                          <p className="text-xs text-muted-foreground">Half</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-red-600">{dept.absent}</p>
+                          <p className="text-xs text-muted-foreground">Absent</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-blue-600">
+                            {dept.total > 0 ? Math.round((dept.present / dept.total) * 100) : 0}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">Rate</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No attendance data available for today
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Additional Metrics */}
@@ -472,73 +709,178 @@ const AdminDashboard = () => {
 };
 
 const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof useNavigate>; userName?: string }) => {
+  const [dashboardData, setDashboardData] = useState<EmployeeDashboardData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const result = await getEmployeeDashboardData();
+        
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setDashboardData(result.data);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const { user } = useAuth();
+  const { canPerformModuleAction } = useRole();
+  
+  // Check if user has access to Client Attendance
+  const hasClientAttendanceAccess = canPerformModuleAction("client_attendance", "view") || 
+    user?.roles?.some(role => role?.toLowerCase() === "sales");
+  
+  // Check if user has HR access
+  const hasHRAccess = canPerformModuleAction("hr_management", "view") ||
+    user?.roles?.some(role => 
+      role?.toLowerCase() === "hr" || 
+      role?.toLowerCase() === "human resources" ||
+      role?.toLowerCase() === "hr manager"
+    );
+  
   const quickLinks = [
     { label: "Mark Attendance", path: "/attendance/capture" },
     { label: "Apply for Leave", path: "/leave/apply" },
     { label: "View Payslip", path: "/payroll/payslips" },
     { label: "Submit Expense Claim", path: "/expenses/claims" },
+    ...(hasClientAttendanceAccess ? [
+      { label: "Client Attendance", path: "/client-attendance" }
+    ] : []),
+    ...(user?.roles?.some(role => role?.toLowerCase() === "sales") ? [
+      { label: "My Clients", path: "/my-clients" },
+      { label: "My Analytics", path: "/my-analytics" },
+    ] : []),
+    ...(hasHRAccess ? [
+      { label: "Job Requirements", path: "/hr/requirements" },
+      { label: "Recruitment", path: "/hr/recruitment" },
+      { label: "Offer Letters", path: "/hr/offer-letters" },
+      { label: "Onboarding", path: "/hr/onboarding" },
+    ] : []),
   ];
+
+  if (loading) {
+    return <div>Loading employee dashboard data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">Error: {error}</div>;
+  }
+
+  // Format attendance data for chart
+  const attendanceChartData = dashboardData?.monthlyAttendance?.chartData?.map(day => ({
+    month: day.date.toString(),
+    present: day.present,
+    absent: day.absent,
+    half: day.half
+  })) || [];
 
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold">Welcome, {userName || "Employee"}</h2>
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
+        <h1 className="text-3xl font-bold mb-2">Welcome, {userName || "Employee"}</h1>
+        <p className="text-white/80">Here's your personal dashboard</p>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Today's Status"
-          value="Present"
-          icon={<CheckCircle className="w-6 h-6 text-green-600" />}
-          description="Checked in at 09:15 AM"
+          value={dashboardData?.todayStatus?.status || "Not Marked"}
+          icon={<CheckCircle className="w-7 h-7" />}
+          description={dashboardData?.todayStatus?.description || "Attendance not marked"}
+          colorClass="gradient-bg-green"
         />
         <StatCard
           title="Leave Balance"
-          value="12"
-          icon={<Calendar className="w-6 h-6" />}
-          description="Days remaining this year"
+          value={dashboardData?.leaveBalance?.totalDays.toString() || "0"}
+          icon={<Calendar className="w-7 h-7" />}
+          description={dashboardData?.leaveBalance?.description || "Days remaining this year"}
+          colorClass="gradient-bg-blue"
         />
         <StatCard
           title="Working Hours"
-          value="8.5"
-          icon={<Clock className="w-6 h-6" />}
-          description="Hours logged today"
+          value={dashboardData?.workingHours?.hours.toString() || "0"}
+          icon={<Clock className="w-7 h-7" />}
+          description={dashboardData?.workingHours?.description || "Hours logged today"}
+          colorClass="gradient-bg-purple"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Attendance This Month</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+            <CardTitle className="text-gray-800 font-bold">Your Attendance This Month</CardTitle>
+            <CardDescription className="text-gray-600">
+              Present: {dashboardData?.monthlyAttendance?.summary?.present || 0}, 
+              Absent: {dashboardData?.monthlyAttendance?.summary?.absent || 0}, 
+              Half Day: {dashboardData?.monthlyAttendance?.summary?.half || 0}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={employeeAttendanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
+              <LineChart data={attendanceChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+                <Legend />
                 <Line
                   type="monotone"
                   dataKey="present"
                   stroke="#10b981"
-                  strokeWidth={2}
+                  strokeWidth={3}
+                  name="Present"
+                  dot={{ fill: '#10b981', r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="absent"
+                  stroke="#ef4444"
+                  strokeWidth={3}
+                  name="Absent"
+                  dot={{ fill: '#ef4444', r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="half"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                  name="Half Day"
+                  dot={{ fill: '#f59e0b', r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Links</CardTitle>
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+            <CardTitle className="text-gray-800 font-bold">Quick Links</CardTitle>
+            <CardDescription className="text-gray-600">Frequently accessed features</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {quickLinks.map((link) => (
+          <CardContent className="p-6 space-y-3">
+            {quickLinks.map((link, index) => (
               <button
                 key={link.label}
                 onClick={() => navigate(link.path)}
-                className="w-full text-left px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors text-sm font-medium"
+                className="w-full text-left px-6 py-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover-lift stat-card-enter font-semibold text-gray-800"
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
-                {link.label}
+                <div className="flex items-center justify-between">
+                  <span>{link.label}</span>
+                  <span className="text-gray-400">→</span>
+                </div>
               </button>
             ))}
           </CardContent>
@@ -549,11 +891,31 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
 };
 
 const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigate> }) => {
-  const pendingItems = [
-    { id: 1, name: "Leave Request - Alice Smith", type: "5 days", category: "leave" },
-    { id: 2, name: "Expense Claim - Bob Johnson", type: "₹500", category: "expense" },
-    { id: 3, name: "Leave Request - Carol White", type: "2 days", category: "leave" },
-  ];
+  const [dashboardData, setDashboardData] = useState<ManagerDashboardData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { canPerformModuleAction } = useRole();
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const result = await getManagerDashboardData();
+        
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setDashboardData(result.data);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const handleReview = (category: string) => {
     if (category === "leave") {
@@ -563,100 +925,139 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
     }
   };
 
+  if (loading) {
+    return <div>Loading manager dashboard data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">Error: {error}</div>;
+  }
+
+  // Format team attendance data for chart
+  const teamAttendanceChartData = dashboardData?.teamAttendance?.map(day => ({
+    date: day.date.toString(),
+    present: day.present,
+    absent: day.absent,
+    half: day.half
+  })) || [];
+
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold">Manager Dashboard</h2>
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
+        <h1 className="text-3xl font-bold mb-2">Manager Dashboard</h1>
+        <p className="text-white/80">Team overview and pending approvals</p>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Team Size"
-          value="12"
-          icon={<Users className="w-6 h-6" />}
+          value={dashboardData?.teamStats?.teamSize.toString() || "0"}
+          icon={<Users className="w-7 h-7" />}
           description="Direct reportees"
+          colorClass="gradient-bg-blue"
         />
         <StatCard
           title="Present Today"
-          value="11"
-          icon={<CheckCircle className="w-6 h-6" />}
-          description="91.7% attendance"
+          value={dashboardData?.teamStats?.presentToday.toString() || "0"}
+          icon={<CheckCircle className="w-7 h-7" />}
+          description={dashboardData?.teamStats?.attendanceRate || "0% attendance"}
+          colorClass="gradient-bg-green"
         />
         <StatCard
           title="On Leave"
-          value="1"
-          icon={<Calendar className="w-6 h-6" />}
+          value={dashboardData?.teamStats?.onLeave.toString() || "0"}
+          icon={<Calendar className="w-7 h-7" />}
           description="Approved leaves"
+          colorClass="gradient-bg-orange"
         />
         <StatCard
           title="Pending Approvals"
-          value="3"
-          icon={<AlertCircle className="w-6 h-6" />}
+          value={dashboardData?.teamStats?.pendingApprovals.toString() || "0"}
+          icon={<AlertCircle className="w-7 h-7" />}
           description="Awaiting your action"
+          colorClass="gradient-bg-red"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Team Attendance</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl">
+            <CardTitle className="text-gray-800 font-bold">Team Attendance</CardTitle>
+            <CardDescription className="text-gray-600">Monthly attendance pattern for your team</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={departmentData.slice(0, 3)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dept" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+              <BarChart data={teamAttendanceChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="date" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+                <Legend />
+                <Bar dataKey="present" fill="#10b981" radius={[12, 12, 0, 0]} name="Present" />
+                <Bar dataKey="absent" fill="#ef4444" radius={[12, 12, 0, 0]} name="Absent" />
+                <Bar dataKey="half" fill="#f59e0b" radius={[12, 12, 0, 0]} name="Half Day" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Approvals</CardTitle>
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50 rounded-t-xl">
+            <CardTitle className="text-gray-800 font-bold">Pending Approvals</CardTitle>
+            <CardDescription className="text-gray-600">Items requiring your attention</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <div className="space-y-3">
-              {pendingItems.map((item) => (
+              {dashboardData?.pendingApprovals?.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted transition-colors"
+                  className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors hover-lift"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.type}</p>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{item.type}</p>
                   </div>
                   <button
                     onClick={() => handleReview(item.category)}
-                    className="text-xs font-medium text-primary hover:underline"
+                    className="px-4 py-2 text-xs font-semibold text-white gradient-bg-blue rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-105"
                   >
                     Review
                   </button>
                 </div>
               ))}
+              {(!dashboardData?.pendingApprovals || dashboardData.pendingApprovals.length === 0) && (
+                <p className="text-sm text-gray-500 text-center py-8 font-medium">No pending approvals</p>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Links</CardTitle>
+      <Card className="chart-container border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-xl">
+          <CardTitle className="text-gray-800 font-bold">Quick Links</CardTitle>
+          <CardDescription className="text-gray-600">Frequently accessed features</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="p-6 space-y-3">
           {[
-            { label: "Team Attendance", path: "/attendance/log" },
-            { label: "Leave Approvals", path: "/leave/approvals" },
-            { label: "View Payslips", path: "/payroll/payslips" },
-            { label: "Expense Approvals", path: "/expenses/approvals" },
-          ].map((link) => (
+            { label: "Team Attendance", path: "/attendance/log", permission: () => canPerformModuleAction("attendance", "view"), color: "gradient-bg-green" },
+            { label: "Leave Approvals", path: "/leave/approvals", permission: () => canPerformModuleAction("leave", "approve"), color: "gradient-bg-blue" },
+            { label: "View Payslips", path: "/payroll/payslips", permission: () => canPerformModuleAction("payroll", "view"), color: "gradient-bg-purple" },
+            { label: "Expense Approvals", path: "/expenses/approvals", permission: () => canPerformModuleAction("expenses", "approve"), color: "gradient-bg-orange" },
+          ]
+          .filter(link => link.permission())
+          .map((link, index) => (
             <button
               key={link.label}
               onClick={() => navigate(link.path)}
-              className="w-full text-left px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors text-sm font-medium"
+              className={`w-full text-left px-6 py-4 rounded-xl ${link.color} text-white font-semibold hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover-lift stat-card-enter`}
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
-              {link.label}
+              <div className="flex items-center justify-between">
+                <span>{link.label}</span>
+                <span className="text-white/80">→</span>
+              </div>
             </button>
           ))}
         </CardContent>
@@ -665,110 +1066,201 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
   );
 };
 
-const HRDashboard = () => (
-  <div className="space-y-8">
-    <h2 className="text-2xl font-bold">HR Dashboard</h2>
+const HRDashboard = () => {
+  const [dashboardData, setDashboardData] = useState<HRDashboardData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Total Employees"
-        value="120"
-        icon={<Users className="w-6 h-6" />}
-        description="Department scope"
-      />
-      <StatCard
-        title="Pending Exits"
-        value="2"
-        icon={<AlertCircle className="w-6 h-6" />}
-        description="Awaiting processing"
-      />
-      <StatCard
-        title="Leave Approvals"
-        value="5"
-        icon={<Calendar className="w-6 h-6" />}
-        description="Pending review"
-      />
-      <StatCard
-        title="New Joiners"
-        value="3"
-        icon={<CheckCircle className="w-6 h-6" />}
-        description="This month"
-      />
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const result = await getHRDashboardData();
+        
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setDashboardData(result.data);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return <div>Loading HR dashboard data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">Error: {error}</div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
+        <h1 className="text-3xl font-bold mb-2">HR Dashboard</h1>
+        <p className="text-white/80">Human resources overview</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Employees"
+          value={dashboardData?.hrStats?.totalEmployees.toString() || "0"}
+          icon={<Users className="w-7 h-7" />}
+          description="Department scope"
+          colorClass="gradient-bg-blue"
+        />
+        <StatCard
+          title="Pending Exits"
+          value={dashboardData?.hrStats?.pendingExits.toString() || "0"}
+          icon={<AlertCircle className="w-7 h-7" />}
+          description="Awaiting processing"
+          colorClass="gradient-bg-red"
+        />
+        <StatCard
+          title="Leave Approvals"
+          value={dashboardData?.hrStats?.pendingLeaveApprovals.toString() || "0"}
+          icon={<Calendar className="w-7 h-7" />}
+          description="Pending review"
+          colorClass="gradient-bg-orange"
+        />
+        <StatCard
+          title="New Joiners"
+          value={dashboardData?.hrStats?.newJoiners.toString() || "0"}
+          icon={<CheckCircle className="w-7 h-7" />}
+          description="This month"
+          colorClass="gradient-bg-green"
+        />
+      </div>
+
+      <Card className="chart-container border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-xl">
+          <CardTitle className="text-gray-800 font-bold">Headcount by Department</CardTitle>
+          <CardDescription className="text-gray-600">Employee distribution across departments</CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={dashboardData?.departmentData || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+              <Bar dataKey="count" fill="#8b5cf6" radius={[12, 12, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
+  );
+};
 
-    <Card>
-      <CardHeader>
-        <CardTitle>Headcount by Department</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={departmentData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  </div>
-);
+const FinanceDashboard = () => {
+  const [dashboardData, setDashboardData] = useState<FinanceDashboardData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-const FinanceDashboard = () => (
-  <div className="space-y-8">
-    <h2 className="text-2xl font-bold">Finance Dashboard</h2>
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const result = await getFinanceDashboardData();
+        
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setDashboardData(result.data);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Monthly Payroll"
-        value="₹450K"
-        icon={<BarChart3 className="w-6 h-6" />}
-        description="Total disbursed"
-      />
-      <StatCard
-        title="Expense Claims"
-        value="₹12K"
-        icon={<AlertCircle className="w-6 h-6" />}
-        description="Pending approval"
-      />
-      <StatCard
-        title="Payslips Generated"
-        value="120"
-        icon={<CheckCircle className="w-6 h-6" />}
-        description="This month"
-      />
-      <StatCard
-        title="Budget Utilization"
-        value="78%"
-        icon={<TrendingUp className="w-6 h-6" />}
-        description="Year to date"
-      />
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return <div>Loading finance dashboard data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">Error: {error}</div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
+        <h1 className="text-3xl font-bold mb-2">Finance Dashboard</h1>
+        <p className="text-white/80">Financial overview and reports</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Monthly Payroll"
+          value={dashboardData?.financeStats?.monthlyPayroll || "₹0K"}
+          icon={<BarChart3 className="w-7 h-7" />}
+          description="Total disbursed"
+          colorClass="gradient-bg-green"
+        />
+        <StatCard
+          title="Expense Claims"
+          value={dashboardData?.financeStats?.pendingExpenses || "₹0K"}
+          icon={<AlertCircle className="w-7 h-7" />}
+          description="Pending approval"
+          colorClass="gradient-bg-orange"
+        />
+        <StatCard
+          title="Payslips Generated"
+          value={dashboardData?.financeStats?.payslipsGenerated.toString() || "0"}
+          icon={<CheckCircle className="w-7 h-7" />}
+          description="This month"
+          colorClass="gradient-bg-blue"
+        />
+        <StatCard
+          title="Budget Utilization"
+          value={dashboardData?.financeStats?.budgetUtilization || "0%"}
+          icon={<TrendingUp className="w-7 h-7" />}
+          description="Year to date"
+          colorClass="gradient-bg-purple"
+        />
+      </div>
+
+      <Card className="chart-container border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl">
+          <CardTitle className="text-gray-800 font-bold">Monthly Payroll Trend</CardTitle>
+          <CardDescription className="text-gray-600">Employee count and payroll amounts over time</CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={dashboardData?.payrollTrend || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="present"
+                stroke="#10b981"
+                strokeWidth={3}
+                name="Employees Paid"
+                dot={{ fill: '#10b981', r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>Monthly Payroll Trend</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={payrollTrendData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="present"
-              stroke="#10b981"
-              name="Employees Paid"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  </div>
-);
+  );
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -780,7 +1272,11 @@ export default function Dashboard() {
   }, []);
 
   const getDashboard = () => {
-    if (hasRole(user, "admin")) {
+    if (hasRole(user, "superadmin")) {
+      // Redirect superadmin to SuperAdminDashboard
+      navigate("/superadmin-dashboard");
+      return null;
+    } else if (hasRole(user, "admin")) {
       return <AdminDashboard />;
     } else if (hasRole(user, "manager")) {
       return <ManagerDashboard navigate={navigate} />;

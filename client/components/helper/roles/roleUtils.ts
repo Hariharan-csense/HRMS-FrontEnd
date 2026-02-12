@@ -134,14 +134,26 @@ export const createRoleData = (
   };
 };
 
-// Example role data templates
-export const ROLE_TEMPLATES = {
+// Dynamic role data templates - can be extended at runtime
+export const ROLE_TEMPLATES: Record<string, ReturnType<typeof createRoleData>> = {
+  // Default templates - these can be overridden by API data
   admin: createRoleData(
     "admin",
     "Full Authority",
     "All Employees",
     {
-      employees: { view: true, create: true, edit: true, approve: true }
+      employees: { view: true, create: true, edit: true, approve: true },
+      payroll: { view: true, create: true, edit: true, approve: true },
+      attendance: { view: true, create: true, edit: true, approve: true },
+      live_tracking: { view: true, create: true, edit: true, approve: true },
+      leave: { view: true, create: true, edit: true, approve: true },
+      expenses: { view: true, create: true, edit: true, approve: true },
+      assets: { view: true, create: true, edit: true, approve: true },
+      exit: { view: true, create: true, edit: true, approve: true },
+      reports: { view: true, create: true, edit: true, approve: true },
+      organization: { view: true, create: true, edit: true, approve: true },
+      role_access: { view: true, create: true, edit: true, approve: true },
+      "shift management": { view: true, create: true, edit: true, approve: true }
     }
   ),
   manager: createRoleData(
@@ -150,7 +162,10 @@ export const ROLE_TEMPLATES = {
     "Department Employees",
     {
       employees: { view: true, create: true, edit: true, approve: false },
-      attendance: { view: true, create: false, edit: false, approve: true }
+      attendance: { view: true, create: true, edit: true, approve: true },
+      leave: { view: true, create: true, edit: true, approve: true },
+      reports: { view: true, create: false, edit: false, approve: false },
+      "shift management": { view: true, create: true, edit: true, approve: false }
     }
   ),
   employee: createRoleData(
@@ -159,7 +174,40 @@ export const ROLE_TEMPLATES = {
     "Self Only",
     {
       employees: { view: true, create: false, edit: false, approve: false },
-      attendance: { view: true, create: false, edit: false, approve: false }
+      payroll: { view: true, create: false, edit: false, approve: false },
+      attendance: { view: true, create: false, edit: true, approve: false },
+      live_tracking: { view: false, create: false, edit: false, approve: false },
+      leave: { view: true, create: true, edit: false, approve: false },
+      expenses: { view: false, create: false, edit: false, approve: false },
+      assets: { view: false, create: false, edit: false, approve: false },
+      role_access: { view: true, create: false, edit: false, approve: false }
+    }
+  ),
+  hr: createRoleData(
+    "HR",
+    "Full Authority",
+    "Department Employees",
+    {
+      employees: { view: true, create: true, edit: true, approve: true },
+      payroll: { view: true, create: false, edit: false, approve: false },
+      attendance: { view: true, create: true, edit: false, approve: false },
+      live_tracking: { view: false, create: false, edit: false, approve: false },
+      "shift management": { view: true, create: false, edit: false, approve: false },
+      leave: { view: true, create: true, edit: false, approve: true },
+      expenses: { view: true, create: false, edit: false, approve: false },
+      assets: { view: false, create: false, edit: false, approve: false },
+      exit: { view: true, create: false, edit: false, approve: false },
+      reports: { view: true, create: false, edit: false, approve: false }
     }
   )
+};
+
+// Helper to dynamically add new role templates
+export const addRoleTemplate = (key: string, roleData: ReturnType<typeof createRoleData>) => {
+  ROLE_TEMPLATES[key] = roleData;
+};
+
+// Helper to get role template by name
+export const getRoleTemplate = (roleName: string) => {
+  return ROLE_TEMPLATES[roleName.toLowerCase()];
 };

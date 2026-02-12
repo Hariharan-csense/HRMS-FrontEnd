@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,29 +10,110 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Mail, Phone, MapPin, Briefcase, Calendar, User, Lock, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { profileHelper, ProfileData, PasswordData } from "@/components/helper/profile/profile";
+import { handleChangePassword as handleChangePasswordHelper } from "@/components/helper/login/login";
+import { activityHelper, ActivityData } from "@/components/helper/activity/activity";
+import { documentHelper, DocumentData } from "@/components/helper/document/document";
+import { BASE_URL } from "@/lib/endpoint";
 
 export default function UserProfile() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activities, setActivities] = useState<ActivityData[]>([]);
+  const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: "+91 98765 43210",
-    department: "Human Resources",
+    first_name: user?.name || "",
+    last_name: "",
+    mobile: "+91 98765 43210",
+    department_id: "",
+    designation_id: "",
+    department_name: "",
+    designation_name: "",
+    location: "",
+    status: "",
+    joined_date: "",
   });
-  const [passwordData, setPasswordData] = useState({
+  const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
+  // Load profile data on component mount
+  useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        const profileResponse = await profileHelper.getProfile();
+        const profileData = profileResponse.data || profileResponse;
+        
+        setFormData({
+          first_name: profileData.first_name || user?.name || "",
+          last_name: profileData.last_name || "",
+          mobile: profileData.mobile || "+91 98765 43210",
+          department_id: profileData.department_id || "",
+          designation_id: profileData.designation_id || "",
+          department_name: profileData.department_name || "",
+          designation_name: profileData.designation_name || "",
+          location: profileData.location_office || "",
+          status: profileData.status || "",
+          joined_date: profileData.doj ? new Date(profileData.doj).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : (profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : ""),
+        });
+        const profileImageUrl = profileData.profile_photo ? `${BASE_URL}${profileData.profile_photo}` : user?.avatar || "";
+        setAvatarPreview(profileImageUrl);
+        
+        // Update user context if profile data is different
+        const newName = profileData.first_name ? `${profileData.first_name} ${profileData.last_name || ''}`.trim() : user?.name;
+        const newAvatar = profileImageUrl;
+        
+        if (newName !== user?.name || newAvatar !== user?.avatar) {
+          setUser({
+            ...user,
+            name: newName,
+            avatar: newAvatar,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load profile data:", error);
+      }
+    };
+
+    const loadActivities = async () => {
+      try {
+        const activitiesData = await activityHelper.getActivities();
+        console.log('Activities loaded:', activitiesData);
+        setActivities(activitiesData);
+      } catch (error) {
+        console.error("Failed to load activities:", error);
+      }
+    };
+
+    const loadDocuments = async () => {
+      try {
+        const documentsData = await documentHelper.getDocuments();
+        console.log('Documents loaded in frontend:', documentsData);
+        setDocuments(documentsData);
+      } catch (error) {
+        console.error("Failed to load documents:", error);
+      }
+    };
+
+    if (user) {
+      loadProfileData();
+      loadActivities();
+      loadDocuments();
+    }
+  }, [user?.id, setUser]);
+
   if (!user) {
     return null;
   }
+
+  console.log('Current documents state:', documents);
 
   const getInitials = (name: string) => {
     return name
@@ -49,57 +130,116 @@ export default function UserProfile() {
     }));
   };
 
-  const handleSaveProfile = () => {
-    // In a real app, this would send an API request to update the user profile
-    toast.success("Profile updated successfully");
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    try {
+      const profileData: ProfileData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        mobile: formData.mobile,
+        department_id: formData.department_id,
+        designation_id: formData.designation_id,
+      };
+      
+      const updatedProfileResponse = await profileHelper.updateProfile(profileData);
+      const updatedProfile = updatedProfileResponse.data || updatedProfileResponse;
+      
+      // Update user context with new data
+      setUser({
+        ...user,
+        name: updatedProfile.first_name ? `${updatedProfile.first_name} ${updatedProfile.last_name || ''}`.trim() : formData.first_name,
+      });
+
+      // Log activity
+      await activityHelper.logActivity("Updated Profile");
+      
+      // Refresh activities
+      const activitiesData = await activityHelper.getActivities();
+      setActivities(activitiesData);
+      
+      setIsEditing(false);
+    } catch (error) {
+      // Error is already handled by the helper function
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleChangePassword = () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
+  const handleChangePassword = async () => {
+    setIsLoading(true);
+    try {
+      const result = await handleChangePasswordHelper({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
+      });
+
+      if (result.success) {
+        toast.success(result.message);
+        setShowPasswordDialog(false);
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+
+        // Log activity
+        await activityHelper.logActivity("Changed Password");
+        
+        // Refresh activities
+        const activitiesData = await activityHelper.getActivities();
+        setActivities(activitiesData);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsLoading(false);
     }
-    // In a real app, this would send an API request to change the password
-    toast.success("Password changed successfully");
-    setShowPasswordDialog(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
   };
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
+    setIsUploadingAvatar(true);
+    
+    try {
+      // Read file and create preview
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const result = e.target?.result as string;
+        setAvatarPreview(result);
+
+        try {
+          // Upload avatar using helper function
+          const updatedProfileResponse = await profileHelper.updateAvatar(file);
+          const updatedProfile = updatedProfileResponse.data || updatedProfileResponse;
+          
+          // Update user context with new avatar
+          setUser({
+            ...user,
+            avatar: updatedProfile.profile_photo || result,
+          });
+
+          // Log activity
+          await activityHelper.logActivity("Updated Profile Picture");
+          
+          // Refresh activities
+          const activitiesData = await activityHelper.getActivities();
+          setActivities(activitiesData);
+        } catch (uploadError) {
+          // Reset avatar preview on error
+          setAvatarPreview(user?.avatar || "");
+        } finally {
+          setIsUploadingAvatar(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      setIsUploadingAvatar(false);
     }
-
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
-      return;
-    }
-
-    // Read file and create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setAvatarPreview(result);
-      setIsUploadingAvatar(true);
-
-      // Simulate upload delay
-      setTimeout(() => {
-        setIsUploadingAvatar(false);
-        toast.success("Profile picture updated successfully");
-      }, 1000);
-    };
-    reader.readAsDataURL(file);
 
     // Reset input
     if (fileInputRef.current) {
@@ -122,7 +262,9 @@ export default function UserProfile() {
                 <Button variant="outline" onClick={() => setIsEditing(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSaveProfile}>Save Changes</Button>
+                <Button onClick={handleSaveProfile} disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
               </>
             ) : (
               <Button variant="outline" onClick={() => setIsEditing(true)}>
@@ -146,7 +288,7 @@ export default function UserProfile() {
                   <button
                     onClick={handleAvatarClick}
                     disabled={isUploadingAvatar}
-                    className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-full p-2 shadow-lg transition-colors"
+                    className="absolute bottom-0 right-0 bg-primary hover:bg-primary/90 disabled:bg-gray-400 text-white rounded-full p-2 shadow-lg transition-colors"
                   >
                     <Camera className="w-5 h-5" />
                   </button>
@@ -179,7 +321,7 @@ export default function UserProfile() {
                     <Phone className="w-5 h-5 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Phone</p>
-                      <p className="font-medium">+91 98765 43210</p>
+                      <p className="font-medium">{formData.mobile || "+91 98765 43210"}</p>
                     </div>
                   </div>
 
@@ -187,7 +329,7 @@ export default function UserProfile() {
                     <MapPin className="w-5 h-5 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Location</p>
-                      <p className="font-medium">Bangalore, India</p>
+                      <p className="font-medium">{formData.location || "Not specified"}</p>
                     </div>
                   </div>
                 </div>
@@ -197,7 +339,7 @@ export default function UserProfile() {
                     <Briefcase className="w-5 h-5 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Department</p>
-                      <p className="font-medium">Human Resources</p>
+                      <p className="font-medium">{formData.department_name || "Not specified"}</p>
                     </div>
                   </div>
 
@@ -205,7 +347,7 @@ export default function UserProfile() {
                     <Calendar className="w-5 h-5 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Joined Date</p>
-                      <p className="font-medium">January 2024</p>
+                      <p className="font-medium">{formData.joined_date || "Not specified"}</p>
                     </div>
                   </div>
 
@@ -213,7 +355,7 @@ export default function UserProfile() {
                     <User className="w-5 h-5 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Status</p>
-                      <p className="font-medium text-green-600">Active</p>
+                      <p className="font-medium capitalize">{formData.status || "Unknown"}</p>
                     </div>
                   </div>
                 </div>
@@ -285,8 +427,8 @@ export default function UserProfile() {
                               onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                             />
                           </div>
-                          <Button onClick={handleChangePassword} className="w-full">
-                            Update Password
+                          <Button onClick={handleChangePassword} className="w-full" disabled={isLoading}>
+                            {isLoading ? "Updating..." : "Update Password"}
                           </Button>
                         </div>
                       </DialogContent>
@@ -297,30 +439,34 @@ export default function UserProfile() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">First Name</Label>
                     {isEditing ? (
                       <Input
-                        value={formData.name}
-                        onChange={(e) => handleFieldChange("name", e.target.value)}
+                        value={formData.first_name}
+                        onChange={(e) => handleFieldChange("first_name", e.target.value)}
                         className="mt-1"
                       />
                     ) : (
-                      <p className="text-lg font-medium mt-1">{formData.name}</p>
+                      <p className="text-lg font-medium mt-1">{formData.first_name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Last Name</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formData.last_name}
+                        onChange={(e) => handleFieldChange("last_name", e.target.value)}
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-lg font-medium mt-1">{formData.last_name}</p>
                     )}
                   </div>
 
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Email Address</Label>
-                    {isEditing ? (
-                      <Input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleFieldChange("email", e.target.value)}
-                        className="mt-1"
-                      />
-                    ) : (
-                      <p className="text-lg font-medium mt-1">{formData.email}</p>
-                    )}
+                    <p className="text-lg font-medium mt-1">{user.email}</p>
                   </div>
 
                   <div>
@@ -337,12 +483,25 @@ export default function UserProfile() {
                     <Label className="text-sm font-medium text-muted-foreground">Department</Label>
                     {isEditing ? (
                       <Input
-                        value={formData.department}
-                        onChange={(e) => handleFieldChange("department", e.target.value)}
+                        value={formData.department_id}
+                        onChange={(e) => handleFieldChange("department_id", e.target.value)}
                         className="mt-1"
                       />
                     ) : (
-                      <p className="text-lg font-medium mt-1">{formData.department}</p>
+                      <p className="text-lg font-medium mt-1">{formData.department_name || 'Not specified'}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Designation</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formData.designation_id}
+                        onChange={(e) => handleFieldChange("designation_id", e.target.value)}
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-lg font-medium mt-1">{formData.designation_name || 'Not specified'}</p>
                     )}
                   </div>
 
@@ -350,12 +509,12 @@ export default function UserProfile() {
                     <Label className="text-sm font-medium text-muted-foreground">Phone Number</Label>
                     {isEditing ? (
                       <Input
-                        value={formData.phone}
-                        onChange={(e) => handleFieldChange("phone", e.target.value)}
+                        value={formData.mobile}
+                        onChange={(e) => handleFieldChange("mobile", e.target.value)}
                         className="mt-1"
                       />
                     ) : (
-                      <p className="text-lg font-medium mt-1">{formData.phone}</p>
+                      <p className="text-lg font-medium mt-1">{formData.mobile}</p>
                     )}
                   </div>
                 </div>
@@ -372,20 +531,23 @@ export default function UserProfile() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {[
-                    { action: "Logged in", date: "Today at 9:30 AM", location: "Bangalore, India" },
-                    { action: "Updated Profile", date: "December 22, 2024", location: "Bangalore, India" },
-                    { action: "Changed Password", date: "December 15, 2024", location: "Bangalore, India" },
-                    { action: "Logged in", date: "December 10, 2024", location: "Bangalore, India" },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start p-4 rounded-lg border">
-                      <div>
-                        <p className="font-medium">{item.action}</p>
-                        <p className="text-sm text-muted-foreground">{item.location}</p>
+                  {activities.length > 0 ? (
+                    activities.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-start p-4 rounded-lg border">
+                        <div>
+                          <p className="font-medium">{item.action}</p>
+                          <p className="text-sm text-muted-foreground">{item.location}</p>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {item.timestamp ? activityHelper.formatDate(item.timestamp) : item.date}
+                        </span>
                       </div>
-                      <span className="text-sm text-muted-foreground">{item.date}</span>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No recent activity</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -399,10 +561,46 @@ export default function UserProfile() {
                 <CardDescription>Your uploaded documents and certifications</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">No documents uploaded yet</p>
-                  <Button className="mt-4">Upload Document</Button>
-                </div>
+                {documents.length > 0 ? (
+                  <div className="space-y-4">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{documentHelper.getFileIcon(doc.original_name || doc.filename)}</span>
+                          <div>
+                            <p className="font-medium">{doc.original_name || doc.filename}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {doc.type} • {documentHelper.formatDate(doc.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => documentHelper.viewDocument(doc.id, doc.filename)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => documentHelper.downloadDocument(doc.id, doc.original_name, doc.filename)}
+                          >
+                            Download
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No documents uploaded yet</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Documents uploaded by HR will appear here
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

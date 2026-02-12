@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
+import { BASE_URL } from "../client/lib/endpoint";
 
 export function createServer() {
   const app = express();
@@ -15,7 +16,7 @@ export function createServer() {
   app.get("/api/role", async (req, res) => {
     try {
       const token = req.headers.authorization?.split(' ')[1];
-      const response = await fetch('http://localhost:3000/api/role', {
+      const response = await fetch(`${BASE_URL}/api/role`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

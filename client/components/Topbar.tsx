@@ -73,7 +73,30 @@ export const Topbar: React.FC = () => {
     
     // Navigate to the relevant page if actionUrl is provided
     if (notification.actionUrl) {
-      navigate(notification.actionUrl);
+      // Fix common routing issues
+      let targetUrl = notification.actionUrl;
+      
+      // Map common incorrect URLs to correct ones
+      const urlMappings: { [key: string]: string } = {
+        '/expense-management': '/expenses/claims',
+        '/expense': '/expenses/claims',
+        '/expense-claims': '/expenses/claims',
+        '/expense-approvals': '/expenses/approvals',
+        '/leave-management': '/leave/apply',
+        '/attendance-management': '/attendance/log',
+        '/employee-management': '/employees',
+        '/asset-management': '/assets/list',
+        '/payroll-management': '/payroll/payslips',
+        '/report-analytics': '/reports/analytics'
+      };
+      
+      // Check if the URL needs to be mapped
+      if (urlMappings[targetUrl]) {
+        targetUrl = urlMappings[targetUrl];
+      }
+      
+      // Navigate to the corrected URL
+      navigate(targetUrl);
     }
   };
 
@@ -229,7 +252,7 @@ export const Topbar: React.FC = () => {
               <div className="hidden sm:flex flex-col items-start text-sm">
                 <span className="font-medium text-foreground">{user.name}</span>
                 <span className="text-xs text-muted-foreground capitalize">
-                  {user.roles[0]}
+                  {user.roles?.[0] || "User"}
                 </span>
               </div>
               <ChevronDown className="w-4 h-4 text-muted-foreground" />

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { hasRole } from "@/lib/auth";
@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import employeeApi from "@/components/helper/employee/employee";
 import payrollApi, { SalaryStructure } from "@/components/helper/payroll/payroll";
 import axios from "axios";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Types
 interface PayrollProcessing {
@@ -386,6 +388,7 @@ export default function PayrollSetup() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const payslipContentRef = useRef<HTMLDivElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -1291,6 +1294,96 @@ export default function PayrollSetup() {
     setIsDeleteDialogOpen(false);
   };
 
+  const handleDownloadPayslip = async () => {
+    if (!payslipPreviewHtml) {
+      toast.error('No payslip data available for download');
+      return;
+    }
+
+    try {
+      // Create a temporary div to render the payslip
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '1200px';
+      tempDiv.innerHTML = payslipStyles + processImageUrls(payslipPreviewHtml);
+      document.body.appendChild(tempDiv);
+
+      // Show loading toast
+      toast.loading('Generating PDF...');
+
+      // Wait for content to render
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Capture the payslip as canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 1200,
+        windowWidth: 1200
+      });
+
+      // Remove temporary div
+      document.body.removeChild(tempDiv);
+
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Calculate dimensions to fit A4 page
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 25.4; // Convert to mm
+
+      const imgX = (pdfWidth - imgWidth * ratio / 25.4) / 2;
+      const imgY = 10;
+
+      // Add image to PDF
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio / 25.4, imgHeight * ratio / 25.4);
+
+      // Generate filename
+      const filename = `payslip-${new Date().toISOString().split('T')[0]}.pdf`;
+
+      // Download the PDF
+      pdf.save(filename);
+
+      // Show success message
+      toast.dismiss();
+      toast.success('Payslip downloaded successfully!');
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.dismiss();
+      toast.error('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  // Function to process image URLs to make them absolute
+  const processImageUrls = (html: string): string => {
+    // Convert relative URLs to absolute URLs
+    const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+    
+    return html.replace(/src="([^"]+)"/g, (match, src) => {
+      // If it's already an absolute URL (starts with http or data:), leave it as is
+      if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('//')) {
+        return match;
+      }
+      
+      // Convert relative URL to absolute URL
+      const absoluteSrc = src.startsWith('/') ? baseUrl + src : baseUrl + '/' + src;
+      return `src="${absoluteSrc}"`;
+    });
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -1717,16 +1810,40 @@ export default function PayrollSetup() {
                           <FileText className="w-4 h-4" />
                           View Payslip
                         </button>
-                        {payslip.pdfUrl && (
+                        {payslip.pdfUrl ? (
                           <a
                             href={payslip.pdfUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                            className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
                           >
                             <Download className="w-4 h-4" />
                             Download PDF
                           </a>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
+                                if (result.data) {
+                                  setPayslipPreviewHtml(result.data);
+                                  // Trigger download directly
+                                  setTimeout(() => {
+                                    handleDownloadPayslip();
+                                  }, 100);
+                                } else if (result.error) {
+                                  toast.error(result.error);
+                                }
+                              } catch (error) {
+                                console.error('Error downloading payslip:', error);
+                                toast.error('Failed to download payslip');
+                              }
+                            }}
+                            className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download PDF
+                          </button>
                         )}
                       </div>
                     </div>
@@ -2095,14 +2212,23 @@ export default function PayrollSetup() {
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
             <DialogTitle className="text-xl font-bold">Payslip Preview</DialogTitle>
-            <Button variant="outline" onClick={() => setIsViewPayslipOpen(false)}>
-              Close
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleDownloadPayslip}
+                className="bg-primary hover:bg-primary/90 text-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+              <Button variant="outline" onClick={() => setIsViewPayslipOpen(false)}>
+                Close
+              </Button>
+            </div>
           </div>
           <div className="p-6">
             {payslipPreviewHtml && (
               <div 
-                dangerouslySetInnerHTML={{ __html: `${payslipStyles}${payslipPreviewHtml}` }}
+                dangerouslySetInnerHTML={{ __html: `${payslipStyles}${processImageUrls(payslipPreviewHtml)}` }}
                 className="w-full h-full"
               />
             )}

@@ -18,6 +18,7 @@ export default function RegisterUser() {
     confirmPassword: "",
     role: "employee" as UserRole,
     department: "",
+    companyName: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -104,33 +105,38 @@ export default function RegisterUser() {
       setError("Department is required");
       return;
     }
-
-    // Check if email already exists
-    if (mockUsers[formData.email]) {
-      setError("Email already registered");
+    if (formData.role === "admin" && !formData.companyName.trim()) {
+      setError("Company name is required for admin registration");
       return;
     }
 
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Add new user to mock database
-      const newUserId = String(Object.keys(mockUsers).length + 1);
-      mockUsers[formData.email] = {
-        password: formData.password,
-        user: {
-          id: newUserId,
+      // Call backend registration API
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken') || localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          roles: [formData.role],
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          role: formData.role,
           department: formData.department,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.email}`,
-        },
-      };
+          company_name: formData.role === 'admin' ? formData.companyName : undefined
+        })
+      });
 
-      setSuccess(`User "${formData.name}" registered successfully!`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      setSuccess(`User "${formData.name}" registered successfully!${data.note ? ` ${data.note}` : ''}`);
       setFormData({
         name: "",
         email: "",
@@ -138,6 +144,7 @@ export default function RegisterUser() {
         confirmPassword: "",
         role: "employee",
         department: "",
+        companyName: "",
       });
 
       // Redirect after 2 seconds
@@ -272,6 +279,24 @@ export default function RegisterUser() {
                       </select>
                     </div>
                   </div>
+
+                  {formData.role === "admin" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName">Company Name *</Label>
+                      <Input
+                        id="companyName"
+                        name="companyName"
+                        type="text"
+                        placeholder="Enter company name"
+                        value={formData.companyName}
+                        onChange={handleInputChange}
+                        disabled={isLoading}
+                      />
+                      <p className="text-xs text-slate-500">
+                        This will create a new company for the admin user
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -344,7 +369,7 @@ export default function RegisterUser() {
 
         {/* Footer */}
         <p className="text-center text-sm text-slate-600 mt-8">
-          © 2024 HRMS System. All rights reserved.
+          © 2024 © {new Date().getFullYear()} Procease HRMS System. All rights reserved.
         </p>
       </div>
     </div>

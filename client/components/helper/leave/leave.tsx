@@ -242,9 +242,37 @@ export const leaveTypeApi = {
       else if (Array.isArray(response.data)) {
         rawData = response.data;
       }
-      // Case 3: Wrapped response with balances field
+      // Case 3: Wrapped response with balances field (nested structure)
       else if (response.data?.balances && Array.isArray(response.data.balances)) {
-        rawData = response.data.balances;
+        // Handle nested structure: balances -> employee -> leaves[]
+        rawData = [];
+        response.data.balances.forEach((employee: any) => {
+          if (employee.leaves && Array.isArray(employee.leaves)) {
+            employee.leaves.forEach((leave: any) => {
+              rawData.push({
+                id: `${employee.employee_id}_${leave.leave_type_name}`, // Create composite ID
+                employee_id: employee.employee_id,
+                employee_name: employee.employee_name,
+                leave_type: leave.leave_type_name,
+                opening_balance: leave.opening_balance,
+                availed: leave.availed,
+                available: leave.available
+              });
+            });
+          }
+        });
+      }
+      // Case 4: Wrapped response with data.balances field (actual API structure)
+      else if (response.data?.data?.balances && Array.isArray(response.data.data.balances)) {
+        rawData = response.data.data.balances.map((item: any) => ({
+          id: `${item.employee_id}_${item.leave_type_id}`,
+          employee_id: item.employee_id,
+          employee_name: item.employee_name,
+          leave_type: item.leave_type_name,
+          opening_balance: item.opening_balance,
+          availed: item.availed,
+          available: item.available
+        }));
       }
       // No valid data
       else {
@@ -325,6 +353,118 @@ export const leaveTypeApi = {
           error.response?.data?.message ||
           error.message ||
           "Failed to load leave applications",
+      };
+    }
+  },
+
+  // ✅ Apply for leave (submit leave application)
+  applyLeave: async (data: any): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.applyleave(data);
+      
+      console.log("Apply Leave Response:", response);
+      
+      // Handle different response formats
+      if (response.data?.success || response.data?.message) {
+        return { 
+          data: response.data
+        };
+      } else {
+        return { error: response.data?.message || "Failed to submit leave application" };
+      }
+    } catch (error: any) {
+      console.error("Error applying for leave:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to submit leave application",
+      };
+    }
+  },
+
+  // ✅ Get relevant users for leave (reporting managers, HR, etc.)
+  getLeaveUsers: async (): Promise<{ data?: any[]; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getleaveusers();
+      
+      console.log("Leave Users Response:", response);
+      
+      let users: any[] = [];
+
+      // Handle the specific response format: { manager: { name: "..." }, hr: [...] }
+      if (response.data?.manager || response.data?.hr) {
+        // Add manager if exists
+        if (response.data.manager && response.data.manager.name) {
+          users.push({
+            id: response.data.manager.id || 'manager',
+            name: response.data.manager.name,
+            email: response.data.manager.email || '',
+            role: 'manager',
+            department: response.data.manager.department || '',
+            designation: response.data.manager.designation || 'Manager',
+            employeeId: response.data.manager.employee_id || '',
+            firstName: response.data.manager.first_name || response.data.manager.name?.split(' ')[0] || '',
+            lastName: response.data.manager.last_name || response.data.manager.name?.split(' ')[1] || '',
+            fullName: response.data.manager.name,
+          });
+        }
+
+        // Add HR users if they exist
+        if (response.data.hr && Array.isArray(response.data.hr)) {
+          response.data.hr.forEach((hr: any) => {
+            users.push({
+              id: hr.id?.toString() || hr._id?.toString() || "",
+              name: hr.name || hr.fullName || `${hr.first_name || ''} ${hr.last_name || ''}`.trim() || "Unknown HR",
+              email: hr.email || "",
+              role: hr.role || "hr",
+              department: hr.department || hr.department_name || "",
+              designation: hr.designation || hr.designation_name || "HR",
+              employeeId: hr.employee_id || hr.employeeId || "",
+              firstName: hr.first_name || hr.firstName || hr.name?.split(' ')[0] || '',
+              lastName: hr.last_name || hr.lastName || hr.name?.split(' ')[1] || '',
+              fullName: hr.name || hr.fullName || `${hr.first_name || ''} ${hr.last_name || ''}`.trim() || "Unknown HR",
+            });
+          });
+        }
+      }
+      // Case 1: Wrapped response { success: true, users: [...] }
+      else if (response.data?.success && Array.isArray(response.data?.users)) {
+        users = response.data.users;
+      }
+      // Case 2: Direct array response
+      else if (Array.isArray(response.data)) {
+        users = response.data;
+      }
+      // Case 3: Wrapped response with data field
+      else if (response.data?.data && Array.isArray(response.data.data)) {
+        users = response.data.data;
+      }
+      // No valid data
+      else {
+        return { error: "No users found in response" };
+      }
+
+      // Map the response data to a consistent format
+      const mappedUsers = users.map((user: any) => ({
+        id: user.id?.toString() || user._id?.toString() || "",
+        name: user.name || user.fullName || `${user.first_name || ''} ${user.last_name || ''}`.trim() || "Unknown User",
+        email: user.email || "",
+        role: user.role || "",
+        department: user.department || user.department_name || "",
+        designation: user.designation || user.designation_name || "",
+        employeeId: user.employee_id || user.employeeId || "",
+        firstName: user.first_name || user.firstName || user.name?.split(' ')[0] || '',
+        lastName: user.last_name || user.lastName || user.name?.split(' ')[1] || '',
+        fullName: user.fullName || user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || "Unknown User",
+      }));
+
+      return { data: mappedUsers };
+    } catch (error: any) {
+      console.error("Error fetching leave users:", error);
+      return {
+        error:
+          "Failed to load relevant users",
       };
     }
   },

@@ -3,21 +3,59 @@
 import ENDPOINTS from "@/lib/endpoint";
 
 export interface ModulePermission {
-  view: boolean;
-  create: boolean;
-  edit: boolean;
-  approve: boolean;
+  create: number;
+  edit: number;
+  view: number;
+  approve: number;
+  reject: number;
 }
 
 export interface Role {
   id: string;
+  role_id: string;
   name: string;
   modules: {
     [key: string]: ModulePermission;
   };
-  approvalAuthority: string;
-  dataVisibility: string;
-  createdAt?: string;
+  approval_authority: string;
+  data_visibility: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RoleAssignment {
+  id: string;
+  employee_id: string;
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role_id: string;
+  role_code: string;
+  role_name: string;
+  status: 'Active' | 'Inactive';
+  assigned_date: string;
+  removed_date?: string;
+  remarks?: string;
+  employee_name?: string;
+}
+
+export interface EmployeeRoleAssignment {
+  id: string;
+  status: 'Active' | 'Inactive';
+  assigned_date: string;
+  removed_date?: string;
+  remarks?: string;
+  role_id: string;
+  role_code: string;
+  role_name: string;
+  approval_authority: string;
+  data_visibility: string;
+  modules: {
+    [key: string]: ModulePermission;
+  };
+  description?: string;
 }
 
 export const roleApi = {
@@ -28,24 +66,15 @@ export const roleApi = {
 
       if (response.data?.success && Array.isArray(response.data.roles)) {
         const mapped: Role[] = response.data.roles.map((r: any) => ({
-          id: r.id?.toString() || r._id?.toString() || "",
+          id: r.id?.toString() || "",
+          role_id: r.role_id || "",
           name: r.name || "",
           modules: r.modules || {},
-          approvalAuthority: r.approval_authority || r.approvalAuthority || "",
-          dataVisibility: r.data_visibility || r.dataVisibility || "",
-          createdAt: r.created_at || r.createdAt,
-        }));
-        return { data: mapped };
-      }
-
-      if (Array.isArray(response.data)) {
-        const mapped: Role[] = response.data.map((r: any) => ({
-          id: r.id?.toString() || r._id?.toString() || "",
-          name: r.name || "",
-          modules: r.modules || {},
-          approvalAuthority: r.approval_authority || r.approvalAuthority || "",
-          dataVisibility: r.data_visibility || r.dataVisibility || "",
-          createdAt: r.created_at || r.createdAt,
+          approval_authority: r.approval_authority || "",
+          data_visibility: r.data_visibility || "",
+          description: r.description || "",
+          created_at: r.created_at,
+          updated_at: r.updated_at,
         }));
         return { data: mapped };
       }
@@ -66,12 +95,15 @@ export const roleApi = {
       
       if (response.data?.success) {
         const role: Role = {
-          id: response.data.role.id?.toString() || response.data.role._id?.toString() || "",
+          id: response.data.role.id?.toString() || "",
+          role_id: response.data.role.role_id || "",
           name: response.data.role.name || "",
           modules: response.data.role.modules || {},
-          approvalAuthority: response.data.role.approval_authority || response.data.role.approvalAuthority || "",
-          dataVisibility: response.data.role.data_visibility || response.data.role.dataVisibility || "",
-          createdAt: response.data.role.created_at || response.data.role.createdAt,
+          approval_authority: response.data.role.approval_authority || "",
+          data_visibility: response.data.role.data_visibility || "",
+          description: response.data.role.description || "",
+          created_at: response.data.role.created_at,
+          updated_at: response.data.role.updated_at,
         };
         return { data: role };
       }
@@ -86,26 +118,29 @@ export const roleApi = {
   },
 
   // Create new role
-  createRole: async (roleData: Omit<Role, 'id' | 'createdAt'>): Promise<{ data?: Role; error?: string }> => {
+  createRole: async (roleData: Omit<Role, 'id' | 'role_id' | 'created_at' | 'updated_at'>): Promise<{ data?: Role; error?: string }> => {
     try {
       const payload = {
-        role_id: `ROLE${Date.now()}`, // Generate unique role ID
         name: roleData.name,
-        approval_authority: roleData.approvalAuthority,
-        data_visibility: roleData.dataVisibility,
+        approval_authority: roleData.approval_authority,
+        data_visibility: roleData.data_visibility,
         modules: roleData.modules,
+        description: roleData.description,
       };
 
       const response = await ENDPOINTS.createRole(payload);
       
       if (response.data?.success) {
         const newRole: Role = {
-          id: response.data.role.id?.toString() || response.data.role._id?.toString() || "",
+          id: response.data.role.id?.toString() || "",
+          role_id: response.data.role.role_id || "",
           name: response.data.role.name || roleData.name,
           modules: response.data.role.modules || roleData.modules,
-          approvalAuthority: response.data.role.approval_authority || response.data.role.approvalAuthority || roleData.approvalAuthority,
-          dataVisibility: response.data.role.data_visibility || response.data.role.dataVisibility || roleData.dataVisibility,
-          createdAt: response.data.role.created_at || response.data.role.createdAt || new Date().toISOString(),
+          approval_authority: response.data.role.approval_authority || roleData.approval_authority,
+          data_visibility: response.data.role.data_visibility || roleData.data_visibility,
+          description: response.data.role.description || roleData.description,
+          created_at: response.data.role.created_at || new Date().toISOString(),
+          updated_at: response.data.role.updated_at,
         };
         return { data: newRole };
       }
@@ -120,25 +155,29 @@ export const roleApi = {
   },
 
   // Update existing role
-  updateRole: async (id: string, roleData: Partial<Omit<Role, 'id' | 'createdAt'>>): Promise<{ data?: Role; error?: string }> => {
+  updateRole: async (id: string, roleData: Partial<Omit<Role, 'id' | 'role_id' | 'created_at' | 'updated_at'>>): Promise<{ data?: Role; error?: string }> => {
     try {
       const payload = {
         name: roleData.name,
-        approval_authority: roleData.approvalAuthority,
-        data_visibility: roleData.dataVisibility,
+        approval_authority: roleData.approval_authority,
+        data_visibility: roleData.data_visibility,
         modules: roleData.modules,
+        description: roleData.description,
       };
 
       const response = await ENDPOINTS.updateRole(id, payload);
       
       if (response.data?.success) {
         const updatedRole: Role = {
-          id: response.data.role.id?.toString() || response.data.role._id?.toString() || id,
+          id: response.data.role.id?.toString() || id,
+          role_id: response.data.role.role_id || "",
           name: response.data.role.name || roleData.name || "",
           modules: response.data.role.modules || roleData.modules || {},
-          approvalAuthority: response.data.role.approval_authority || response.data.role.approvalAuthority || roleData.approvalAuthority || "",
-          dataVisibility: response.data.role.data_visibility || response.data.role.dataVisibility || roleData.dataVisibility || "",
-          createdAt: response.data.role.created_at || response.data.role.createdAt,
+          approval_authority: response.data.role.approval_authority || roleData.approval_authority || "",
+          data_visibility: response.data.role.data_visibility || roleData.data_visibility || "",
+          description: response.data.role.description || roleData.description || "",
+          created_at: response.data.role.created_at,
+          updated_at: response.data.role.updated_at,
         };
         return { data: updatedRole };
       }
@@ -166,6 +205,80 @@ export const roleApi = {
       console.error("Error deleting role:", error);
       return {
         error: error.response?.data?.message || "Failed to delete role",
+      };
+    }
+  },
+
+  // Role Assignment APIs
+  // Assign role to employee
+  assignRoleToEmployee: async (employee_id: string, role_id: string, remarks?: string): Promise<{ data?: RoleAssignment; error?: string }> => {
+    try {
+      const payload = { employee_id, role_id, remarks };
+      const response = await ENDPOINTS.assignRoleToEmployee(payload);
+      
+      if (response.data?.success) {
+        return { data: response.data.assignment };
+      }
+      
+      return { error: "Failed to assign role" };
+    } catch (error: any) {
+      console.error("Error assigning role:", error);
+      return {
+        error: error.response?.data?.message || "Failed to assign role",
+      };
+    }
+  },
+
+  // Remove role from employee
+  removeRoleFromEmployee: async (assignmentId: string): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.removeRoleFromEmployee(assignmentId);
+      
+      if (response.data?.success) {
+        return { success: true };
+      }
+      
+      return { error: "Failed to remove role" };
+    } catch (error: any) {
+      console.error("Error removing role:", error);
+      return {
+        error: error.response?.data?.message || "Failed to remove role",
+      };
+    }
+  },
+
+  // Get all role assignments
+  getRoleAssignments: async (): Promise<{ data?: RoleAssignment[]; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getRoleAssignments();
+      
+      if (response.data?.success && Array.isArray(response.data.assignments)) {
+        return { data: response.data.assignments };
+      }
+      
+      return { error: "No assignments found" };
+    } catch (error: any) {
+      console.error("Error fetching assignments:", error);
+      return {
+        error: error.response?.data?.message || "Failed to load assignments",
+      };
+    }
+  },
+
+  // Get employee roles
+  getEmployeeRoles: async (employee_id: string): Promise<{ data?: EmployeeRoleAssignment[]; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getEmployeeRoles(employee_id);
+      
+      if (response.data?.success && Array.isArray(response.data.assignments)) {
+        return { data: response.data.assignments };
+      }
+      
+      return { error: "No employee roles found" };
+    } catch (error: any) {
+      console.error("Error fetching employee roles:", error);
+      return {
+        error: error.response?.data?.message || "Failed to load employee roles",
       };
     }
   },

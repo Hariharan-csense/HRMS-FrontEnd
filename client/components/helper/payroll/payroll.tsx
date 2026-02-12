@@ -1,5 +1,4 @@
-import ENDPOINTS, { BASE_URL } from "@/lib/endpoint";
-import axios from "axios";
+import ENDPOINTS, { BASE_URL, api } from "@/lib/endpoint";
 import NotificationTriggerService from "@/services/notificationTriggerService";
 
 export interface SalaryStructure {
@@ -100,26 +99,6 @@ export const payrollApi = {
 
   getPayrollProcessing: async (): Promise<{ data?: any; error?: string }> => {
     try {
-      const api = axios.create({
-        baseURL: `${BASE_URL}/api`,
-        withCredentials: true,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-      });
-
-      // Attach token dynamically on EVERY request
-      api.interceptors.request.use((config) => {
-        const token = localStorage.getItem("accessToken"); 
-
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return config;
-      });
-
       console.log('Fetching payroll processing data from /payroll endpoint');
       const response = await api.get("/payroll");
       console.log('Raw payroll processing API response:', response.data);
@@ -156,34 +135,15 @@ export const payrollApi = {
 
   getPayslip: async (): Promise<{ data?: any; error?: string }> => {
     try {
-      const api = axios.create({
-        baseURL: `${BASE_URL}/api`,
-        withCredentials: true,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-      });
-
-      // Attach token dynamically on EVERY request
-      api.interceptors.request.use((config) => {
-        const token = localStorage.getItem("accessToken"); 
-
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return config;
-      });
-
       let response;
       
-      // Check if user is employee and use employee-specific endpoint
+      // Check if user has basic payroll access (view only) and use employee-specific endpoint
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const isEmployee = user.roles && user.roles.includes("employee") && !user.roles.includes("admin") && !user.roles.includes("hr") && !user.roles.includes("finance");
+      const hasBasicPayrollAccess = user.roles && user.roles.length > 0 && 
+        !user.roles.some(role => ["admin", "hr", "finance"].includes(role.toLowerCase()));
       
-      if (isEmployee) {
-        console.log('Employee user, trying /payroll/employee/payslips endpoint');
+      if (hasBasicPayrollAccess) {
+        console.log('User with basic payroll access, trying /payroll/employee/payslips endpoint');
         try {
           response = await api.get("/payroll/employee/payslips");
         } catch (error) {
@@ -253,24 +213,6 @@ export const payrollApi = {
 
   getAttendance: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
     try {
-      const api = axios.create({
-        baseURL: `${BASE_URL}/api`,
-        withCredentials: true,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-      });
-
-      // Attach token dynamically
-      api.interceptors.request.use((config) => {
-        const token = localStorage.getItem("accessToken"); 
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      });
-
       const response = await api.get(`/attendance/${employeeId}/${month}`);
       if (response.data && response.data.success) {
         return { data: response.data.attendance };
@@ -286,12 +228,7 @@ export const payrollApi = {
 
   generatePayslip: async (payslipData: any): Promise<{ data?: any; error?: string }> => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/payroll/generate`, payslipData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
+      const response = await api.post("/payroll/generate", payslipData);
 
       if (response.data?.success) {
         // Trigger notification for payslip generation

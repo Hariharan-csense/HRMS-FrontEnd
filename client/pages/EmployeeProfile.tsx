@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, Save, Upload, FileText, User } from "lucide-react";
+import { showToast } from "@/utils/toast";
 
 interface EmployeeProfileData {
   // Personal Details
@@ -110,7 +111,7 @@ export default function EmployeeProfile() {
   };
 
   const handleSave = () => {
-    alert("Employee profile updated successfully!");
+    showToast.success("Employee profile updated successfully!");
     setIsEditing(false);
   };
 

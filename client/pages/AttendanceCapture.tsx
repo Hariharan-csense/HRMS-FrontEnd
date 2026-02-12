@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Camera, MapPin, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Camera, MapPin, CheckCircle2, Clock, AlertCircle, Loader2, Radio, Activity, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import {
   reverseGeocode,
@@ -14,6 +15,23 @@ import {
 } from "@/lib/locationUtils";
 import attendanceApi from "@/components/helper/attendance/attendance";
 import { useAuth } from "@/context/AuthContext";
+
+// Mock liveLocationService for now - this should be implemented properly
+const liveLocationService = {
+  updateTrackingStatus: async (employeeId: number, enabled: boolean) => {
+    console.log(`Live tracking ${enabled ? 'enabled' : 'disabled'} for employee ${employeeId}`);
+    return { success: true };
+  },
+  startAutoTracking: (employeeId: number, interval: number, onSuccess: Function, onError: Function) => {
+    console.log(`Starting auto tracking for employee ${employeeId} every ${interval} minutes`);
+    // Mock implementation
+  },
+  stopAutoTracking: () => {
+    console.log('Stopping auto tracking');
+    // Mock implementation
+  }
+};
+
 
 interface AttendanceRecord {
   type: "check-in" | "check-out";
@@ -47,13 +65,120 @@ export default function AttendanceCapture() {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [officeLocations] = useState<OfficeLocation[]>(getAllOfficeLocations());
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>("");
+  
+  // Live tracking states
+  const [isLiveTrackingEnabled, setIsLiveTrackingEnabled] = useState(false);
+  const [isTrackingActive, setIsTrackingActive] = useState(false);
+  const [trackingStatus, setTrackingStatus] = useState<string>('inactive');
+  const [lastLocationUpdate, setLastLocationUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     startWebcam();
+    fetchAttendanceStatus();
+    
+    // Cleanup live tracking on unmount
     return () => {
       stopWebcam();
+      if (isTrackingActive) {
+        liveLocationService.stopAutoTracking();
+      }
     };
   }, []);
+
+  // Fetch current attendance status
+  const fetchAttendanceStatus = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const statusResponse = await attendanceApi.getAttendanceStatus();
+      if (statusResponse.success) {
+        setIsCheckedIn(statusResponse.isCheckedIn || false);
+        
+        // Transform today's records to match the local format
+        if (statusResponse.todayRecords && statusResponse.todayRecords.length > 0) {
+          const transformedRecords = statusResponse.todayRecords.map((record: any): AttendanceRecord => ({
+            type: record.check_out ? "check-out" : "check-in",
+            timestamp: record.check_out || record.check_in,
+            confidence: 95,
+            location: {
+              latitude: 0,
+              longitude: 0,
+              accuracy: 0,
+              address: record.check_in_location ? JSON.parse(record.check_in_location).address : "Office"
+            },
+            imageUrl: record.check_in_image_url || "/placeholder-avatar.jpg",
+            device: record.device_info || "Unknown",
+            status: "success" as const
+          }));
+          setTodayRecords(transformedRecords);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching attendance status:', error);
+    }
+  };
+
+  // Handle live tracking toggle
+  const handleLiveTrackingToggle = async (enabled: boolean) => {
+    if (!user?.id) {
+      toast.error("User not authenticated");
+      return;
+    }
+
+    const employeeId = parseInt(user.id);
+    setIsLiveTrackingEnabled(enabled);
+    
+    try {
+      if (enabled) {
+        // Start tracking
+        const result = await liveLocationService.updateTrackingStatus(employeeId, true);
+        
+        if (result.success) {
+          setIsTrackingActive(true);
+          setTrackingStatus('active');
+          
+          // Start automatic location updates
+          liveLocationService.startAutoTracking(
+            employeeId,
+            5, // Update every 5 minutes
+            (location) => {
+              setLastLocationUpdate(new Date());
+              toast.success("Location updated successfully", {
+                description: `Last update: ${new Date().toLocaleTimeString()}`,
+              });
+            },
+            (error) => {
+              toast.error("Location tracking error", {
+                description: error,
+              });
+            }
+          );
+          
+          toast.success("Live location tracking enabled");
+        } else {
+          setIsLiveTrackingEnabled(false);
+          toast.error((result as any).error || "Failed to enable live tracking");
+        }
+      } else {
+        // Stop tracking
+        const result = await liveLocationService.updateTrackingStatus(employeeId, false);
+        
+        if (result.success) {
+          liveLocationService.stopAutoTracking();
+          setIsTrackingActive(false);
+          setTrackingStatus('paused');
+          toast.success("Live location tracking disabled");
+        } else {
+          setIsLiveTrackingEnabled(true);
+          toast.error((result as any).error || "Failed to disable live tracking");
+        }
+      }
+    } catch (error) {
+      console.error('Live tracking toggle error:', error);
+      setIsLiveTrackingEnabled(!enabled);
+      toast.error("Failed to update tracking status");
+    }
+  };
 
   const startWebcam = async () => {
     try {
@@ -318,6 +443,9 @@ export default function AttendanceCapture() {
 
           setTodayRecords((prev) => [record, ...prev]);
           setIsCheckedIn(type === "check-in" ? true : false);
+          
+          // Refresh status after successful check-in/out
+          await fetchAttendanceStatus();
 
           toast.success(`${type === "check-in" ? "Checked in" : "Checked out"} successfully!`, {
             description: `Confidence: ${confidence}% | Location: ${location.address}`,
@@ -496,6 +624,61 @@ export default function AttendanceCapture() {
 
           {/* Status Card */}
           <div className="lg:col-span-1 space-y-4">
+            {/* Live Tracking Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Radio className="w-5 h-5" />
+                  Live Location Tracking
+                </CardTitle>
+                <CardDescription>
+                  Enable real-time location tracking during work hours
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Track My Location</p>
+                    <p className="text-xs text-muted-foreground">
+                      Updates every 5 minutes when enabled
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isLiveTrackingEnabled}
+                    onCheckedChange={handleLiveTrackingToggle}
+                    disabled={isProcessing}
+                  />
+                </div>
+
+                {isLiveTrackingEnabled && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className={`w-4 h-4 ${isTrackingActive ? 'text-green-600 animate-pulse' : 'text-amber-600'}`} />
+                      <span className="text-sm font-medium">
+                        Status: {trackingStatus}
+                      </span>
+                    </div>
+                    
+                    {lastLocationUpdate && (
+                      <p className="text-xs text-muted-foreground">
+                        Last update: {lastLocationUpdate.toLocaleTimeString()}
+                      </p>
+                    )}
+                    
+                    <Alert className={isTrackingActive ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}>
+                      <Radio className={`w-4 h-4 ${isTrackingActive ? 'text-green-600' : 'text-amber-600'}`} />
+                      <AlertDescription className={`text-sm ${isTrackingActive ? 'text-green-800' : 'text-amber-800'}`}>
+                        {isTrackingActive 
+                          ? 'Your location is being tracked and shared with HR/Admin'
+                          : 'Location tracking is paused'
+                        }
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Status</CardTitle>

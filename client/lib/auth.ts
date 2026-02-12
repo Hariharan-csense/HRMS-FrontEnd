@@ -1,12 +1,12 @@
-// Mock authentication types and context
-export type UserRole = "admin" | "employee" | "HR";
+// Authentication types - dynamic roles
+export type UserRole = string; // Changed from union to string for dynamic roles
 
 export type User = {
   id: string;
   name: string;
   email: string;
   companyName: string;
-  roles: UserRole[];
+  roles: string[]; // Changed from UserRole[] to string[] for dynamic roles
   department?: string;
   avatar?: string;
 };
@@ -17,6 +17,7 @@ export type AuthContextType = {
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   isLoading: boolean;
+  setUser: (user: User | null) => void;
 };
 
 // Mock users for demo
@@ -60,30 +61,34 @@ export const mockUsers: Record<string, { password: string; user: User }> = {
 };
 
 // Helper to check if user has permission
-export const hasRole = (user: User | null, role: UserRole): boolean => {
-  if (!user) return false;
+export const hasRole = (user: User | null, role: string): boolean => {
+  if (!user || !user.roles) return false;
   return user.roles.includes(role);
 };
 
-export const hasAnyRole = (user: User | null, roles: UserRole[]): boolean => {
-  if (!user) return false;
+export const hasAnyRole = (user: User | null, roles: string[]): boolean => {
+  if (!user || !user.roles) return false;
   return roles.some((role) => user.roles.includes(role));
 };
 
-// Helper to check permissions for specific actions
+// Helper to check permissions for specific actions - DEPRECATED
+// Use useRole hook from RoleContext for dynamic permission checking
 export const canView = (user: User | null, resource: string): boolean => {
+  console.warn('canView from auth.ts is deprecated. Use useRole hook from RoleContext for dynamic permissions.');
   if (!user) return false;
   if (hasRole(user, "admin")) return true;
 
-  const permissions: Record<UserRole, string[]> = {
+  // Legacy permissions for backward compatibility
+  const permissions: Record<string, string[]> = {
     admin: ["*"],
     employee: ["profile", "attendance", "leave", "payslip", "expense"],
-    HR: ["employee-records", "attendance", "leave", "exit", "payroll", "reports"],
+    hr: ["employee-records", "attendance", "leave", "exit", "payroll", "reports"],
   };
 
+  const userRole = user.roles[0];
   return (
-    permissions[user.roles[0]]?.includes("*") ||
-    permissions[user.roles[0]]?.includes(resource) ||
+    permissions[userRole]?.includes("*") ||
+    permissions[userRole]?.includes(resource) ||
     false
   );
 };

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { handleLogout } from "@/components/helper/login/login";
+import logo from "../assets/logo.png";
 
 const sidebarStyles = `
   .sidebar-nav-item {
@@ -15,7 +16,7 @@ const sidebarStyles = `
   }
 
   .sidebar-nav-item.active {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%);
+    background: linear-gradient(135deg, #17c491 0%, #0fa372 100%);
     box-shadow: 0 8px 20px hsl(var(--primary) / 0.3);
     color: hsl(var(--primary-foreground));
     transform: scale(1.02);
@@ -92,6 +93,21 @@ const sidebarStyles = `
     padding: 0.5rem;
     gap: 0.5rem;
   }
+
+  /* Mobile-specific improvements */
+  @media (max-width: 1023px) {
+    .sidebar-nav-item:hover {
+      transform: none;
+    }
+    
+    .sidebar-submenu-item:hover {
+      transform: none;
+    }
+    
+    .sidebar-logout-btn:hover {
+      transform: none;
+    }
+  }
 `;
 import {
   ChevronDown,
@@ -107,7 +123,13 @@ import {
   Building2,
   Menu,
   X,
+  Waves,
   Settings,
+  MapPin,
+  MessageSquare,
+  HelpCircle,
+  BarChart3,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -165,12 +187,19 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "organization",
       },
+      // {
+      //   label: "Roles & Permissions",
+      //   path: "/organization/roles",
+      //   roles: [],
+      //   icon: <div />,
+      //   moduleName: "organization",
+      // },
       {
-        label: "Roles & Permissions",
-        path: "/organization/roles",
+        label: "Role Management",
+        path: "/organization/role-management",
         roles: [],
         icon: <div />,
-        moduleName: "organization",
+        moduleName: "role_access",
       },
     ],
   },
@@ -197,6 +226,57 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
+    label: "RMS & Recruitment",
+    icon: <Users className="w-5 h-5" />,
+    roles: [],
+    moduleName: "hr_management",
+    submenu: [
+      {
+        label: "Requirements",
+        path: "/hr/requirements",
+        roles: [],
+        icon: <div />,
+        moduleName: "hr_management",
+      },
+      {
+        label: "Recruitment",
+        path: "/hr/recruitment",
+        roles: [],
+        icon: <div />,
+        moduleName: "hr_management",
+      },
+      {
+        label: "Offer Letters",
+        path: "/hr/offer-letters",
+        roles: [],
+        icon: <div />,
+        moduleName: "hr_management",
+      },
+      {
+        label: "Onboarding",
+        path: "/hr/onboarding",
+        roles: [],
+        icon: <div />,
+        moduleName: "hr_management",
+      },
+    
+    ],
+  },
+  {
+    label: "Client Attendance",
+    icon: <MapPin className="w-5 h-5" />,
+    roles: [],
+    moduleName: "client_attendance",
+    path: "/client-attendance",
+  },
+  {
+    label: "Client Attendance Admin",
+    icon: <MessageSquare className="w-5 h-5" />,
+    roles: [],
+    moduleName: "client_attendance_admin",
+    path: "/client-attendance-admin",
+  },
+  {
     label: "Attendance Management",
     icon: <Clock className="w-5 h-5" />,
     roles: [],
@@ -216,6 +296,7 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "attendance",
       },
+
       {
         label: "Override Management",
         path: "/attendance/override",
@@ -229,6 +310,13 @@ const navigationItems: NavItem[] = [
         roles: [],
         icon: <div />,
         moduleName: "shift management",
+      },
+      {
+        label: "Live Tracking",
+        path: "/attendance/live-tracking",
+        roles: [],
+        icon: <div />,
+        moduleName: "live_tracking",
       },
     ],
   },
@@ -262,6 +350,13 @@ const navigationItems: NavItem[] = [
       {
         label: "Leave Config",
         path: "/leave/config",
+        roles: [],
+        icon: <div />,
+        moduleName: "leave",
+      },
+      {
+        label: "Permission Module",
+        path: "/leave/permission",
         roles: [],
         icon: <div />,
         moduleName: "leave",
@@ -360,8 +455,37 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "exit",
       },
+        {
+        label: "F&F Settlement",
+        path: "/exit/settlement",
+        roles: [],
+        icon: <div />,
+        moduleName: "exit",
+      },
     ],
   },
+ 
+  // {
+  //   label: "Subscription",
+  //   icon: <CreditCard className="w-5 h-5" />,
+  //   roles: [],
+  //   moduleName: "subscription",
+  //   path: "/subscription",
+  // },
+  {
+    label: "Subscription Plans",
+    icon: <BarChart3 className="w-5 h-5" />,
+    roles: ["superadmin"],
+    moduleName: "subscription_plans",
+    path: "/subscription-plans",
+  },
+  // {
+  //   label: "Super Admin Dashboard",
+  //   icon: <BarChart3 className="w-5 h-5" />,
+  //   roles: [],
+  //   moduleName: undefined, // Accessible for development
+  //   path: "/superadmin-dashboard",
+  // },
   {
     label: "Reports",
     icon: <FileText className="w-5 h-5" />,
@@ -396,8 +520,81 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "reports",
       },
+      {
+        label: "Export Data",
+        path: "/export/data",
+        roles: ["admin", "hr"],
+        icon: <div />,
+        moduleName: "reports",
+      },
+         {
+        label: "Employee Reports",
+        path: "/employees/reports",
+        roles: ["admin", "hr"],
+        icon: <div />,
+        moduleName: "reports",
+      },
     ],
   },
+   {
+    label: "Pulse",
+    icon: <Activity className="w-5 h-5" />,
+    roles: [], // Accessible by all users
+    moduleName: undefined, // Always accessible
+    path: "/pulse-surveys",
+    submenu: [
+      {
+        label: "Dashboard",
+        path: "/pulse-surveys/dashboard",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Surveys",
+        path: "/pulse-surveys/surveys",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Feedback",
+        path: "/pulse-surveys/feedback",
+        roles: [], // Accessible by all users
+        icon: <div />,
+        moduleName: undefined, // Always accessible
+      },
+      {
+        label: "Overview",
+        path: "/pulse-surveys/overview",
+        roles: [], // Accessible by all users
+        icon: <div />,
+        moduleName: undefined, // Always accessible
+      },
+
+       
+
+    ],
+  },
+
+      
+    {
+    label: "Subscription",
+    icon: <CreditCard className="w-5 h-5" />,
+    roles: [],
+    moduleName: "subscription",
+    path: "/subscription",
+  },
+
+    {
+    label: "Ticket Management",
+    icon: <HelpCircle className="w-5 h-5" />,
+    roles: [],
+    moduleName: "tickets",
+    path: "/tickets",
+  },
+
+
 ];
 
 export const Sidebar: React.FC = () => {
@@ -417,6 +614,15 @@ export const Sidebar: React.FC = () => {
       roles: user.roles,
       email: user.email,
     });
+    console.log("Sidebar Debug - HR Access Check:", {
+      hasHRAccess: canPerformModuleAction("hr_management", "view"),
+      hasHRRole: user.roles?.some(role => 
+        role?.toLowerCase() === "hr" || 
+        role?.toLowerCase() === "human resources" ||
+        role?.toLowerCase() === "hr manager"
+      ),
+      roleLoading
+    });
   }
 
   const toggleExpand = (label: string) => {
@@ -426,58 +632,149 @@ export const Sidebar: React.FC = () => {
   };
 
   // Check if user has access to a navigation item based on module permissions
- const hasItemAccess = (item: NavItem): boolean => {
-  // Dashboard is always accessible
-  if (item.moduleName === undefined) {
-    return true;
-  }
+  const hasItemAccess = (item: NavItem): boolean => {
+    // Dashboard is always accessible
+    if (item.moduleName === undefined) {
+      // Special case: Hide Pulse for superadmin users
+      if (item.label === "Pulse") {
+        const hasSuperAdminRole = user.roles?.some(role => role?.toLowerCase() === "superadmin");
+        if (hasSuperAdminRole) {
+          return false;
+        }
+      }
+      return true;
+    }
 
-  // Don't show items while loading permissions
-  if (roleLoading) {
-    return false;
-  }
-
-  // For Role & Module Access Debug, check if user has the specific module
-  if (item.moduleName === "role_access") {
-    return hasModuleAccess("Role & Modules Access");
-  }
-
-  // Check module access - this will use the dynamic permissions from API
-  if (item.moduleName && !hasModuleAccess(item.moduleName)) {
-    return false;
-  }
-
-  // For sub-modules, check specific permissions
-  if (item.subModuleName) {
-    // Special handling for payroll sub-modules
-    if (item.moduleName === "payroll") {
-      switch (item.subModuleName) {
-        case "payslips":
-          // Anyone with payroll view access can see payslips
-          return canPerformModuleAction("payroll", "view");
-        case "salary-structure":
-        case "processing":
-          // These require higher permissions, but HR with view access should see them
-          // The actual permissions will be enforced at the route/component level
-          return canPerformModuleAction("payroll", "view");
-        default:
-          return true;
+    // Check hardcoded roles first - if item has specific roles, enforce them
+    if (item.roles && item.roles.length > 0) {
+      const hasRequiredRole = hasAnyRole(item.roles);
+      if (!hasRequiredRole) {
+        return false;
       }
     }
-  }
 
-  // For reports, ensure view permission
-  if (item.moduleName === "reports") {
-    return canPerformModuleAction("reports", "view");
-  }
+    // Immediate HR role check - bypass module system for HR users
+    if (item.moduleName === "hr_management") {
+      const hasHRRole = user.roles?.some(role => 
+        role?.toLowerCase() === "hr" || 
+        role?.toLowerCase() === "human resources" ||
+        role?.toLowerCase() === "hr manager"
+      );
+      console.log("Direct HR Access Check:", {
+        moduleName: item.moduleName,
+        hasHRRole,
+        userRoles: user.roles
+      });
+      if (hasHRRole) {
+        return true;
+      }
+    }
 
-  // If we get here and have a module name, check view permission
-  if (item.moduleName) {
-    return canPerformModuleAction(item.moduleName, "view");
-  }
+    // Don't show items while loading permissions, except for HR users
+    if (roleLoading) {
+      // Allow HR users to see HR modules even while loading
+      if (item.moduleName === "hr_management") {
+        const hasHRRole = user.roles?.some(role => 
+          role?.toLowerCase() === "hr" || 
+          role?.toLowerCase() === "human resources" ||
+          role?.toLowerCase() === "hr manager"
+        );
+        return hasHRRole;
+      }
+      return false;
+    }
 
-  return true;
-};
+    // For Role & Module Access Debug, check if user has the specific module
+    if (item.moduleName === "role_access") {
+      return hasModuleAccess("Role & Modules Access");
+    }
+
+    // Check module access - this will use the dynamic permissions from API
+    if (item.moduleName && !hasModuleAccess(item.moduleName)) {
+      // Special fallback for client_attendance - allow Sales users
+      if (item.moduleName === "client_attendance") {
+        const hasSalesRole = user.roles?.some(role => role?.toLowerCase() === "sales");
+        if (hasSalesRole) {
+          return true;
+        }
+      }
+      
+      // Special fallback for hr_management - allow HR users
+      if (item.moduleName === "hr_management") {
+        const hasHRRole = user.roles?.some(role => 
+          role?.toLowerCase() === "hr" || 
+          role?.toLowerCase() === "human resources" ||
+          role?.toLowerCase() === "hr manager"
+        );
+        console.log("HR Management Access Check:", {
+          moduleName: item.moduleName,
+          hasModuleAccess: hasModuleAccess(item.moduleName),
+          hasHRRole,
+          userRoles: user.roles
+        });
+        if (hasHRRole) {
+          return true;
+        }
+      }
+      
+      // // Special fallback for pulse_surveys - allow admin and employee users
+      // if (item.moduleName === "pulse_surveys") {
+      //   const hasAdminOrEmployeeRole = user.roles?.some(role => 
+      //     role?.toLowerCase() === "admin" || 
+      //     role?.toLowerCase() === "employee"
+      //   );
+      //   if (hasAdminOrEmployeeRole) {
+      //     return true;
+      //   }
+      // }
+      
+      // Special fallback for subscription_plans - only allow superadmin
+      if (item.moduleName === "subscription_plans") {
+        const hasSuperAdminRole = user.roles?.some(role => role?.toLowerCase() === "superadmin");
+        if (hasSuperAdminRole) {
+          return true;
+        }
+      }
+      
+      return false;
+    }
+
+    // For sub-modules, check specific permissions
+    if (item.subModuleName) {
+      // Special handling for payroll sub-modules
+      if (item.moduleName === "payroll") {
+        switch (item.subModuleName) {
+          case "payslips":
+            // Anyone with payroll view access can see payslips
+            return canPerformModuleAction("payroll", "view");
+          case "salary-structure":
+          case "processing":
+            // These require higher permissions, but HR with view access should see them
+            // The actual permissions will be enforced at the route/component level
+            return canPerformModuleAction("payroll", "view");
+          default:
+            return true;
+        }
+      }
+    }
+
+    // For reports, ensure view permission
+    if (item.moduleName === "reports") {
+      return canPerformModuleAction("reports", "view");
+    }
+
+    // For expense approval items, check approve permission
+    if (item.label === "Approve Claims" || (item.path && item.path.includes("/expenses/approvals"))) {
+      return canPerformModuleAction("expenses", "approve");
+    }
+
+    // If we get here and have a module name, check view permission
+    if (item.moduleName) {
+      return canPerformModuleAction(item.moduleName, "view");
+    }
+
+    return true;
+  };
 
   const filteredItems = navigationItems.filter((item) => hasItemAccess(item));
 
@@ -501,14 +798,25 @@ export const Sidebar: React.FC = () => {
     item,
     level = 0,
   }) => {
-    const isActive =
-      item.path && location.pathname.startsWith(item.path);
     const isExpanded = expandedItems.includes(item.label);
     const hasSubmenu = item.submenu && item.submenu.length > 0;
 
     const filteredSubmenu = hasSubmenu
       ? item.submenu.filter((sub) => hasItemAccess(sub as NavItem))
       : [];
+
+    const isItemActive = Boolean(
+      item.path && location.pathname.startsWith(item.path)
+    );
+
+    const isAnySubmenuActive = Boolean(
+      hasSubmenu &&
+        filteredSubmenu.some((subitem) =>
+          Boolean(subitem.path && location.pathname.startsWith(subitem.path))
+        )
+    );
+
+    const isActive = isItemActive || isAnySubmenuActive;
 
     if (hasSubmenu && filteredSubmenu.length === 0) {
       return null;
@@ -544,7 +852,7 @@ export const Sidebar: React.FC = () => {
                   onClick={() => setIsMobileOpen(false)}
                   className={cn(
                     "sidebar-submenu-item flex items-center gap-3 px-3 py-2 text-xs rounded-md transition-all",
-                    location.pathname === subitem.path
+                    subitem.path && location.pathname.startsWith(subitem.path)
                       ? "active text-primary-foreground bg-primary/20 font-medium"
                       : "text-sidebar-foreground hover:text-primary"
                   )}
@@ -580,12 +888,12 @@ export const Sidebar: React.FC = () => {
     <>
       <style>{sidebarStyles}</style>
       {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 left-4 z-40">
+      <div className="lg:hidden fixed top-4 left-4 z-40">
         <Button
           variant="outline"
           size="icon"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="sidebar-menu-toggle"
+          className="sidebar-menu-toggle shadow-md bg-background/80 backdrop-blur-sm"
         >
           {isMobileOpen ? (
             <X className="w-5 h-5" />
@@ -596,21 +904,24 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Sidebar */}
-  <aside
-  className={cn(
-    "fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-30 shadow-lg",
-    "transition-transform duration-300",
-    "md:translate-x-0", // Desktop-ல எப்போதும் visible
-    isMobileOpen ? "translate-x-0" : "-translate-x-full"
-  )}
->
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-30 shadow-lg",
+          "transition-transform duration-300 ease-in-out",
+          "lg:translate-x-0", // Desktop-ல எப்போதும் visible
+          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
         {/* Logo */}
-        <div className="sidebar-logo-section h-20 px-4 flex items-center border-b border-sidebar-border/50 transition-colors">
-          <Link to="/dashboard" className="flex items-center gap-3 font-bold text-lg text-primary group">
-            <div className="sidebar-logo-badge w-8 h-8 rounded-lg flex items-center justify-center text-primary-foreground text-sm font-bold">
-              HR
+        <div className="h-24 p-2 flex items-center justify-center border-b border-sidebar-border/50 transition-colors">
+          <Link to="/dashboard" className="flex items-center justify-center group">
+            <div className="w-28 h-28 flex items-center justify-center overflow-hidden transition-all duration-300 ">
+              <img
+                src={logo}
+                alt="HRMS Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <span className="hidden sm:inline group-hover:text-primary transition-colors">HRMS</span>
           </Link>
         </div>
 
@@ -641,7 +952,7 @@ export const Sidebar: React.FC = () => {
       {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden backdrop-blur-sm"
           onClick={() => setIsMobileOpen(false)}
         />
       )}

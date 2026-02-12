@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { showToast } from "@/utils/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -240,7 +241,7 @@ export default function MyAssets() {
 
   const handleSave = () => {
     if (!formData.name || !formData.serialNumber || !formData.assignedTo) {
-      alert("Please fill in all required fields");
+      showToast.error("Please fill in all required fields");
       return;
     }
 

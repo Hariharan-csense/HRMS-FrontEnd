@@ -138,8 +138,11 @@ export const sequenceApi = {
     }>
   ): Promise<{ data?: Sequence; error?: string }> => {
     try {
+      console.log('Updating sequence:', id, data);
       const response = await ENDPOINTS.updateSequence(id, data);
-      const s = response.data?.sequence || response.data;
+      console.log('Update response:', response.data);
+      
+      const s = response.data?.data || response.data?.sequence || response.data;
 
       if (s) {
         return {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { UserRole } from '@/lib/auth';
+import { BASE_URL } from '../lib/endpoint';
+import { ENDPOINTS } from '../lib/endpoint';
 
 interface ModulePermission {
   view: number;
@@ -20,10 +21,10 @@ interface RoleData {
 }
 
 type RoleContextType = {
-  hasRole: (role: UserRole) => boolean;
-  hasAnyRole: (roles: UserRole[]) => boolean;
-  hasSubModuleAccess: (role: UserRole, module: string, subModule: string) => boolean;
-  canPerformAction: (role: UserRole, module: string, action: string) => boolean;
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
+  hasSubModuleAccess: (role: string, module: string, subModule: string) => boolean;
+  canPerformAction: (role: string, module: string, action: string) => boolean;
   hasModuleAccess: (module: string) => boolean;
   canPerformModuleAction: (module: string, action: string) => boolean;
   userRoles: RoleData[];
@@ -51,31 +52,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       }
 
       try {
-        const response = await fetch('/api/role', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken') || localStorage.getItem('authToken')}`
-          }
-        });
-
-        if (!response.ok) {
-          console.error('Failed to fetch roles:', response.status, response.statusText);
-          setUserRoles([]);
-          setLoading(false);
-          return;
-        }
-
-        // Check if response is JSON before parsing
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Role API returned non-JSON response:', contentType);
-          const text = await response.text();
-          console.error('Response text:', text.substring(0, 200));
-          setUserRoles([]);
-          setLoading(false);
-          return;
-        }
-
-        const data = await response.json();
+        const response = await ENDPOINTS.getRoles();
+        const data = response.data;
         console.log('Role API response:', data);
         setUserRoles(data.roles || []);
       } catch (error) {
@@ -92,6 +70,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
               "employees": { view: 1, create: 1, edit: 1, approve: 1 },
               "payroll": { view: 1, create: 1, edit: 1, approve: 1 },
               "attendance": { view: 1, create: 1, edit: 1, approve: 1 },
+              "live_tracking": { view: 1, create: 1, edit: 1, approve: 1 },
               "leave": { view: 1, create: 1, edit: 1, approve: 1 },
               "expenses": { view: 1, create: 0, edit: 0, approve: 1 },
               "assets": { view: 1, create: 1, edit: 1, approve: 1 },
@@ -115,6 +94,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
               "employees": { view: 1, create: 0, edit: 0, approve: 0 },
               "payroll": { view: 1, create: 0, edit: 0, approve: 0 },
               "attendance": { view: 1, create: 0, edit: 1, approve: 0 },
+              "live_tracking": { view: 0, create: 0, edit: 0, approve: 0 },
               "leave": { view: 1, create: 1, edit: 0, approve: 0 },
               "expenses": { view: 0, create: 0, edit: 0, approve: 0 },
               "assets": { view: 0, create: 0, edit: 0, approve: 0 },
@@ -134,8 +114,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
               "employees": { view: 1, create: 0, edit: 0, approve: 0 },
               "payroll": { view: 1, create: 0, edit: 0, approve: 0 },
               "attendance": { view: 1, create: 1, edit: 0, approve: 0 },
+              "live_tracking": { view: 0, create: 0, edit: 0, approve: 0 },
               "shift management": { view: 1, create: 0, edit: 0, approve: 0 },
-              "leave": { view: 1, create: 1, edit: 0, approve: 0 },
+              "leave": { view: 1, create: 1, edit: 0, approve: 1 },
               "expenses": { view: 1, create: 0, edit: 0, approve: 0 },
               "assets": { view: 0, create: 0, edit: 0, approve: 0 },
               "exit": { view: 1, create: 0, edit: 0, approve: 0 },
@@ -153,20 +134,25 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     };
 
     fetchRoles();
-  }, [user]);
+  }, [user?.id]);
 
-  const hasRole = (role: UserRole): boolean => {
+  const hasRole = (role: string): boolean => {
     if (!user?.roles) return false;
     return user.roles.includes(role);
   };
 
-  const hasAnyRole = (roles: UserRole[]): boolean => {
+  const hasAnyRole = (roles: string[]): boolean => {
     if (!user?.roles) return false;
     return user.roles.some(role => roles.includes(role));
   };
 
   // Check if user has access to a specific module based on their role permissions
   const hasModuleAccess = (module: string): boolean => {
+    // Admin users should have access to all modules by default
+    if (user?.roles?.some(role => role?.toLowerCase() === "admin")) {
+      return true;
+    }
+    
     if (!user?.roles || userRoles.length === 0) return false;
     
     // Debug logging
@@ -230,6 +216,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Check if user can perform a specific action on a module
   const canPerformModuleAction = (module: string, action: string): boolean => {
+    // Admin users should be able to perform all actions by default
+    if (user?.roles?.some(role => role?.toLowerCase() === "admin")) {
+      return true;
+    }
+    
     if (!user?.roles || userRoles.length === 0) return false;
     
     // Check if any of the user's roles has permission for this action
@@ -283,12 +274,12 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   };
 
   // Legacy functions for backward compatibility
-  const hasSubModuleAccess = (role: UserRole, module: string, subModule: string): boolean => {
+  const hasSubModuleAccess = (role: string, module: string, subModule: string): boolean => {
     // For now, delegate to module access check
     return hasModuleAccess(module);
   };
 
-  const canPerformAction = (role: UserRole, module: string, action: string): boolean => {
+  const canPerformAction = (role: string, module: string, action: string): boolean => {
     // For now, delegate to module action check
     return canPerformModuleAction(module, action);
   };

@@ -8,6 +8,7 @@ interface RegisterData {
   companyName: string;
   role: string;
   department?: string;
+  phone?: string;
 }
 
 export const registerUser = async (userData: RegisterData) => {
@@ -23,6 +24,7 @@ export const registerUser = async (userData: RegisterData) => {
       role: userData.role,
       department: userData.department?.trim(),
       company_name: userData.companyName?.trim(),
+      phone: userData.phone?.trim(),
     };
 
     const response = await ENDPOINTS.register(payload);

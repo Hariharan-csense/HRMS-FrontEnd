@@ -6,10 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, X, Eye } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Check, X, Eye, Download, FileText } from "lucide-react";
 import expenseApi from "@/components/helper/expense/expense";
 import { useAuth } from "@/context/AuthContext";
 import NotificationTriggerService from "@/services/notificationTriggerService";
+import { PdfExportService } from "@/services/pdfExportService";
+import { showToast } from "@/utils/toast";
 
 // Base URL for static files (without /api)
 
@@ -26,7 +29,6 @@ interface ExpenseApproval {
   date: string;
   description: string;
   status: "pending" | "approved" | "rejected" | "Pending" | "Approved" | "Rejected";
-  billUrl?: string;
   receipt_url?: string;
   approvedBy?: string | null;
   approvalNote?: string;
@@ -52,6 +54,8 @@ export default function ExpenseApprovals() {
   const [approvalNote, setApprovalNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
+  const [pdfExportService] = useState(() => PdfExportService.getInstance());
 
   const pendingExpenses = expenses.filter((e) => e.status === "pending");
 
@@ -72,101 +76,152 @@ export default function ExpenseApprovals() {
     setIsDecisionOpen(true);
   };
 
-const confirmDecision = async () => {
-  if (!selectedExpense || !decision) return;
-
-  const payload = {
-    status: decision === "approved" ? "Approved" : "Rejected",
-    approval_note: approvalNote || null,
-    approved_by: user?.name || "Finance User", // optional
-  };
- console.log(selectedExpense)
-  try {
-    const result = await expenseApi.updateExpense(selectedExpense.id, payload); // ← use ID, not expense_id
-    
-    if (result.data) {
-      // Trigger notification for expense approval/rejection
-      const notificationService = NotificationTriggerService.getInstance();
-      
-      if (decision === "approved") {
-        await notificationService.triggerExpenseApproved({
-          employeeId: selectedExpense.employeeId,
-          employeeName: selectedExpense.employeeName,
-          amount: selectedExpense.amount,
-          expenseType: selectedExpense.category,
-          description: selectedExpense.description,
-        });
-      } else {
-        await notificationService.triggerExpenseRejected({
-          employeeId: selectedExpense.employeeId,
-          employeeName: selectedExpense.employeeName,
-          amount: selectedExpense.amount,
-          expenseType: selectedExpense.category,
-          description: selectedExpense.description,
-        });
-      }
-
-      // Refetch updated expenses
-      const fetchResult = await expenseApi.getExpense();
-      console.log("Refetched expenses after update:", fetchResult);
-      if (fetchResult.data) setExpenses(fetchResult.data);
-
-      alert(`Expense ${decision} successfully!`);
-
-      // Reset dialog
-      setIsDecisionOpen(false);
-      setApprovalNote("");
-      setSelectedExpense(null);
-      setDecision(null);
-    } else {
-      alert(result.error || "Failed to update expense status");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Something went wrong while updating expense.");
-  }
-};
-
-
-useEffect(() => {
-  const fetchExpenses = async () => {
-    setLoading(true);
-    setError(null);
-
+  const handleExportSingle = async (expense: ExpenseApproval) => {
     try {
-      const result = await expenseApi.getExpense();
-
-      console.log("Final expenses from API helper:", result);
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      if (!Array.isArray(result.data)) {
-        throw new Error("Expenses data is invalid");
-      }
-
-      // 🔥 DATA IS ALREADY CLEAN & MAPPED
-      setExpenses(
-        result.data.map((e) => ({
-          ...e,
-          date: e.date
-            ? new Date(e.date).toLocaleDateString("en-IN")
-            : "N/A",
-          employeeName: e.employeeName || "Unknown Employee",
-        }))
-      );
+      await pdfExportService.exportSingleExpense(expense);
     } catch (error) {
-      console.error("Error fetching expenses:", error);
-      setError(error instanceof Error ? error.message : "Failed to load expenses");
-      setExpenses([]);
-    } finally {
-      setLoading(false);
+      showToast.error('Failed to export expense PDF');
     }
   };
 
-  fetchExpenses();
-}, []);
+  const handleExportSelected = async () => {
+    const expensesToExport = pendingExpenses.filter(e => selectedExpenses.includes(e.id));
+    if (expensesToExport.length === 0) {
+      showToast.error('Please select at least one expense to export');
+      return;
+    }
+    
+    try {
+      await pdfExportService.exportMultipleExpenses(expensesToExport);
+    } catch (error) {
+      showToast.error('Failed to export selected expenses PDF');
+    }
+  };
+
+  const handleExportAll = async () => {
+    if (pendingExpenses.length === 0) {
+      showToast.error('No pending expenses to export');
+      return;
+    }
+    
+    try {
+      await pdfExportService.exportMultipleExpenses(pendingExpenses);
+    } catch (error) {
+      showToast.error('Failed to export all expenses PDF');
+    }
+  };
+
+  const handleSelectExpense = (expenseId: string) => {
+    setSelectedExpenses(prev => 
+      prev.includes(expenseId) 
+        ? prev.filter(id => id !== expenseId)
+        : [...prev, expenseId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedExpenses.length === pendingExpenses.length) {
+      setSelectedExpenses([]);
+    } else {
+      setSelectedExpenses(pendingExpenses.map(e => e.id));
+    }
+  };
+
+  const confirmDecision = async () => {
+    if (!selectedExpense || !decision) return;
+
+    const payload = {
+      status: decision === "approved" ? "Approved" : "Rejected",
+      approval_note: approvalNote || null,
+      approved_by: user?.name || "Finance User", // optional
+    };
+    console.log(selectedExpense)
+    try {
+      const result = await expenseApi.updateExpense(selectedExpense.id, payload); // ← use ID, not expense_id
+
+      if (result.data) {
+        // Trigger notification for expense approval/rejection
+        const notificationService = NotificationTriggerService.getInstance();
+
+        if (decision === "approved") {
+          await notificationService.triggerExpenseApproved({
+            employeeId: selectedExpense.employeeId,
+            employeeName: selectedExpense.employeeName,
+            amount: selectedExpense.amount,
+            expenseType: selectedExpense.category,
+            description: selectedExpense.description,
+          });
+        } else {
+          await notificationService.triggerExpenseRejected({
+            employeeId: selectedExpense.employeeId,
+            employeeName: selectedExpense.employeeName,
+            amount: selectedExpense.amount,
+            expenseType: selectedExpense.category,
+            description: selectedExpense.description,
+          });
+        }
+
+        // Refetch updated expenses
+        const fetchResult = await expenseApi.getPendingExpenses();
+        console.log("Refetched pending expenses after update:", fetchResult);
+        if (fetchResult.data) setExpenses(fetchResult.data);
+
+        showToast.success(`Expense ${decision} successfully!`);
+
+        // Reset dialog
+        setIsDecisionOpen(false);
+        setApprovalNote("");
+        setSelectedExpense(null);
+        setDecision(null);
+      } else {
+        showToast.error(result.error || "Failed to update expense status");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast.error("Something went wrong while updating expense.");
+    }
+  };
+
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const result = await expenseApi.getExpense();
+
+        console.log("Final pending expenses from API helper:", result);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        if (!Array.isArray(result.data)) {
+          throw new Error("Expenses data is invalid");
+        }
+
+        // 🔥 DATA IS ALREADY CLEAN & MAPPED
+        setExpenses(
+          result.data.map((e) => ({
+            ...e,
+            date: e.date
+              ? new Date(e.date).toLocaleDateString("en-IN")
+              : "N/A",
+            employeeName: e.employeeName || "Unknown Employee",
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching expenses:", error);
+        setError(error instanceof Error ? error.message : "Failed to load expenses");
+        setExpenses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExpenses();
+  }, []);
 
 
   const totalPending = pendingExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -207,8 +262,34 @@ useEffect(() => {
         {/* Pending Expenses Table */}
         <Card>
           <CardHeader className="pb-3 sm:pb-4">
-            <CardTitle className="text-lg sm:text-xl">Pending Expense Claims</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Claims awaiting approval from Finance team</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg sm:text-xl">Pending Expense Claims</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Claims awaiting approval from Finance team</CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportAll}
+                  disabled={pendingExpenses.length === 0}
+                  className="text-xs"
+                >
+                  <FileText className="w-4 h-4 mr-1" />
+                  Export All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportSelected}
+                  disabled={selectedExpenses.length === 0}
+                  className="text-xs"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Export Selected ({selectedExpenses.length})
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {pendingExpenses.length === 0 ? (
@@ -221,7 +302,12 @@ useEffect(() => {
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {pendingExpenses.map((expense) => (
                     <div key={expense.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                      <div className="flex items-start gap-2 mb-2 sm:mb-3">
+                        <Checkbox
+                          checked={selectedExpenses.includes(expense.id)}
+                          onCheckedChange={() => handleSelectExpense(expense.id)}
+                          className="mt-1 flex-shrink-0"
+                        />
                         <div className="flex-1">
                           <h3 className="font-semibold text-sm sm:text-base">{expense.employeeName}</h3>
                           <p className="text-xs sm:text-sm text-muted-foreground">{expense.category}</p>
@@ -260,6 +346,13 @@ useEffect(() => {
                         >
                           <X className="w-4 h-4 mx-auto" />
                         </button>
+                        <button
+                          onClick={() => handleExportSingle(expense)}
+                          className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                          title="Export PDF"
+                        >
+                          <Download className="w-4 h-4 mx-auto" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -270,6 +363,12 @@ useEffect(() => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left px-4 py-3 font-semibold">
+                          <Checkbox
+                            checked={selectedExpenses.length === pendingExpenses.length && pendingExpenses.length > 0}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        </th>
                         <th className="text-left px-4 py-3 font-semibold">Employee</th>
                         <th className="text-left px-4 py-3 font-semibold">Category</th>
                         <th className="text-left px-4 py-3 font-semibold">Amount</th>
@@ -281,6 +380,12 @@ useEffect(() => {
                     <tbody>
                       {pendingExpenses.map((expense) => (
                         <tr key={expense.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <Checkbox
+                              checked={selectedExpenses.includes(expense.id)}
+                              onCheckedChange={() => handleSelectExpense(expense.id)}
+                            />
+                          </td>
                           <td className="px-4 py-3 font-medium">{expense.employeeName}</td>
                           <td className="px-4 py-3">{expense.category}</td>
                           <td className="px-4 py-3 font-bold text-blue-600">₹{expense.amount}</td>
@@ -308,6 +413,13 @@ useEffect(() => {
                                 title="Reject"
                               >
                                 <X className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleExportSingle(expense)}
+                                className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                                title="Export PDF"
+                              >
+                                <Download className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -341,11 +453,10 @@ useEffect(() => {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span
-                        className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium whitespace-nowrap ${
-                          expense.status === "approved"
+                        className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium whitespace-nowrap ${expense.status === "approved"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
-                        }`}
+                          }`}
                       >
                         {expense.status}
                       </span>
@@ -397,48 +508,48 @@ useEffect(() => {
                   <p className="text-sm">{selectedExpense.description}</p>
                 </div>
 
-               <div>
-  <p className="text-sm text-muted-foreground mb-2">Bill / Receipt</p>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Bill / Receipt</p>
 
-  {selectedExpense.billUrl ? (
-    <div className="space-y-2">
-      {/* View Document Button */}
-      <a
-        href={selectedExpense.billUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-md"
-      >
-        View Document
-      </a>
+                  {selectedExpense.receipt_url ? (
+                    <div className="space-y-2">
+                      {/* View Document Button */}
+                      <a
+                        href={selectedExpense.receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-md"
+                      >
+                        View Document
+                      </a>
 
-      {/* Image Preview (only if image) */}
-      {selectedExpense.billUrl.match(/\.(png|jpg|jpeg|webp)$/i) && (
-        <div className="mt-2 border rounded-md overflow-hidden">
-          <img
-            src={selectedExpense.billUrl}
-            alt="Expense Receipt"
-            className="w-full h-auto max-h-64 object-contain"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = "/placeholder.svg";
-              target.alt = "Document preview not available";
-            }}
-          />
-        </div>
-      )}
-    </div>
-  ) : (
-    <p className="text-sm text-muted-foreground">No document attached</p>
-  )}
-</div>
+                      {/* Image Preview (only if image) */}
+                      {selectedExpense.receipt_url.match(/\.(png|jpg|jpeg|webp)$/i) && (
+                        <div className="mt-2 border rounded-md overflow-hidden">
+                          <img
+                            src={selectedExpense.receipt_url}
+                            alt="Expense Receipt"
+                            className="w-full h-auto max-h-64 object-contain"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "/placeholder.svg";
+                              target.alt = "Document preview not available";
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No document attached</p>
+                  )}
+                </div>
 
               </div>
 
               <div className="pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
+                <Button
+                  variant="outline"
+                  className="w-full"
                   onClick={() => setIsDetailsOpen(false)}
                 >
                   Close
@@ -446,8 +557,8 @@ useEffect(() => {
               </div>
             </div>
           )}
-  </DialogContent>
-</Dialog>
+        </DialogContent>
+      </Dialog>
 
 
       {/* Approval Decision Dialog */}
@@ -480,11 +591,10 @@ useEffect(() => {
             <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDecision}
-              className={`w-full sm:w-auto text-xs sm:text-sm ${
-                decision === "approved"
+              className={`w-full sm:w-auto text-xs sm:text-sm ${decision === "approved"
                   ? "bg-green-600 hover:bg-green-700"
                   : "bg-red-600 hover:bg-red-700"
-              }`}
+                }`}
             >
               {decision === "approved" ? "Approve" : "Reject"}
             </AlertDialogAction>

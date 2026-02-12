@@ -13,15 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { showToast } from "@/utils/toast";
 import {
   Select,
   SelectContent,
@@ -150,7 +143,7 @@ const handleOpenDialog = (asset?: Asset) => {
   if (asset) {
     // Employees இன்னும் load ஆகலனா wait பண்ணு
     if (loadingEmployees || employees.length === 0) {
-      alert("Employees are still loading. Please try again in a moment.");
+      showToast.error("Employees are still loading. Please try again in a moment.");
       return;
     }
 
@@ -187,7 +180,7 @@ const handleOpenDialog = (asset?: Asset) => {
 
 const handleSave = async () => {
   if (!formData.name || !formData.serial) {
-    alert("Please fill in required fields");
+    showToast.error("Please fill in required fields");
     return;
   }
 
@@ -222,9 +215,9 @@ const handleSave = async () => {
     // Optional: show toast "Updated but failed to refresh list"
   }
   handleCloseDialog();
-  alert("Asset updated successfully!");
+  showToast.success("Asset updated successfully!");
 } else {
-  alert(result.error || "Update failed");
+  showToast.error(result.error || "Update failed");
 }
 };
 
@@ -256,16 +249,16 @@ const handleSave = async () => {
       }
 
       // Success message
-      alert("Asset deleted successfully!");
+      showToast.success("Asset deleted successfully!");
 
       setAssetToDelete(null);
       setIsDeleteDialogOpen(false);
     } else {
-      alert(result.error || "Failed to delete asset");
+      showToast.error(result.error || "Failed to delete asset");
     }
   } catch (err) {
     console.error("Delete error:", err);
-    alert("Failed to delete asset. Please try again.");
+    showToast.error("Failed to delete asset. Please try again.");
   }
 
   // setDeleting(false);

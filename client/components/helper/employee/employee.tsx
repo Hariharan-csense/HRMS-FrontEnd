@@ -33,25 +33,77 @@ export const employeeApi = {
 
       // response structure check பண்ணி safe-ஆ data எடு
       const rawData = response?.data;
+      let employees: any[] = [];
 
       if (Array.isArray(rawData)) {
-        console.log("Employees loaded successfully:", rawData.length);
-        return { data: rawData };
+        employees = rawData;
+      } else if (rawData?.success && Array.isArray(rawData.data)) {
+        employees = rawData.data;
+      } else if (Array.isArray(rawData?.employees)) {
+        employees = rawData.employees;
       }
 
-      // சில API { success: true, data: [...] } இப்படி தரும்
-      if (rawData?.success && Array.isArray(rawData.data)) {
-        console.log("Employees from wrapped data:", rawData.data.length);
-        return { data: rawData.data };
+      // Return all employees without filtering
+      console.log(`Total employees: ${employees.length}`);
+
+      // Fetch attendance locations for all employees
+      if (employees.length > 0) {
+        try {
+          const attendanceResponse = await fetch('http://192.168.1.9:3000/api/attendance/locations', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            }
+          });
+
+          if (attendanceResponse.ok) {
+            const attendanceData = await attendanceResponse.json();
+            const attendanceLocations = attendanceData.locations || attendanceData.data || [];
+            
+            console.log('Attendance locations fetched:', attendanceLocations.length);
+
+            // Merge attendance data with employee data
+            const employeesWithLocation = employees.map(employee => {
+              const attendanceRecord = attendanceLocations.find(
+                att => att.employee_id === employee.id || att.employeeId === employee.id
+              );
+
+              return {
+                ...employee,
+                // Map attendance data to expected format
+                latitude: attendanceRecord?.latitude || null,
+                longitude: attendanceRecord?.longitude || null,
+                accuracy: attendanceRecord?.accuracy || null,
+                address: attendanceRecord?.address || null,
+                locationTimestamp: attendanceRecord?.timestamp || attendanceRecord?.location_timestamp || null,
+                isTracking: attendanceRecord ? true : false,
+                trackingStatus: attendanceRecord ? 'active' : 'offline',
+                deviceInfo: attendanceRecord?.device_info || null
+              };
+            });
+
+            console.log('Employees with location data:', employeesWithLocation.length);
+            return { data: employeesWithLocation };
+          }
+        } catch (attendanceError) {
+          console.warn('Failed to fetch attendance locations:', attendanceError);
+          // Return employees without location data
+          const employeesWithoutLocation = employees.map(employee => ({
+            ...employee,
+            latitude: null,
+            longitude: null,
+            accuracy: null,
+            address: null,
+            locationTimestamp: null,
+            isTracking: false,
+            trackingStatus: 'offline',
+            deviceInfo: null
+          }));
+          return { data: employeesWithoutLocation };
+        }
       }
 
-      // { employees: [...] } இப்படி இருந்தாலும்
-      if (Array.isArray(rawData?.employees)) {
-        return { data: rawData.employees };
-      }
-
-      console.warn("Unexpected employee data format:", rawData);
-      return { data: [] }; // error இல்லாம empty array தரு
+      return { data: employees };
 
     } catch (error: any) {
       console.error("Error fetching employees:", error);

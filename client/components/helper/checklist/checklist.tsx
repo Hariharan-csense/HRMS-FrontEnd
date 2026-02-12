@@ -26,7 +26,7 @@ export const checklistApi = {
   // ✅ Get all offboarding checklists
   getChecklists: async (): Promise<{ data?: OffboardingChecklist[]; error?: string }> => {
     try {
-      const response = await ENDPOINTS.getChecklist();
+      const response = await ENDPOINTS.getChecklists();
 
       let rawData: any[] = [];
 

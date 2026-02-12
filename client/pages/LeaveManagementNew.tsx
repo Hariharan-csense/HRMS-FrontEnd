@@ -12,9 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
+import { employeeApi } from "@/components/helper/employee/employee";
+import { departmentApi, Department } from "@/components/helper/department/department";
+import { designationApi, Designation } from "@/components/helper/designation/designation";
+import { required } from "zod/v4-mini";
 
 // Types
 interface LeaveType {
@@ -54,18 +58,6 @@ interface LeaveApplication {
   reportingManagerEmail?: string;
   createdAt: string;
 }
-
-interface Manager {
-  id: string;
-  name: string;
-  email: string;
-  role: "manager" | "hr";
-}
-
-const mockManagers: Manager[] = [
-  { id: "MGR001", name: "Michael Manager", email: "manager@company.com", role: "manager" },
-  { id: "MGR002", name: "Emma HR", email: "hr@company.com", role: "hr" },
-];
 
 const mockEmployees = [
   { id: "EMP001", name: "John Doe" },
@@ -173,12 +165,232 @@ export default function LeaveManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("types");
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [designations, setDesignations] = useState<Designation[]>([]);
+  const [reportingManagers, setReportingManagers] = useState<any[]>([]);
+  const [currentUserEmployee, setCurrentUserEmployee] = useState<any>(null);
   const [dialogMode, setDialogMode] = useState<"types" | "applications">("types");
   const [loading, setLoading] = useState(true);
 
   // Helper function to map user ID to employee ID (e.g., "2" -> "EMP002")
   const getEmployeeIdForUser = (userId: string) => {
-    return `EMP${String(parseInt(userId)).padStart(3, "0")}`;
+    return String(parseInt(userId));
+  };
+
+  // Find current user's employee data and set reporting managers
+const findCurrentUserAndSetManagers = async () => {
+  if (!user || employees.length === 0 || departments.length === 0 || designations.length === 0) {
+    setReportingManagers([]);
+    return;
+  }
+
+  const userEmployeeId = (user as any)?.employee_id || user?.id;
+  const currentUser = employees.find(emp =>
+    emp.id == userEmployeeId ||
+    emp.id == user?.id ||
+    emp.employee_id === userEmployeeId?.toString() ||
+    emp.employee_id === user?.id?.toString() ||
+    emp.id === userEmployeeId?.toString() ||
+    emp.id === user?.id?.toString()
+  );
+
+  if (!currentUser) {
+    setReportingManagers([]);
+    return;
+  }
+
+  setCurrentUserEmployee(currentUser);
+  const userDeptId = currentUser.department_id;
+
+  let managers: any[] = [];
+
+  if (hasRole(user, "admin") || hasRole(user, "manager")) {
+    // Admins & managers see all HR (role or designation)
+    managers = employees
+      .filter(emp => {
+        if (emp.id === currentUser.id) return false;
+        const designation = designations.find(d => d.id == emp.designation_id);
+        const desigName = (designation?.name || '').toLowerCase();
+        return emp.role === 'hr' || desigName.includes('hr');
+      })
+      .map(emp => {
+        const designation = designations.find(d => d.id == emp.designation_id);
+        const dept = departments.find(d => d.id == emp.department_id);
+        return {
+          ...emp,
+          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
+          designationName: designation?.name || 'Unknown',
+          departmentName: dept?.name || 'Unknown',
+        };
+      });
+  } else if (currentUser.role === 'employee') {
+    // Employees see: same-dept managers/leads + all HR
+    managers = employees
+      .filter(emp => {
+        if (emp.id === currentUser.id) return false;
+        const designation = designations.find(d => d.id == emp.designation_id);
+        const desigName = (designation?.name || '').toLowerCase();
+        const isHR = emp.role === 'hr' || desigName.includes('hr');
+        const isManager = emp.role === 'manager' || desigName.includes('manager') || desigName.includes('lead');
+        const sameDept = emp.department_id == userDeptId;
+        return isHR || (isManager && sameDept);
+      })
+      .map(emp => {
+        const designation = designations.find(d => d.id == emp.designation_id);
+        const dept = departments.find(d => d.id == emp.department_id);
+        const desigName = (designation?.name || '').toLowerCase();
+        const isHR = emp.role === 'hr' || desigName.includes('hr');
+        const isManager = emp.role === 'manager' || desigName.includes('manager') || desigName.includes('lead');
+        return {
+          ...emp,
+          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
+          designationName: designation?.name || 'Unknown',
+          departmentName: dept?.name || 'Unknown',
+          isHR,
+          isManager,
+          isSameDepartment: emp.department_id == userDeptId,
+        };
+      });
+
+    // Sort: same-dept managers first, then HR, then others
+    managers.sort((a, b) => {
+      if (a.isManager && a.isSameDepartment && !(b.isManager && b.isSameDepartment)) return -1;
+      if (!(a.isManager && a.isSameDepartment) && b.isManager && b.isSameDepartment) return 1;
+      if (a.isHR && !b.isHR) return -1;
+      if (!a.isHR && b.isHR) return 1;
+      return 0;
+    });
+  }
+
+  // === Always ensure the assigned reporting manager is included (top of list) ===
+  if (currentUser.reporting_manager_id) {
+    const assignedId = currentUser.reporting_manager_id;
+    if (!managers.some(m => m.id === assignedId)) {
+      const assignedEmp = employees.find(emp => emp.id === assignedId);
+      if (assignedEmp) {
+        const designation = designations.find(d => d.id == assignedEmp.designation_id);
+        const dept = departments.find(d => d.id == assignedEmp.department_id);
+        const mapped = {
+          ...assignedEmp,
+          fullName: `${assignedEmp.first_name || ''} ${assignedEmp.last_name || ''}`.trim() || 'Assigned Manager',
+          designationName: designation?.name || 'Unknown',
+          departmentName: dept?.name || 'Unknown',
+        };
+        managers.unshift(mapped); // Add to top
+      }
+    }
+  }
+
+  // === Final fallback: if still empty, show all other employees ===
+  if (managers.length === 0 && employees.length > 1) {
+    managers = employees
+      .filter(emp => emp.id !== currentUser.id)
+      .map(emp => {
+        const designation = designations.find(d => d.id == emp.designation_id);
+        const dept = departments.find(d => d.id == emp.department_id);
+        return {
+          ...emp,
+          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
+          designationName: designation?.name || 'Unknown',
+          departmentName: dept?.name || 'Unknown',
+        };
+      })
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
+  setReportingManagers(managers);
+};
+
+  // Load employees
+  const loadEmployees = async () => {
+    try {
+      console.log("Fetching employees...");
+      const result = await employeeApi.getEmployees();
+      
+      console.log("Employees Result:", result);
+      
+      if (result && result.error) {
+        console.error("API Error:", result.error);
+        toast.error(result.error);
+        return;
+      }
+      
+      // Handle the actual API response structure
+      let employeesData = [];
+      if (result && (result as any).employees && Array.isArray((result as any).employees)) {
+        employeesData = (result as any).employees;
+      } else if (result && result.data && Array.isArray(result.data)) {
+        employeesData = result.data;
+      } else if (Array.isArray(result)) {
+        employeesData = result;
+      }
+      
+      if (employeesData.length > 0) {
+        setEmployees(employeesData);
+        toast.success(`Loaded ${employeesData.length} employees`);
+      } else {
+        console.error("No employees found in response:", result);
+        toast.error("No employees data available");
+      }
+    } catch (error: any) {
+      console.error("Fetch Employees Error:", error);
+      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+    }
+  };
+
+  // Load departments
+  const loadDepartments = async () => {
+    try {
+      console.log("Fetching departments...");
+      const result = await departmentApi.getdepartment();
+      
+      console.log("Departments Result:", result);
+      
+      if (result && result.error) {
+        console.error("API Error:", result.error);
+        toast.error(result.error);
+        return;
+      }
+      
+      if (result && result.data && Array.isArray(result.data)) {
+        setDepartments(result.data);
+        toast.success(`Loaded ${result.data.length} departments`);
+      } else {
+        console.error("No departments found in response:", result);
+        toast.error("No departments data available");
+      }
+    } catch (error: any) {
+      console.error("Fetch Departments Error:", error);
+      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+    }
+  };
+
+  // Load designations
+  const loadDesignations = async () => {
+    try {
+      console.log("Fetching designations...");
+      const result = await designationApi.getDesignations();
+      
+      console.log("Designations Result:", result);
+      
+      if (result && result.error) {
+        console.error("API Error:", result.error);
+        toast.error(result.error);
+        return;
+      }
+      
+      if (result && result.data && Array.isArray(result.data)) {
+        setDesignations(result.data);
+        toast.success(`Loaded ${result.data.length} designations`);
+      } else {
+        console.error("No designations found in response:", result);
+        toast.error("No designations data available");
+      }
+    } catch (error: any) {
+      console.error("Fetch Designations Error:", error);
+      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+    }
   };
 
   // Load leave applications
@@ -223,6 +435,8 @@ export default function LeaveManagement() {
       }
       
       if (result && result.data && Array.isArray(result.data)) {
+        // The API helper already processes the response and returns { data: [...] }
+        // with the correct LeaveBalance format
         setLeaveBalances(result.data);
         toast.success(`Loaded ${result.data.length} leave balances`);
       } else {
@@ -298,6 +512,17 @@ useEffect(() => {
   loadLeaveTypes();
 }, []);
 
+// Pre-fill employee data for all users
+useEffect(() => {
+  if (user) {
+    setFormData(prev => ({
+      ...prev,
+      employeeName: `${(user as any)?.first_name || ''} ${(user as any)?.last_name || ''}`.trim() || (user as any)?.name || 'Current User',
+      employeeId: (user as any)?.employee_id || user?.id,
+    }));
+  }
+}, [user]);
+
   // Detect route and set active tab
   useEffect(() => {
     const pathname = location.pathname;
@@ -317,15 +542,137 @@ useEffect(() => {
     }
   }, [activeTab]);
 
+  // Load employees when component mounts
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  // Load departments when component mounts
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  // Load designations when component mounts
+  useEffect(() => {
+    loadDesignations();
+  }, []);
+
+  // Find current user and set reporting managers when all data is loaded
+  useEffect(() => {
+    if (employees.length > 0 && departments.length > 0 && designations.length > 0) {
+      findCurrentUserAndSetManagers();
+    }
+  }, [user, employees, departments, designations]);
+
+  // Also trigger when dialog opens to ensure managers are loaded
+  useEffect(() => {
+    if (isDialogOpen && employees.length > 0) {
+      findCurrentUserAndSetManagers();
+    }
+  }, [isDialogOpen]);
+
   // Load leave applications when applications tab is active
   useEffect(() => {
     if (activeTab === "applications") {
       loadLeaveApplications();
     }
   }, [activeTab]);
+
+  // Load relevant users for leave (reporting managers, HR) using the new API
+  const loadLeaveUsers = async () => {
+    try {
+      console.log("Fetching leave users...");
+      const result = await leaveTypeApi.getLeaveUsers();
+      
+      console.log("Leave Users Result:", result);
+      
+      if (result && result.error) {
+        console.error("API Error:", result.error);
+        toast.error(result.error);
+        return;
+      }
+      
+      if (result && result.data && Array.isArray(result.data)) {
+        console.log("Setting reporting managers:", result.data);
+        setReportingManagers(result.data);
+        
+        const managerCount = result.data.filter(u => u.role === 'manager').length;
+        const hrCount = result.data.filter(u => u.role === 'hr').length;
+        
+        toast.success(`Loaded ${managerCount} manager(s) and ${hrCount} HR personnel(s)`);
+      } else {
+        console.error("No leave users found in response:", result);
+        toast.error("No relevant users found");
+      }
+    } catch (error: any) {
+      console.error("Fetch Leave Users Error:", error);
+      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+    }
+  };
+
+  // Load leave users when component mounts or when dialog opens for applications
+  useEffect(() => {
+    if (isDialogOpen && dialogMode === "applications") {
+      loadLeaveUsers();
+    }
+  }, [isDialogOpen, dialogMode]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
+  const [selectedReportingManagers, setSelectedReportingManagers] = useState<string[]>([]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const dropdown = document.getElementById('manager-dropdown');
+      const button = event.target as HTMLElement;
+      
+      if (dropdown && !dropdown.contains(button) && !button.closest('button')) {
+        dropdown.classList.add('hidden');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Update form data when selected managers change
+  useEffect(() => {
+    if (selectedReportingManagers.length > 0) {
+      const selectedManagers = reportingManagers.filter(m => selectedReportingManagers.includes(m.id));
+      const managerNames = selectedManagers.map(m => m.fullName || m.name).join(', ');
+      const managerEmails = selectedManagers.map(m => m.email).filter(Boolean).join(', ');
+      
+      setFormData(prev => ({
+        ...prev,
+        reportingManagerIds: selectedReportingManagers,
+        reportingManagerName: managerNames,
+        reportingManagerEmail: managerEmails
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        reportingManagerIds: [],
+        reportingManagerName: '',
+        reportingManagerEmail: ''
+      }));
+    }
+  }, [selectedReportingManagers, reportingManagers]);
+
+  // Toggle employee expansion
+  const toggleEmployeeExpansion = (employeeId: string) => {
+    setExpandedEmployees(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
+      }
+      return newSet;
+    });
+  };
 
   // Filter functions
   const filteredLeaveTypes = useMemo(
@@ -337,23 +684,32 @@ useEffect(() => {
     let filtered = leaveBalances;
 
     // If user is an employee, show only their data
-    if (hasRole(user, "employee") && !hasRole(user, "manager")) {
+    if (hasRole(user, "employee") && !hasRole(user, "admin")) {
       const employeeId = getEmployeeIdForUser(user?.id || "");
       filtered = filtered.filter((lb) => lb.employeeId === employeeId);
-    } else if (hasRole(user, "manager")) {
-      // Managers see their own and their direct reports' leave data
-      filtered = filtered.filter(
-        (lb) =>
-          lb.employeeName === user?.name || // Show their own
-          leaveApplications.find((la) => la.employeeName === lb.employeeName && la.reportingManagerName === user?.name) // Show their team members
-      );
-    } else {
+    } else if (hasRole(user, "admin")) {
       // For admins, apply search filter to see all
-      filtered = filtered.filter((lb) => lb.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || lb.leaveType.toLowerCase().includes(searchTerm.toLowerCase()));
+      filtered = filtered.filter((lb) => 
+        lb.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        lb.leaveType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lb.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
     return filtered;
-  }, [leaveBalances, searchTerm, user, leaveApplications]);
+  }, [leaveBalances, searchTerm, user]);
+
+  // Group leave balances by employee for admin view
+  const groupedLeaveBalances = useMemo(() => {
+    const grouped: Record<string, LeaveBalance[]> = {};
+    filteredLeaveBalances.forEach(lb => {
+      if (!grouped[lb.employeeId]) {
+        grouped[lb.employeeId] = [];
+      }
+      grouped[lb.employeeId].push(lb);
+    });
+    return grouped;
+  }, [filteredLeaveBalances]);
 
   const filteredLeaveApplications = useMemo(() => {
     let filtered = leaveApplications;
@@ -412,6 +768,90 @@ useEffect(() => {
   };
 
   const handleSave = async () => {
+    if (dialogMode === "applications") {
+      // Handle leave application submission
+      // Attachments are optional; all other fields are required
+      const employeeIdField = formData.employeeId || currentUserEmployee?.id || user?.id;
+      const approversSelected = (
+        (formData.reportingManagerIds && formData.reportingManagerIds.length > 0) ||
+        (selectedReportingManagers && selectedReportingManagers.length > 0) ||
+        !!formData.reportingManagerName
+      );
+
+      if (!employeeIdField) {
+        toast.error('Employee selection is required');
+        return;
+      }
+
+      if (!formData.leaveType || !formData.fromDate || !formData.toDate || !formData.reason) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      if (!approversSelected) {
+        toast.error('Please select at least one approver (manager or HR)');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Find the selected leave type to get its ID
+        const selectedLeaveType = leaveTypes.find(lt => lt.name === formData.leaveType);
+        
+        if (!selectedLeaveType) {
+          toast.error("Please select a valid leave type");
+          return;
+        }
+
+        // Get reporting manager details from form or current user data
+        const reportingManagerId = formData.reportingManagerId || currentUserEmployee?.reporting_manager_id;
+        const reportingManagerName = formData.reportingManagerName || currentUserEmployee?.reporting_manager_name;
+        const reportingManagerEmail = formData.reportingManagerEmail || currentUserEmployee?.reporting_manager_email;
+
+        // Prepare leave application data in the format expected by the backend
+        const leaveData = {
+          leave_type_id: selectedLeaveType.id, // Use the ID instead of name
+          from_date: formData.fromDate,
+          to_date: formData.toDate,
+          reason: formData.reason,
+          employee_id: formData.employeeId || currentUserEmployee?.id || '',
+          employee_name: formData.employeeName || currentUserEmployee?.name || user?.name || '',
+          status: 'applied',
+          days: formData.days || 1,
+          // Include reporting manager details for notification
+          reporting_manager_id: reportingManagerId,
+          reporting_manager_name: reportingManagerName,
+          reporting_manager_email: reportingManagerEmail,
+          // Include leave type name for the email
+          leave_type_name: selectedLeaveType.name
+        };
+        
+        console.log("Sending leave data:", leaveData);
+
+        // Call the applyLeave function
+        const result = await leaveTypeApi.applyLeave(leaveData);
+        
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        toast.success("Leave application submitted successfully!");
+        setIsDialogOpen(false);
+        
+        // Refresh the leave applications list
+        await loadLeaveApplications();
+        
+      } catch (error: any) {
+        console.error("Error applying for leave:", error);
+        toast.error(error.message || "Failed to submit leave application");
+      } finally {
+        setLoading(false);
+      }
+      
+      return;
+    }
+
     if (!formData.name && dialogMode === "types") {
       toast.error("Please fill in all required fields");
       return;
@@ -632,13 +1072,11 @@ useEffect(() => {
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Apply and manage employee leaves</p>
             </div>
-            {hasRole(user, "employee") && (
-              <Button onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
-                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Apply Leave</span>
-                <span className="sm:hidden">Apply</span>
-              </Button>
-            )}
+            <Button onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Apply Leave</span>
+              <span className="sm:hidden">Apply</span>
+            </Button>
           </div>
         </div>
 
@@ -668,17 +1106,7 @@ useEffect(() => {
           </Card>
         )}
 
-        {/* Search Card for Employee */}
-        {activeTab === "balance" && hasRole(user, "employee") && (
-          <Card>
-            <CardContent className="pt-3 sm:pt-4 md:pt-6">
-              <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
-                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                Apply Leave
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        {/* Search Card for Employee - removed redundant Apply Leave button */}
 
         
         {/* Tabs */}
@@ -801,57 +1229,159 @@ useEffect(() => {
           <TabsContent value="balance">
             <Card>
               <CardContent className="pt-4 sm:pt-6">
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
-                  {filteredLeaveBalances.map((lb) => (
-                    <div key={lb.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="mb-2 sm:mb-3">
-                        <h3 className="font-semibold text-sm sm:text-base">{lb.employeeName}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{lb.leaveType}</p>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                        <div className="bg-blue-50 rounded p-2 sm:p-3 text-center">
-                          <p className="text-xs text-muted-foreground mb-1">Opening</p>
-                          <p className="text-lg sm:text-xl font-bold text-blue-700">{lb.opening}</p>
+                {hasRole(user, "employee") && !hasRole(user, "admin") ? (
+                  // Employee View - Simple and clean
+                  <div className="space-y-3">
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold mb-2">Your Leave Balances</h3>
+                      {filteredLeaveBalances.length > 0 && (
+                        <div className="flex items-center">
+                          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-medium text-sm">
+                            {filteredLeaveBalances[0].employeeName}
+                          </span>
                         </div>
-                        <div className="bg-orange-50 rounded p-2 sm:p-3 text-center">
-                          <p className="text-xs text-muted-foreground mb-1">Availed</p>
-                          <p className="text-lg sm:text-xl font-bold text-orange-700">{lb.availed}</p>
-                        </div>
-                        <div className="bg-green-50 rounded p-2 sm:p-3 text-center">
-                          <p className="text-xs text-muted-foreground mb-1">Available</p>
-                          <p className="text-lg sm:text-xl font-bold text-green-700">{lb.available}</p>
-                        </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-3 font-semibold">Employee</th>
-                        <th className="text-left px-3 py-3 font-semibold">Leave Type</th>
-                        <th className="text-center px-3 py-3 font-semibold">Opening</th>
-                        <th className="text-center px-3 py-3 font-semibold">Availed</th>
-                        <th className="text-center px-3 py-3 font-semibold">Available</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredLeaveBalances.map((lb) => (
-                        <tr key={lb.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-3 font-medium">{lb.employeeName}</td>
-                          <td className="px-3 py-3">{lb.leaveType}</td>
-                          <td className="px-3 py-3 text-center bg-blue-50">{lb.opening}</td>
-                          <td className="px-3 py-3 text-center bg-orange-50">{lb.availed}</td>
-                          <td className="px-3 py-3 text-center bg-green-50 font-semibold">{lb.available}</td>
-                        </tr>
+                        <div key={lb.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-blue-900">{lb.leaveType}</h4>
+                            <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                              Available
+                            </div>
+                          </div>
+                          <div className="text-2xl font-bold text-blue-700 mb-1">
+                            {lb.available} days
+                          </div>
+                          <div className="text-xs text-blue-600">
+                            Opening: {lb.opening} | Availed: {lb.availed}
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Admin View - Grouped by employee
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-2 sm:space-y-3">
+                      {Object.entries(groupedLeaveBalances).map(([employeeId, balances]) => (
+                        <div key={employeeId} className="border border-border rounded-lg bg-muted/30">
+                          <div 
+                            className="p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => toggleEmployeeExpansion(employeeId)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-sm sm:text-base">{balances[0].employeeName}</h3>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {balances.length} leave type{balances.length > 1 ? 's' : ''}
+                                </span>
+                                <svg 
+                                  className={`w-4 h-4 transition-transform ${expandedEmployees.has(employeeId) ? 'rotate-180' : ''}`}
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {expandedEmployees.has(employeeId) && (
+                            <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
+                              {balances.map((lb) => (
+                                <div key={lb.id} className="border-t border-border pt-2 sm:pt-3">
+                                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">{lb.leaveType}</p>
+                                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                                    <div className="bg-blue-50 rounded p-2 sm:p-3 text-center">
+                                      <p className="text-xs text-muted-foreground mb-1">Opening</p>
+                                      <p className="text-lg sm:text-xl font-bold text-blue-700">{lb.opening}</p>
+                                    </div>
+                                    <div className="bg-orange-50 rounded p-2 sm:p-3 text-center">
+                                      <p className="text-xs text-muted-foreground mb-1">Availed</p>
+                                      <p className="text-lg sm:text-xl font-bold text-orange-700">{lb.availed}</p>
+                                    </div>
+                                    <div className="bg-green-50 rounded p-2 sm:p-3 text-center">
+                                      <p className="text-xs text-muted-foreground mb-1">Available</p>
+                                      <p className="text-lg sm:text-xl font-bold text-green-700">{lb.available}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/50">
+                            <th className="text-left px-3 py-3 font-semibold">Employee</th>
+                            <th className="text-left px-3 py-3 font-semibold">Leave Types</th>
+                            <th className="text-center px-3 py-3 font-semibold">Total Available</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(groupedLeaveBalances).map(([employeeId, balances]) => (
+                            <React.Fragment key={employeeId}>
+                              <tr 
+                                className="border-b border-border hover:bg-muted/50 cursor-pointer"
+                                onClick={() => toggleEmployeeExpansion(employeeId)}
+                              >
+                                <td className="px-3 py-3 font-medium">{balances[0].employeeName}</td>
+                                <td className="px-3 py-3">
+                                  <span className="text-muted-foreground">
+                                    {balances.length} leave type{balances.length > 1 ? 's' : ''}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                  <span className="bg-green-50 px-2 py-1 rounded font-semibold text-green-700">
+                                    {balances.reduce((sum, lb) => sum + lb.available, 0)} days
+                                  </span>
+                                </td>
+                              </tr>
+                              
+                              {expandedEmployees.has(employeeId) && (
+                                <tr>
+                                  <td colSpan={3} className="px-0 py-0">
+                                    <div className="bg-muted/30 border-l-4 border-primary">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className="bg-muted/50">
+                                            <th className="text-left px-3 py-2 font-semibold text-xs">Leave Type</th>
+                                            <th className="text-center px-3 py-2 font-semibold text-xs">Opening</th>
+                                            <th className="text-center px-3 py-2 font-semibold text-xs">Availed</th>
+                                            <th className="text-center px-3 py-2 font-semibold text-xs">Available</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {balances.map((lb) => (
+                                            <tr key={lb.id} className="border-t border-border">
+                                              <td className="px-3 py-2">{lb.leaveType}</td>
+                                              <td className="px-3 py-2 text-center bg-blue-50">{lb.opening}</td>
+                                              <td className="px-3 py-2 text-center bg-orange-50">{lb.availed}</td>
+                                              <td className="px-3 py-2 text-center bg-green-50 font-semibold">{lb.available}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -860,14 +1390,23 @@ useEffect(() => {
           <TabsContent value="applications">
             <Card>
               <CardContent className="pt-4 sm:pt-6">
+                {/* Apply Leave Button for All Users */}
+                <div className="mb-4 sm:mb-6">
+                  <Button onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Apply Leave</span>
+                    <span className="sm:hidden">Apply</span>
+                  </Button>
+                </div>
+                
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {filteredLeaveApplications.map((la) => (
                     <div key={la.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
                       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-sm sm:text-base">{la.employeeName}</h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground">{la.leaveType}</p>
+                          <h3 className="font-semibold text-sm sm:text-base">{la.employeeName }</h3>
+                 
                         </div>
                         <span
                           className={`text-xs px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${
@@ -884,11 +1423,15 @@ useEffect(() => {
                       <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-3">
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground flex-shrink-0">From:</span>
-                          <span className="font-medium text-right">{la.fromDate}</span>
+                          <span className="font-medium text-right">
+                            {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''}
+                          </span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground flex-shrink-0">To:</span>
-                          <span className="font-medium text-right">{la.toDate}</span>
+                          <span className="font-medium text-right">
+                            {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
+                          </span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground flex-shrink-0">Days:</span>
@@ -909,7 +1452,6 @@ useEffect(() => {
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
                         <th className="text-left px-3 py-3 font-semibold">Employee</th>
-                        <th className="text-left px-3 py-3 font-semibold">Type</th>
                         <th className="text-left px-3 py-3 font-semibold">From - To</th>
                         <th className="text-center px-3 py-3 font-semibold">Days</th>
                         <th className="text-left px-3 py-3 font-semibold">Reason</th>
@@ -919,9 +1461,10 @@ useEffect(() => {
                     <tbody>
                       {filteredLeaveApplications.map((la) => (
                         <tr key={la.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-3 font-medium">{la.employeeName}</td>
-                          <td className="px-3 py-3">{la.leaveType}</td>
-                          <td className="px-3 py-3 whitespace-nowrap">{la.fromDate} → {la.toDate}</td>
+                          <td className="px-3 py-3 font-medium">{la.employeeName }</td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''} → {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
+                          </td>
                           <td className="px-3 py-3 text-center">{la.days}</td>
                           <td className="px-3 py-3">{la.reason}</td>
                           <td className="px-3 py-3">
@@ -950,174 +1493,330 @@ useEffect(() => {
 
       {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">
-              {editingId ? "Edit" : "Add New"} {dialogMode === "types" ? "Leave Type" : "Leave Application"}
-            </DialogTitle>
+        <DialogContent className="w-full max-w-3xl max-h-[95vh] overflow-y-auto p-0 bg-white border-0 rounded-2xl shadow-2xl">
+          {/* Dialog Header */}
+          <DialogHeader className="relative bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] p-8 text-white rounded-t-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12 blur-xl"></div>
+            
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                <Calendar className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <DialogTitle className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  {editingId ? "Edit" : "Request"} {dialogMode === "types" ? "Leave Type" : "Leave Permission"}
+                </DialogTitle>
+                <DialogDescription className="text-emerald-100 text-base mt-2 font-medium">
+                  {dialogMode === "applications" 
+                    ? "Fill in the details below to submit your leave request" 
+                    : "Configure leave type settings and permissions"}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-3 sm:space-y-4">
+          <div className="p-8 space-y-8 bg-gray-50/50">
             {dialogMode === "types" && (
               <>
-                <div>
-                  <Label className="text-xs sm:text-sm">Leave Type Name *</Label>
+                <div className="space-y-3">
+                  <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                    Leave Type Name *
+                  </Label>
                   <Input
                     value={formData.name || ""}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                    className="h-12 text-base border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+                    placeholder="e.g., Casual Leave, Sick Leave"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                
+                <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 shadow-sm">
                   <Checkbox
                     checked={formData.isPaid || false}
                     onCheckedChange={(checked) => setFormData({ ...formData, isPaid: checked })}
+                    className="w-6 h-6 text-blue-600 border-blue-400 rounded-lg focus:ring-blue-500/20"
                   />
-                  <Label>Paid Leave</Label>
+                  <Label className="text-base font-semibold text-gray-800">Paid Leave</Label>
+                  <span className="ml-auto text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">Recommended</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                  <div>
-                    <Label className="text-xs sm:text-sm">Annual Limit (days) *</Label>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-600 rounded-full"></span>
+                      Annual Limit (days) *
+                    </Label>
                     <Input
                       value={formData.annualLimit || ""}
                       onChange={(e) => setFormData({ ...formData, annualLimit: parseInt(e.target.value) || 0 })}
                       type="number"
-                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                      className="h-12 text-base border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm"
+                      placeholder="12"
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Carry Forward (days)</Label>
+                  <div className="space-y-3">
+                    <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
+                      Carry Forward (days)
+                    </Label>
                     <Input
                       value={formData.carryForward || ""}
                       onChange={(e) => setFormData({ ...formData, carryForward: parseInt(e.target.value) || 0 })}
                       type="number"
-                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                      className="h-12 text-base border-gray-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all shadow-sm"
+                      placeholder="5"
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                
+                <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 shadow-sm">
                   <Checkbox
                     checked={formData.encashable || false}
                     onCheckedChange={(checked) => setFormData({ ...formData, encashable: checked })}
+                    className="w-6 h-6 text-green-600 border-green-400 rounded-lg focus:ring-green-500/20"
                   />
-                  <Label>Encashable</Label>
+                  <Label className="text-base font-semibold text-gray-800">Encashable</Label>
+                  <span className="ml-auto text-sm text-green-600 font-medium bg-green-100 px-3 py-1 rounded-full">Optional</span>
                 </div>
               </>
             )}
 
             {dialogMode === "applications" && (
               <>
-                {!hasRole(user, "employee") && (
-                  <div>
-                    <Label className="text-xs sm:text-sm">Employee *</Label>
-                    <Select value={formData.employeeName || ""} onValueChange={(val) => setFormData({ ...formData, employeeName: val, employeeId: val })}>
-                      <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
-                        <SelectValue placeholder="Select employee..." />
-                      </SelectTrigger>
-<SelectContent className="z-50 max-h-60 overflow-auto">
-  {mockEmployees.length === 0 ? (
-    <div className="px-4 py-2 text-sm text-muted-foreground">No employees available</div>
-  ) : (
-    mockEmployees.map((employee) => (
-      <SelectItem key={employee.id} value={employee.name}>
-        {employee.name}
-      </SelectItem>
-    ))
-  )}
-</SelectContent>
-                    </Select>
+                {/* Employee field - show current user name for all users */}
+                <div className="p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200 shadow-sm">
+                  <Label className="text-base font-bold text-purple-800 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
+                    Employee Information
+                  </Label>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                      {((formData.employeeName || (user as any)?.name || 'Current User').charAt(0) || 'U').toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-800 text-lg">
+                        {formData.employeeName || (user as any)?.name || 'Current User'}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {(user as any)?.employee_id || user?.id ? `ID: ${(user as any)?.employee_id || user?.id}` : 'Employee'}
+                      </p>
+                    </div>
+                    <div className="bg-purple-100 px-4 py-2 rounded-full">
+                      <span className="text-purple-700 font-semibold text-sm">Current User</span>
+                    </div>
                   </div>
-                )}
-                {hasRole(user, "employee") && (
-                  <div className="p-3 bg-muted rounded-lg">
-                    <Label className="text-sm text-muted-foreground">Employee</Label>
-                    <p className="font-medium mt-1">{formData.employeeName || user?.name}</p>
-                  </div>
-                )}
-                <div>
-                  <Label className="text-xs sm:text-sm">Leave Type *</Label>
+                </div>
+                
+                <div className="space-y-3">
+                  <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                    Leave Type *
+                  </Label>
                   <Select value={formData.leaveType || ""} onValueChange={(val) => setFormData({ ...formData, leaveType: val })}>
-                    <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
-                      <SelectValue placeholder="Select type..." />
+                    <SelectTrigger className="h-12 text-base border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm">
+                      <SelectValue placeholder="Select leave type..." />
                     </SelectTrigger>
-                    <SelectContent className="z-50 max-h-60 overflow-auto">
-  {leaveTypes.map((type) => (
-    <SelectItem key={type.id} value={type.name}>
-      {type.name}
-    </SelectItem>
-  ))}
-</SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                  <div>
-                    <Label className="text-xs sm:text-sm">From Date *</Label>
-                    <Input
-                      value={formData.fromDate || ""}
-                      onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })}
-                      type="date"
-                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">To Date *</Label>
-                    <Input
-                      value={formData.toDate || ""}
-                      onChange={(e) => setFormData({ ...formData, toDate: e.target.value })}
-                      type="date"
-                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs sm:text-sm">Reason for Leave *</Label>
-                  <Input
-                    value={formData.reason || ""}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                    className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs sm:text-sm">Reporting Manager/HR *</Label>
-                  <Select
-                    value={formData.reportingManagerId || ""}
-                    onValueChange={(val) => {
-                      const manager = mockManagers.find(m => m.id === val);
-                      setFormData({
-                        ...formData,
-                        reportingManagerId: val,
-                        reportingManagerName: manager?.name || "",
-                        reportingManagerEmail: manager?.email || ""
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
-                      <SelectValue placeholder="Select manager or HR..." />
-                    </SelectTrigger>
-                    <SelectContent className="z-50 max-h-60 overflow-auto">
-                      {mockManagers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id}>
-                          {manager.name}
+                    <SelectContent className="z-50 max-h-60 overflow-auto border-gray-200 rounded-xl shadow-lg">
+                      {leaveTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.name} className="text-base py-3">
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium">{type.name}</span>
+                            {type.isPaid && (
+                              <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full font-bold">
+                                Paid
+                              </span>
+                            )}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                {formData.reportingManagerEmail && (
-                  <div className="p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Reporting To:</p>
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium">{formData.reportingManagerName}</p>
-                      <p className="text-xs text-muted-foreground">{formData.reportingManagerEmail}</p>
-                      <p className="text-xs text-blue-600 mt-1 sm:mt-2">Email will be sent on submission</p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-600 rounded-full"></span>
+                      From Date *
+                    </Label>
+                    <Input
+                      value={formData.fromDate || ""}
+                      onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })}
+                      type="date"
+                      className="h-12 text-base border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-red-600 rounded-full"></span>
+                      To Date *
+                    </Label>
+                    <Input
+                      value={formData.toDate || ""}
+                      onChange={(e) => setFormData({ ...formData, toDate: e.target.value })}
+                      type="date"
+                      className="h-12 text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
+                    Reason for Leave *
+                  </Label>
+                  <Input
+                    value={formData.reason || ""}
+                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                    required
+                    className="h-12 text-base border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm"
+                    placeholder="Please provide a reason for your leave request..."
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
+                    Reporting Manager/HR *
+                  </Label>
+                  
+                  {/* Multi-select Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      
+                      onClick={() => {
+                        const dropdown = document.getElementById('manager-dropdown');
+                        if (dropdown) {
+                          dropdown.classList.toggle('hidden');
+                        }
+                        
+                      }}
+                      className="w-full h-12 text-base border-gray-300 bg-white rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all px-4 py-3 text-left flex items-center justify-between hover:border-indigo-400 shadow-sm"
+                      
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {selectedReportingManagers.length > 0 ? (
+                          selectedReportingManagers.map((managerId) => {
+                            const manager = reportingManagers.find((r) => r.id === managerId);
+                            return manager ? (
+                              <span key={manager.id} className="flex items-center gap-2 bg-gradient-to-r from-indigo-100 to-blue-100 px-3 py-1.5 rounded-full text-sm font-bold text-indigo-700">
+                                {manager.fullName || manager.name}
+                                {manager.role === 'hr' && <span className="text-indigo-600 font-bold">(HR)</span>}
+                                {manager.role === 'manager' && <span className="text-green-600 font-bold">(M)</span>}
+                              </span>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-gray-400">Select manager(s) or HR...</span>
+                        )}
+                      </div>
+                      <span className="ml-2 text-gray-400 text-lg">▼</span>
+                    </button>
+                    
+                    {/* Dropdown Content */}
+                    <div id="manager-dropdown" className="hidden absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-auto">
+                      {reportingManagers.length > 0 ? (
+                        reportingManagers.map((manager) => (
+                          <div
+                            key={manager.id}
+                            className="flex items-center gap-4 p-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 cursor-pointer border-b last:border-b-0 transition-all"
+                            onClick={() => {
+                              const isSelected = selectedReportingManagers.includes(manager.id);
+                              if (isSelected) {
+                                setSelectedReportingManagers(prev => prev.filter(id => id !== manager.id));
+                              } else {
+                                setSelectedReportingManagers(prev => [...prev, manager.id]);
+                              }
+                            }}
+                          >
+                            <Checkbox
+                              checked={selectedReportingManagers.includes(manager.id)}
+                              onChange={() => {}}
+                              className="w-5 h-5 text-indigo-600 border-gray-400 rounded-lg focus:ring-indigo-500/20"
+                            />
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                                {(manager.fullName || manager.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex flex-col items-start flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm text-gray-800">{manager.fullName || manager.name}</span>
+                                  {manager.role === 'hr' && (
+                                    <span className="px-2 py-1 bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 text-xs rounded-full font-bold">
+                                      HR
+                                    </span>
+                                  )}
+                                  {manager.role === 'manager' && (
+                                    <span className="px-2 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs rounded-full font-bold">
+                                      Manager
+                                    </span>
+                                  )}
+                                </div>
+                                {(manager.designation || manager.department) && (
+                                  <span className="text-xs text-gray-500 mt-1">
+                                    {manager.designation && `${manager.designation}`}
+                                    {manager.designation && manager.department && ' • '}
+                                    {manager.department && `${manager.department}`}
+                                  </span>
+                                )}
+                                {manager.email && (
+                                  <span className="text-xs text-gray-400">
+                                    {manager.email}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-8 text-sm text-gray-500 text-center">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                              <span className="text-2xl">👥</span>
+                            </div>
+                            <span className="font-bold text-gray-700">No approvers found</span>
+                            <span className="text-xs text-gray-400">Contact admin to set up reporting structure</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {formData.reportingManagerName && (
+                  <div className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl border border-blue-200 shadow-sm">
+                    <p className="text-base font-bold text-blue-800 mb-4 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                      Selected Approver(s):
+                    </p>
+                    <div className="space-y-3">
+                      <p className="text-base font-bold text-gray-800">
+                        {formData.reportingManagerName}
+                      </p>
+                      {formData.reportingManagerEmail && (
+                        <p className="text-sm text-gray-600">{formData.reportingManagerEmail}</p>
+                      )}
+                      <p className="text-sm text-blue-700 mt-4 font-bold bg-blue-100 px-4 py-2 rounded-lg inline-block">
+                        {hasRole(user, 'admin') || hasRole(user, 'manager') 
+                          ? `You will be notified about this leave application (${selectedReportingManagers.length} recipient${selectedReportingManagers.length > 1 ? 's' : ''})`
+                          : `Email will be sent on submission (${selectedReportingManagers.length} recipient${selectedReportingManagers.length > 1 ? 's' : ''})`
+                        }
+                      </p>
                     </div>
                   </div>
                 )}
-                <div>
-                  <Label>Attachment (Optional)</Label>
-                  <label className="flex items-center gap-2 px-3 py-2 border border-dashed rounded-lg cursor-pointer mt-2 hover:bg-muted">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm">Choose file...</span>
+                
+                <div className="space-y-3">
+                  <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-gray-600 rounded-full"></span>
+                    Attachment (Optional)
+                  </Label>
+                  <label className="flex items-center gap-4 px-6 py-4 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
+                    <Upload className="w-6 h-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    <span className="text-base text-gray-600 group-hover:text-blue-600 transition-colors font-medium">Choose file or drag and drop...</span>
                     <input type="file" className="hidden" />
                   </label>
                 </div>
@@ -1125,11 +1824,20 @@ useEffect(() => {
             )}
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 pt-3 sm:pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto text-xs sm:text-sm">
+          <div className="flex flex-col-reverse sm:flex-row gap-4 justify-end p-8 pt-0 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-b-2xl">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDialogOpen(false)} 
+              className="w-full sm:w-auto h-12 text-base font-bold border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all rounded-xl px-8"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSave} className="w-full sm:w-auto text-xs sm:text-sm">Save</Button>
+            <Button 
+              onClick={handleSave} 
+              className="w-full sm:w-auto h-12 text-base font-bold bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 rounded-xl px-8"
+            >
+              {dialogMode === "applications" ? "Submit Request" : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

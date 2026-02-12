@@ -8,22 +8,34 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { RoleProvider } from "@/context/RoleContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { RoleBasedRoute } from "@/components/RoleBasedRoute";
 
 // Pages
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import LandingPage from "./pages/LandingPage";
+import FeaturesPage from "./pages/FeaturesPage";
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
+import PricingPage from "./pages/PricingPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
+import RefundCancellation from "./pages/RefundCancellation";
 import AssetList from "./pages/AssetList";
 import MyAssets from "./pages/MyAssets";
 import EmployeeList from "./pages/EmployeeList";
 import AttendanceLog from "./pages/AttendanceLog";
 import AttendanceCapture from "./pages/AttendanceCapture";
 import AttendanceOverride from "./pages/AttendanceOverride";
+//import LiveLocationDashboard from "./pages/LiveLocationDashboard";
 import LeaveManagement from "./pages/LeaveManagementNew";
 import LeaveApprovals from "./pages/LeaveApprovals";
 import LeaveConfiguration from "./pages/LeaveConfiguration";
+import LeavePermission from "./pages/LeavePermission";
 import PayrollSetup from "./pages/PayrollSetup";
 import PayrollManagement from "./pages/PayrollManagement";
 import ExpenseClaims from "./pages/ExpenseClaims";
@@ -37,7 +49,36 @@ import RegisterUser from "./pages/RegisterUser";
 import Signup from "./pages/Signup";
 import RoleAccessDebug from "./pages/RoleAccessDebug";
 import RoleTest from "./pages/RoleTest";
-
+import LiveTracking from "./pages/LiveTracking";
+import ClientAssignment from "./pages/ClientAssignment";
+import MyClientAssignment from "./pages/MyClientAssignment";
+import EmployeeAnalytics from "./pages/EmployeeAnalytics";
+import EmployeeReports from "./pages/EmployeeReports";
+import ClientAttendance from "./pages/ClientAttendance";
+import ClientAttendanceAdmin from "./pages/ClientAttendanceAdmin";
+import SalesAttendanceReport from "./pages/SalesAttendanceReport";
+import ClientGeoFence from "./pages/ClientGeoFence";
+import TicketManagement from "./pages/TicketManagement";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import SubscriptionManagement from "./pages/SubscriptionManagement";
+import SubscriptionPlansManagement from "./pages/SubscriptionPlansManagement";
+import HRRequirements from "./pages/HRRequirements";
+import HRRecruitment from "./pages/HRRecruitment";
+import HROfferLetters from "./pages/HROfferLetters";
+import HROnboarding from "./pages/HROnboarding";
+import HRSettlement from "./pages/HRSettlement";
+import ExportData from "./pages/ExportData";
+import PulseSurveyDashboard from "./pages/PulseSurveyDashboard";
+import PulseSurveySurveys from "./pages/PulseSurveySurveys";
+import PulseSurveyFeedback from "./pages/PulseSurveyFeedback";
+import PulseSurveyOverview from "./pages/PulseSurveyOverview";
+import PulseSurveys from "./pages/PulseSurveys";
+import RoleManagement from "./pages/RoleManagement";
+import AdminOnlyRoute from "./components/AdminOnlyRoute";
+import SuperAdminOnlyRoute from "./components/SuperAdminOnlyRoute";
+import SalesOnlyRoute from "./components/SalesOnlyRoute";
+import HROnlyRoute from "./components/HROnlyRoute";
+import ClientAttendanceRoute from "./components/ClientAttendanceRoute";
 const queryClient = new QueryClient();
 
 // Protected Route Component
@@ -62,6 +103,32 @@ const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
   return <>{element}</>;
 };
 
+// Root Route Handler
+const RootRoute = () => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    // Redirect superadmin users directly to SuperAdminDashboard
+    if (user?.roles?.includes("superadmin")) {
+      return <Navigate to="/superadmin-dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+};
+
 // Public Routes Handler
 const PublicRoute = ({ element }: { element: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -77,10 +144,7 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
     );
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  // Don't redirect authenticated users from public routes - let them access if needed
   return <>{element}</>;
 };
 
@@ -89,8 +153,48 @@ function AppRoutes() {
     <Routes>
       {/* Public Routes */}
       <Route
+        path="/"
+        element={<PublicRoute element={<LandingPage />} />}
+      />
+      <Route
+        path="/landing"
+        element={<PublicRoute element={<LandingPage />} />}
+      />
+      <Route
+        path="/features"
+        element={<PublicRoute element={<FeaturesPage />} />}
+      />
+      <Route
+        path="/about"
+        element={<PublicRoute element={<AboutPage />} />}
+      />
+      <Route
+        path="/contact"
+        element={<PublicRoute element={<ContactPage />} />}
+      />
+      <Route
+        path="/pricing"
+        element={<PublicRoute element={<PricingPage />} />}
+      />
+      <Route
+        path="/privacy-policy"
+        element={<PublicRoute element={<PrivacyPolicy />} />}
+      />
+      <Route
+        path="/terms-conditions"
+        element={<PublicRoute element={<TermsConditions />} />}
+      />
+      <Route
+        path="/refund-cancellation"
+        element={<PublicRoute element={<RefundCancellation />} />}
+      />
+      <Route
         path="/login"
         element={<PublicRoute element={<Login />} />}
+      />
+      <Route
+        path="/forgot-password"
+        element={<PublicRoute element={<ForgotPassword />} />}
       />
       <Route
         path="/signup"
@@ -103,11 +207,11 @@ function AppRoutes() {
         element={<ProtectedRoute element={<Dashboard />} />}
       />
 
-      {/* Organization Setup - Admin Only */}
+      {/* Organization Setup - Module-based access */}
       <Route
         path="/organization/company"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="organization" requiredAction="view">
             <OrganizationSetup />
           </RoleBasedRoute>
         }
@@ -115,7 +219,7 @@ function AppRoutes() {
       <Route
         path="/organization/branches"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="organization" requiredAction="view">
             <OrganizationSetup />
           </RoleBasedRoute>
         }
@@ -123,7 +227,7 @@ function AppRoutes() {
       <Route
         path="/organization/departments"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="organization" requiredAction="view">
             <OrganizationSetup />
           </RoleBasedRoute>
         }
@@ -131,7 +235,7 @@ function AppRoutes() {
       <Route
         path="/organization/designations"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="organization" requiredAction="view">
             <OrganizationSetup />
           </RoleBasedRoute>
         }
@@ -139,17 +243,25 @@ function AppRoutes() {
       <Route
         path="/organization/roles"
         element={
-          <RoleBasedRoute allowedRoles={["admin"]}>
+          <RoleBasedRoute requiredModule="role_access" requiredAction="view">
             <OrganizationSetup />
           </RoleBasedRoute>
         }
       />
+      <Route
+        path="/organization/role-management"
+        element={
+          <RoleBasedRoute requiredModule="role_access" requiredAction="view">
+            <RoleManagement />
+          </RoleBasedRoute>
+        }
+      />
 
-      {/* Employee Management - Admin, HR */}
+      {/* Employee Management - Module-based access */}
       <Route
         path="/employees"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="employees" requiredAction="view">
             <EmployeeList />
           </RoleBasedRoute>
         }
@@ -157,8 +269,18 @@ function AppRoutes() {
       <Route
         path="/employees/register"
         element={
-          <RoleBasedRoute allowedRoles={["admin", "HR"]}>
+          <RoleBasedRoute requiredModule="employees" requiredAction="create">
             <RegisterUser />
+          </RoleBasedRoute>
+        }
+      />
+
+      {/* Employee Reports - Module-based access */}
+      <Route
+        path="/employees/reports"
+        element={
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
+            <EmployeeReports />
           </RoleBasedRoute>
         }
       />
@@ -188,11 +310,21 @@ function AppRoutes() {
           </RoleBasedRoute>
         }
       />
+
       <Route
         path="/attendance/shift"
         element={
           <RoleBasedRoute requiredModule="attendance" requiredAction="edit">
             <ShiftManagement />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/attendance/live-tracking"
+        element={
+          <RoleBasedRoute requiredModule="live_tracking" requiredAction="view">
+            <LiveTracking />
           </RoleBasedRoute>
         }
       />
@@ -227,6 +359,22 @@ function AppRoutes() {
         element={
           <RoleBasedRoute requiredModule="leave" requiredAction="edit">
             <LeaveConfiguration />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="/leave/permission"
+        element={
+          <RoleBasedRoute requiredModule="leave" requiredAction="view">
+            <LeavePermission />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="/export/data"
+        element={
+          <RoleBasedRoute requiredModule="reports" requiredAction="view">
+            <ExportData />
           </RoleBasedRoute>
         }
       />
@@ -310,7 +458,14 @@ function AppRoutes() {
           </RoleBasedRoute>
         }
       />
-
+      <Route
+        path="/exit/settlement"
+        element={
+          <HROnlyRoute>
+            <HRSettlement />
+          </HROnlyRoute>
+        }
+      />
       {/* Reports - Module-based access */}
       <Route
         path="/reports/attendance"
@@ -359,6 +514,139 @@ function AppRoutes() {
         element={<ProtectedRoute element={<UserProfile />} />}
       />
 
+      {/* Client Assignment - Admin only */}
+      <Route
+        path="/client-assignment"
+        element={
+          <AdminOnlyRoute>
+            <ClientAssignment />
+          </AdminOnlyRoute>
+        }
+      />
+
+      {/* My Client Assignment - Employees */}
+      <Route
+        path="/my-clients"
+        element={<ProtectedRoute element={<MyClientAssignment />} />}
+      />
+
+      {/* Employee Analytics */}
+      <Route
+        path="/my-analytics"
+        element={<ProtectedRoute element={<EmployeeAnalytics />} />}
+      />
+
+      {/* HR Management - HR only */}
+      <Route
+        path="/hr/requirements"
+        element={
+          <HROnlyRoute>
+            <HRRequirements />
+          </HROnlyRoute>
+        }
+      />
+      <Route
+        path="/hr/recruitment"
+        element={
+          <HROnlyRoute>
+            <HRRecruitment />
+          </HROnlyRoute>
+        }
+      />
+      <Route
+        path="/hr/offer-letters"
+        element={
+          <HROnlyRoute>
+            <HROfferLetters />
+          </HROnlyRoute>
+        }
+      />
+      <Route
+        path="/hr/onboarding"
+        element={
+          <HROnlyRoute>
+            <HROnboarding />
+          </HROnlyRoute>
+        }
+      />
+
+
+      {/* Client Attendance - Module-based access for Sales with fallback */}
+      <Route
+        path="/client-attendance"
+        element={
+          <ClientAttendanceRoute>
+            <ClientAttendance />
+          </ClientAttendanceRoute>
+        }
+      />
+
+      {/* Client Attendance Admin - Admin only */}
+      <Route
+        path="/client-attendance-admin"
+        element={
+          <AdminOnlyRoute>
+            <ClientAttendanceAdmin />
+          </AdminOnlyRoute>
+        }
+      />
+
+      {/* Sales Attendance Report - Admin only */}
+      <Route
+        path="/sales-attendance-report"
+        element={
+          <AdminOnlyRoute>
+            <SalesAttendanceReport />
+          </AdminOnlyRoute>
+        }
+      />
+
+      {/* Client Geo-Fence - Admin only */}
+      <Route
+        path="/client-geo-fence"
+        element={
+          <AdminOnlyRoute>
+            <ClientGeoFence />
+          </AdminOnlyRoute>
+        }
+      />
+
+      {/* Ticket Management - Admin only */}
+      <Route
+        path="/tickets"
+        element={
+          <AdminOnlyRoute>
+            <TicketManagement />
+          </AdminOnlyRoute>
+        }
+      />
+
+      {/* Subscription Management - Admin only */}
+      <Route
+        path="/subscription"
+        element={
+          <AdminOnlyRoute>
+            <SubscriptionManagement />
+          </AdminOnlyRoute>
+        }
+      />
+
+      {/* Subscription Plans Management - SuperAdmin only */}
+      <Route
+        path="/subscription-plans"
+        element={
+          <SuperAdminOnlyRoute>
+            <SubscriptionPlansManagement />
+          </SuperAdminOnlyRoute>
+        }
+      />
+
+      {/* Super Admin Dashboard - Development access */}
+      <Route
+        path="/superadmin-dashboard"
+        element={<ProtectedRoute element={<SuperAdminDashboard />} />}
+      />
+
       {/* Debug: Role Access */}
       <Route
         path="/debug/roles"
@@ -369,8 +657,37 @@ function AppRoutes() {
         element={<ProtectedRoute element={<RoleTest />} />}
       />
 
-      {/* Root redirect */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Pulse Surveys - Role-based access */}
+      <Route
+        path="/pulse-surveys"
+        element={<ProtectedRoute element={<PulseSurveys />} />}
+      />
+      <Route
+        path="/pulse-surveys/dashboard"
+        element={
+          <AdminOnlyRoute>
+            <PulseSurveyDashboard />
+          </AdminOnlyRoute>
+        }
+      />
+      <Route
+        path="/pulse-surveys/surveys"
+        element={
+          <AdminOnlyRoute>
+            <PulseSurveySurveys />
+          </AdminOnlyRoute>
+        }
+      />
+      <Route
+        path="/pulse-surveys/feedback"
+        element={<ProtectedRoute element={<PulseSurveyFeedback />} />}
+      />
+      <Route
+        path="/pulse-surveys/overview"
+        element={<ProtectedRoute element={<PulseSurveyOverview />} />}
+      />
+
+      {/* Root redirect - removed since we now have landing page at root */}
 
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
@@ -384,11 +701,13 @@ const App = () => {
       <BrowserRouter>
         <AuthProvider>          {/* ✅ Auth FIRST */}
           <RoleProvider>        {/* ✅ Role AFTER Auth */}
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AppRoutes />
-            </TooltipProvider>
+            <SubscriptionProvider> {/* ✅ Subscription AFTER Role */}
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <AppRoutes />
+              </TooltipProvider>
+            </SubscriptionProvider>
           </RoleProvider>
         </AuthProvider>
       </BrowserRouter>

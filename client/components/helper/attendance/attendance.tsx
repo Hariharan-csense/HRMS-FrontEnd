@@ -27,7 +27,46 @@ export interface AttendanceLog {
   // extra fields if needed
 }
 
+export interface OverrideRecord {
+  id: string;
+  attendance_id?: string;
+  employee_id: string;
+  original_status: string;
+  overridden_status: string;
+  reason: string;
+  requested_by: string;
+  approved_by?: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  updated_at: string;
+}
+
 export const attendanceApi = {
+  // Get current attendance status
+  getAttendanceStatus: async (): Promise<{
+    success?: boolean;
+    isCheckedIn?: boolean;
+    todayRecords?: any[];
+    error?: string;
+  }> => {
+    try {
+      const response = await ENDPOINTS.getAttendanceStatus();
+      return {
+        success: response.data.success,
+        isCheckedIn: response.data.isCheckedIn,
+        todayRecords: response.data.todayRecords || []
+      };
+    } catch (error: any) {
+      console.error("Error fetching attendance status:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch attendance status",
+      };
+    }
+  },
+
   // Get attendance logs with filters
   getAttendanceLogs: async (filters?: AttendanceLogFilters): Promise<{
     data?: AttendanceLog[];
@@ -36,8 +75,9 @@ export const attendanceApi = {
   }> => {
     try {
       const response = await ENDPOINTS.getAttendanceLogs(filters);
+      console.log("Raw API Response:", response.data);
       return {
-        data: response.data.logs || response.data.data || response.data,
+        data: response.data.data || response.data.logs || response.data,
         total: response.data.total || response.data.count,
       };
     } catch (error: any) {

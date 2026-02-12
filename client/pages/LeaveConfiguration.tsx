@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap } from "lucide-react";
 import { holidayApi, fiscalYearApi, leavePolicyApi, Holiday, FiscalYearConfig, LeavePolicy } from "@/components/helper/leave/leave";
+import { showToast } from "@/utils/toast";
 
 
 export default function LeaveConfiguration() {
@@ -83,7 +84,7 @@ export default function LeaveConfiguration() {
 
   const handleSave = async () => {
     if (!formData.name && activeTab !== "fiscal") {
-      alert("Please fill in all required fields");
+      showToast.error("Please fill in all required fields");
       return;
     }
 
@@ -101,7 +102,7 @@ export default function LeaveConfiguration() {
             if (res.data) setHolidays(res.data);
           });
         } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
         }
       } else if (activeTab === "fiscal") {
         let result;
@@ -118,7 +119,7 @@ export default function LeaveConfiguration() {
             }
           });
         } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
         }
       } else if (activeTab === "policies") {
         let result;
@@ -133,14 +134,14 @@ export default function LeaveConfiguration() {
             if (res.data) setLeavePolicies(res.data);
           });
         } else if (result.error) {
-          alert(result.error);
+          showToast.error(result.error);
         }
       }
       
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error saving:", error);
-      alert("Failed to save. Please try again.");
+      showToast.error("Failed to save. Please try again.");
     }
   };
 
@@ -170,13 +171,13 @@ export default function LeaveConfiguration() {
       }
       
       if (result?.error) {
-        alert(result.error);
+        showToast.error(result.error);
       }
       
       setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error("Error deleting:", error);
-      alert("Failed to delete. Please try again.");
+      showToast.error("Failed to delete. Please try again.");
     }
   };
 

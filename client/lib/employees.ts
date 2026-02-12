@@ -82,6 +82,7 @@ export const mockEmployees = [
 ];
 
 export interface Employee {
+  salary: number;
   id: string;
   employeeId: string;
   firstName: string;
@@ -118,6 +119,7 @@ export interface Employee {
 
   bankAccountHolder: string;
   bankName: string;
+  location_tracking_enabled?: number; // 1 for enabled, 0 for disabled
   accountNumber: string;
   ifscCode: string;
 

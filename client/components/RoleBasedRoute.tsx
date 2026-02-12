@@ -2,11 +2,10 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
-import { UserRole } from "@/lib/auth";
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: UserRole[];
+  allowedRoles?: string[];
   requiredModule?: string;
   requiredAction?: string;
   fallbackPath?: string;
@@ -17,7 +16,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   allowedRoles,
   requiredModule,
   requiredAction,
-  fallbackPath = "/dashboard",
+  fallbackPath,
 }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading } = useRole();
@@ -39,22 +38,50 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
-  // Check role-based access if roles are specified
-  if (allowedRoles && !hasAnyRole(allowedRoles)) {
-    return <Navigate to={fallbackPath} replace />;
+  // Check module-based access control
+  if (requiredModule) {
+    // If specific action is required, check for that action
+    if (requiredAction) {
+      if (!canPerformModuleAction(requiredModule, requiredAction)) {
+        // If a fallback path is provided, navigate there; otherwise show a not-authorized message
+        return fallbackPath ? <Navigate to={fallbackPath} replace /> : (
+          <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold">Not authorized</h2>
+              <p className="text-sm text-muted-foreground mt-2">You do not have permission to view this page.</p>
+            </div>
+          </div>
+        );
+      }
+    } else {
+      // Otherwise, just check for view access
+      if (!hasModuleAccess(requiredModule)) {
+        return fallbackPath ? <Navigate to={fallbackPath} replace /> : (
+          <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold">Not authorized</h2>
+              <p className="text-sm text-muted-foreground mt-2">You do not have permission to view this page.</p>
+            </div>
+          </div>
+        );
+      }
+    }
   }
 
-  // Check module-based access if module is specified
-  if (requiredModule && !hasModuleAccess(requiredModule)) {
-    return <Navigate to={fallbackPath} replace />;
+  // Check role-based access control (legacy support)
+  if (allowedRoles && allowedRoles.length > 0) {
+    if (!hasAnyRole(allowedRoles)) {
+      return fallbackPath ? <Navigate to={fallbackPath} replace /> : (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold">Not authorized</h2>
+            <p className="text-sm text-muted-foreground mt-2">You do not have permission to view this page.</p>
+          </div>
+        </div>
+      );
+    }
   }
 
-  // Check action-based access if both module and action are specified
-  if (requiredModule && requiredAction && !canPerformModuleAction(requiredModule, requiredAction)) {
-    return <Navigate to={fallbackPath} replace />;
-  }
-
-  // Render children if user has access
   return <>{children}</>;
 };
 
@@ -62,7 +89,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
 export const withRoleAccess = (
   Component: React.ComponentType<any>,
   options: {
-    allowedRoles?: UserRole[];
+    allowedRoles?: string[];
     requiredModule?: string;
     requiredAction?: string;
     fallbackPath?: string;

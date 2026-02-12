@@ -11,15 +11,18 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, Search, CreditCard, Upload, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Edit, Trash2, Search, CreditCard, Upload, X, Camera, Loader2, Download, FileSpreadsheet } from "lucide-react";
 import expenseApi from "@/components/helper/expense/expense";
 import NotificationTriggerService from "@/services/notificationTriggerService";
+import { showToast } from "@/utils/toast";
 
 interface BillFile {
   name: string;
   type: string;
   size: number;
   base64?: string;
+  file?: File;
 }
 
 interface ExpenseClaim {
@@ -55,6 +58,17 @@ export default function ExpenseClaims() {
   const [billFileType, setBillFileType] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanData, setScanData] = useState<any>(null);
+
+  // Export related states
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [selectAllEmployees, setSelectAllEmployees] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
+  const [exportStatusFilter, setExportStatusFilter] = useState<string>('all');
+  const [exportDateFilter, setExportDateFilter] = useState<{ startDate?: string; endDate?: string }>({});
+  const [exporting, setExporting] = useState(false);
 
   // Fetch expenses from API
   useEffect(() => {
@@ -63,32 +77,52 @@ export default function ExpenseClaims() {
       setError(null);
 
       try {
-        const result = await expenseApi.getExpense();
+        const response = await expenseApi.getExpense();
+        console.log("Expense API Response:", response);
+        console.log("Response data type:", typeof response.data);
+        console.log("Response data:", response.data);
+        console.log("Is response.data an array?", Array.isArray(response.data));
 
-        console.log("Final expenses from API helper:", result);
-
-        if (result.error) {
-          throw new Error(result.error);
+        if (response.error) {
+          throw new Error(response.error);
         }
 
-        if (!Array.isArray(result.data)) {
-          throw new Error("Expenses data is invalid");
+        // The expenseApi already processes the response and returns data in the correct format
+        if (!response.data || !Array.isArray(response.data)) {
+          console.error("Invalid data format from API:", response);
+          throw new Error("No expense data received or invalid format");
         }
 
-        // Transform API data to match ExpenseClaim interface
-        setExpenses(
-          result.data.map((e) => ({
-            id: e.id,
-            employeeId: e.employeeId || "",
-            employeeName: e.employeeName || "Unknown Employee",
-            category: e.category || "",
-            amount: e.amount || 0,
-            date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN"),
-            description: e.description || "",
-            status: (e.status as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
-            createdAt: e.createdAt || new Date().toISOString(),
-          }))
-        );
+        // If no data is returned, set empty array and return
+        if (response.data.length === 0) {
+          console.log("No expenses found in the API response");
+          setExpenses([]);
+          return;
+        }
+
+        // Log the first expense to debug the structure
+        console.log("First expense from API:", response.data[0]);
+
+        // Map the processed data to our component's state
+        const formattedExpenses = response.data.map((expense: any) => {
+          // Ensure we have a valid ID
+          const expenseId = expense.id?.toString() || expense.expense_id?.toString() || Math.random().toString(36).substr(2, 9);
+          
+          return {
+            id: expenseId,
+            employeeId: expense.employee_id?.toString() || expense.employeeId?.toString() || "",
+            employeeName: expense.employee_name || expense.employeeName || "Unknown Employee",
+            category: expense.category || "",
+            amount: parseFloat(expense.amount) || 0,
+            date: expense.expense_date || expense.date || new Date().toISOString().split('T')[0],
+            description: expense.description || "",
+            status: (expense.status?.toLowerCase() as "pending" | "approved" | "rejected" | "reimbursed") || "pending",
+            createdAt: expense.created_at || expense.createdAt || new Date().toISOString(),
+          };
+        });
+
+        console.log("Formatted expenses:", formattedExpenses);
+        setExpenses(formattedExpenses);
       } catch (error) {
         console.error("Error fetching expenses:", error);
         setError(error instanceof Error ? error.message : "Failed to load expenses");
@@ -107,25 +141,50 @@ export default function ExpenseClaims() {
   };
 
   const filteredExpenses = useMemo(() => {
-    let filtered = expenses;
+    console.log("Filtering expenses. Current expenses:", expenses);
+    console.log("Search term:", searchTerm, "Filter status:", filterStatus);
+    
+    let filtered = [...expenses]; // Create a copy of the expenses array
 
     // If user is an employee, show only their data
     if (hasRole(user, "employee")) {
-      const employeeId = getEmployeeIdForUser(user?.id || "");
-      filtered = filtered.filter((exp) => exp.employeeId === employeeId);
+      const userId = user?.id || "";
+      const formattedEmployeeId = getEmployeeIdForUser(userId);
+      console.log("Filtering for user ID:", userId, "Formatted employee ID:", formattedEmployeeId);
+      console.log("Available employee IDs in expenses:", expenses.map(e => e.employeeId));
+      
+      filtered = filtered.filter((exp) => {
+        // Check both formats: numeric ID (37) and formatted ID (EMP037)
+        return exp.employeeId === userId || 
+               exp.employeeId === formattedEmployeeId ||
+               exp.employeeId === parseInt(userId)?.toString();
+      });
     } else if (hasRole(user, "finance") || hasRole(user, "admin")) {
       // For finance and admin, apply search filter to see all expenses
       filtered = filtered.filter((exp) => {
-        const matchesSearch = exp.employeeName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = exp.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            exp.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            exp.description?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = filterStatus === "all" || exp.status === filterStatus;
+        return matchesSearch && matchesStatus;
+      });
+    } else {
+      // For other roles, apply search filter but don't restrict by role
+      filtered = filtered.filter((exp) => {
+        const matchesSearch = exp.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            exp.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            exp.description?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === "all" || exp.status === filterStatus;
         return matchesSearch && matchesStatus;
       });
     }
 
+    console.log("Filtered expenses result:", filtered);
     return filtered;
   }, [expenses, searchTerm, filterStatus, user]);
 
   const handleOpenDialog = (expense?: ExpenseClaim) => {
+    setError(null); // Clear any previous errors
     if (expense) {
       setEditingId(expense.id);
       setFormData(expense);
@@ -144,13 +203,46 @@ export default function ExpenseClaims() {
       });
       setBillFile(null);
       setBillFileType("");
+      setScanData(null);
     }
     setIsDialogOpen(true);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // First scan the receipt for OCR data
+      setScanning(true);
+      setError(null);
+      
+      try {
+        const scanResult = await expenseApi.scanReceipt(file);
+        
+        if (scanResult.data && scanResult.data.success) {
+          const ocrData = scanResult.data.data;
+          setScanData(ocrData);
+          
+          // Auto-fill form with scanned data
+          setFormData(prev => ({
+            ...prev,
+            amount: ocrData.amount || prev.amount,
+            date: ocrData.date || prev.date || new Date().toISOString().split('T')[0], // Use today's date if no OCR date
+            category: ocrData.category || prev.category,
+            description: ocrData.vendor || prev.description
+          }));
+          
+          console.log('OCR Data:', ocrData);
+        } else {
+          setError(scanResult.error || 'Failed to scan receipt');
+        }
+      } catch (scanError) {
+        console.error('Scanning error:', scanError);
+        setError('Failed to scan receipt. You can still upload manually.');
+      } finally {
+        setScanning(false);
+      }
+      
+      // Then proceed with file upload for storage
       const reader = new FileReader();
       reader.onload = (event) => {
         const base64 = event.target?.result as string;
@@ -159,6 +251,7 @@ export default function ExpenseClaims() {
           type: billFileType || file.type,
           size: file.size,
           base64: base64,
+          file: file, // Store the actual File object
         });
       };
       reader.readAsDataURL(file);
@@ -168,16 +261,39 @@ export default function ExpenseClaims() {
   const handleRemoveFile = () => {
     setBillFile(null);
     setBillFileType("");
+    setScanData(null);
   };
 
   const handleSave = async () => {
     try {
       setLoading(true);
       
+      // Validate required fields
+      if (!formData.category || formData.category.trim() === '') {
+        setError('Category is required');
+        setLoading(false);
+        return;
+      }
+      
+      if (!formData.amount || Number(formData.amount) <= 0) {
+        setError('Amount is required and must be greater than 0');
+        setLoading(false);
+        return;
+      }
+      
+      if (!formData.date || formData.date.trim() === '') {
+        setError('Date is required');
+        setLoading(false);
+        return;
+      }
+      
       const expenseData = {
         ...formData,
-        amount: Number(formData.amount) || 0,
-        date: formData.date || new Date().toISOString().split('T')[0],
+        amount: Number(formData.amount),
+        expense_date: formData.date,
+        category: formData.category.trim(),
+        description: formData.description?.trim() || '',
+        receipt: billFile?.file, // Include the actual File object
       };
 
       if (editingId) {
@@ -242,13 +358,15 @@ export default function ExpenseClaims() {
         }
       }
       
+      setError(null); // Clear any previous errors on success
       setIsDialogOpen(false);
       setFormData({});
       setBillFile(null);
       setBillFileType("");
+      setScanData(null);
     } catch (error) {
       console.error("Error saving expense:", error);
-      alert(error instanceof Error ? error.message : "Failed to save expense");
+      setError(error instanceof Error ? error.message : "Failed to save expense");
     } finally {
       setLoading(false);
     }
@@ -292,7 +410,7 @@ export default function ExpenseClaims() {
         setDeleteId(null);
       } catch (error) {
         console.error("Error deleting expense:", error);
-        alert(error instanceof Error ? error.message : "Failed to delete expense");
+        showToast.error(error instanceof Error ? error.message : "Failed to delete expense");
       } finally {
         setLoading(false);
       }
@@ -348,7 +466,7 @@ export default function ExpenseClaims() {
         setApprovalNotes("");
       } catch (error) {
         console.error("Error updating expense status:", error);
-        alert(error instanceof Error ? error.message : "Failed to update expense status");
+        showToast.error(error instanceof Error ? error.message : "Failed to update expense status");
       } finally {
         setLoading(false);
       }
@@ -363,6 +481,99 @@ export default function ExpenseClaims() {
       reimbursed: "bg-blue-100 text-blue-800 border-blue-200",
     };
     return colors[status] || colors.pending;
+  };
+
+  // Get unique employees for export selection
+  const uniqueEmployees = useMemo(() => {
+    const employees = new Map<string, string>();
+    expenses.forEach(exp => {
+      if (exp.employeeId && exp.employeeName) {
+        employees.set(exp.employeeId, exp.employeeName);
+      }
+    });
+    return Array.from(employees.entries()).map(([id, name]) => ({ id, name }));
+  }, [expenses]);
+
+  // Handle select all employees
+  const handleSelectAllEmployees = (checked: boolean) => {
+    setSelectAllEmployees(checked);
+    if (checked) {
+      setSelectedEmployees(uniqueEmployees.map(emp => emp.id));
+    } else {
+      setSelectedEmployees([]);
+    }
+  };
+
+  // Handle individual employee selection
+  const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedEmployees(prev => [...prev, employeeId]);
+    } else {
+      setSelectedEmployees(prev => prev.filter(id => id !== employeeId));
+    }
+  };
+
+  // Handle export
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      
+      const exportData = {
+        employeeIds: selectAllEmployees ? ['all'] : selectedEmployees,
+        format: exportFormat,
+        statusFilter: exportStatusFilter,
+        dateFilter: exportDateFilter.startDate || exportDateFilter.endDate ? exportDateFilter : undefined
+      };
+
+      const response = await expenseApi.exportExpenses(exportData);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      // Handle file download for CSV
+      if (exportFormat === 'csv') {
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        // For JSON, create and download file
+        const jsonString = JSON.stringify(response.data, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `expenses_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+
+      setIsExportDialogOpen(false);
+      // Reset export selections
+      setSelectedEmployees([]);
+      setSelectAllEmployees(false);
+      setExportStatusFilter('all');
+      setExportDateFilter({});
+    } catch (error) {
+      console.error('Export error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to export expenses');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Open export dialog
+  const openExportDialog = () => {
+    setIsExportDialogOpen(true);
+    setError(null);
   };
 
 
@@ -423,7 +634,7 @@ export default function ExpenseClaims() {
         {(hasRole(user, "finance") || hasRole(user, "admin")) ? (
           <Card>
             <CardHeader className="pb-3 sm:pb-4">
-              <CardTitle className="text-lg sm:text-xl">Filters</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Filters & Export</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
@@ -455,6 +666,20 @@ export default function ExpenseClaims() {
                       <SelectItem value="reimbursed">Reimbursed</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs sm:text-sm">Export</Label>
+                  <div className="mt-1.5 sm:mt-2">
+                    <Button 
+                      onClick={openExportDialog}
+                      className="w-full h-8 sm:h-10 text-xs sm:text-sm gap-2"
+                      variant="outline"
+                    >
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Export Data
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -656,6 +881,13 @@ export default function ExpenseClaims() {
             <DialogTitle className="text-lg sm:text-xl">{editingId ? "Edit Claim" : "Submit Expense Claim"}</DialogTitle>
           </DialogHeader>
 
+          {/* Error Display */}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-3 sm:space-y-4">
             <div>
               <Label className="text-xs sm:text-sm">Employee Name</Label>
@@ -671,7 +903,10 @@ export default function ExpenseClaims() {
               <Label className="text-xs sm:text-sm">Category</Label>
               <Input
                 value={formData.category || ""}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, category: e.target.value });
+                  setError(null); // Clear error when user starts typing
+                }}
                 placeholder="e.g., Travel, Meals, Supplies"
                 className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
               />
@@ -686,7 +921,10 @@ export default function ExpenseClaims() {
                 <Input
                   type="number"
                   value={formData.amount || ""}
-                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, amount: parseFloat(e.target.value) });
+                    setError(null); // Clear error when user starts typing
+                  }}
                   className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
@@ -695,7 +933,10 @@ export default function ExpenseClaims() {
                 <Input
                   type="date"
                   value={formData.date || ""}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, date: e.target.value });
+                    setError(null); // Clear error when user starts typing
+                  }}
                   className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
@@ -712,6 +953,32 @@ export default function ExpenseClaims() {
 
             <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3">
               <Label className="block mb-1.5 sm:mb-2 text-xs sm:text-sm">Bill / Receipt</Label>
+
+              {/* Scanning Status */}
+              {scanning && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    <span className="text-sm text-blue-800">Scanning receipt with AI...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Scan Results */}
+              {scanData && !scanning && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Camera className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">Receipt Scanned Successfully!</span>
+                  </div>
+                  <div className="text-xs text-green-700 space-y-1">
+                    {scanData.amount && <div>• Amount: ₹{scanData.amount}</div>}
+                    {scanData.date && <div>• Date: {scanData.date}</div>}
+                    {scanData.vendor && <div>• Vendor: {scanData.vendor}</div>}
+                    {scanData.category && <div>• Category: {scanData.category}</div>}
+                  </div>
+                </div>
+              )}
 
               {!billFile ? (
                 <div className="space-y-2">
@@ -735,8 +1002,11 @@ export default function ExpenseClaims() {
                       <div className="flex items-center justify-center w-full px-2 py-3 sm:px-4 sm:py-6 border-2 border-dashed border-border rounded-lg hover:bg-muted cursor-pointer transition-colors">
                         <div className="flex flex-col items-center gap-1 sm:gap-2">
                           <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-                          <span className="text-xs sm:text-sm text-muted-foreground text-center">Click to upload</span>
+                          <span className="text-xs sm:text-sm text-muted-foreground text-center">
+                            {scanning ? "Scanning..." : "Click to upload & scan"}
+                          </span>
                           <span className="text-xs text-muted-foreground">PDF, PNG, JPG, DOC up to 10MB</span>
+                          <span className="text-xs text-blue-600 font-medium">🔍 AI will auto-fill details</span>
                         </div>
                       </div>
                       <input
@@ -744,6 +1014,7 @@ export default function ExpenseClaims() {
                         className="hidden"
                         onChange={handleFileUpload}
                         accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        disabled={scanning}
                       />
                     </label>
                   </div>
@@ -854,6 +1125,165 @@ export default function ExpenseClaims() {
               }`}
             >
               {approvalAction === "approve" ? "Approve" : "Reject"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              Export Expense Data
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              Select employees and filters to export expense data in CSV or JSON format.
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-4 sm:space-y-6">
+            {/* Export Format */}
+            <div>
+              <Label className="text-xs sm:text-sm font-medium">Export Format</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant={exportFormat === 'csv' ? 'default' : 'outline'}
+                  onClick={() => setExportFormat('csv')}
+                  className="text-xs sm:text-sm"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  CSV
+                </Button>
+                <Button
+                  type="button"
+                  variant={exportFormat === 'json' ? 'default' : 'outline'}
+                  onClick={() => setExportFormat('json')}
+                  className="text-xs sm:text-sm"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  JSON
+                </Button>
+              </div>
+            </div>
+
+            {/* Employee Selection */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-xs sm:text-sm font-medium">Select Employees</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="select-all"
+                    checked={selectAllEmployees}
+                    onCheckedChange={handleSelectAllEmployees}
+                  />
+                  <Label htmlFor="select-all" className="text-xs sm:text-sm cursor-pointer">
+                    Select All ({uniqueEmployees.length})
+                  </Label>
+                </div>
+              </div>
+              
+              <div className="max-h-40 overflow-y-auto border rounded-lg p-2">
+                {uniqueEmployees.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No employees found</p>
+                ) : (
+                  <div className="space-y-2">
+                    {uniqueEmployees.map((employee) => (
+                      <div key={employee.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`employee-${employee.id}`}
+                          checked={selectedEmployees.includes(employee.id) || selectAllEmployees}
+                          onCheckedChange={(checked) => handleEmployeeSelection(employee.id, checked as boolean)}
+                        />
+                        <Label 
+                          htmlFor={`employee-${employee.id}`} 
+                          className="text-xs sm:text-sm cursor-pointer flex-1"
+                        >
+                          {employee.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <Label className="text-xs sm:text-sm font-medium">Status Filter</Label>
+              <Select value={exportStatusFilter} onValueChange={setExportStatusFilter}>
+                <SelectTrigger className="mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="reimbursed">Reimbursed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Filter */}
+            <div>
+              <Label className="text-xs sm:text-sm font-medium">Date Range (Optional)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={exportDateFilter.startDate || ''}
+                    onChange={(e) => setExportDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="mt-1 h-8 sm:h-10 text-xs sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">End Date</Label>
+                  <Input
+                    type="date"
+                    value={exportDateFilter.endDate || ''}
+                    onChange={(e) => setExportDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="mt-1 h-8 sm:h-10 text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-6 pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsExportDialogOpen(false)} 
+              className="w-full sm:w-auto text-xs sm:text-sm"
+              disabled={exporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExport}
+              className="w-full sm:w-auto text-xs sm:text-sm"
+              disabled={exporting || (selectedEmployees.length === 0 && !selectAllEmployees)}
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export {exportFormat.toUpperCase()}
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>

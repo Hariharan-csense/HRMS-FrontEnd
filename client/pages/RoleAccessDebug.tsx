@@ -2,26 +2,102 @@ import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles";
-import { Shield, Plus, Edit2, Save, X, RefreshCw, Settings, Users, CheckCircle, AlertCircle } from "lucide-react";
+import { 
+  Shield, 
+  Plus, 
+  Edit2, 
+  Save, 
+  X, 
+  RefreshCw, 
+  Settings, 
+  Users, 
+  CheckCircle, 
+  AlertCircle,
+  Lock,
+  Unlock,
+  Key,
+  Crown,
+  Eye,
+  EyeOff,
+  Trash2,
+  Copy,
+  Download,
+  Upload
+} from "lucide-react";
+
+interface RoleDebugInfo {
+  id: string;
+  name: string;
+  modules: { [key: string]: ModulePermission };
+  approval_authority: string;
+  data_visibility: string;
+  description?: string;
+  created_at?: string;
+}
 
 export default function RoleAccessDebug() {
   const { user: currentUser } = useAuth();
   const { userRoles, hasModuleAccess, canPerformModuleAction, loading } = useRole();
-  const [allRoles, setAllRoles] = useState<Role[]>([]);
+  const [allRoles, setAllRoles] = useState<RoleDebugInfo[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
-  const [creatingDefault, setCreatingDefault] = useState(false);
   const [editingRole, setEditingRole] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState<Partial<Role>>({});
+  const [editFormData, setEditFormData] = useState<Partial<RoleDebugInfo>>({});
   const [addingNewRole, setAddingNewRole] = useState(false);
-  const [newRoleData, setNewRoleData] = useState<Partial<Role>>({
+  const [newRoleData, setNewRoleData] = useState<Partial<RoleDebugInfo>>({
     name: '',
-    approvalAuthority: '',
-    dataVisibility: '',
+    approval_authority: '',
+    data_visibility: '',
+    description: '',
     modules: {}
   });
+
+  // All available modules in the system
+  const availableModules = [
+    'dashboard',
+    'organization',
+    'employees',
+    'hr_management',
+    'client_attendance',
+    'client_attendance_admin',
+    'attendance',
+    'shift_management',
+    'live_tracking',
+    'leave',
+    'payroll',
+    'expenses',
+    'assets',
+    'exit',
+    'reports',
+    'tickets',
+    'pulse_surveys',
+    'role_access'
+  ];
+
+  // Module actions
+  const moduleActions = ['create', 'edit', 'view', 'approve', 'reject'];
+
+  // Initialize module permissions with 0/1 values
+  const initializeModulePermissions = () => {
+    const modules: { [key: string]: ModulePermission } = {};
+    availableModules.forEach(module => {
+      modules[module] = {
+        create: 0,
+        edit: 0,
+        view: 0,
+        approve: 0,
+        reject: 0
+      };
+    });
+    return modules;
+  };
 
   // Fetch all roles from API
   const fetchAllRoles = async () => {
@@ -45,59 +121,46 @@ export default function RoleAccessDebug() {
 
   // Create default admin role
   const createDefaultAdminRole = async () => {
-    setCreatingDefault(true);
     try {
       console.log('Creating default admin role...');
-      const modules: { [key: string]: ModulePermission } = {};
-      const defaultModules = ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin', 'Role & Module Access'];
+      const modules = initializeModulePermissions();
       
-      defaultModules.forEach(module => {
-        modules[module] = { view: true, create: true, edit: true, approve: true };
-      });
-
-      console.log('Role data to create:', {
-        name: 'admin',
-        modules,
-        approvalAuthority: 'Full Authority',
-        dataVisibility: 'All Employees'
+      // Give all permissions to admin
+      Object.keys(modules).forEach(module => {
+        Object.keys(modules[module]).forEach(action => {
+          modules[module][action as keyof ModulePermission] = 1;
+        });
       });
 
       const result = await roleApi.createRole({
-        name: 'admin',
-        modules,
-        approvalAuthority: 'Full Authority',
-        dataVisibility: 'All Employees'
+        name: 'Super Admin',
+        approval_authority: 'Full Authority',
+        data_visibility: 'All Data',
+        description: 'System administrator with full access to all modules',
+        modules
       });
 
       console.log('Create role response:', result);
 
       if (result.data) {
         console.log('Default admin role created successfully');
-        await fetchAllRoles(); // Refresh roles list
+        await fetchAllRoles();
       } else {
         console.error('Failed to create admin role:', result.error);
       }
     } catch (error) {
       console.error('Error creating admin role:', error);
-    } finally {
-      setCreatingDefault(false);
     }
   };
 
   // Start adding new role
   const startAddNewRole = () => {
-    const defaultModules = ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin'];
-    const modules: { [key: string]: ModulePermission } = {};
-    
-    defaultModules.forEach(module => {
-      modules[module] = { view: false, create: false, edit: false, approve: false };
-    });
-
     setNewRoleData({
       name: '',
-      approvalAuthority: '',
-      dataVisibility: '',
-      modules
+      approval_authority: '',
+      data_visibility: '',
+      description: '',
+      modules: initializeModulePermissions()
     });
     setAddingNewRole(true);
   };
@@ -107,26 +170,33 @@ export default function RoleAccessDebug() {
     setAddingNewRole(false);
     setNewRoleData({
       name: '',
-      approvalAuthority: '',
-      dataVisibility: '',
+      approval_authority: '',
+      data_visibility: '',
+      description: '',
       modules: {}
     });
   };
 
   // Save new role
   const saveNewRole = async () => {
+    if (!newRoleData.name?.trim()) {
+      alert('Role name is required');
+      return;
+    }
+
     try {
       console.log('Creating new role:', newRoleData);
-      const result = await roleApi.createRole(newRoleData as Omit<Role, 'id' | 'createdAt'>);
+      const result = await roleApi.createRole(newRoleData as Omit<Role, 'id' | 'created_at' | 'updated_at' | 'role_id'>);
       
       if (result.data) {
         console.log('Role created successfully');
-        await fetchAllRoles(); // Refresh roles list
+        await fetchAllRoles();
         setAddingNewRole(false);
         setNewRoleData({
           name: '',
-          approvalAuthority: '',
-          dataVisibility: '',
+          approval_authority: '',
+          data_visibility: '',
+          description: '',
           modules: {}
         });
       } else {
@@ -153,19 +223,20 @@ export default function RoleAccessDebug() {
         ...prev.modules,
         [module]: {
           ...prev.modules?.[module],
-          [permission]: value
+          [permission]: value ? 1 : 0
         }
       }
     }));
   };
 
   // Start editing role
-  const startEditRole = (role: Role) => {
+  const startEditRole = (role: RoleDebugInfo) => {
     setEditingRole(role.id);
     setEditFormData({
       name: role.name,
-      approvalAuthority: role.approvalAuthority,
-      dataVisibility: role.dataVisibility,
+      approval_authority: role.approval_authority,
+      data_visibility: role.data_visibility,
+      description: role.description,
       modules: { ...role.modules }
     });
   };
@@ -178,13 +249,18 @@ export default function RoleAccessDebug() {
 
   // Save edited role
   const saveEditedRole = async (roleId: string) => {
+    if (!editFormData.name?.trim()) {
+      alert('Role name is required');
+      return;
+    }
+
     try {
       console.log('Saving edited role:', roleId, editFormData);
       const result = await roleApi.updateRole(roleId, editFormData);
       
       if (result.data) {
         console.log('Role updated successfully');
-        await fetchAllRoles(); // Refresh roles list
+        await fetchAllRoles();
         setEditingRole(null);
         setEditFormData({});
       } else {
@@ -211,10 +287,42 @@ export default function RoleAccessDebug() {
         ...prev.modules,
         [module]: {
           ...prev.modules?.[module],
-          [permission]: value
+          [permission]: value ? 1 : 0
         }
       }
     }));
+  };
+
+  // Delete role
+  const deleteRole = async (roleId: string) => {
+    if (!confirm('Are you sure you want to delete this role?')) return;
+
+    try {
+      const result = await roleApi.deleteRole(roleId);
+      
+      if (result.success) {
+        console.log('Role deleted successfully');
+        await fetchAllRoles();
+      } else {
+        console.error('Failed to delete role:', result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting role:', error);
+    }
+  };
+
+  // Copy role permissions
+  const copyRole = (role: RoleDebugInfo) => {
+    const roleData = {
+      name: `${role.name} (Copy)`,
+      approval_authority: role.approval_authority,
+      data_visibility: role.data_visibility,
+      description: role.description,
+      modules: { ...role.modules }
+    };
+    
+    setNewRoleData(roleData);
+    setAddingNewRole(true);
   };
 
   // Fetch roles on component mount
@@ -225,44 +333,47 @@ export default function RoleAccessDebug() {
   if (!currentUser) {
     return (
       <Layout>
-        <div className="text-center text-muted-foreground">Please login to see role access information</div>
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <Lock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Please login to see role access information</p>
+          </div>
+        </div>
       </Layout>
     );
   }
-
-  const modules = allRoles.length > 0 && allRoles[0].modules ? 
-    Object.keys(allRoles[0].modules) : 
-    ['employees', 'attendance', 'leave', 'payroll', 'expenses', 'assets', 'exit', 'reports', 'organization', 'admin', 'role_access'];
-  const actions = ['view', 'create', 'edit', 'approve'];
 
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header Section */}
-          <div className="text-center space-y-3 sm:space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-              <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600" />
-              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Role Management
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-3">
+              <Shield className="w-12 h-12 text-blue-600" />
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Role Access Debug
               </h1>
             </div>
-            <p className="text-lg text-slate-600">Manage user roles and permissions efficiently</p>
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+            <p className="text-lg text-gray-600">Debug and manage user roles and permissions</p>
+            <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
               <Users className="w-4 h-4" />
-              <span>Current user: <span className="font-semibold text-slate-700">{currentUser.name}</span></span>
+              <span>Current user: <span className="font-semibold text-gray-700">{currentUser.name || currentUser.email}</span></span>
+              <Badge variant="outline">
+                {userRoles?.length || 0} Roles
+              </Badge>
             </div>
           </div>
 
           {/* Quick Actions Bar */}
-          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5 text-slate-600" />
-                  <span className="font-medium text-slate-700">Quick Actions</span>
+                  <Settings className="w-5 h-5 text-gray-600" />
+                  <span className="font-medium text-gray-700">Quick Actions</span>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Button 
                     onClick={fetchAllRoles} 
                     disabled={rolesLoading}
@@ -276,13 +387,12 @@ export default function RoleAccessDebug() {
                   {allRoles.length === 0 && (
                     <Button 
                       onClick={createDefaultAdminRole} 
-                      disabled={creatingDefault}
                       variant="default"
                       size="sm"
-                      className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+                      className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600"
                     >
-                      <Shield className="w-4 h-4" />
-                      {creatingDefault ? 'Creating...' : 'Create Default Admin Role'}
+                      <Crown className="w-4 h-4" />
+                      Create Admin Role
                     </Button>
                   )}
                 </div>
@@ -292,327 +402,400 @@ export default function RoleAccessDebug() {
               <div className="mt-4 flex flex-wrap gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`} />
-                  <span className="text-slate-600">Role Status: <span className="font-medium">{loading ? 'Loading...' : 'Ready'}</span></span>
+                  <span className="text-gray-600">Status: <span className="font-medium">{loading ? 'Loading...' : 'Ready'}</span></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-slate-600">Total Roles: <span className="font-medium">{allRoles.length}</span></span>
+                  <span className="text-gray-600">Total Roles: <span className="font-medium">{allRoles.length}</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span className="text-gray-600">Modules: <span className="font-medium">{availableModules.length}</span></span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-      
+          {/* Current User Role Access */}
+          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <Eye className="w-5 h-5 text-blue-600" />
+                Current User Role Access
+              </CardTitle>
+              <CardDescription>View your current role permissions across all modules</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {availableModules.map(module => (
+                  <div key={module} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-800 capitalize">{module.replace('_', ' ')}</h4>
+                      <div className="flex items-center gap-2">
+                        {hasModuleAccess(module) ? (
+                          <Unlock className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Lock className="w-4 h-4 text-red-600" />
+                        )}
+                        <Badge variant={hasModuleAccess(module) ? "default" : "secondary"}>
+                          {hasModuleAccess(module) ? "Accessible" : "Restricted"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {moduleActions.map(action => (
+                        <div key={action} className="flex items-center justify-between">
+                          <span className="capitalize text-gray-600">{action}</span>
+                          {canPerformModuleAction(module, action) ? (
+                            <CheckCircle className="w-3 h-3 text-green-600" />
+                          ) : (
+                            <X className="w-3 h-3 text-red-600" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* All Roles in System */}
-          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
-            <CardHeader className="pb-4">
+          {/* All Roles Management */}
+          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl">
+            <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <CardTitle className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                  <CardTitle className="flex items-center gap-3">
                     <Users className="w-6 h-6 text-blue-600" />
-                    All Roles in System
+                    All Roles Management
                   </CardTitle>
-                  <CardDescription className="text-slate-600 mt-1">
-                    Manage and configure user roles • Total: <span className="font-semibold text-blue-600">{allRoles.length}</span> roles
+                  <CardDescription>
+                    Manage system roles and permissions • Total: <span className="font-semibold text-blue-600">{allRoles.length}</span> roles
                   </CardDescription>
                 </div>
                 <Button 
                   onClick={startAddNewRole} 
                   size="sm"
-                  className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+                  className="gap-2 bg-[#17c491] hover:bg-[#14b389] text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
                 >
                   <Plus className="w-4 h-4" />
                   Add New Role
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="px-6 pb-6">
-            {allRoles.length === 0 ? (
-              <div className="text-center py-16">
-                <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-700 mb-2">No Roles Found</h3>
-                <p className="text-slate-500 mb-6">Get started by creating your first role</p>
-                <Button 
-                  onClick={createDefaultAdminRole} 
-                  disabled={creatingDefault}
-                  className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <Shield className="w-4 h-4" />
-                  {creatingDefault ? 'Creating...' : 'Create Default Admin Role'}
-                </Button>
-              </div>
-            ) : addingNewRole ? (
-              // New Role Form
-              <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                    <Plus className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800">Create New Role</h3>
-                    <p className="text-sm text-slate-600">Configure permissions for the new role</p>
-                  </div>
+            <CardContent>
+              {allRoles.length === 0 ? (
+                <div className="text-center py-16">
+                  <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">No Roles Found</h3>
+                  <p className="text-gray-500 mb-6">Get started by creating your first role</p>
+                  <Button 
+                    onClick={createDefaultAdminRole} 
+                    className="gap-2 bg-[#17c491] hover:bg-[#14b389] text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                  >
+                    <Crown className="w-4 h-4" />
+                    Create Admin Role
+                  </Button>
                 </div>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">Role Name</label>
-                      <input
-                        type="text"
-                        value={newRoleData.name || ''}
-                        onChange={(e) => handleNewRoleFormChange('name', e.target.value)}
-                        placeholder="e.g., Manager, Developer, HR"
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
-                      />
+              ) : addingNewRole ? (
+                /* New Role Form */
+                <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                      <Plus className="w-6 h-6 text-white" />
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">Approval Authority</label>
-                      <input
-                        type="text"
-                        value={newRoleData.approvalAuthority || ''}
-                        onChange={(e) => handleNewRoleFormChange('approvalAuthority', e.target.value)}
-                        placeholder="e.g., Manager, Full Authority"
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">Data Visibility</label>
-                      <input
-                        type="text"
-                        value={newRoleData.dataVisibility || ''}
-                        onChange={(e) => handleNewRoleFormChange('dataVisibility', e.target.value)}
-                        placeholder="e.g., All Employees, Self Only"
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
-                      />
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-800">Create New Role</h3>
+                      <p className="text-sm text-gray-600">Configure permissions for the new role</p>
                     </div>
                   </div>
                   
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                      <Settings className="w-4 h-4" />
-                      Module Permissions
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                      {Object.entries(newRoleData.modules || {}).map(([moduleName, permissions]) => (
-                        <div key={moduleName} className="border-2 border-slate-200 rounded-lg p-4 bg-white hover:border-blue-300 transition-colors">
-                          <h5 className="font-semibold text-slate-800 capitalize mb-3 flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600" />
-                            {moduleName}
-                          </h5>
-                          <div className="space-y-3">
-                            {Object.entries(permissions).map(([perm, allowed]) => (
-                              <label key={perm} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 p-2 rounded transition-colors">
-                                <span className="text-sm font-medium text-slate-700 capitalize">{perm}</span>
-                                <div className="relative">
-                                  <input
-                                    type="checkbox"
-                                    checked={allowed}
-                                    onChange={(e) => handleNewRoleModulePermissionChange(moduleName, perm, e.target.checked)}
-                                    className="sr-only peer"
-                                  />
-                                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-sm peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600"></div>
-                                </div>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200">
-                    <Button 
-                      onClick={saveNewRole} 
-                      size="sm"
-                      disabled={!newRoleData.name}
-                      className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                    >
-                      <Save className="w-4 h-4" />
-                      Create Role
-                    </Button>
-                    <Button 
-                      onClick={cancelAddNewRole} 
-                      variant="outline" 
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {allRoles.map((role) => (
-                  <div key={role.id} className="border-2 border-slate-200 rounded-xl p-6 bg-white hover:border-blue-300 transition-all hover:shadow-lg">
-                    {editingRole === role.id ? (
-                      // Edit Form
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
-                            <Edit2 className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-slate-800">Edit Role</h3>
-                            <p className="text-sm text-slate-600">Modify role permissions and settings</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-slate-700">Role Name</label>
-                            <input
-                              type="text"
-                              value={editFormData.name || ''}
-                              onChange={(e) => handleEditFormChange('name', e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-200"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-slate-700">Approval Authority</label>
-                            <input
-                              type="text"
-                              value={editFormData.approvalAuthority || ''}
-                              onChange={(e) => handleEditFormChange('approvalAuthority', e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-200"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="block text-sm font-semibold text-slate-700">Data Visibility</label>
-                            <input
-                              type="text"
-                              value={editFormData.dataVisibility || ''}
-                              onChange={(e) => handleEditFormChange('dataVisibility', e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-200"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                            <Settings className="w-4 h-4" />
-                            Module Permissions
-                          </h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                            {Object.entries(editFormData.modules || {}).map(([moduleName, permissions]) => (
-                              <div key={moduleName} className="border-2 border-slate-200 rounded-lg p-4 bg-white hover:border-blue-300 transition-colors">
-                                <h5 className="font-semibold text-slate-800 capitalize mb-3 flex items-center gap-2">
-                                  <CheckCircle className="w-4 h-4 text-orange-600" />
-                                  {moduleName}
-                                </h5>
-                                <div className="space-y-3">
-                                  {Object.entries(permissions).map(([perm, allowed]) => (
-                                    <label key={perm} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 p-2 rounded transition-colors">
-                                      <span className="text-sm font-medium text-slate-700 capitalize">{perm}</span>
-                                      <div className="relative">
-                                        <input
-                                          type="checkbox"
-                                          checked={allowed}
-                                          onChange={(e) => handleModulePermissionChange(moduleName, perm, e.target.checked)}
-                                          className="sr-only peer"
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
-                                      </div>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200">
-                          <Button 
-                            onClick={() => saveEditedRole(role.id)} 
-                            size="sm"
-                            className="gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
-                          >
-                            <Save className="w-4 h-4" />
-                            Save Changes
-                          </Button>
-                          <Button 
-                            onClick={cancelEdit} 
-                            variant="outline" 
-                            size="sm"
-                            className="gap-2"
-                          >
-                            <X className="w-4 h-4" />
-                            Cancel
-                          </Button>
-                        </div>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="role-name">Role Name</Label>
+                        <Input
+                          id="role-name"
+                          value={newRoleData.name || ''}
+                          onChange={(e) => handleNewRoleFormChange('name', e.target.value)}
+                          placeholder="e.g., Manager, Developer, HR"
+                        />
                       </div>
-                    ) : (
-                      // Display Mode
-                      <>
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                                <Shield className="w-6 h-6 text-white" />
-                              </div>
-                              <div>
-                                <h3 className="text-xl font-bold text-slate-800 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{role.name}</h3>
-                                <p className="text-sm text-slate-600">
-                                  <span className="font-medium">Authority:</span> {role.approvalAuthority} • 
-                                  <span className="font-medium"> Visibility:</span> {role.dataVisibility}
-                                </p>
-                              </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="approval">Approval Authority</Label>
+                        <Input
+                          id="approval"
+                          value={newRoleData.approval_authority || ''}
+                          onChange={(e) => handleNewRoleFormChange('approval_authority', e.target.value)}
+                          placeholder="e.g., Manager, Full Authority"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="visibility">Data Visibility</Label>
+                        <Input
+                          id="visibility"
+                          value={newRoleData.data_visibility || ''}
+                          onChange={(e) => handleNewRoleFormChange('data_visibility', e.target.value)}
+                          placeholder="e.g., All Employees, Self Only"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea
+                          id="description"
+                          value={newRoleData.description || ''}
+                          onChange={(e) => handleNewRoleFormChange('description', e.target.value)}
+                          placeholder="Role description..."
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                        <Key className="w-4 h-4" />
+                        Module Permissions
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                        {availableModules.map(module => (
+                          <div key={module} className="border border-gray-200 rounded-lg p-4 bg-white">
+                            <h5 className="font-semibold text-gray-800 capitalize mb-3 flex items-center gap-2">
+                              <Settings className="w-4 h-4 text-blue-600" />
+                              {module.replace('_', ' ')}
+                            </h5>
+                            <div className="space-y-2">
+                              {moduleActions.map(action => (
+                                <div key={action} className="flex items-center justify-between">
+                                  <Label className="text-sm font-medium text-gray-700 capitalize">{action}</Label>
+                                  <Switch
+                                    checked={newRoleData.modules?.[module]?.[action as keyof ModulePermission] === 1}
+                                    onCheckedChange={(checked) => handleNewRoleModulePermissionChange(module, action, checked)}
+                                  />
+                                </div>
+                              ))}
                             </div>
                           </div>
-                          <Button 
-                            onClick={() => startEditRole(role)} 
-                            variant="outline" 
-                            size="sm"
-                            className="w-full sm:w-auto gap-2 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            Edit Role
-                          </Button>
-                        </div>
-                        <div className="space-y-4">
-                          <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                            <Settings className="w-4 h-4" />
-                            Module Permissions
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {Object.entries(role.modules).map(([moduleName, permissions]) => {
-                              const hasAnyPermission = Object.values(permissions).some(p => p);
-                              if (!hasAnyPermission) return null;
-
-                              return (
-                                <div key={moduleName} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                                  <h5 className="font-semibold text-slate-800 capitalize mb-2 text-sm">{moduleName}</h5>
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {Object.entries(permissions).map(([perm, allowed]) => (
-                                      <div
-                                        key={perm}
-                                        className={`text-center text-xs px-2 py-1 rounded-md font-medium transition-colors ${
-                                          allowed
-                                            ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
-                                            : "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 transition-colors"
-                                        }`}
-                                      >
-                                        {perm.charAt(0).toUpperCase() + perm.slice(1)}
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3 pt-4 border-t border-gray-200">
+                      <Button 
+                        onClick={saveNewRole} 
+                        disabled={!newRoleData.name}
+                        className="gap-2 bg-[#17c491] hover:bg-[#14b389] text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                      >
+                        <Save className="w-4 h-4" />
+                        Create Role
+                      </Button>
+                      <Button 
+                        onClick={cancelAddNewRole} 
+                        variant="outline" 
+                        className="gap-2 hover:bg-gray-50"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {allRoles.map((role) => (
+                    <div key={role.id} className="border border-gray-200 rounded-xl p-6 bg-white">
+                      {editingRole === role.id ? (
+                        /* Edit Form */
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
+                              <Edit2 className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-800">Edit Role</h3>
+                              <p className="text-sm text-gray-600">Modify role permissions and settings</p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`edit-name-${role.id}`}>Role Name</Label>
+                              <Input
+                                id={`edit-name-${role.id}`}
+                                value={editFormData.name || ''}
+                                onChange={(e) => handleEditFormChange('name', e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`edit-approval-${role.id}`}>Approval Authority</Label>
+                              <Input
+                                id={`edit-approval-${role.id}`}
+                                value={editFormData.approval_authority || ''}
+                                onChange={(e) => handleEditFormChange('approval_authority', e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`edit-visibility-${role.id}`}>Data Visibility</Label>
+                              <Input
+                                id={`edit-visibility-${role.id}`}
+                                value={editFormData.data_visibility || ''}
+                                onChange={(e) => handleEditFormChange('data_visibility', e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`edit-description-${role.id}`}>Description</Label>
+                              <Textarea
+                                id={`edit-description-${role.id}`}
+                                value={editFormData.description || ''}
+                                onChange={(e) => handleEditFormChange('description', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                              <Key className="w-4 h-4" />
+                              Module Permissions
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                              {availableModules.map(module => (
+                                <div key={module} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                  <h5 className="font-semibold text-gray-800 capitalize mb-3 flex items-center gap-2">
+                                    <Settings className="w-4 h-4 text-orange-600" />
+                                    {module.replace('_', ' ')}
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {moduleActions.map(action => (
+                                      <div key={action} className="flex items-center justify-between">
+                                        <Label className="text-sm font-medium text-gray-700 capitalize">{action}</Label>
+                                        <Switch
+                                          checked={editFormData.modules?.[module]?.[action as keyof ModulePermission] === 1}
+                                          onCheckedChange={(checked) => handleModulePermissionChange(module, action, checked)}
+                                        />
                                       </div>
                                     ))}
                                   </div>
                                 </div>
-                              );
-                            })}
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-3 pt-4 border-t border-gray-200">
+                            <Button 
+                              onClick={() => saveEditedRole(role.id)} 
+                              disabled={!editFormData.name}
+                              className="gap-2 bg-[#17c491] hover:bg-[#14b389] text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                            >
+                              <Save className="w-4 h-4" />
+                              Save Changes
+                            </Button>
+                            <Button 
+                              onClick={cancelEdit} 
+                              variant="outline" 
+                              className="gap-2 hover:bg-gray-50"
+                            >
+                              <X className="w-4 h-4" />
+                              Cancel
+                            </Button>
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                      ) : (
+                        /* Display Mode */
+                        <>
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                                  <Shield className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="text-xl font-bold text-gray-800">{role.name}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-medium">Authority:</span> {role.approval_authority} • 
+                                    <span className="font-medium"> Visibility:</span> {role.data_visibility}
+                                  </p>
+                                  {role.description && (
+                                    <p className="text-sm text-gray-500 mt-1">{role.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                onClick={() => copyRole(role)} 
+                                variant="outline" 
+                                size="sm"
+                                className="gap-2"
+                              >
+                                <Copy className="w-4 h-4" />
+                                Copy
+                              </Button>
+                              <Button 
+                                onClick={() => startEditRole(role)} 
+                                variant="outline" 
+                                size="sm"
+                                className="gap-2"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                                Edit
+                              </Button>
+                              <Button 
+                                onClick={() => deleteRole(role.id)} 
+                                variant="outline" 
+                                size="sm"
+                                className="gap-2 hover:bg-red-50 hover:border-red-300"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                              <Key className="w-4 h-4" />
+                              Module Permissions
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {availableModules.map(module => {
+                                const modulePerms = role.modules?.[module];
+                                if (!modulePerms) return null;
+
+                                const hasAnyPermission = Object.values(modulePerms).some(p => p === 1);
+
+                                return (
+                                  <div key={module} className={`border rounded-lg p-4 ${hasAnyPermission ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                                    <h5 className="font-semibold text-gray-800 capitalize mb-3 flex items-center gap-2">
+                                      {hasAnyPermission ? (
+                                        <Unlock className="w-4 h-4 text-green-600" />
+                                      ) : (
+                                        <Lock className="w-4 h-4 text-gray-400" />
+                                      )}
+                                      {module.replace('_', ' ')}
+                                    </h5>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {moduleActions.map(action => (
+                                        <div key={action} className="flex items-center justify-between">
+                                          <span className="text-xs font-medium text-gray-600 capitalize">{action}</span>
+                                          <div className={`w-2 h-2 rounded-full ${
+                                            modulePerms[action as keyof ModulePermission] === 1
+                                              ? "bg-green-500"
+                                              : "bg-gray-300"
+                                          }`} />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-
-          {/* Admin Management Section */}
-         
         </div>
       </div>
     </Layout>
