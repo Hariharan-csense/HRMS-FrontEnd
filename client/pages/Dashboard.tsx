@@ -34,28 +34,25 @@ import {
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const attendanceData = [
-  { month: "Jan", present: 22, absent: 2, half: 1 },
-  { month: "Feb", present: 20, absent: 3, half: 2 },
-  { month: "Mar", present: 23, absent: 1, half: 1 },
-  { month: "Apr", present: 21, absent: 2, half: 2 },
-  { month: "May", present: 22, absent: 1, half: 2 },
-  { month: "Jun", present: 23, absent: 0, half: 2 },
-];
-
-const leaveData = [
-  { name: "Casual", value: 5, fill: "#3b82f6" },
-  { name: "Sick", value: 2, fill: "#10b981" },
-  { name: "Earned", value: 8, fill: "#f59e0b" },
-  { name: "Optional", value: 3, fill: "#8b5cf6" },
-];
-
 const departmentData = [
   { dept: "Engineering", count: 45 },
   { dept: "Sales", count: 28 },
   { dept: "HR", count: 12 },
   { dept: "Finance", count: 15 },
   { dept: "Operations", count: 20 },
+];
+
+const employeeAttendanceData = [
+  { month: "Jan", present: 22, absent: 2, half: 1 },
+];
+
+const payrollTrendData = [
+  { month: "Jan", present: 120 },
+  { month: "Feb", present: 118 },
+  { month: "Mar", present: 122 },
+  { month: "Apr", present: 125 },
+  { month: "May", present: 123 },
+  { month: "Jun", present: 128 },
 ];
 
 const StatCard: React.FC<{
@@ -93,137 +90,28 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Mock data that matches your API response
-      const mockData = {
-        kpis: {
-          totalEmployees: 2,
-          presentToday: 0,
-          presentTrend: "0.0% attendance",
-          onLeave: 0,
-          onLeaveTrend: "0.0% of workforce",
-          pendingApprovals: 0,
-          pendingTrend: "All clear"
-        },
-        charts: {
-          monthlyAttendance: [
-            { month: "Jan", present: 1, absent: 0, half: 0 }
-          ],
-          departmentData: [
-            { dept: "Technical", count: 1 },
-            { dept: "HR", count: 1 }
-          ],
-          leaveData: [
-            { name: "Used", value: 0, fill: "#ef4444" },
-            { name: "Remaining", value: 1, fill: "#10b981" }
-          ]
-        },
-        recentActivities: [
-          {
-            activity: "New employee onboarded: elangooooo vadikal (employee)",
-            time: "Older",
-            icon: "👤"
-          },
-          {
-            activity: "New employee onboarded: hariharan A (hr)",
-            time: "Older",
-            icon: "👤"
-          }
-        ],
-        recentJoinings: [
-          {
-            name: "elangooooo vadikal",
-            role: "employee",
-            dept: "Technical",
-            joinDate: "Dec 3, 2025"
-          },
-          {
-            name: "hariharan A",
-            role: "hr",
-            dept: "HR",
-            joinDate: "Dec 3, 2025"
-          }
-        ],
-        upcomingBirthdays: [
-          {
-            name: "hariharan A",
-            date: "Jun 11",
-            emoji: "🎂"
-          },
-          {
-            name: "elangooooo vadikal",
-            date: "Jun 18",
-            emoji: "🎂"
-          }
-        ],
-        upcomingHolidays: [
-          {
-            name: "pongal",
-            date: "Jan 15, 2026",
-            type: "Company Holiday",
-            icon: "🏢"
-          }
-        ],
-        teamHealth: {
-          overallScore: 75,
-          status: "Good Health Status",
-          trend: "No change",
-          lastUpdated: "Today",
-          metrics: [
-            {
-              label: "Attendance Score",
-              value: 0,
-              color: "bg-red-500"
-            },
-            {
-              label: "Leave Balance Health",
-              value: 100,
-              color: "bg-green-500"
-            },
-            {
-              label: "Payroll Status",
-              value: 100,
-              color: "bg-green-500"
-            },
-            {
-              label: "Compliance Score",
-              value: 100,
-              color: "bg-green-500"
-            }
-          ],
-          strengths: [
-            "Payroll processing 100% on schedule",
-            "Excellent compliance – minimal/no flagged records",
-            "Excellent leave balance health (100%)",
-            "All leave requests processed promptly"
-          ],
-          improvements: []
-        }
-      };
-
-      // Use mock data directly for now
-      setDashboardData(mockData);
-      
-      // If you want to use the actual API later, uncomment this:
-      // const { data, error } = await getAdminDashboardData();
-      // if (error) throw new Error(error);
-      // if (data) setDashboardData(data);
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-      console.error('Error loading dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadDashboardData();
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const result = await getAdminDashboardData();
+        
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setDashboardData(result.data);
+        }
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
+
+
 
   if (loading) {
     return <div>Loading dashboard data...</div>;
@@ -236,23 +124,22 @@ const AdminDashboard = () => {
   if (!dashboardData) {
     return <div>No data available</div>;
   }
+  
+  console.log('Dashboard Data:', dashboardData); // Debug log
 
   // Destructure the data with defaults
-  const {
-    kpis = {},
-    charts = {},
-    recentActivities = [],
-    recentJoinings = [],
-    upcomingBirthdays = [],
-    upcomingHolidays = [],
-    teamHealth = {}
-  } = dashboardData;
+  const kpis = dashboardData?.kpis || {};
+  const charts = dashboardData?.charts || {};
+  const recentActivities = dashboardData?.recentActivities || [];
+  const recentJoinings = dashboardData?.recentJoinings || [];
+  const upcomingBirthdays = dashboardData?.upcomingBirthdays || [];
+  const upcomingHolidays = dashboardData?.upcomingHolidays || [];
+  const teamHealth = dashboardData?.teamHealth || {};
 
-  const { 
-    monthlyAttendance = [], 
-    departmentData = [], 
-    leaveData = [] 
-  } = charts;
+  // Ensure charts data is properly initialized
+  const monthlyAttendance = charts?.monthlyAttendance || [];
+  const departmentData = charts?.departmentData || [];
+  const leaveData = charts?.leaveData || [];
 
   return (
     <div className="space-y-8">
@@ -299,15 +186,15 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dashboardData?.charts?.monthlyAttendance || []}>
+              <LineChart data={monthlyAttendance}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="present" stroke="#10b981" />
-                <Line type="monotone" dataKey="absent" stroke="#ef4444" />
-                <Line type="monotone" dataKey="half" stroke="#f59e0b" />
+                <Line type="monotone" dataKey="present" name="Present" stroke="#10b981" />
+                <Line type="monotone" dataKey="absent" name="Absent" stroke="#ef4444" />
+                <Line type="monotone" dataKey="half" name="Half Day" stroke="#f59e0b" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -320,7 +207,7 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dashboardData?.charts?.departmentData || []}>
+              <BarChart data={departmentData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} />
                 <YAxis />
@@ -343,7 +230,7 @@ const AdminDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={dashboardData?.charts?.leaveData || []}
+                  data={leaveData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -352,7 +239,7 @@ const AdminDashboard = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {(dashboardData?.charts?.leaveData || []).map((entry, index) => (
+                  {leaveData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry?.fill || '#8884d8'} />
                   ))}
                 </Pie>
@@ -369,7 +256,7 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(dashboardData?.recentActivities || []).map((item, idx) => (
+              {recentActivities.map((item, idx) => (
                 <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm flex-shrink-0">
                     {item?.icon || '📝'}
@@ -380,7 +267,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
-              {(!dashboardData?.recentActivities || dashboardData.recentActivities.length === 0) && (
+              {(!recentActivities || recentActivities.length === 0) && (
                 <p className="text-sm text-muted-foreground text-center py-4">No recent activities</p>
               )}
             </div>
@@ -394,7 +281,7 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(dashboardData?.recentJoinings || []).map((emp, idx) => {
+              {recentJoinings.map((emp, idx) => {
                 const initials = emp?.name?.split(" ").filter(Boolean).map(n => n[0]).join("") || '👤';
                 return (
                   <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
@@ -413,7 +300,7 @@ const AdminDashboard = () => {
                   </div>
                 );
               })}
-              {(!dashboardData?.recentJoinings || dashboardData.recentJoinings.length === 0) && (
+              {(!recentJoinings || recentJoinings.length === 0) && (
                 <p className="text-sm text-muted-foreground text-center py-4">No recent joinings</p>
               )}
             </div>
@@ -427,7 +314,7 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {dashboardData?.upcomingBirthdays?.map((emp, idx) => (
+              {upcomingBirthdays?.map((emp, idx) => (
                 <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
                   <div className="text-2xl flex-shrink-0">{emp.emoji || "🎂"}</div>
                   <div className="flex-1">
@@ -436,6 +323,9 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
+              {(!upcomingBirthdays || upcomingBirthdays.length === 0) && (
+                <p className="text-sm text-muted-foreground text-center py-4">No upcoming birthdays</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -447,7 +337,7 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {dashboardData?.upcomingHolidays?.map((holiday, idx) => (
+              {upcomingHolidays?.map((holiday, idx) => (
                 <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
                   <div className="text-2xl flex-shrink-0">{holiday.icon || "🏖️"}</div>
                   <div className="flex-1">
@@ -457,6 +347,9 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
+              {(!upcomingHolidays || upcomingHolidays.length === 0) && (
+                <p className="text-sm text-muted-foreground text-center py-4">No upcoming holidays</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -477,26 +370,26 @@ const AdminDashboard = () => {
                   <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/10">
                     <div className="text-center">
                       <div className="text-4xl font-bold text-primary">
-                        {dashboardData.teamHealth?.overallScore ?? 'N/A'}
+                        {teamHealth?.overallScore ?? 'N/A'}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">out of 100</div>
                     </div>
                   </div>
                   <p className="text-sm font-medium text-foreground mt-4">
-                    {dashboardData.teamHealth?.status ?? 'Loading...'}
+                    {teamHealth?.status ?? 'Loading...'}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                   <div>
                     <p className="text-xs text-muted-foreground">Trend</p>
                     <p className="text-lg font-bold text-green-600">
-                      {dashboardData.teamHealth?.trend ?? 'N/A'}
+                      {teamHealth?.trend ?? 'N/A'}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Last Updated</p>
                     <p className="text-sm font-medium">
-                      {dashboardData.teamHealth?.lastUpdated ?? 'N/A'}
+                      {teamHealth?.lastUpdated ?? 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -511,7 +404,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-5">
-                {(dashboardData.teamHealth?.metrics || []).map((metric, idx) => (
+                {(teamHealth?.metrics || []).map((metric, idx) => (
                   <div key={idx}>
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-foreground">{metric.label}</p>
@@ -544,12 +437,12 @@ const AdminDashboard = () => {
                   <span className="text-green-600">✓</span> Strengths
                 </h4>
                 <ul className="space-y-2">
-                  {(dashboardData.teamHealth?.strengths || []).map((strength, idx) => (
+                  {(teamHealth?.strengths || []).map((strength, idx) => (
                     <li key={`strength-${idx}`} className="text-sm text-muted-foreground">
                       - {strength}
                     </li>
                   ))}
-                  {(!dashboardData.teamHealth?.strengths || dashboardData.teamHealth.strengths.length === 0) && (
+                  {(!teamHealth?.strengths || teamHealth.strengths.length === 0) && (
                     <li className="text-sm text-muted-foreground">No strengths data available</li>
                   )}
                 </ul>
@@ -559,8 +452,8 @@ const AdminDashboard = () => {
                   <span className="text-yellow-600">⚠</span> Areas to Improve
                 </h4>
                 <ul className="space-y-2">
-                  {(dashboardData.teamHealth?.improvements || []).length > 0 ? (
-                    (dashboardData.teamHealth?.improvements || []).map((improvement, idx) => (
+                  {(teamHealth?.improvements || []).length > 0 ? (
+                    (teamHealth?.improvements || []).map((improvement, idx) => (
                       <li key={`improve-${idx}`} className="text-sm text-muted-foreground">
                         - {improvement}
                       </li>
@@ -618,7 +511,7 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={attendanceData.slice(0, 1)}>
+              <LineChart data={employeeAttendanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
@@ -859,7 +752,7 @@ const FinanceDashboard = () => (
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={attendanceData}>
+          <LineChart data={payrollTrendData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis />
