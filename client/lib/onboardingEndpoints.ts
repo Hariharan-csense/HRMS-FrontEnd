@@ -9,6 +9,17 @@ export interface OnboardingTask {
   status: 'pending' | 'in_progress' | 'completed';
   dueDate: string;
   assignee?: string;
+  completed?: boolean; // Add optional completed field
+}
+
+// API Response type for toggleTaskCompletion
+export interface ToggleTaskResponse {
+  success: boolean;
+  data: OnboardingTask & {
+    employee_progress?: number;
+    employee_status?: string;
+  };
+  message?: string;
 }
 
 export interface OnboardingEmployee {
@@ -100,8 +111,13 @@ export const onboardingAPI = {
     return response.data;
   },
 
-  toggleTaskCompletion: async (taskId: string): Promise<OnboardingTask> => {
-    const response = await api.patch(`/onboarding/tasks/${taskId}/toggle`);
+  toggleTaskCompletion: async (taskId: string, currentCompleted: boolean): Promise<ToggleTaskResponse> => {
+    const response = await api.patch(`/onboarding/tasks/${taskId}/toggle`, {
+      completed: !currentCompleted
+    });
+    const task = response.data.data;
+    task.completed = !currentCompleted; // Update the completed status based on the toggle
+    task.status = task.completed ? 'completed' : 'pending'; // Ensure status is in sync
     return response.data;
   },
 
@@ -142,14 +158,30 @@ export const onboardingUtils = {
   },
 
   // Filter employees by search term and status
-  filterEmployees: (employees: OnboardingEmployee[] | any, searchTerm: string, statusFilter: string) => {
+  filterEmployees: (employees: OnboardingEmployee[] | any, searchTerm: string = '', statusFilter: string = 'all') => {
     // Handle case where employees might be wrapped in a response object
     const employeesArray = Array.isArray(employees) ? employees : (employees?.data || []);
     
+    // If no employees or empty array, return empty array
+    if (!employeesArray || employeesArray.length === 0) {
+      return [];
+    }
+    
+    // Convert search term to lowercase once for comparison
+    const searchLower = (searchTerm || '').toLowerCase();
+    
     return employeesArray.filter((employee: OnboardingEmployee) => {
-      const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           employee.position.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!employee) return false;
+      
+      // Safely check name, email, and position with optional chaining and nullish coalescing
+      const name = (employee.name || '').toLowerCase();
+      const email = (employee.email || '').toLowerCase();
+      const position = (employee.position || '').toLowerCase();
+      
+      const matchesSearch = searchLower === '' || 
+                           name.includes(searchLower) ||
+                           email.includes(searchLower) ||
+                           position.includes(searchLower);
       
       const matchesStatus = statusFilter === 'all' || employee.status === statusFilter;
       

@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   /* =======================
      LOGIN (REPLACED LOGIC)
      ======================= */
-const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
   setIsLoading(true);
   try {
     // Make sure to handle the case where the API call fails
@@ -64,8 +64,20 @@ const login = async (email: string, password: string): Promise<{ success: boolea
     }
     
     // Handle successful login
-    if (responseData.token) {
-      localStorage.setItem("accessToken", responseData.token);
+    const accessToken = responseData.accessToken || responseData.token;
+    const refreshToken = responseData.refreshToken;
+
+    if (accessToken) {
+      localStorage.setItem("accessToken", accessToken);
+
+      // Persist refresh token only when "Remember me" is enabled
+      if (rememberMe && refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+        localStorage.setItem("rememberMe", "true");
+      } else {
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("rememberMe");
+      }
       
       // Extract user data from response
       const userData = {
@@ -117,8 +129,10 @@ const login = async (email: string, password: string): Promise<{ success: boolea
     const clearAuthData = () => {
       localStorage.removeItem("user");
       localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("token");
       localStorage.removeItem("userRole");
+      localStorage.removeItem("rememberMe");
       
       // Clear any auth-related keys
       Object.keys(localStorage).forEach((key) => {

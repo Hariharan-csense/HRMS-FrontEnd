@@ -21,6 +21,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
     "@react-google-maps/api": "^2.20.8",
     "@tanstack/react-table": "^8.21.3",
     "@types/xlsx": "^0.0.35",
@@ -32,6 +33,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
+    "react-hot-toast": "^2.6.0",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
@@ -69,10 +71,11 @@
     "@swc/core": "^1.13.3",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.84.2",
+    "@types/antd": "^0.12.32",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
-    "@types/node": "^24.2.1",
-    "@types/react": "^18.3.23",
+    "@types/node": "^24.10.13",
+    "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.176.0",
     "@vitejs/plugin-react-swc": "^4.0.0",

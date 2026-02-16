@@ -304,21 +304,21 @@ const SuperAdminDashboard: React.FC = () => {
     colorClass?: string;
   }> = ({ title, value, icon, trend, description, colorClass = "" }) => (
     <Card className="hover:shadow-lg transition-shadow">
-      <CardContent className="pt-6">
+      <CardContent className="pt-4 sm:pt-6">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-3xl font-bold mt-2">{value}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs sm:text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2 truncate">{value}</p>
             {description && (
-              <p className="text-xs text-gray-500 mt-2">{description}</p>
+              <p className="text-xs text-gray-500 mt-1 sm:mt-2">{description}</p>
             )}
             {trend && (
-              <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+              <p className="text-xs text-green-600 mt-1 sm:mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> {trend}
               </p>
             )}
           </div>
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-white`} style={{ backgroundColor: colorClass || '#17c491' }}>
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-white flex-shrink-0 ml-2`} style={{ backgroundColor: colorClass || '#17c491' }}>
             {icon}
           </div>
         </div>
@@ -340,15 +340,15 @@ const SuperAdminDashboard: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         {/* Dashboard Header */}
-        <div className="text-white p-6 rounded-xl shadow-lg" style={{ backgroundColor: '#10af7f' }}>
-          <h1 className="text-3xl font-bold mb-2">Super Admin Dashboard</h1>
-          <p className="text-white/80">Manage tickets across all organizations</p>
+        <div className="text-white p-4 sm:p-6 rounded-xl shadow-lg" style={{ backgroundColor: '#10af7f' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Super Admin Dashboard</h1>
+          <p className="text-white/80 text-sm sm:text-base">Manage tickets across all organizations</p>
         </div>
 
         {/* Overview Statistics */}
         <div>
-          <h2 className="text-2xl font-bold mb-6">Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Overview</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <StatCard
               title="Total Organizations"
               value={stats.totalOrganizations}
@@ -441,16 +441,16 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
         </div> */}
 
-        <Tabs defaultValue="tickets" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="tickets">Ticket Management</TabsTrigger>
-            <TabsTrigger value="organizations">Organizations</TabsTrigger>
-            <TabsTrigger value="organization-stats">Organization Statistics</TabsTrigger>
+        <Tabs defaultValue="tickets" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto p-1">
+            <TabsTrigger value="tickets" className="py-2 text-xs sm:text-sm">Ticket Management</TabsTrigger>
+            <TabsTrigger value="organizations" className="py-2 text-xs sm:text-sm">Organizations</TabsTrigger>
+            <TabsTrigger value="organization-stats" className="py-2 text-xs sm:text-sm">Organization Statistics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tickets" className="space-y-6">
             {/* Ticket Status Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">In Progress</CardTitle>
@@ -489,7 +489,7 @@ const SuperAdminDashboard: React.FC = () => {
                 <CardTitle>Filters</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="search">Search</Label>
                     <div className="relative">
@@ -573,37 +573,53 @@ const SuperAdminDashboard: React.FC = () => {
                 ) : (
                   <div className="space-y-4">
                     {filteredTickets.map((ticket) => (
-                      <div key={ticket.id} className="border rounded-lg p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{ticket.ticketNumber}</span>
-                              <Badge className={getPriorityColor(ticket.priority)}>
-                                {ticket.priority}
-                              </Badge>
-                              <Badge className={getStatusColor(ticket.status).className} style={getStatusColor(ticket.status).style}>
-                                {getStatusIcon(ticket.status)}
-                                <span className="ml-1">{ticket.status.replace('_', ' ')}</span>
-                              </Badge>
-                            </div>
-                            <h3 className="font-semibold text-lg">{ticket.title}</h3>
-                            <p className="text-muted-foreground">{ticket.description}</p>
-                            {ticket.remarks && (
-                              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                                <p className="text-sm font-medium text-blue-800 mb-1">Remarks:</p>
-                                <p className="text-sm text-blue-700">{ticket.remarks}</p>
+                      <div key={ticket.id} className="border rounded-lg p-3 sm:p-4 space-y-3">
+                        <div className="space-y-3">
+                          {/* Header with ticket number and badges */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium text-sm">{ticket.ticketNumber}</span>
+                              <div className="flex flex-wrap gap-1">
+                                <Badge className={`${getPriorityColor(ticket.priority)} text-xs`}>
+                                  {ticket.priority}
+                                </Badge>
+                                <Badge className={`${getStatusColor(ticket.status).className} text-xs`} style={getStatusColor(ticket.status).style}>
+                                  {getStatusIcon(ticket.status)}
+                                  <span className="ml-1">{ticket.status.replace('_', ' ')}</span>
+                                </Badge>
                               </div>
-                            )}
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span>Created by {ticket.createdBy.name}</span>
-                              {ticket.organization && (
-                                <span>• {ticket.organization.name}</span>
-                              )}
-                              <span>• {new Date(ticket.createdAt).toLocaleDateString()}</span>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => openUpdateDialog(ticket)}>
+                          
+                          {/* Title */}
+                          <h3 className="font-semibold text-base sm:text-lg break-words">{ticket.title}</h3>
+                          
+                          {/* Description */}
+                          <p className="text-sm text-muted-foreground line-clamp-3 sm:line-clamp-none">{ticket.description}</p>
+                          
+                          {/* Remarks */}
+                          {ticket.remarks && (
+                            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm font-medium text-blue-800 mb-1">Remarks:</p>
+                              <p className="text-sm text-blue-700 line-clamp-2">{ticket.remarks}</p>
+                            </div>
+                          )}
+                          
+                          {/* Meta information and action button */}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t">
+                            <div className="flex flex-col gap-1 text-xs sm:text-sm text-muted-foreground">
+                              <span>Created by {ticket.createdBy.name}</span>
+                              {ticket.organization && (
+                                <span>{ticket.organization.name}</span>
+                              )}
+                              <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => openUpdateDialog(ticket)} 
+                              className="w-full sm:w-auto min-w-[80px]"
+                            >
                               <Edit className="h-4 w-4 mr-1" />
                               Update
                             </Button>
@@ -625,23 +641,39 @@ const SuperAdminDashboard: React.FC = () => {
                 <CardDescription>View ticket statistics by organization</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {organizations.map((org) => (
-                    <div key={org.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center">
+                    <div key={org.id} className="border rounded-lg p-4 sm:p-6">
+                      <div className="space-y-4">
+                        {/* Organization Name */}
                         <div>
-                          <h3 className="font-semibold text-lg">{org.name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                            <span>{org.userCount} users</span>
-                            <span>•</span>
-                            <span>{org.ticketCount} tickets</span>
-                            <span>•</span>
-                            <span>{org.resolutionRate}% resolution rate</span>
+                          <h3 className="font-semibold text-base sm:text-lg truncate">{org.name}</h3>
+                        </div>
+                        
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                          <div className="text-center">
+                            <div className="text-lg sm:text-xl font-bold text-blue-600">{org.userCount}</div>
+                            <div className="text-xs text-muted-foreground">Users</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg sm:text-xl font-bold text-orange-600">{org.ticketCount}</div>
+                            <div className="text-xs text-muted-foreground">Tickets</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg sm:text-xl font-bold text-green-600">{org.resolutionRate}%</div>
+                            <div className="text-xs text-muted-foreground">Resolution</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-green-600">{org.resolutionRate}%</div>
-                          <div className="text-xs text-muted-foreground">Resolution Rate</div>
+                        
+                        {/* Bottom Resolution Rate Display */}
+                        <div className="pt-2 border-t">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Overall Resolution Rate</span>
+                            <div className="text-right">
+                              <div className="text-xl sm:text-2xl font-bold text-green-600">{org.resolutionRate}%</div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

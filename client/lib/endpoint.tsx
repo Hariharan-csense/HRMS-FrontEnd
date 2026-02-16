@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.11:3000";
+export const BASE_URL = "http://192.168.1.5:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -12,6 +12,14 @@ const api = axios.create({
     "Accept": "application/json"
   },
 });
+
+const clearAuthStorage = () => {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("rememberMe");
+};
 
 // Attach token dynamically on EVERY request
 api.interceptors.request.use((config) => {
@@ -25,15 +33,52 @@ api.interceptors.request.use((config) => {
 });
 
 // ✅ Global response handler
+let refreshPromise: Promise<string> | null = null;
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user");
-      localStorage.removeItem("userRole");
-      // window.location.href = "/login";
+  async (error) => {
+    const originalRequest: any = error.config;
+    const status = error.response?.status;
+
+    if (status === 401 && originalRequest && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem("refreshToken");
+
+      if (
+        refreshToken &&
+        typeof originalRequest.url === "string" &&
+        !originalRequest.url.includes("/auth/refresh-token")
+      ) {
+        originalRequest._retry = true;
+
+        try {
+          if (!refreshPromise) {
+            refreshPromise = api
+              .post("/auth/refresh-token", { refreshToken })
+              .then((res) => res.data?.accessToken || res.data?.token)
+              .then((newToken) => {
+                if (!newToken) throw new Error("No access token returned from refresh");
+                localStorage.setItem("accessToken", newToken);
+                return newToken;
+              })
+              .finally(() => {
+                refreshPromise = null;
+              });
+          }
+
+          const newAccessToken = await refreshPromise;
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          clearAuthStorage();
+          return Promise.reject(refreshError);
+        }
+      }
+
+      clearAuthStorage();
     }
+
     return Promise.reject(error);
   }
 );
@@ -42,6 +87,8 @@ const ENDPOINTS = {
   // Auth
   login: (email: string, password: string) =>
     api.post("/auth/login", { email, password }),
+  refreshAccessToken: (refreshToken: string) =>
+    api.post("/auth/refresh-token", { refreshToken }),
   register: (data: any) => api.post("/auth/register", data),
   logout: () => api.post("/auth/logout"),
   resetPassword: (email: string) =>
@@ -322,9 +369,100 @@ const ENDPOINTS = {
   deleteClient: (id: string) => api.delete(`/clients/${id}`),
   getEmployeesForAssignment: () => api.get("/clients/employees"),
 
+  // User Management
+  getUsers: () => api.get("/users"),
+  getUserById: (id: string) => api.get(`/users/${id}`),
+  createUser: (data: any) => api.post("/users", data),
+  updateUser: (id: string, data: any) => api.put(`/users/${id}`, data),
+  deleteUser: (id: string) => api.delete(`/users/${id}`),
+
+  // Organization Management
+  getOrganizations: () => api.get("/organizations"),
+  getOrganizationById: (id: string) => api.get(`/organizations/${id}`),
+  createOrganization: (data: any) => api.post("/organizations", data),
+  updateOrganization: (id: string, data: any) => api.put(`/organizations/${id}`, data),
+  deleteOrganization: (id: string) => api.delete(`/organizations/${id}`),
+
+  // Organization Helper Functions
+  fetchOrganizations: async (): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getOrganizations();
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to fetch organizations' };
+    } catch (error: any) {
+      console.error('Error fetching organizations:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to fetch organizations'
+      };
+    }
+  },
+
+  fetchOrganizationById: async (id: string): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getOrganizationById(id);
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Organization not found' };
+    } catch (error: any) {
+      console.error('Error fetching organization:', error);
+      return {
+        error: error.response?.data?.message || 'Organization not found'
+      };
+    }
+  },
+
+  addOrganization: async (data: any): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.createOrganization(data);
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to create organization' };
+    } catch (error: any) {
+      console.error('Error creating organization:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to create organization'
+      };
+    }
+  },
+
+  editOrganization: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.updateOrganization(id, data);
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to update organization' };
+    } catch (error: any) {
+      console.error('Error updating organization:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to update organization'
+      };
+    }
+  },
+
+  removeOrganization: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.deleteOrganization(id);
+      if (response.data && response.data.success) {
+        return { success: true };
+      }
+      return { error: 'Failed to delete organization' };
+    } catch (error: any) {
+      console.error('Error deleting organization:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to delete organization'
+      };
+    }
+  },
+
   //clint attendance
 
   getallattendance: () => api.get("/client-attendance/all"),
+
 
   // Custom attendance and payslip functions
   getAttendance: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
@@ -637,6 +775,112 @@ const ENDPOINTS = {
       console.error('Error fetching recruitment stats:', error);
       return {
         error: error.response?.data?.message || 'Failed to fetch recruitment statistics'
+      };
+    }
+  },
+
+  // User Management Helper Functions
+  fetchUsers: async (): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getUsers();
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to fetch users' };
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to fetch users'
+      };
+    }
+  },
+
+  fetchUserById: async (id: string): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getUserById(id);
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'User not found' };
+    } catch (error: any) {
+      console.error('Error fetching user:', error);
+      return {
+        error: error.response?.data?.message || 'User not found'
+      };
+    }
+  },
+
+  addUser: async (data: any): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.createUser(data);
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to create user' };
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to create user'
+      };
+    }
+  },
+
+  editUser: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.updateUser(id, data);
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to update user' };
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to update user'
+      };
+    }
+  },
+
+  removeUser: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.deleteUser(id);
+      if (response.data && response.data.success) {
+        return { success: true };
+      }
+      return { error: 'Failed to delete user' };
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to delete user'
+      };
+    }
+  },
+
+  updateUserRole: async (id: string, role: string): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.updateUser(id, { role });
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to update user role' };
+    } catch (error: any) {
+      console.error('Error updating user role:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to update user role'
+      };
+    }
+  },
+
+  updateUserStatus: async (id: string, status: string): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.updateUser(id, { status });
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+      return { error: 'Failed to update user status' };
+    } catch (error: any) {
+      console.error('Error updating user status:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to update user status'
       };
     }
   },

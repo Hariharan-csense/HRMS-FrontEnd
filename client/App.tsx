@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, HashRouter } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { RoleProvider } from "@/context/RoleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
@@ -79,6 +79,8 @@ import SuperAdminOnlyRoute from "./components/SuperAdminOnlyRoute";
 import SalesOnlyRoute from "./components/SalesOnlyRoute";
 import HROnlyRoute from "./components/HROnlyRoute";
 import ClientAttendanceRoute from "./components/ClientAttendanceRoute";
+import Organizations from "./pages/superadmin/Organizations";
+import { Users } from "./pages/superadmin/Users";
 const queryClient = new QueryClient();
 
 // Protected Route Component
@@ -641,6 +643,34 @@ function AppRoutes() {
         }
       />
 
+      {/* Organizations Management - SuperAdmin only */}
+      <Route
+        path="/organizations"
+        element={
+          <SuperAdminOnlyRoute>
+            <Organizations />
+          </SuperAdminOnlyRoute>
+        }
+      />
+      <Route
+        path="/organizations/:id"
+        element={
+          <SuperAdminOnlyRoute>
+            <Organizations />
+          </SuperAdminOnlyRoute>
+        }
+      />
+
+      {/* Users Management - SuperAdmin only */}
+      <Route
+        path="/users"
+        element={
+          <SuperAdminOnlyRoute>
+            <Users />
+          </SuperAdminOnlyRoute>
+        }
+      />
+
       {/* Super Admin Dashboard - Development access */}
       <Route
         path="/superadmin-dashboard"
@@ -698,7 +728,7 @@ function AppRoutes() {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <HashRouter>
         <AuthProvider>          {/* ✅ Auth FIRST */}
           <RoleProvider>        {/* ✅ Role AFTER Auth */}
             <SubscriptionProvider> {/* ✅ Subscription AFTER Role */}
@@ -710,7 +740,7 @@ const App = () => {
             </SubscriptionProvider>
           </RoleProvider>
         </AuthProvider>
-      </BrowserRouter>
+      </HashRouter>
     </QueryClientProvider>
   );
 };

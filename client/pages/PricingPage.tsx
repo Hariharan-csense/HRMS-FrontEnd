@@ -281,9 +281,9 @@ const PricingPage = () => {
                         
                         {/* Trial Information */}
                         <div className="text-center mt-4">
-                          <p className="text-gray-600 text-sm">
+                          {/* <p className="text-gray-600 text-sm">
                             {plan.trial_days} days free trial
-                          </p>
+                          </p> */}
                           <p className="text-gray-500 text-xs mt-1">
                             Then {plan.price === 0 ? '₹0/month' : `${formatPrice(plan.price)}/month or ${formatPrice(getYearlyPrice(plan.price))}/year`}
                           </p>

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import ENDPOINTS from '../lib/endpoint';
 import TrialExpirationModal from '../components/TrialExpirationModal';
+import { useAuth } from '@/context/AuthContext';
 
 interface CompanySubscription {
   id: number;
+  plan_id: number;
   plan_name: string;
   plan_description: string;
   plan_price: number;
@@ -48,6 +50,7 @@ const isUserAuthenticated = () => {
 };
 
 export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [subscription, setSubscription] = useState<CompanySubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +75,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         const subscriptionData = response.data.data;
         setSubscription(subscriptionData);
         
-        // Check if trial has expired
+        // Check if trial has expired - don't show modal automatically
         if (subscriptionData?.status === 'expired' || 
             (subscriptionData?.status === 'trial' && subscriptionData?.trial_days_remaining <= 0)) {
-          setShowTrialExpirationModal(true);
+          // Don't show modal automatically - let user see subscribe button
+          console.log('Trial has expired, but not showing modal automatically');
         }
         
         // Get current employee count
@@ -88,8 +92,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           console.error('Error fetching employee count:', empError);
         }
       } else {
-        // No subscription found
-        setShowTrialExpirationModal(true);
+        // No subscription found - don't show modal automatically
+        console.log('No subscription found, but not showing modal automatically');
       }
     } catch (err: any) {
       console.error('Error checking subscription:', err);
@@ -107,10 +111,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         const errorData = err.response.data;
         
         if (errorData?.requires_subscription || errorData?.trial_expired) {
-          setShowTrialExpirationModal(true);
+          // Don't show modal automatically
+          console.log('Subscription required or trial expired, but not showing modal automatically');
         } else if (errorData?.user_limit_exceeded) {
-          // Show user limit exceeded modal or notification
-          setShowTrialExpirationModal(true);
+          // Don't show modal automatically
+          console.log('User limit exceeded, but not showing modal automatically');
         }
       }
       
@@ -121,23 +126,29 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   };
 
   useEffect(() => {
-    // Add a small delay to ensure auth context is initialized
+    if (!isAuthenticated) {
+      setSubscription(null);
+      setError(null);
+      setCurrentEmployeeCount(0);
+      setLoading(false);
+      return;
+    }
+
+    // Add a small delay to ensure localStorage/auth state is populated right after login
     const timer = setTimeout(() => {
       checkSubscriptionStatus();
     }, 100);
-    
-    // Set up periodic subscription checks (every 5 minutes) - only if authenticated
+
+    // Set up periodic subscription checks (every 5 minutes)
     const interval = setInterval(() => {
-      if (isUserAuthenticated()) {
-        checkSubscriptionStatus();
-      }
+      checkSubscriptionStatus();
     }, 5 * 60 * 1000);
-    
+
     return () => {
       clearTimeout(timer);
       clearInterval(interval);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const isTrialExpired = subscription?.status === 'expired' || 
                        (subscription?.status === 'trial' && subscription?.trial_days_remaining <= 0);

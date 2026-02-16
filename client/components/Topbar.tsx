@@ -126,20 +126,20 @@ export const Topbar: React.FC = () => {
   };
 
   return (
-    <header className="h-20 bg-white border-b border-border flex items-center justify-between px-4 md:px-8 md:ml-64 fixed md:static top-0 right-0 left-0 md:left-auto z-20">
+    <header className="h-16 sm:h-20 bg-white border-b border-border flex items-center justify-between px-4 sm:px-6 md:px-8 md:ml-64 fixed top-0 right-0 left-0 z-20">
       {/* Left Section - Dashboard Button */}
-      <div className="hidden md:flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => navigate("/dashboard")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg transition-colors ${
             location.pathname === "/dashboard"
               ? "bg-teal-100 text-teal-700"
               : "hover:bg-muted text-muted-foreground hover:text-foreground"
           }`}
           title="Go to Dashboard"
         >
-          <LayoutDashboard className="w-5 h-5" />
-          <span className="text-sm font-medium">Overview</span>
+          <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline text-sm font-medium">Overview</span>
         </button>
       </div>
 
@@ -152,17 +152,17 @@ export const Topbar: React.FC = () => {
               className="relative p-2 hover:bg-muted rounded-lg transition-colors group"
               title="Notifications"
             >
-              <Bell className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-600 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] bg-red-600 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-96">
+          <DropdownMenuContent align="end" className="w-80 sm:w-96">
             <DropdownMenuLabel className="flex justify-between items-center">
-              <span>Notifications</span>
+              <span className="text-sm font-medium">Notifications</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleRefreshNotifications}
@@ -182,11 +182,11 @@ export const Topbar: React.FC = () => {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-80 sm:max-h-96 overflow-y-auto">
               {loading ? (
                 <div className="px-4 py-8 text-center text-muted-foreground">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p>Loading notifications...</p>
+                  <p className="text-sm">Loading notifications...</p>
                 </div>
               ) : notifications.length > 0 ? (
                 notifications.map((notification) => (
@@ -233,8 +233,8 @@ export const Topbar: React.FC = () => {
                 ))
               ) : (
                 <div className="px-4 py-8 text-center text-muted-foreground">
-                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No notifications</p>
+                  <Bell className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No notifications</p>
                 </div>
               )}
             </div>
@@ -247,33 +247,33 @@ export const Topbar: React.FC = () => {
             <button className="flex items-center gap-2 p-1 hover:bg-muted rounded-lg transition-colors">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
               </Avatar>
               <div className="hidden sm:flex flex-col items-start text-sm">
-                <span className="font-medium text-foreground">{user.name}</span>
+                <span className="font-medium text-foreground truncate max-w-32">{user.name}</span>
                 <span className="text-xs text-muted-foreground capitalize">
                   {user.roles?.[0] || "User"}
                 </span>
               </div>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-48 sm:w-56">
             <DropdownMenuLabel className="flex flex-col gap-1">
-              <span className="font-medium">{user.name}</span>
-              <span className="text-xs text-muted-foreground">{user.email}</span>
+              <span className="font-medium text-sm">{user.name}</span>
+              <span className="text-xs text-muted-foreground truncate">{user.email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleViewProfile}
-              className="cursor-pointer gap-2"
+              className="cursor-pointer gap-2 text-sm"
             >
               <User className="w-4 h-4" />
               <span>View Profile</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+              className="cursor-pointer gap-2 text-destructive focus:text-destructive text-sm"
               onClick={onLogout}
             >
               <LogOut className="w-4 h-4" />

@@ -42,7 +42,8 @@ import {
   Plus,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Check
 } from 'lucide-react';
 import { 
   onboardingAPI, 
@@ -52,6 +53,24 @@ import {
   CreateEmployeeData,
   OnboardingStats 
 } from '@/lib/onboardingEndpoints';
+
+type TaskStatus = 'pending' | 'in_progress' | 'completed';
+
+// Helper function to format date
+export const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return '-';
+  }
+};
 
 const HROnboarding: React.FC = () => {
   const [employees, setEmployees] = useState<OnboardingEmployee[]>([]);
@@ -95,11 +114,13 @@ const HROnboarding: React.FC = () => {
         onboardingAPI.getStats()
       ]);
       
-      // Handle API response format - extract data array if needed
-      const employeesData = Array.isArray(employeesResponse) ? employeesResponse : employeesResponse;
+      // Ensure we always set an array, even if the response is malformed
+      const employeesData = Array.isArray(employeesResponse) 
+        ? employeesResponse 
+        : (employeesResponse?.data || []);
       const statsData = statsResponse;
       
-      setEmployees(employeesData);
+      setEmployees(Array.isArray(employeesData) ? employeesData : []);
       setStats(statsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch onboarding data');
@@ -111,7 +132,7 @@ const HROnboarding: React.FC = () => {
 
   const getStatusColor = onboardingUtils.getStatusColor;
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: TaskStatus) => {
     switch (status) {
       case 'pending': return <Clock className="w-4 h-4" />;
       case 'in_progress': return <AlertCircle className="w-4 h-4" />;
@@ -124,13 +145,25 @@ const HROnboarding: React.FC = () => {
     e.preventDefault();
     
     try {
+      // Format the date to YYYY-MM-DD format for the backend
+      let formattedStartDate = '';
+      if (formData.startDate) {
+        // Create a date object from the input (local time)
+        const date = new Date(formData.startDate);
+        // Get the local date parts (this handles timezone correctly)
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        formattedStartDate = `${year}-${month}-${day}`;
+      }
+
       const employeeData: CreateEmployeeData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         position: formData.position,
         department: formData.department,
-        startDate: formData.startDate,
+        startDate: formattedStartDate,
         assignedHR: formData.assignedHR,
       };
 
@@ -205,36 +238,118 @@ const HROnboarding: React.FC = () => {
     }
   };
 
-  const toggleTaskStatus = async (taskId: string) => {
-    try {
-      const updatedTask = await onboardingAPI.toggleTaskCompletion(taskId);
-      
-      // Update selected employee tasks
-      setSelectedEmployee(prev => {
-        if (!prev || !Array.isArray(prev.tasks)) return prev;
-        const updatedTasks = prev.tasks.map(task => 
-          task.id === taskId ? updatedTask : task
-        );
-        return { ...prev, tasks: updatedTasks };
-      });
-      
-      // Update employees list
-      setEmployees(prev => {
-        if (!Array.isArray(prev)) return prev;
-        return prev.map(emp => {
-          if (emp.id !== selectedEmployee?.id) return emp;
-          if (!Array.isArray(emp.tasks)) return emp;
-          const updatedTasks = emp.tasks.map(task => 
-            task.id === taskId ? updatedTask : task
-          );
-          return { ...emp, tasks: updatedTasks };
-        });
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update task');
-      console.error('Error updating task:', err);
-    }
+ const toggleTaskStatus = async (taskId: string) => {
+  if (!taskId) {
+    console.error('Error: Task ID is undefined or empty');
+    setError('Failed to update task: Missing task ID');
+    return;
+  }
+
+  console.log('Toggling task status for task ID:', taskId);
+  
+  // Find the current task to get current status
+  const currentTask = selectedEmployee?.tasks?.find(t => t.id === taskId);
+  if (!currentTask) {
+    console.error('Task not found in current selection:', taskId);
+    setError('Task not found');
+    return;
+  }
+
+  const newCompletedStatus = !currentTask.completed;
+  const newStatus = newCompletedStatus ? 'completed' : 'pending';
+
+  // Optimistically update the UI
+  const optimisticTask: OnboardingTask = {
+    ...currentTask,
+    completed: newCompletedStatus,
+    status: newStatus
   };
+
+  // Update selected employee tasks optimistically
+  setSelectedEmployee(prev => {
+    if (!prev || !Array.isArray(prev.tasks)) return prev;
+    return {
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === taskId ? optimisticTask : t)
+    };
+  });
+  
+  try {
+    // Make the API call with current completed status
+    const response = await onboardingAPI.toggleTaskCompletion(taskId, currentTask.completed);
+    
+    if (!response?.success) {
+      throw new Error(response?.message || 'Failed to update task status');
+    }
+    
+    const updatedTask = response.data;
+    console.log('Successfully updated task:', updatedTask);
+    
+    // Update the employee's progress if available in the response
+    if (updatedTask.employee_progress !== undefined && selectedEmployee) {
+      setSelectedEmployee(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          progress: updatedTask.employee_progress,
+          status: (updatedTask.employee_status as 'pending' | 'in_progress' | 'completed') || prev.status,
+          tasks: prev.tasks?.map(t => 
+            t.id === taskId ? { 
+              ...t, 
+              completed: updatedTask.completed,
+              status: updatedTask.status
+            } : t
+          )
+        };
+      });
+
+      // Also update in the employees list
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === selectedEmployee.id
+            ? {
+                ...emp,
+                progress: updatedTask.employee_progress,
+                status: (updatedTask.employee_status as 'pending' | 'in_progress' | 'completed') || emp.status,
+                tasks: emp.tasks?.map(t => 
+                  t.id === taskId 
+                    ? { ...t, completed: updatedTask.completed, status: updatedTask.status }
+                    : t
+                )
+              }
+            : emp
+        )
+      );
+    }
+    
+  } catch (err) {
+    // Revert optimistic update on error
+    setSelectedEmployee(prev => {
+      if (!prev || !Array.isArray(prev.tasks)) return prev;
+      return {
+        ...prev,
+        tasks: prev.tasks.map(t => t.id === taskId ? currentTask : t)
+      };
+    });
+    
+    const errorMessage = err instanceof Error ? err.message : 'Failed to update task';
+    console.error('Error updating task:', errorMessage, err);
+    setError(`Error: ${errorMessage}`);
+    
+    // Re-fetch the latest data to ensure consistency
+    if (selectedEmployee?.id) {
+      try {
+        const freshData = await onboardingAPI.getEmployeeById(selectedEmployee.id);
+        setSelectedEmployee(freshData);
+        setEmployees(prev => 
+          prev.map(emp => emp.id === selectedEmployee.id ? freshData : emp)
+        );
+      } catch (fetchErr) {
+        console.error('Failed to refresh task data:', fetchErr);
+      }
+    }
+  }
+};
 
   return (
     <Layout>
@@ -247,7 +362,7 @@ const HROnboarding: React.FC = () => {
               onClick={() => setError(null)}
               className="ml-4 text-red-500 hover:text-red-700"
             >
-              ×
+              
             </button>
           </div>
         )}
@@ -374,15 +489,15 @@ const HROnboarding: React.FC = () => {
                         <p className="text-sm text-gray-600 mt-1">{employee.position}</p>
                         <p className="text-xs text-gray-500">{employee.department}</p>
                       </div>
-                      <Badge className={`${getStatusColor(employee.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
-                        {employee.status.replace('_', ' ')}
+                      <Badge className={`${getStatusColor(employee.status || '')} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
+                        {(employee.status || '').replace('_', ' ')}
                       </Badge>
                     </div>
                     
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Start Date</span>
-                        <span className="text-sm text-gray-900">{employee.startDate}</span>
+                        <span className="text-sm text-gray-900">{formatDate(employee.start_date)}</span>
                       </div>
                       
                       <div className="flex justify-between items-center">
@@ -449,7 +564,7 @@ const HROnboarding: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden md:table-cell">
-                        <span className="text-sm text-gray-600">{employee.startDate}</span>
+                        <span className="text-sm text-gray-600">{formatDate(employee.start_date)}</span>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden lg:table-cell">
                         <div className="flex items-center gap-2">
@@ -463,8 +578,8 @@ const HROnboarding: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <Badge className={`${getStatusColor(employee.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
-                          {employee.status.replace('_', ' ')}
+                        <Badge className={`${getStatusColor(employee.status || '')} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
+                          {employee.status ? employee.status.replace('_', ' ') : 'pending'}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
@@ -541,7 +656,7 @@ const HROnboarding: React.FC = () => {
                 <div>
                   <Label htmlFor="department">Department</Label>
                   <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
@@ -630,7 +745,7 @@ const HROnboarding: React.FC = () => {
                     <CardContent className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">Start: {selectedEmployee.startDate}</span>
+                        <span className="text-sm">Start: {formatDate(selectedEmployee.start_date)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-gray-500" />
@@ -673,22 +788,75 @@ const HROnboarding: React.FC = () => {
                   <CardContent>
                     <div className="space-y-3">
                       {selectedEmployee.tasks && selectedEmployee.tasks.length > 0 ? (
-                        selectedEmployee.tasks.map((task) => (
-                          <div 
-                            key={task.id} 
-                            className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                            onClick={() => toggleTaskStatus(task.id)}
-                          >
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{task.title}</h4>
-                              <p className="text-sm text-gray-600">{task.description}</p>
-                              <p className="text-xs text-gray-500 mt-1">Due: {task.dueDate}</p>
+                        selectedEmployee.tasks.map((task) => {
+                          console.log('Rendering task:', { 
+                            taskId: task.id, 
+                            hasId: !!task.id,
+                            taskTitle: task.title,
+                            taskStatus: task.status
+                          });
+
+                          return (
+                            <div 
+                              key={task.id}
+                              className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                                task.completed ? 'bg-green-50' : 'hover:bg-gray-50'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!task.id) {
+                                  console.error('Cannot toggle task: Task ID is missing', task);
+                                  setError('Failed to update task: Missing task ID');
+                                  return;
+                                }
+                                toggleTaskStatus(task.id);
+                              }}
+                            >
+                              <div className="flex items-center">
+                                <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${
+                                  task.completed 
+                                    ? 'bg-green-500 border-green-600' 
+                                    : 'border-gray-300'
+                                }`}>
+                                  {task.completed && (
+                                    <Check className="w-3 h-3 text-white" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className={`font-medium ${
+                                    task.completed ? 'text-gray-500 line-through' : 'text-gray-900'
+                                  }`}>
+                                    {task.title}
+                                  </h4>
+                                  {task.description && (
+                                    <p className={`text-sm ${
+                                      task.completed ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
+                                      {task.description}
+                                    </p>
+                                  )}
+                                  {task.dueDate && (
+                                    <p className={`text-xs mt-1 ${
+                                      task.completed ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>
+                                      Due: {task.dueDate}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <Badge 
+                                className={`ml-4 ${
+                                  task.completed 
+                                    ? 'bg-green-100 text-green-800 hover:bg-green-100' 
+                                    : getStatusColor(task.status || 'pending')
+                                }`}
+                                variant={!task.id ? 'destructive' : 'default'}
+                              >
+                                {task.completed ? 'Completed' : (task.status || 'pending').replace('_', ' ')}
+                              </Badge>
                             </div>
-                            <Badge className={`${getStatusColor(task.status || 'pending')} ml-4`}>
-                              {(task.status || 'pending').replace('_', ' ')}
-                            </Badge>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { handleLogout } from "@/components/helper/login/login";
@@ -133,6 +133,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
 import { Button } from "@/components/ui/button";
 
 type NavItem = {
@@ -536,11 +538,11 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
-   {
+  {
     label: "Pulse",
     icon: <Activity className="w-5 h-5" />,
     roles: [], // Accessible by all users
-    moduleName: undefined, // Always accessible
+    moduleName: "pulse_surveys",
     path: "/pulse-surveys",
     submenu: [
       {
@@ -562,14 +564,14 @@ const navigationItems: NavItem[] = [
         path: "/pulse-surveys/feedback",
         roles: [], // Accessible by all users
         icon: <div />,
-        moduleName: undefined, // Always accessible
+        moduleName: "pulse_surveys",
       },
       {
         label: "Overview",
         path: "/pulse-surveys/overview",
         roles: [], // Accessible by all users
         icon: <div />,
-        moduleName: undefined, // Always accessible
+        moduleName: "pulse_surveys",
       },
 
        
@@ -585,8 +587,21 @@ const navigationItems: NavItem[] = [
     moduleName: "subscription",
     path: "/subscription",
   },
-
-    {
+  {
+    label: "Organizations",
+    icon: <Building2 className="w-5 h-5" />,
+    roles: ["superadmin"],
+    moduleName: "organizations",
+    path: "/organizations",
+  },
+  {
+    label: "Users",
+    icon: <Users className="w-5 h-5" />,
+    roles: ["superadmin"],
+    moduleName: "users",
+    path: "/users",
+  },
+  {
     label: "Ticket Management",
     icon: <HelpCircle className="w-5 h-5" />,
     roles: [],
@@ -602,6 +617,7 @@ export const Sidebar: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { hasRole, hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -631,18 +647,44 @@ export const Sidebar: React.FC = () => {
     );
   };
 
+  const isSuperAdmin = user.roles?.some((role) => role?.toLowerCase() === "superadmin");
+
+  const allowedModulesForPlan = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  }, [
+    isSuperAdmin,
+    subscription,
+    subscriptionLoading,
+  ]);
+
   // Check if user has access to a navigation item based on module permissions
   const hasItemAccess = (item: NavItem): boolean => {
-    // Dashboard is always accessible
-    if (item.moduleName === undefined) {
-      // Special case: Hide Pulse for superadmin users
-      if (item.label === "Pulse") {
-        const hasSuperAdminRole = user.roles?.some(role => role?.toLowerCase() === "superadmin");
-        if (hasSuperAdminRole) {
-          return false;
-        }
+    // Subscription-based visibility (applies to non-superadmin users)
+    if (!isSuperAdmin) {
+      // Dashboard is always accessible
+      if (item.label === "Dashboard") return true;
+
+      // If subscription-based restriction is active, enforce it.
+      // If it's null (trial full access), don't restrict sidebar by subscription.
+      if (allowedModulesForPlan) {
+        // Always allow Subscription so users can upgrade/renew
+        if (item.moduleName === "subscription") return true;
+
+        // If moduleName is undefined (non-dashboard), hide it (prevents showing items not tied to the plan)
+        if (item.moduleName === undefined) return false;
+
+        // Hide anything not included in the subscribed plan
+        if (!allowedModulesForPlan.has(item.moduleName)) return false;
+      } else {
+        // Trial full access: treat "always accessible" items as visible
+        if (item.moduleName === undefined) return true;
       }
-      return true;
+    }
+
+    // Special case: Hide Pulse for superadmin users
+    if (item.label === "Pulse" && isSuperAdmin) {
+      return false;
     }
 
     // Check hardcoded roles first - if item has specific roles, enforce them
@@ -670,8 +712,13 @@ export const Sidebar: React.FC = () => {
       }
     }
 
-    // Don't show items while loading permissions, except for HR users
+    // While role permissions are loading, avoid hiding the entire sidebar.
+    // Subscription-based filtering already ran above for non-superadmin users.
     if (roleLoading) {
+      if (!isSuperAdmin) {
+        return true;
+      }
+
       // Allow HR users to see HR modules even while loading
       if (item.moduleName === "hr_management") {
         const hasHRRole = user.roles?.some(role => 
@@ -681,12 +728,13 @@ export const Sidebar: React.FC = () => {
         );
         return hasHRRole;
       }
+
       return false;
     }
 
     // For Role & Module Access Debug, check if user has the specific module
     if (item.moduleName === "role_access") {
-      return hasModuleAccess("Role & Modules Access");
+      return hasModuleAccess("role_access");
     }
 
     // Check module access - this will use the dynamic permissions from API
@@ -728,13 +776,13 @@ export const Sidebar: React.FC = () => {
       //   }
       // }
       
-      // Special fallback for subscription_plans - only allow superadmin
-      if (item.moduleName === "subscription_plans") {
-        const hasSuperAdminRole = user.roles?.some(role => role?.toLowerCase() === "superadmin");
-        if (hasSuperAdminRole) {
-          return true;
-        }
+    // Special fallback for superadmin modules
+    if (["subscription_plans", "organizations", "users"].includes(item.moduleName || '')) {
+      const hasSuperAdminRole = user.roles?.some(role => role?.toLowerCase() === "superadmin");
+      if (hasSuperAdminRole) {
+        return true;
       }
+    }
       
       return false;
     }
@@ -906,9 +954,10 @@ export const Sidebar: React.FC = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-30 shadow-lg",
+          "h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col shadow-lg",
           "transition-transform duration-300 ease-in-out",
-          "lg:translate-x-0", // Desktop-ல எப்போதும் visible
+          "lg:translate-x-0 lg:relative lg:z-0", // Desktop-ல எப்போதும் visible, relative positioning
+          "fixed top-0 left-0 z-30", // Mobile-ல fixed
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >

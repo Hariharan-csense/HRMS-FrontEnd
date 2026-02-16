@@ -35,22 +35,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   return (
-   <div className="flex h-screen bg-background overflow-hidden">
-  {/* Sidebar - always visible on md+ */}
-  <Sidebar />
-
-  {/* Main Content - sidebar width account பண்ணு */}
-  <div className="flex-1 flex flex-col md:ml-64"> {/* ← md:ml-64 இங்க இருக்கு */}
-    {/* Topbar */}
-    <Topbar />
-
-    {/* Page Content */}
-    <main className="flex-1 overflow-y-auto">
-      <div className="p-3 sm:p-4 md:p-8 w-full min-h-full">
-        {children}
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar - part of flex layout */}
+      <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
+        <Sidebar />
       </div>
-    </main>
-  </div>
-</div>
+      
+      {/* Mobile Sidebar - overlay */}
+      <div className="lg:hidden fixed top-0 left-0 h-full z-30">
+        <Sidebar />
+      </div>
+
+      {/* Main Content - takes remaining space */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Topbar - fixed at top */}
+        <div className="w-full z-20">
+          <Topbar />
+        </div>
+
+        {/* Page Content - responsive padding */}
+        <main className="flex-1 overflow-y-auto pt-16 bg-background">
+          <div className="p-4 sm:p-6 lg:p-6 w-full min-h-full">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
   );
 };

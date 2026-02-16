@@ -268,4 +268,23 @@
   .smooth-transition {
     @apply transition-all duration-200 ease-out;
   }
+
+  /* Layout fixes */
+  .layout-main {
+    @apply flex-1 overflow-hidden;
+  }
+
+  .layout-content {
+    @apply h-full overflow-y-auto;
+  }
+
+  /* Ensure content doesn't overlap with fixed sidebar */
+  .content-with-sidebar {
+    @apply lg:ml-64;
+  }
+
+  /* Prevent content overflow */
+  .prevent-overflow {
+    @apply overflow-hidden;
+  }
 }

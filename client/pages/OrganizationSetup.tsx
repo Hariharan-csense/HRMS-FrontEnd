@@ -16,6 +16,14 @@ import { departmentApi, Department } from "@/components/helper/department/depart
 import { designationApi, Designation } from "@/components/helper/designation/designation";
 import { sequenceApi, Sequence } from "@/components/helper/range/range";
 import { showToast } from "@/utils/toast";
+import { BASE_URL } from "@/lib/endpoint";
+
+const toAbsoluteUrl = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+  if (value.startsWith("data:")) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return `${BASE_URL}${value.startsWith("/") ? value : `/${value}`}`;
+};
 
 // Mock Data
 const mockCompany: Company = {
@@ -599,7 +607,7 @@ export default function OrganizationSetup() {
                     <div className="flex items-center gap-4">
                       {company?.logo && (
                         <img
-                          src={`${company.logo.startsWith('http') ? company.logo : `http://192.168.1.11:3000${company.logo}`}`}
+                          src={toAbsoluteUrl(company.logo)}
                           alt="Company Logo"
                           className="w-16 h-16 rounded-lg border-2 border-white shadow-md object-cover"
                           onError={(e) => {
@@ -1382,11 +1390,7 @@ export default function OrganizationSetup() {
                       <div className="flex items-center gap-2 mb-2">
                         <img
                           src={
-                            formData.logo && formData.logo.startsWith('data:') 
-                              ? formData.logo 
-                              : (formData.logo || company?.logo)?.startsWith('http') 
-                                ? (formData.logo || company?.logo)
-                                : `http://192.168.1.11:3000${formData.logo || company?.logo}`
+                            toAbsoluteUrl(formData.logo || company?.logo)
                           }
                           alt="Company Logo"
                           className="w-12 h-12 rounded border object-cover"

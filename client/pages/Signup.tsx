@@ -307,7 +307,7 @@ export default function Signup() {
         try {
           // Normalize email (trim + lowercase) to match backend storage
           const normalizedEmail = formData.email.trim().toLowerCase();
-          await login(normalizedEmail, formData.password);
+          await login(normalizedEmail, formData.password, true);
           setSuccess("Admin account created! Redirecting to dashboard...");
           setTimeout(() => {
             navigate("/dashboard");

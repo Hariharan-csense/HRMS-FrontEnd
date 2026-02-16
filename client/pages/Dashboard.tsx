@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import SubscriptionStatus from "@/components/SubscriptionStatus";
 import { AdminDashboardData, getAdminDashboardData, EmployeeDashboardData, getEmployeeDashboardData, ManagerDashboardData, getManagerDashboardData, HRDashboardData, getHRDashboardData, FinanceDashboardData, getFinanceDashboardData } from "@/components/helper/dashboard/dashboard";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
 
 const dashboardStyles = `
   @keyframes dashboardEnter {
@@ -736,6 +738,8 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
 
   const { user } = useAuth();
   const { canPerformModuleAction } = useRole();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
   
   // Check if user has access to Client Attendance
   const hasClientAttendanceAccess = canPerformModuleAction("client_attendance", "view") || 
@@ -749,25 +753,27 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
       role?.toLowerCase() === "hr manager"
     );
   
-  const quickLinks = [
-    { label: "Mark Attendance", path: "/attendance/capture" },
-    { label: "Apply for Leave", path: "/leave/apply" },
-    { label: "View Payslip", path: "/payroll/payslips" },
-    { label: "Submit Expense Claim", path: "/expenses/claims" },
+  type QuickLink = { label: string; path: string; module: string };
+
+  const quickLinks: QuickLink[] = [
+    { label: "Mark Attendance", path: "/attendance/capture", module: "attendance" },
+    { label: "Apply for Leave", path: "/leave/apply", module: "leave" },
+    { label: "View Payslip", path: "/payroll/payslips", module: "payroll" },
+    { label: "Submit Expense Claim", path: "/expenses/claims", module: "expenses" },
     ...(hasClientAttendanceAccess ? [
-      { label: "Client Attendance", path: "/client-attendance" }
+      { label: "Client Attendance", path: "/client-attendance", module: "client_attendance" }
     ] : []),
     ...(user?.roles?.some(role => role?.toLowerCase() === "sales") ? [
-      { label: "My Clients", path: "/my-clients" },
-      { label: "My Analytics", path: "/my-analytics" },
+      { label: "My Clients", path: "/my-clients", module: "client_attendance" },
+      { label: "My Analytics", path: "/my-analytics", module: "client_attendance" },
     ] : []),
     ...(hasHRAccess ? [
-      { label: "Job Requirements", path: "/hr/requirements" },
-      { label: "Recruitment", path: "/hr/recruitment" },
-      { label: "Offer Letters", path: "/hr/offer-letters" },
-      { label: "Onboarding", path: "/hr/onboarding" },
+      { label: "Job Requirements", path: "/hr/requirements", module: "hr_management" },
+      { label: "Recruitment", path: "/hr/recruitment", module: "hr_management" },
+      { label: "Offer Letters", path: "/hr/offer-letters", module: "hr_management" },
+      { label: "Onboarding", path: "/hr/onboarding", module: "hr_management" },
     ] : []),
-  ];
+  ].filter((link) => !allowedModules || allowedModules.has(link.module));
 
   if (loading) {
     return <div>Loading employee dashboard data...</div>;
@@ -895,6 +901,8 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { canPerformModuleAction } = useRole();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1041,12 +1049,12 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
         </CardHeader>
         <CardContent className="p-6 space-y-3">
           {[
-            { label: "Team Attendance", path: "/attendance/log", permission: () => canPerformModuleAction("attendance", "view"), color: "gradient-bg-green" },
-            { label: "Leave Approvals", path: "/leave/approvals", permission: () => canPerformModuleAction("leave", "approve"), color: "gradient-bg-blue" },
-            { label: "View Payslips", path: "/payroll/payslips", permission: () => canPerformModuleAction("payroll", "view"), color: "gradient-bg-purple" },
-            { label: "Expense Approvals", path: "/expenses/approvals", permission: () => canPerformModuleAction("expenses", "approve"), color: "gradient-bg-orange" },
+            { label: "Team Attendance", path: "/attendance/log", module: "attendance", permission: () => canPerformModuleAction("attendance", "view"), color: "gradient-bg-green" },
+            { label: "Leave Approvals", path: "/leave/approvals", module: "leave", permission: () => canPerformModuleAction("leave", "approve"), color: "gradient-bg-blue" },
+            { label: "View Payslips", path: "/payroll/payslips", module: "payroll", permission: () => canPerformModuleAction("payroll", "view"), color: "gradient-bg-purple" },
+            { label: "Expense Approvals", path: "/expenses/approvals", module: "expenses", permission: () => canPerformModuleAction("expenses", "approve"), color: "gradient-bg-orange" },
           ]
-          .filter(link => link.permission())
+          .filter(link => (!allowedModules || allowedModules.has(link.module)) && link.permission())
           .map((link, index) => (
             <button
               key={link.label}

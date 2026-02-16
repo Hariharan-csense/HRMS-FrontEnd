@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, AlertTriangle } from 'lucide-react';
-import api from '../lib/api';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { useNavigate } from 'react-router-dom';
 
 interface CompanySubscription {
   id: number;
@@ -29,23 +30,8 @@ interface SubscriptionStatusProps {
 }
 
 const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false }) => {
-  const [subscription, setSubscription] = useState<CompanySubscription | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchSubscriptionStatus();
-  }, []);
-
-  const fetchSubscriptionStatus = async () => {
-    try {
-      const response = await api.get('/subscription/current');
-      setSubscription(response.data.data);
-    } catch (error) {
-      console.error('Error fetching subscription status:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { subscription, loading } = useSubscription();
+  const navigate = useNavigate();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { color: string; icon: React.ReactNode }> = {
@@ -86,7 +72,7 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false
               <p className="font-medium text-orange-800">No Active Subscription</p>
               <p className="text-sm text-orange-600">Please subscribe to continue using the service</p>
             </div>
-            <Button size="sm" onClick={() => window.location.href = '/subscription'}>
+            <Button size="sm" onClick={() => navigate('/subscription')}>
               Subscribe Now
             </Button>
           </div>
@@ -108,13 +94,14 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false
 
   const isExpiringSoon = subscription.days_remaining <= 7;
   const isExpired = subscription.status === 'expired';
+  const isTrialExpired = subscription.status === 'trial' && !subscription.is_trial_active;
 
   return (
-    <Card className={isExpired ? 'border-red-200 bg-red-50' : isExpiringSoon ? 'border-orange-200 bg-orange-50' : ''}>
+    <Card className={isExpired || isTrialExpired ? 'border-red-200 bg-red-50' : isExpiringSoon ? 'border-orange-200 bg-orange-50' : ''}>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-lg">
           Subscription Status
-          {getStatusBadge(subscription.status)}
+          {getStatusBadge(isTrialExpired ? 'expired' : subscription.status)}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -149,11 +136,20 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false
           </div>
         </div>
         
-        {subscription.is_trial_active && (
+        {subscription.is_trial_active && !isTrialExpired && (
           <div className="mb-4 p-3 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800">
               <Clock className="inline w-4 h-4 mr-1" />
               Trial ends in {subscription.trial_days_remaining} days
+            </p>
+          </div>
+        )}
+
+        {isTrialExpired && (
+          <div className="mb-4 p-3 bg-red-50 rounded-lg">
+            <p className="text-sm text-red-800">
+              <AlertCircle className="inline w-4 h-4 mr-1" />
+              Your free trial has ended. Subscribe now to continue using the service.
             </p>
           </div>
         )}
@@ -178,11 +174,11 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false
 
         <div className="flex gap-2">
           <Button 
-            onClick={() => window.location.href = '/subscription'}
+            onClick={() => navigate('/subscription')}
             className="flex-1"
           >
             <CreditCard className="w-4 h-4 mr-2" />
-            {isExpired ? 'Renew Now' : 'Manage Subscription'}
+            {isExpired || isTrialExpired ? 'Subscribe Now' : 'Manage Subscription'}
           </Button>
         </div>
       </CardContent>

@@ -28,6 +28,7 @@ interface SubscriptionPlan {
 
 interface CompanySubscription {
   id: number;
+  plan_id: number;
   plan_name: string;
   plan_description: string;
   plan_price: number;
@@ -289,6 +290,11 @@ const SubscriptionManagement: React.FC = () => {
     );
   }
 
+  const isTrialExpired = currentSubscription && currentSubscription.status === 'trial' && !currentSubscription.is_trial_active;
+  // Only lock/blur the current plan once the company is on a paid active subscription.
+  // During an active trial, keep plans selectable so the user can compare/upgrade freely.
+  const hasPaidSubscription = !!currentSubscription && currentSubscription.status === 'active';
+
   return (
     <Layout>
       <div className="p-6 space-y-6">
@@ -306,18 +312,29 @@ const SubscriptionManagement: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {currentSubscription.status === 'trial' && (
+            {currentSubscription.status === 'trial' && currentSubscription.is_trial_active && (
               <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-green-800 font-medium">
                   🎉 Welcome! Your free trial is active
                 </p>
                 <p className="text-green-700 text-sm mt-1">
-                  Enjoy full access to all features during your trial period. Choose a plan below to upgrade anytime and continue using the service without interruption.
+                  Enjoy full access to all features during your trial period. Choose a plan below to upgrade anytime and continue using service without interruption.
+                </p>
+              </div>
+            )}
+
+            {isTrialExpired && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 font-medium">
+                  ⚠️ Your free trial has ended
+                </p>
+                <p className="text-red-700 text-sm mt-1">
+                  Your trial period has ended. Choose a plan below to subscribe and continue using all features without interruption.
                 </p>
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Plan</p>
                 <p className="font-semibold">{currentSubscription.plan_name}</p>
@@ -422,6 +439,7 @@ const SubscriptionManagement: React.FC = () => {
           </p>
           
           {/* Try Everything Free Banner */}
+          {!currentSubscription && (
           <div className="bg-gradient-to-r from-green-600 to-emerald-600 py-6 px-4 rounded-xl mb-8">
             <h3 className="text-xl font-bold text-white mb-2">
               Try Everything Free
@@ -437,16 +455,24 @@ const SubscriptionManagement: React.FC = () => {
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
+          )}
         </div>
         {plans && plans.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {plans.map((plan) => {
               const isMostPopular = plan.name.toLowerCase() === 'starter';
-              
+              const isCurrentPlan = !!currentSubscription && (
+                currentSubscription.plan_id === plan.id ||
+                currentSubscription.plan_name?.toLowerCase() === plan.name.toLowerCase()
+              );
+              const isLockedCurrentPlan = hasPaidSubscription && isCurrentPlan;
+               
               return (
                 <div 
                   key={plan.id} 
-                  className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-105 ${
+                  className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
+                    isLockedCurrentPlan ? 'opacity-80 hover:shadow-lg' : 'hover:shadow-xl hover:scale-105'
+                  } ${
                     isMostPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
                   }`}
                 >
@@ -455,24 +481,31 @@ const SubscriptionManagement: React.FC = () => {
                       Most Popular
                     </div>
                   )}
-                  
-                  <div className={`p-8 ${isMostPopular ? 'pt-12' : 'pt-8'}`}>
-                    {/* User Icon */}
-                    <div className="flex justify-center mb-6">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Users className="w-8 h-8 text-gray-600" />
+
+                  {isLockedCurrentPlan && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <Badge className="bg-gray-900 text-white">Current Plan</Badge>
+                    </div>
+                  )}
+                   
+                  <div className={`${isLockedCurrentPlan ? 'blur-[1px]' : ''}`}>
+                    <div className={`p-6 sm:p-8 ${isMostPopular ? 'pt-10 sm:pt-12' : 'pt-6 sm:pt-8'}`}>
+                     {/* User Icon */}
+                     <div className="flex justify-center mb-6">
+                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                         <Users className="w-8 h-8 text-gray-600" />
                       </div>
                     </div>
                     
                     {/* Plan Name */}
-                    <h3 className="text-2xl font-bold text-center text-gray-900 mb-4">
+                    <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-4">
                       {plan.name}
                     </h3>
                     
                     {/* Price */}
                     <div className="text-center mb-6">
                       <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-5xl font-bold text-gray-900">
+                        <span className="text-4xl sm:text-5xl font-bold text-gray-900">
                           {formatPrice(getYearlyPrice(plan.price))}
                         </span>
                         <span className="text-gray-600 text-lg">/year</span>
@@ -501,24 +534,35 @@ const SubscriptionManagement: React.FC = () => {
                           </div>
                         </div>
                       ))}
-                    </div>
-                    
-                    {/* CTA Button */}
-                    {!currentSubscription ? (
+                     </div>
+                     
+                     {/* CTA Button */}
+                    {isLockedCurrentPlan ? (
+                      <Button
+                        className="w-full py-3 px-4 font-semibold text-sm sm:text-base whitespace-normal text-center bg-gray-200 text-gray-700 cursor-not-allowed"
+                        disabled
+                      >
+                        <span className="flex items-center justify-center">
+                          Current Plan
+                        </span>
+                      </Button>
+                    ) : !currentSubscription ? (
                       <Button 
-                        className={`w-full py-3 font-semibold transition-all duration-200 ${
+                        className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
                           isMostPopular 
                             ? 'bg-orange-500 hover:bg-orange-600 text-white' 
                             : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
                         }`}
                         onClick={() => handleStartTrial(plan.id)}
                       >
-                        Try Everything Free!
-                        <ChevronRight className="ml-2 h-4 w-4" />
+                        <span className="flex items-center justify-center">
+                          Try Everything Free!
+                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                        </span>
                       </Button>
-                    ) : currentSubscription.status === 'trial' ? (
+                    ) : (currentSubscription.status === 'trial' && currentSubscription.is_trial_active) ? (
                       <Button 
-                        className={`w-full py-3 font-semibold transition-all duration-200 ${
+                        className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
                           isMostPopular 
                             ? 'bg-orange-500 hover:bg-orange-600 text-white' 
                             : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -528,12 +572,31 @@ const SubscriptionManagement: React.FC = () => {
                           setShowPaymentModal(true);
                         }}
                       >
-                        Upgrade Now
-                        <ChevronRight className="ml-2 h-4 w-4" />
+                        <span className="flex items-center justify-center">
+                          Upgrade Now
+                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                        </span>
+                      </Button>
+                    ) : isTrialExpired ? (
+                      <Button 
+                        className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
+                          isMostPopular 
+                            ? 'bg-red-500 hover:bg-red-600 text-white' 
+                            : 'bg-red-500 hover:bg-red-600 text-white'
+                        }`}
+                        onClick={() => {
+                          setSelectedPlan(plan);
+                          setShowPaymentModal(true);
+                        }}
+                      >
+                        <span className="flex items-center justify-center">
+                          Subscribe Now
+                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                        </span>
                       </Button>
                     ) : (
                       <Button 
-                        className={`w-full py-3 font-semibold border-2 transition-all duration-200 ${
+                        className={`w-full py-3 px-4 font-semibold border-2 transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
                           isMostPopular 
                             ? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500' 
                             : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -544,16 +607,21 @@ const SubscriptionManagement: React.FC = () => {
                           setShowPaymentModal(true);
                         }}
                       >
-                        Upgrade to {plan.name}
-                        <ChevronRight className="ml-2 h-4 w-4" />
+                        <span className="flex items-center justify-center">
+                          Upgrade to {plan.name}
+                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                        </span>
                       </Button>
                     )}
                     
                     {/* Trial Information */}
-                    <div className="text-center mt-4">
-                      <p className="text-gray-600 text-sm">
-                        {plan.trial_days} days free trial
-                      </p>
+                    {!currentSubscription && (
+                     <div className="text-center mt-4">
+                       <p className="text-gray-600 text-sm">
+                         {plan.trial_days} days free trial
+                       </p>
+                     </div>
+                    )}
                     </div>
                   </div>
                 </div>
@@ -584,7 +652,8 @@ const SubscriptionManagement: React.FC = () => {
             <CardTitle>Payment History</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
@@ -615,6 +684,37 @@ const SubscriptionManagement: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {payments.map((payment) => (
+                <Card key={payment.id} className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">₹{payment.amount.toLocaleString()}</p>
+                      <p className="text-sm text-gray-600">{new Date(payment.payment_date).toLocaleDateString()}</p>
+                    </div>
+                    <Badge className={
+                      payment.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                      payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-red-100 text-red-800'
+                    }>
+                      {payment.status}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Method:</span>
+                      <span className="font-medium">{payment.payment_method}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Transaction ID:</span>
+                      <span className="font-medium text-xs break-all">{payment.transaction_id}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>

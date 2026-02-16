@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader, ArrowRight } from "lucide-react";
-import { handleLogin } from '../components/helper/login/login';
 import { showToast } from '@/utils/toast';  
 import logo from "../assets/logo.png";
 const styles = `
@@ -161,6 +160,7 @@ const styles = `
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [isRegisterClicked, setIsRegisterClicked] = useState(false);
   const [pageEntered, setPageEntered] = useState(false);
   const { login, isLoading } = useAuth();
@@ -180,7 +180,7 @@ const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
   
   try {
-    const result: { success: boolean; message?: string } = await login(email, password);
+    const result: { success: boolean; message?: string } = await login(email, password, rememberMe);
     if (result.success) {
       showToast.success("Login successful! Redirecting...");
       
@@ -278,6 +278,19 @@ const handleLogin = async (e: React.FormEvent) => {
                     Forgot password?
                   </button>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between animate-slide-in" style={{ animationDelay: "0.25s" }}>
+                <label className="flex items-center gap-2 text-sm text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    disabled={isLoading}
+                    className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                  />
+                  Remember me
+                </label>
               </div>
 <Button
         type="submit"
