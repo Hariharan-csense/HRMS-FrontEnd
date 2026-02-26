@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { handleLogout } from "@/components/helper/login/login";
@@ -130,6 +130,7 @@ import {
   HelpCircle,
   BarChart3,
   Activity,
+ 
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -466,6 +467,63 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
+  {
+    label: "Pulse Surveys",
+    icon: <Activity className="w-5 h-5" />,
+    roles: [],
+    moduleName: "pulse_surveys",  
+    submenu: [
+      {
+        label: "Overview",
+        path: "/pulse-surveys/dashboard",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Results",
+        path: "/pulse-surveys/results",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Create Survey",
+        path: "/pulse-surveys/create",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Templates",
+        path: "/pulse-surveys/templates",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Feedback Inbox",
+        path: "/pulse-surveys/feedback-inbox",
+        roles: ["admin"],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "My Surveys",
+        path: "/pulse-surveys/my-surveys",
+        roles: [],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+      {
+        label: "Send Feedback",
+        path: "/pulse-surveys/feedback",
+        roles: [],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+      },
+    ],
+  },
  
   // {
   //   label: "Subscription",
@@ -538,46 +596,7 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
-  {
-    label: "Pulse",
-    icon: <Activity className="w-5 h-5" />,
-    roles: [], // Accessible by all users
-    moduleName: "pulse_surveys",
-    path: "/pulse-surveys",
-    submenu: [
-      {
-        label: "Dashboard",
-        path: "/pulse-surveys/dashboard",
-        roles: ["admin"],
-        icon: <div />,
-        moduleName: "pulse_surveys",
-      },
-      {
-        label: "Surveys",
-        path: "/pulse-surveys/surveys",
-        roles: ["admin"],
-        icon: <div />,
-        moduleName: "pulse_surveys",
-      },
-      {
-        label: "Feedback",
-        path: "/pulse-surveys/feedback",
-        roles: [], // Accessible by all users
-        icon: <div />,
-        moduleName: "pulse_surveys",
-      },
-      {
-        label: "Overview",
-        path: "/pulse-surveys/overview",
-        roles: [], // Accessible by all users
-        icon: <div />,
-        moduleName: "pulse_surveys",
-      },
-
-       
-
-    ],
-  },
+ 
 
       
     {
@@ -616,10 +635,37 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { hasRole, hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
+  const { canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // Auto-expand menu items based on current route
+  useMemo(() => {
+    const activeItems: string[] = [];
+    
+    navigationItems.forEach((item) => {
+      if (item.submenu && item.submenu.length > 0) {
+        const hasActiveSubmenu = item.submenu.some((subitem) =>
+          subitem.path && location.pathname.startsWith(subitem.path)
+        );
+        if (hasActiveSubmenu) {
+          activeItems.push(item.label);
+        }
+      }
+    });
+    
+    setExpandedItems(prev => [...new Set([...prev, ...activeItems])]);
+    
+    // Scroll active item into view after a short delay
+    setTimeout(() => {
+      const activeElement = navRef.current?.querySelector('.sidebar-nav-item.active, .sidebar-submenu-item.active');
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 100);
+  }, [location.pathname]);
 
   if (!user) return null;
 
@@ -630,14 +676,9 @@ export const Sidebar: React.FC = () => {
       roles: user.roles,
       email: user.email,
     });
-    console.log("Sidebar Debug - HR Access Check:", {
+    console.log("Sidebar Debug - Access Check:", {
       hasHRAccess: canPerformModuleAction("hr_management", "view"),
-      hasHRRole: user.roles?.some(role => 
-        role?.toLowerCase() === "hr" || 
-        role?.toLowerCase() === "human resources" ||
-        role?.toLowerCase() === "hr manager"
-      ),
-      roleLoading
+      roleLoading,
     });
   }
 
@@ -660,6 +701,12 @@ export const Sidebar: React.FC = () => {
 
   // Check if user has access to a navigation item based on module permissions
   const hasItemAccess = (item: NavItem): boolean => {
+    // Keep debug page visible for admin users even in strict mode
+    if (item.path === "/debug/roles") {
+      const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
+      if (isAdmin) return true;
+    }
+
     // Subscription-based visibility (applies to non-superadmin users)
     if (!isSuperAdmin) {
       // Dashboard is always accessible
@@ -682,36 +729,6 @@ export const Sidebar: React.FC = () => {
       }
     }
 
-    // Special case: Hide Pulse for superadmin users
-    if (item.label === "Pulse" && isSuperAdmin) {
-      return false;
-    }
-
-    // Check hardcoded roles first - if item has specific roles, enforce them
-    if (item.roles && item.roles.length > 0) {
-      const hasRequiredRole = hasAnyRole(item.roles);
-      if (!hasRequiredRole) {
-        return false;
-      }
-    }
-
-    // Immediate HR role check - bypass module system for HR users
-    if (item.moduleName === "hr_management") {
-      const hasHRRole = user.roles?.some(role => 
-        role?.toLowerCase() === "hr" || 
-        role?.toLowerCase() === "human resources" ||
-        role?.toLowerCase() === "hr manager"
-      );
-      console.log("Direct HR Access Check:", {
-        moduleName: item.moduleName,
-        hasHRRole,
-        userRoles: user.roles
-      });
-      if (hasHRRole) {
-        return true;
-      }
-    }
-
     // While role permissions are loading, avoid hiding the entire sidebar.
     // Subscription-based filtering already ran above for non-superadmin users.
     if (roleLoading) {
@@ -719,71 +736,23 @@ export const Sidebar: React.FC = () => {
         return true;
       }
 
-      // Allow HR users to see HR modules even while loading
-      if (item.moduleName === "hr_management") {
-        const hasHRRole = user.roles?.some(role => 
-          role?.toLowerCase() === "hr" || 
-          role?.toLowerCase() === "human resources" ||
-          role?.toLowerCase() === "hr manager"
-        );
-        return hasHRRole;
-      }
-
       return false;
     }
 
     // For Role & Module Access Debug, check if user has the specific module
     if (item.moduleName === "role_access") {
-      return hasModuleAccess("role_access");
+      return canPerformModuleAction("role_access", "view");
     }
 
-    // Check module access - this will use the dynamic permissions from API
-    if (item.moduleName && !hasModuleAccess(item.moduleName)) {
-      // Special fallback for client_attendance - allow Sales users
-      if (item.moduleName === "client_attendance") {
-        const hasSalesRole = user.roles?.some(role => role?.toLowerCase() === "sales");
-        if (hasSalesRole) {
-          return true;
-        }
-      }
-      
-      // Special fallback for hr_management - allow HR users
-      if (item.moduleName === "hr_management") {
-        const hasHRRole = user.roles?.some(role => 
-          role?.toLowerCase() === "hr" || 
-          role?.toLowerCase() === "human resources" ||
-          role?.toLowerCase() === "hr manager"
-        );
-        console.log("HR Management Access Check:", {
-          moduleName: item.moduleName,
-          hasModuleAccess: hasModuleAccess(item.moduleName),
-          hasHRRole,
-          userRoles: user.roles
-        });
-        if (hasHRRole) {
-          return true;
-        }
-      }
-      
-      // // Special fallback for pulse_surveys - allow admin and employee users
-      // if (item.moduleName === "pulse_surveys") {
-      //   const hasAdminOrEmployeeRole = user.roles?.some(role => 
-      //     role?.toLowerCase() === "admin" || 
-      //     role?.toLowerCase() === "employee"
-      //   );
-      //   if (hasAdminOrEmployeeRole) {
-      //     return true;
-      //   }
-      // }
-      
-    // Special fallback for superadmin modules
-    if (["subscription_plans", "organizations", "users"].includes(item.moduleName || '')) {
-      const hasSuperAdminRole = user.roles?.some(role => role?.toLowerCase() === "superadmin");
-      if (hasSuperAdminRole) {
+    // Strict permission mode: module must have view access to appear
+    if (item.moduleName && !canPerformModuleAction(item.moduleName, "view")) {
+      // Keep superadmin-specific modules visible for superadmin users
+      if (
+        isSuperAdmin &&
+        ["subscription_plans", "organizations", "users"].includes(item.moduleName)
+      ) {
         return true;
       }
-    }
-      
       return false;
     }
 
@@ -975,7 +944,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-2">
+        <nav ref={navRef} className="flex-1 overflow-y-auto p-3 space-y-2">
           {filteredItems.map((item) => (
             <NavItemComponent key={item.label} item={item} />
           ))}

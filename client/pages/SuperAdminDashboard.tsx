@@ -76,6 +76,7 @@ const SuperAdminDashboard: React.FC = () => {
   // Dialog states
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
   
   // Form states
   const [updateFormData, setUpdateFormData] = useState({
@@ -238,6 +239,7 @@ const SuperAdminDashboard: React.FC = () => {
   const handleUpdateTicket = async () => {
     if (!selectedTicket) return;
 
+    setIsUpdatingTicket(true);
     try {
       const response = await ENDPOINTS.updateTicket(selectedTicket.id, {
         status: updateFormData.status,
@@ -253,6 +255,8 @@ const SuperAdminDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error updating ticket:', error);
+    } finally {
+      setIsUpdatingTicket(false);
     }
   };
 
@@ -727,8 +731,13 @@ const SuperAdminDashboard: React.FC = () => {
               <Button variant="outline" onClick={() => setIsUpdateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdateTicket} style={{ backgroundColor: '#17c491' }} className="text-white hover:opacity-90">
-                Update Ticket
+              <Button
+                onClick={handleUpdateTicket}
+                disabled={isUpdatingTicket}
+                style={{ backgroundColor: '#17c491' }}
+                className="text-white hover:opacity-90"
+              >
+                {isUpdatingTicket ? "Updating..." : "Update Ticket"}
               </Button>
             </div>
           </DialogContent>

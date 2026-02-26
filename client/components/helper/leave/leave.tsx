@@ -392,40 +392,45 @@ export const leaveTypeApi = {
       
       let users: any[] = [];
 
-      // Handle the specific response format: { manager: { name: "..." }, hr: [...] }
-      if (response.data?.manager || response.data?.hr) {
-        // Add manager if exists
-        if (response.data.manager && response.data.manager.name) {
+      // Handle grouped response formats:
+      // { manager: {...} | [...], hr: [...], admin: [...] }
+      if (response.data?.manager || response.data?.hr || response.data?.admin) {
+        const pushUser = (entry: any, fallbackRole: string, fallbackDesignation: string) => {
           users.push({
-            id: response.data.manager.id || 'manager',
-            name: response.data.manager.name,
-            email: response.data.manager.email || '',
-            role: 'manager',
-            department: response.data.manager.department || '',
-            designation: response.data.manager.designation || 'Manager',
-            employeeId: response.data.manager.employee_id || '',
-            firstName: response.data.manager.first_name || response.data.manager.name?.split(' ')[0] || '',
-            lastName: response.data.manager.last_name || response.data.manager.name?.split(' ')[1] || '',
-            fullName: response.data.manager.name,
+            id: entry?.id?.toString() || entry?._id?.toString() || "",
+            name:
+              entry?.name ||
+              entry?.fullName ||
+              `${entry?.first_name || ""} ${entry?.last_name || ""}`.trim() ||
+              "Unknown User",
+            email: entry?.email || "",
+            role: entry?.role || fallbackRole,
+            department: entry?.department || entry?.department_name || "",
+            designation: entry?.designation || entry?.designation_name || fallbackDesignation,
+            employeeId: entry?.employee_id || entry?.employeeId || "",
+            firstName: entry?.first_name || entry?.firstName || entry?.name?.split(" ")[0] || "",
+            lastName: entry?.last_name || entry?.lastName || entry?.name?.split(" ")[1] || "",
+            fullName:
+              entry?.fullName ||
+              entry?.name ||
+              `${entry?.first_name || ""} ${entry?.last_name || ""}`.trim() ||
+              "Unknown User",
           });
+        };
+
+        // Manager can come as single object or array
+        if (Array.isArray(response.data.manager)) {
+          response.data.manager.forEach((m: any) => pushUser(m, "manager", "Manager"));
+        } else if (response.data.manager && typeof response.data.manager === "object") {
+          pushUser(response.data.manager, "manager", "Manager");
         }
 
-        // Add HR users if they exist
-        if (response.data.hr && Array.isArray(response.data.hr)) {
-          response.data.hr.forEach((hr: any) => {
-            users.push({
-              id: hr.id?.toString() || hr._id?.toString() || "",
-              name: hr.name || hr.fullName || `${hr.first_name || ''} ${hr.last_name || ''}`.trim() || "Unknown HR",
-              email: hr.email || "",
-              role: hr.role || "hr",
-              department: hr.department || hr.department_name || "",
-              designation: hr.designation || hr.designation_name || "HR",
-              employeeId: hr.employee_id || hr.employeeId || "",
-              firstName: hr.first_name || hr.firstName || hr.name?.split(' ')[0] || '',
-              lastName: hr.last_name || hr.lastName || hr.name?.split(' ')[1] || '',
-              fullName: hr.name || hr.fullName || `${hr.first_name || ''} ${hr.last_name || ''}`.trim() || "Unknown HR",
-            });
-          });
+        if (Array.isArray(response.data.hr)) {
+          response.data.hr.forEach((hr: any) => pushUser(hr, "hr", "HR"));
+        }
+
+        if (Array.isArray(response.data.admin)) {
+          response.data.admin.forEach((admin: any) => pushUser(admin, "admin", "Admin"));
         }
       }
       // Case 1: Wrapped response { success: true, users: [...] }

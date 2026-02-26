@@ -138,21 +138,30 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   const hasRole = (role: string): boolean => {
     if (!user?.roles) return false;
-    return user.roles.includes(role);
+    const wanted = role.toLowerCase();
+    return user.roles.some((r) => r?.toLowerCase() === wanted);
   };
 
   const hasAnyRole = (roles: string[]): boolean => {
     if (!user?.roles) return false;
-    return user.roles.some(role => roles.includes(role));
+    const wanted = new Set(roles.map((r) => r.toLowerCase()));
+    return user.roles.some((r) => wanted.has(r?.toLowerCase()));
+  };
+
+  const getModulePermission = (modules: Record<string, ModulePermission>, module: string) => {
+    // Try exact and lowercase keys first
+    const direct = modules[module] || modules[module.toLowerCase()];
+    if (direct) return direct;
+
+    // Normalize separators to handle keys like shift_management / shift management / shift-management
+    const normalize = (key: string) => key.toLowerCase().replace(/[\s_-]+/g, "");
+    const target = normalize(module);
+    const matchedKey = Object.keys(modules).find((key) => normalize(key) === target);
+    return matchedKey ? modules[matchedKey] : undefined;
   };
 
   // Check if user has access to a specific module based on their role permissions
   const hasModuleAccess = (module: string): boolean => {
-    // Admin users should have access to all modules by default
-    if (user?.roles?.some(role => role?.toLowerCase() === "admin")) {
-      return true;
-    }
-    
     if (!user?.roles || userRoles.length === 0) return false;
     
     // Debug logging
@@ -176,27 +185,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         return false;
       }
       
-      // Try exact match first
-      let modulePermission = role.modules[module];
-      
-      // If not found, try lowercase version
-      if (!modulePermission) {
-        modulePermission = role.modules[module.toLowerCase()];
-      }
-      
-      // If still not found, try some common variations
-      if (!modulePermission) {
-        const variations = {
-          'shiftmanagement': 'shift management',
-          'shift': 'shift management',
-          'organization': 'organization',
-          'organisation': 'organization',
-        };
-        const variationKey = variations[module.toLowerCase()];
-        if (variationKey) {
-          modulePermission = role.modules[variationKey];
-        }
-      }
+      const modulePermission = getModulePermission(role.modules, module);
       
       const hasAccess = modulePermission && modulePermission.view === 1;
       
@@ -216,11 +205,6 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Check if user can perform a specific action on a module
   const canPerformModuleAction = (module: string, action: string): boolean => {
-    // Admin users should be able to perform all actions by default
-    if (user?.roles?.some(role => role?.toLowerCase() === "admin")) {
-      return true;
-    }
-    
     if (!user?.roles || userRoles.length === 0) return false;
     
     // Check if any of the user's roles has permission for this action
@@ -234,27 +218,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         return false;
       }
       
-      // Try exact match first
-      let modulePermission = role.modules[module];
-      
-      // If not found, try lowercase version
-      if (!modulePermission) {
-        modulePermission = role.modules[module.toLowerCase()];
-      }
-      
-      // If still not found, try some common variations
-      if (!modulePermission) {
-        const variations = {
-          'shiftmanagement': 'shift management',
-          'shift': 'shift management',
-          'organization': 'organization',
-          'organisation': 'organization',
-        };
-        const variationKey = variations[module.toLowerCase()];
-        if (variationKey) {
-          modulePermission = role.modules[variationKey];
-        }
-      }
+      const modulePermission = getModulePermission(role.modules, module);
       
       if (!modulePermission) return false;
       

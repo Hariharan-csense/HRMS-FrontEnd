@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { employeeApi } from "@/components/helper/employee/employee";
@@ -180,6 +180,12 @@ export default function LeaveManagement() {
 
   // Find current user's employee data and set reporting managers
 const findCurrentUserAndSetManagers = async () => {
+  // Leave Apply dialog now uses API-based approver list.
+  // Prevent legacy employee/designation logic from overwriting API results.
+  if (dialogMode === "applications") {
+    return;
+  }
+
   if (!user || employees.length === 0 || departments.length === 0 || designations.length === 0) {
     setReportingManagers([]);
     return;
@@ -559,24 +565,105 @@ useEffect(() => {
 
   // Find current user and set reporting managers when all data is loaded
   useEffect(() => {
-    if (employees.length > 0 && departments.length > 0 && designations.length > 0) {
+    if (dialogMode !== "applications" && employees.length > 0 && departments.length > 0 && designations.length > 0) {
       findCurrentUserAndSetManagers();
     }
-  }, [user, employees, departments, designations]);
+  }, [user, employees, departments, designations, dialogMode]);
 
   // Also trigger when dialog opens to ensure managers are loaded
   useEffect(() => {
-    if (isDialogOpen && employees.length > 0) {
+    if (isDialogOpen && dialogMode !== "applications" && employees.length > 0) {
       findCurrentUserAndSetManagers();
     }
-  }, [isDialogOpen]);
+  }, [isDialogOpen, employees, dialogMode]);
 
-  // Load leave applications when applications tab is active
+  // Load leave applications when applications tab is active (but not on initial load)
   useEffect(() => {
-    if (activeTab === "applications") {
+    if (activeTab === "applications" && leaveApplications.length === 0) {
       loadLeaveApplications();
     }
   }, [activeTab]);
+
+  const inferUserRole = (candidate: any): "admin" | "hr" | "manager" | "employee" | "" => {
+    const roleText = String(candidate?.role || "").toLowerCase();
+    const designationText = String(
+      candidate?.designation ||
+      candidate?.designationName ||
+      candidate?.designation_name ||
+      ""
+    ).toLowerCase();
+    const typeText = String(candidate?.type || "").toLowerCase();
+    const departmentText = String(candidate?.department || candidate?.department_name || "").toLowerCase();
+    const rolesArrayText = Array.isArray(candidate?.roles)
+      ? candidate.roles.join(" ").toLowerCase()
+      : "";
+    const combined = `${roleText} ${designationText} ${typeText} ${departmentText} ${rolesArrayText}`.trim();
+
+    if (candidate?.isHR || combined.includes("human resource") || combined.includes(" hr ") || combined.startsWith("hr") || combined.endsWith("hr")) return "hr";
+    if (candidate?.isAdmin || combined.includes("admin")) return "admin";
+    if (candidate?.isManager || combined.includes("manager") || combined.includes("lead")) return "manager";
+    if (combined.includes("employee") || typeText === "employee") return "employee";
+    return "";
+  };
+
+  const filterRelevantUsersForLeave = (users: any[]) => {
+    const currentRoles = (user?.roles || []).map((r: string) => String(r).toLowerCase());
+    const isAdminUser = currentRoles.some((r: string) => r.includes("admin"));
+    const isHrUser = currentRoles.some((r: string) => r.includes("hr"));
+    const isEmployeeUser = currentRoles.some((r: string) => r.includes("employee"));
+
+    const currentUserId = String((user as any)?.employee_id || user?.id || "");
+    const currentUserEmail = String((user as any)?.email || "").toLowerCase();
+
+    const baseUsers = users.filter((u: any) => {
+      const candidateId = String(u?.employeeId || u?.id || "");
+      const candidateEmail = String(u?.email || "").toLowerCase();
+      return candidateId !== currentUserId && candidateEmail !== currentUserEmail;
+    });
+
+    if (isAdminUser && !isHrUser) {
+      const filtered = baseUsers.filter((u: any) => inferUserRole(u) === "hr");
+      return filtered.length > 0 ? filtered : baseUsers.filter((u: any) => {
+        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+        return txt.includes("hr");
+      });
+    }
+
+    if (isHrUser && !isAdminUser) {
+      const admins = baseUsers.filter((u: any) => inferUserRole(u) === "admin");
+      if (admins.length > 0) return admins;
+
+      const adminByText = baseUsers.filter((u: any) => {
+        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+        return txt.includes("admin");
+      });
+      if (adminByText.length > 0) return adminByText;
+
+      const managers = baseUsers.filter((u: any) => inferUserRole(u) === "manager");
+      if (managers.length > 0) return managers;
+
+      const managerByText = baseUsers.filter((u: any) => {
+        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+        return txt.includes("manager") || txt.includes("lead");
+      });
+      if (managerByText.length > 0) return managerByText;
+
+      return baseUsers;
+    }
+
+    if (isEmployeeUser && !isAdminUser && !isHrUser) {
+      const filtered = baseUsers.filter((u: any) => {
+        const role = inferUserRole(u);
+        return role === "admin" || role === "hr" || role === "manager";
+      });
+      return filtered.length > 0 ? filtered : baseUsers.filter((u: any) => {
+        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+        return txt.includes("admin") || txt.includes("hr") || txt.includes("manager") || txt.includes("lead");
+      });
+    }
+
+    return baseUsers;
+  };
 
   // Load relevant users for leave (reporting managers, HR) using the new API
   const loadLeaveUsers = async () => {
@@ -593,13 +680,36 @@ useEffect(() => {
       }
       
       if (result && result.data && Array.isArray(result.data)) {
-        console.log("Setting reporting managers:", result.data);
-        setReportingManagers(result.data);
+        const filteredUsers = filterRelevantUsersForLeave(result.data);
+        const currentUserId = String((user as any)?.employee_id || user?.id || "");
+        const currentUserEmail = String((user as any)?.email || "").toLowerCase();
+        const fallbackUsers = result.data.filter((u: any) => {
+          const candidateId = String(u?.employeeId || u?.employee_id || u?.id || "");
+          const candidateEmail = String(u?.email || "").toLowerCase();
+          return candidateId !== currentUserId && candidateEmail !== currentUserEmail;
+        });
+
+        const finalUsers = filteredUsers.length > 0 ? filteredUsers : fallbackUsers;
+        console.log("Setting reporting managers:", filteredUsers);
+        if (finalUsers.length > 0) {
+          setReportingManagers(finalUsers);
+        } else {
+          // API returned no usable approvers for this user context.
+          // Clear stale data instead of keeping a previous employee's list.
+          setReportingManagers([]);
+        }
         
-        const managerCount = result.data.filter(u => u.role === 'manager').length;
-        const hrCount = result.data.filter(u => u.role === 'hr').length;
+        const managerCount = finalUsers.filter((u: any) => inferUserRole(u) === "manager").length;
+        const hrCount = finalUsers.filter((u: any) => inferUserRole(u) === "hr").length;
+        const adminCount = finalUsers.filter((u: any) => inferUserRole(u) === "admin").length;
         
-        toast.success(`Loaded ${managerCount} manager(s) and ${hrCount} HR personnel(s)`);
+        if (filteredUsers.length > 0) {
+          toast.success(`Loaded ${managerCount} manager(s), ${hrCount} HR, ${adminCount} admin`);
+        } else if (fallbackUsers.length > 0) {
+          toast.warning("Role mapping mismatch; loaded fallback approver list");
+        } else {
+          toast.warning("No approver available for your role. Please contact admin.");
+        }
       } else {
         console.error("No leave users found in response:", result);
         toast.error("No relevant users found");
@@ -767,7 +877,12 @@ useEffect(() => {
     setIsDialogOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    // Prevent any default form submission behavior
+    if (e) {
+      e.preventDefault();
+    }
+    
     if (dialogMode === "applications") {
       // Handle leave application submission
       // Attachments are optional; all other fields are required
@@ -1072,7 +1187,7 @@ useEffect(() => {
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Apply and manage employee leaves</p>
             </div>
-            <Button onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+            <Button type="button" onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
               <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Apply Leave</span>
               <span className="sm:hidden">Apply</span>
@@ -1095,7 +1210,7 @@ useEffect(() => {
                   />
                 </div>
                 {activeTab === "types" && (
-                  <Button onClick={() => handleOpenDialog()} className="gap-2 w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm">
+                  <Button type="button" onClick={() => handleOpenDialog()} className="gap-2 w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm">
                     <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Add</span>
                     <span className="sm:hidden">Add</span>
@@ -1391,11 +1506,21 @@ useEffect(() => {
             <Card>
               <CardContent className="pt-4 sm:pt-6">
                 {/* Apply Leave Button for All Users */}
-                <div className="mb-4 sm:mb-6">
-                  <Button onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+                <div className="mb-4 sm:mb-6 flex items-center justify-between gap-4">
+                  <Button type="button" onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
                     <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Apply Leave</span>
                     <span className="sm:hidden">Apply</span>
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => loadLeaveApplications()} 
+                    className="gap-2 h-8 sm:h-10 text-xs sm:text-sm"
+                  >
+                    <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Refresh</span>
+                    <span className="sm:hidden">↻</span>
                   </Button>
                 </div>
                 
@@ -1686,7 +1811,6 @@ useEffect(() => {
                   <div className="relative">
                     <button
                       type="button"
-                      
                       onClick={() => {
                         const dropdown = document.getElementById('manager-dropdown');
                         if (dropdown) {
@@ -1826,6 +1950,7 @@ useEffect(() => {
 
           <div className="flex flex-col-reverse sm:flex-row gap-4 justify-end p-8 pt-0 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-b-2xl">
             <Button 
+              type="button"
               variant="outline" 
               onClick={() => setIsDialogOpen(false)} 
               className="w-full sm:w-auto h-12 text-base font-bold border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all rounded-xl px-8"
@@ -1833,6 +1958,7 @@ useEffect(() => {
               Cancel
             </Button>
             <Button 
+              type="button"
               onClick={handleSave} 
               className="w-full sm:w-auto h-12 text-base font-bold bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 rounded-xl px-8"
             >

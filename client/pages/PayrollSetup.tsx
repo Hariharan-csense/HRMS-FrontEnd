@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Trash2, Search, DollarSign, FileText, Download } from "lucide-react";
 import { mockEmployees } from "@/lib/employees";
 import { calculatePayableDays, getDefaultPayableDays } from "@/lib/payrollUtils";
@@ -387,6 +388,7 @@ export default function PayrollSetup() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSavingStructure, setIsSavingStructure] = useState(false);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const payslipContentRef = useRef<HTMLDivElement>(null);
 
@@ -683,18 +685,28 @@ export default function PayrollSetup() {
   useEffect(() => {
     const fetchAttendanceData = async () => {
       if (!formData.employeeId || !formData.month) return;
-      
+
+      // "All employees" is only for bulk payroll processing; no single attendance dataset exists for it.
+      if (formData.employeeId === "__all__") {
+        setAttendanceData([]);
+        setFormData((prev: any) => {
+          const { payableDays, ...rest } = prev || {};
+          return rest;
+        });
+        return;
+      }
+       
       try {
         const result = await payrollApi.getAttendance(formData.employeeId, formData.month);
         if (result.data) {
           setAttendanceData(result.data);
           // Calculate payable days from real attendance
           const presentDays = result.data.filter((record: any) => 
-            record.status === 'present'
+            ['present', 'late'].includes(String(record.status || '').toLowerCase())
           ).length;
           
           const halfDays = result.data.filter((record: any) => 
-            record.status === 'half'
+            ['half', 'half_day', 'half-day'].includes(String(record.status || '').toLowerCase())
           ).length * 0.5;
           
           const payableDays = presentDays + halfDays;
@@ -735,6 +747,7 @@ export default function PayrollSetup() {
           
           return {
             id: employeeId,
+            dbId: emp.id ? String(emp.id) : "",
             name: fullName,
             firstName: firstName,
             lastName: lastName
@@ -1020,15 +1033,22 @@ export default function PayrollSetup() {
 
   // Check if payroll already exists for selected employee and month
   const isPayrollProcessed = (employeeId: string, month: string) => {
+    const selectedEmployee = employees.find((e: any) => e.id?.toString() === employeeId?.toString());
+    const possibleIds = new Set(
+      [employeeId, selectedEmployee?.dbId]
+        .filter(Boolean)
+        .map((id: any) => id.toString())
+    );
+
     return payslips.some(payroll => 
-      payroll.employeeId === employeeId && payroll.month === month
+      possibleIds.has(String(payroll.employeeId)) && payroll.month === month
     );
   };
 
   // Process payroll function
   const handleProcessPayroll = async () => {
     if (!formData.employeeId || !formData.month) {
-      toast.error("Please select employee and month");
+      toast.error("Please select employee(s) and month");
       return;
     }
 
@@ -1052,27 +1072,64 @@ export default function PayrollSetup() {
         return config;
       });
 
-      const requestData = {
-        employee_id: formData.employeeId,
-        month: formData.month
-      };
+      const selectedEmployeeIds: string[] =
+        formData.employeeId === "__all__"
+          ? employees.map((e: any) => e.id?.toString()).filter(Boolean)
+          : [formData.employeeId];
 
-      console.log('Sending request data:', requestData);
-
-      const response = await api.post("/payroll/process", requestData);
-
-      if (response.data.success) {
-        toast.success("Payroll processed successfully");
-        // Refresh the payslips data
-        const result = await payrollApi.getPayslip();
-        if (result.data) {
-          setPayslips(result.data);
-        }
-        // Reset form
-        setFormData({ employeeId: "", month: "" });
-      } else {
-        toast.error(response.data.message || "Failed to process payroll");
+      if (!selectedEmployeeIds.length) {
+        toast.error("No employees found to process");
+        return;
       }
+
+      const month = formData.month;
+      const toProcess = selectedEmployeeIds.filter((id) => !isPayrollProcessed(id, month));
+      const skipped = selectedEmployeeIds.length - toProcess.length;
+
+      if (!toProcess.length) {
+        toast.error("Payroll already processed for selected employee(s)");
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const employeeId of toProcess) {
+        const requestData = { employee_id: employeeId, month };
+        console.log("Sending request data:", requestData);
+
+        try {
+          const response = await api.post("/payroll/process", requestData);
+          if (response.data?.success) {
+            successCount++;
+          } else {
+            failCount++;
+            console.error("Payroll process failed:", response.data);
+          }
+        } catch (err) {
+          failCount++;
+          console.error("Payroll process error:", err);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Processed payroll for ${successCount} employee${successCount === 1 ? "" : "s"}${
+            skipped ? ` (${skipped} skipped)` : ""
+          }${failCount ? `, ${failCount} failed` : ""}`
+        );
+      } else {
+        toast.error("Failed to process payroll");
+      }
+
+      // Refresh the payslips data once at the end
+      const result = await payrollApi.getPayslip();
+      if (result.data) {
+        setPayslips(result.data);
+      }
+
+      // Reset form
+      setFormData({ employeeId: "", month: "" });
     } catch (error: any) {
       console.error('Error processing payroll:', error);
       toast.error(error.response?.data?.message || "Failed to process payroll");
@@ -1102,13 +1159,29 @@ export default function PayrollSetup() {
                          `Employee ${item.employeeId}`;
       
       console.log('Final employeeName:', employeeName);
+
+      const basicAmount = Number(item.basic) || 0;
+      const pfAmount = Number(item.pf) || 0;
+      const esiAmount = Number(item.esi) || 0;
+      const pfEnabled = item.pfEnabled ?? pfAmount > 0;
+      const esiEnabled = item.esiEnabled ?? esiAmount > 0;
+      const pfPercentage = Number(
+        item.pfPercentage ?? (pfEnabled && basicAmount > 0 ? ((pfAmount / basicAmount) * 100).toFixed(2) : 0)
+      );
+      const esiPercentage = Number(
+        item.esiPercentage ?? (esiEnabled && basicAmount > 0 ? ((esiAmount / basicAmount) * 100).toFixed(2) : 0)
+      );
       
       setFormData({ 
         ...item,
         // Ensure employeeId is set for the select component
         employeeId: item.employeeId || '',
         // Set the employee name for display
-        employeeName: employeeName
+        employeeName: employeeName,
+        pfEnabled,
+        esiEnabled,
+        pfPercentage,
+        esiPercentage,
       });
     } else {
       setEditingId(null);
@@ -1122,7 +1195,11 @@ export default function PayrollSetup() {
         incentives: "",
         gross: "",
         pf: "",
+        pfEnabled: false,
+        pfPercentage: "",
         esi: "",
+        esiEnabled: false,
+        esiPercentage: "",
         pt: "",
         tds: "",
         otherDeductions: "",
@@ -1140,6 +1217,29 @@ export default function PayrollSetup() {
     return pf + esi + pt + tds + other;
   };
 
+  const toNumber = (value: any): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const calculatePercentageAmount = (base: number, percent: number): number => {
+    return Number(((base * percent) / 100).toFixed(2));
+  };
+
+  const recalculatePfEsiFromState = (state: any) => {
+    const basic = toNumber(state.basic);
+    const pfEnabled = Boolean(state.pfEnabled);
+    const esiEnabled = Boolean(state.esiEnabled);
+    const pfPercentage = toNumber(state.pfPercentage);
+    const esiPercentage = toNumber(state.esiPercentage);
+
+    return {
+      ...state,
+      pf: pfEnabled ? calculatePercentageAmount(basic, pfPercentage) : 0,
+      esi: esiEnabled ? calculatePercentageAmount(basic, esiPercentage) : 0,
+    };
+  };
+
   const handleSave = async () => {
     console.log('handleSave called');
     console.log('formData:', formData);
@@ -1152,33 +1252,48 @@ export default function PayrollSetup() {
     }
 
     if (activeTab === "structure") {
+      setIsSavingStructure(true);
+      const recalculatedFormData = recalculatePfEsiFromState(formData);
       const gross = calculateGross(
-        formData.basic || 0,
-        formData.hra || 0,
-        formData.allowances || 0,
-        formData.incentives || 0
+        recalculatedFormData.basic || 0,
+        recalculatedFormData.hra || 0,
+        recalculatedFormData.allowances || 0,
+        recalculatedFormData.incentives || 0
       );
       
       const salaryData = {
-        ...formData,
+        ...recalculatedFormData,
         gross,
         // Transform frontend field names to backend field names
-        employee_id: formData.employeeId,
-        other_deductions: formData.otherDeductions,
+        employee_id: recalculatedFormData.employeeId,
+        other_deductions: recalculatedFormData.otherDeductions,
+        pf_enabled: Boolean(recalculatedFormData.pfEnabled),
+        esi_enabled: Boolean(recalculatedFormData.esiEnabled),
+        pf_percentage: toNumber(recalculatedFormData.pfPercentage),
+        esi_percentage: toNumber(recalculatedFormData.esiPercentage),
       };
 
       try {
+        const refreshStructuresFromApi = async () => {
+          const refreshed = await payrollApi.getSalaryStructures();
+          if (refreshed.data) {
+            setSalaryStructures(refreshed.data);
+          }
+        };
+
         if (editingId) {
-          // Update existing salary structure
-          const result = await payrollApi.updateSalaryStructure(editingId, salaryData);
+          const canUpdateById = /^\d+$/.test(String(editingId));
+          // If local id is temp/non-numeric (ex: SS005), use upsert create API by employee_id.
+          const result = canUpdateById
+            ? await payrollApi.updateSalaryStructure(editingId, salaryData)
+            : await payrollApi.createSalaryStructure(salaryData);
+
           if (result.error) {
             toast.error(result.error);
             return;
           }
           toast.success("Salary structure updated successfully");
-          setSalaryStructures((prev) =>
-            prev.map((s) => (s.id === editingId ? { ...formData, gross } : s))
-          );
+          await refreshStructuresFromApi();
         } else {
           // Create new salary structure
           const result = await payrollApi.createSalaryStructure(salaryData);
@@ -1187,15 +1302,20 @@ export default function PayrollSetup() {
             return;
           }
           toast.success("Salary structure created successfully");
+          const createdIdRaw = result.data?.structure?.id ?? result.data?.id;
+          const createdId = createdIdRaw !== undefined && createdIdRaw !== null
+            ? String(createdIdRaw)
+            : null;
           setSalaryStructures((prev) => [
             ...prev,
             {
-              id: result.data?.id || `SS${String(prev.length + 1).padStart(3, "0")}`,
-              ...formData,
+              id: createdId || `SS${String(prev.length + 1).padStart(3, "0")}`,
+              ...recalculatedFormData,
               gross,
               createdAt: new Date().toISOString().split("T")[0],
             },
           ]);
+          await refreshStructuresFromApi();
         }
       } catch (error) {
         console.error('Error saving salary structure:', error);
@@ -1203,19 +1323,21 @@ export default function PayrollSetup() {
         // Fallback to local state update
         if (editingId) {
           setSalaryStructures((prev) =>
-            prev.map((s) => (s.id === editingId ? { ...formData, gross } : s))
+            prev.map((s) => (s.id === editingId ? { ...recalculatedFormData, gross } : s))
           );
         } else {
           setSalaryStructures((prev) => [
             ...prev,
             {
               id: `SS${String(prev.length + 1).padStart(3, "0")}`,
-              ...formData,
+              ...recalculatedFormData,
               gross,
               createdAt: new Date().toISOString().split("T")[0],
             },
           ]);
         }
+      } finally {
+        setIsSavingStructure(false);
       }
     } else if (activeTab === "processing") {
       const deductions = calculateTotalDeductions(
@@ -1573,7 +1695,7 @@ export default function PayrollSetup() {
                   <h3 className="text-lg font-semibold mb-4 text-slate-900">Process Payroll</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="employee-select">Employee *</Label>
+                      <Label htmlFor="employee-select">Employee(s) *</Label>
                       <Select
                         value={formData.employeeId || ""}
                         onValueChange={(employeeId) => {
@@ -1585,6 +1707,7 @@ export default function PayrollSetup() {
                           <SelectValue placeholder="Select employee..." />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__all__">All employees</SelectItem>
                           {employees.map((emp) => (
                             <SelectItem key={emp.id} value={emp.id.toString()}>
                               {emp.name}
@@ -1611,7 +1734,13 @@ export default function PayrollSetup() {
                       <Button 
                         onClick={handleProcessPayroll}
                         className="w-full gap-2 h-10"
-                        disabled={!formData.employeeId || !formData.month || isPayrollProcessed(formData.employeeId, formData.month) || loading}
+                        disabled={
+                          !formData.employeeId ||
+                          !formData.month ||
+                          loading ||
+                          (formData.employeeId !== "__all__" &&
+                            isPayrollProcessed(formData.employeeId, formData.month))
+                        }
                       >
                         <Plus className="w-4 h-4" />
                         {loading ? "Sending..." : "Process Payroll"}
@@ -1933,7 +2062,14 @@ export default function PayrollSetup() {
                     <Label>Basic Salary *</Label>
                     <Input
                       value={formData.basic || ""}
-                      onChange={(e) => setFormData({ ...formData, basic: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData((prev: any) =>
+                          recalculatePfEsiFromState({
+                            ...prev,
+                            basic: parseFloat(e.target.value) || 0,
+                          })
+                        )
+                      }
                       type="number"
                       className="mt-2"
                     />
@@ -1972,22 +2108,80 @@ export default function PayrollSetup() {
                   <h4 className="font-semibold text-sm mb-3">Deductions</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>PF</Label>
-                      <Input
-                        value={formData.pf || ""}
-                        onChange={(e) => setFormData({ ...formData, pf: parseFloat(e.target.value) || 0 })}
-                        type="number"
-                        className="mt-2"
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="pf-enabled">PF</Label>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="pf-enabled"
+                            checked={Boolean(formData.pfEnabled)}
+                            onCheckedChange={(checked) =>
+                              setFormData((prev: any) =>
+                                recalculatePfEsiFromState({
+                                  ...prev,
+                                  pfEnabled: checked === true,
+                                  pfPercentage: checked === true ? toNumber(prev.pfPercentage) : 0,
+                                })
+                              )
+                            }
+                          />
+                          <span className="text-xs text-slate-500">Enable</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Input
+                          value={formData.pfPercentage || ""}
+                          onChange={(e) =>
+                            setFormData((prev: any) =>
+                              recalculatePfEsiFromState({
+                                ...prev,
+                                pfPercentage: parseFloat(e.target.value) || 0,
+                              })
+                            )
+                          }
+                          type="number"
+                          placeholder="PF %"
+                          disabled={!formData.pfEnabled}
+                        />
+                        <Input value={formData.pf || 0} type="number" readOnly disabled className="bg-gray-50" />
+                      </div>
                     </div>
                     <div>
-                      <Label>ESI</Label>
-                      <Input
-                        value={formData.esi || ""}
-                        onChange={(e) => setFormData({ ...formData, esi: parseFloat(e.target.value) || 0 })}
-                        type="number"
-                        className="mt-2"
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="esi-enabled">ESI</Label>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="esi-enabled"
+                            checked={Boolean(formData.esiEnabled)}
+                            onCheckedChange={(checked) =>
+                              setFormData((prev: any) =>
+                                recalculatePfEsiFromState({
+                                  ...prev,
+                                  esiEnabled: checked === true,
+                                  esiPercentage: checked === true ? toNumber(prev.esiPercentage) : 0,
+                                })
+                              )
+                            }
+                          />
+                          <span className="text-xs text-slate-500">Enable</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Input
+                          value={formData.esiPercentage || ""}
+                          onChange={(e) =>
+                            setFormData((prev: any) =>
+                              recalculatePfEsiFromState({
+                                ...prev,
+                                esiPercentage: parseFloat(e.target.value) || 0,
+                              })
+                            )
+                          }
+                          type="number"
+                          placeholder="ESI %"
+                          disabled={!formData.esiEnabled}
+                        />
+                        <Input value={formData.esi || 0} type="number" readOnly disabled className="bg-gray-50" />
+                      </div>
                     </div>
                     <div>
                       <Label>PT</Label>
@@ -2181,7 +2375,13 @@ export default function PayrollSetup() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button onClick={handleSave} disabled={activeTab === "structure" && isSavingStructure}>
+              {activeTab === "structure" && isSavingStructure
+                ? editingId
+                  ? "Updating..."
+                  : "Creating..."
+                : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,5 @@
 import ENDPOINTS, { BASE_URL } from '../../../lib/endpoint'; // Your Axios endpoints
+import { isValidEmail, normalizeEmail } from "@/lib/validation";
 
 type LoginParams = {
   email: string;
@@ -13,7 +14,15 @@ type LoginResult = {
 
 export async function handleLogin({ email, password }: LoginParams): Promise<LoginResult> {
   try {
-    const res = await ENDPOINTS.login(email, password);
+    if (!isValidEmail(email)) {
+      return {
+        success: false,
+        message: "Please enter a valid email address",
+      };
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const res = await ENDPOINTS.login(normalizedEmail, password);
 
     // Save token if returned
     if (res.data?.accessToken) {

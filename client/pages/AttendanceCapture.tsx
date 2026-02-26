@@ -9,11 +9,10 @@ import { Camera, MapPin, CheckCircle2, Clock, AlertCircle, Loader2, Radio, Activ
 import { toast } from "sonner";
 import {
   reverseGeocode,
-  findClosestOffice,
-  getAllOfficeLocations,
   OfficeLocation
 } from "@/lib/locationUtils";
 import attendanceApi from "@/components/helper/attendance/attendance";
+import branchApi from "@/components/helper/branch/branch";
 import { useAuth } from "@/context/AuthContext";
 
 // Mock liveLocationService for now - this should be implemented properly
@@ -63,8 +62,9 @@ export default function AttendanceCapture() {
     address: string;
   } | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [officeLocations] = useState<OfficeLocation[]>(getAllOfficeLocations());
+  const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>("");
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
   
   // Live tracking states
   const [isLiveTrackingEnabled, setIsLiveTrackingEnabled] = useState(false);
@@ -75,6 +75,7 @@ export default function AttendanceCapture() {
   useEffect(() => {
     startWebcam();
     fetchAttendanceStatus();
+    fetchBranchLocations();
     
     // Cleanup live tracking on unmount
     return () => {
@@ -84,6 +85,76 @@ export default function AttendanceCapture() {
       }
     };
   }, []);
+
+  const fetchBranchLocations = async () => {
+    try {
+      const result = await branchApi.getBranches();
+      if (!result.data) return;
+
+      const mappedLocations: OfficeLocation[] = result.data
+        .map((branch) => {
+          const [latRaw, lngRaw] = String(branch.coordinates || "")
+            .split(",")
+            .map((value) => value.trim());
+          const latitude = Number(latRaw);
+          const longitude = Number(lngRaw);
+
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return null;
+          }
+
+          return {
+            id: String(branch.id),
+            name: branch.name,
+            latitude,
+            longitude,
+            address: branch.address || "",
+            city: "",
+            country: "",
+          } as OfficeLocation;
+        })
+        .filter((item): item is OfficeLocation => item !== null);
+
+      setOfficeLocations(mappedLocations);
+    } catch (error) {
+      console.error("Error loading branch office locations:", error);
+    }
+  };
+
+  const findClosestBranchOffice = (
+    latitude: number,
+    longitude: number,
+    radiusKm: number = 5
+  ): OfficeLocation | null => {
+    if (!officeLocations.length) return null;
+
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    let closestOffice: OfficeLocation | null = null;
+    let minDistance = radiusKm;
+
+    officeLocations.forEach((office) => {
+      const distance = calculateDistance(latitude, longitude, office.latitude, office.longitude);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestOffice = office;
+      }
+    });
+
+    return closestOffice;
+  };
 
   // Fetch current attendance status
   const fetchAttendanceStatus = async () => {
@@ -216,8 +287,8 @@ export default function AttendanceCapture() {
       const constraints = {
         video: {
           facingMode: { ideal: "user" }, // Front-facing camera on mobile
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
           frameRate: { ideal: 30 }
         },
         audio: false
@@ -239,6 +310,9 @@ export default function AttendanceCapture() {
       if (videoRef.current) {
         // Ensure video element is ready before attaching stream
         videoRef.current.srcObject = stream;
+        const videoTrack = stream.getVideoTracks?.()[0];
+        const facingMode = (videoTrack?.getSettings?.().facingMode || "").toLowerCase();
+        setIsFrontCamera(facingMode === "user" || facingMode === "");
 
         // Wait for video metadata to load
         videoRef.current.onloadedmetadata = () => {
@@ -323,8 +397,8 @@ export default function AttendanceCapture() {
           const { latitude, longitude, accuracy } = position.coords;
 
           try {
-            // Try to find closest office location
-            const closestOffice = findClosestOffice(latitude, longitude);
+            // Try to find closest branch office location
+            const closestOffice = findClosestBranchOffice(latitude, longitude);
 
             // Try reverse geocoding for real address
             setIsReverseGeocoding(true);
@@ -376,7 +450,21 @@ export default function AttendanceCapture() {
       if (videoRef.current && canvasRef.current) {
         const context = canvasRef.current.getContext("2d");
         if (context) {
-          context.drawImage(videoRef.current, 0, 0, 640, 480);
+          const frameWidth = videoRef.current.videoWidth || 1280;
+          const frameHeight = videoRef.current.videoHeight || 720;
+          canvasRef.current.width = frameWidth;
+          canvasRef.current.height = frameHeight;
+
+          if (isFrontCamera) {
+            // Unmirror front-camera frame before upload.
+            context.save();
+            context.translate(frameWidth, 0);
+            context.scale(-1, 1);
+            context.drawImage(videoRef.current, 0, 0, frameWidth, frameHeight);
+            context.restore();
+          } else {
+            context.drawImage(videoRef.current, 0, 0, frameWidth, frameHeight);
+          }
           const imageUrl = canvasRef.current.toDataURL("image/jpeg");
 
           // Simple confidence check (can be replaced with actual facial recognition)
@@ -477,21 +565,22 @@ export default function AttendanceCapture() {
                 <CardDescription>Position your face in the center of the camera</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                <div className="relative bg-black rounded-lg overflow-hidden aspect-[4/3] md:aspect-video min-h-[300px] md:min-h-[420px]">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
                     className="w-full h-full object-cover"
+                    style={{ transform: isFrontCamera ? "scaleX(-1)" : "none" }}
                   />
                   <div className="absolute inset-0 border-4 border-teal-500 rounded-full m-auto w-64 h-64" />
                 </div>
 
                 <canvas
                   ref={canvasRef}
-                  width={640}
-                  height={480}
+                  width={1280}
+                  height={720}
                   className="hidden"
                 />
 

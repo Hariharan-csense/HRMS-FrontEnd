@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -62,18 +63,38 @@ interface OverrideRecord {
 }
 
 export default function AttendanceOverride() {
+  const [searchParams] = useSearchParams();
   const [overrides, setOverrides] = useState<OverrideRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreatingOverride, setIsCreatingOverride] = useState(false);
+  const [isSubmittingOverride, setIsSubmittingOverride] = useState(false);
   const [overrideForm, setOverrideForm] = useState({
-    recordId: "", // attendance record ID (from calendar modal)
-    date: "",     // YYYY-MM-DD
+    attendanceId: "",
+    employeeId: "",
+    date: "",
+    originalStatus: "absent",
+    overriddenStatus: "present",
     reason: "",
     requestedCheckIn: "",
     requestedCheckOut: "",
   });
+
+  useEffect(() => {
+    const recordId = searchParams.get("recordId") || "";
+    const employeeId = searchParams.get("employeeId") || "";
+    const date = searchParams.get("date") || "";
+
+    if (recordId || employeeId || date) {
+      setOverrideForm((prev) => ({
+        ...prev,
+        attendanceId: recordId,
+        employeeId,
+        date,
+      }));
+    }
+  }, [searchParams]);
 
   // Fetch override history from backend
 const fetchOverrides = async () => {
@@ -111,29 +132,33 @@ useEffect(() => {
 
 
 const handleCreateOverride = async () => {
-  if (!overrideForm.recordId.trim() || !overrideForm.reason.trim()) {
-    toast.error("Attendance Record ID and Reason are required");
+  if (!overrideForm.employeeId.trim() || !overrideForm.reason.trim()) {
+    toast.error("Employee ID and Reason are required");
     return;
   }
 
+  setIsSubmittingOverride(true);
   try {
     const result = await attendanceApi.createOverride({
-      attendanceId: overrideForm.recordId,
+      attendanceId: overrideForm.attendanceId || undefined,
+      employeeId: overrideForm.employeeId,
       reason: overrideForm.reason,
       requestedCheckIn: overrideForm.requestedCheckIn || undefined,
       requestedCheckOut: overrideForm.requestedCheckOut || undefined,
       date: overrideForm.date || undefined,
-      // optional fields
-      originalStatus: "absent",      // or fetch from current record
-      overriddenStatus: "present",
+      originalStatus: overrideForm.originalStatus,
+      overriddenStatus: overrideForm.overriddenStatus,
     });
 
     if (result.success || result.data) {
       toast.success("Override request created successfully!");
       setIsCreatingOverride(false);
       setOverrideForm({
-        recordId: "",
+        attendanceId: "",
+        employeeId: "",
         date: "",
+        originalStatus: "absent",
+        overriddenStatus: "present",
         requestedCheckIn: "",
         requestedCheckOut: "",
         reason: "",
@@ -143,6 +168,8 @@ const handleCreateOverride = async () => {
     }
   } catch (err) {
     toast.error("Network error. Please try again.");
+  } finally {
+    setIsSubmittingOverride(false);
   }
 };
  const filteredOverrides = useMemo(() => {
@@ -220,35 +247,35 @@ const handleCreateOverride = async () => {
                 </DialogHeader>
 
                 <div className="space-y-5 py-4">
-                  {/* Attendance Record ID - Required */}
+                  {/* Employee ID - Required */}
                   <div className="space-y-2">
-                    <Label htmlFor="attendanceId">
-                      Attendance Record ID <span className="text-red-500">*</span>
+                    <Label htmlFor="employeeId">
+                      Employee ID <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id="attendanceId"
-                      placeholder="e.g., ATT003"
-                      value={overrideForm.attendanceId}
-                      onChange={(e) =>
-                        setOverrideForm((prev) => ({
-                          ...prev,
-                          attendanceId: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  {/* Employee ID - Optional (but good to have) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="employeeId">Employee ID</Label>
-                    <Input
                       id="employeeId"
-                      placeholder="e.g., EMP003"
+                      placeholder="e.g., EMP003 / CMS001"
                       value={overrideForm.employeeId}
                       onChange={(e) =>
                         setOverrideForm((prev) => ({
                           ...prev,
                           employeeId: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  {/* Attendance Record ID - Optional */}
+                  <div className="space-y-2">
+                    <Label htmlFor="attendanceId">Attendance Record ID (Optional)</Label>
+                    <Input
+                      id="attendanceId"
+                      placeholder="e.g., 123"
+                      value={overrideForm.attendanceId}
+                      onChange={(e) =>
+                        setOverrideForm((prev) => ({
+                          ...prev,
+                          attendanceId: e.target.value,
                         }))
                       }
                     />
@@ -330,8 +357,8 @@ const handleCreateOverride = async () => {
                     >
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateOverride}>
-                      Create & Submit
+                    <Button onClick={handleCreateOverride} disabled={isSubmittingOverride}>
+                      {isSubmittingOverride ? "Creating..." : "Create & Submit"}
                     </Button>
                   </div>
                 </div>

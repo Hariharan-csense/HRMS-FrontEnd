@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader, ChevronLeft } from "lucide-react";
 import { mockUsers } from "@/lib/auth";
 import type { UserRole } from "@/lib/auth";
+import { isValidEmail, normalizeEmail } from "@/lib/validation";
 
 export default function RegisterUser() {
   const [formData, setFormData] = useState({
@@ -89,6 +90,10 @@ export default function RegisterUser() {
       setError("Email is required");
       return;
     }
+    if (!isValidEmail(formData.email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
     if (!formData.password) {
       setError("Password is required");
       return;
@@ -121,7 +126,7 @@ export default function RegisterUser() {
         },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email,
+          email: normalizeEmail(formData.email),
           password: formData.password,
           confirmPassword: formData.confirmPassword,
           role: formData.role,

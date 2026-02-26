@@ -13,7 +13,7 @@ const dashboardStyles = `
   @keyframes dashboardEnter {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(30px);
     }
     to {
       opacity: 1;
@@ -38,6 +38,37 @@ const dashboardStyles = `
     }
     50% {
       opacity: 0.8;
+    }
+  }
+
+  @keyframes slideInFromLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
     }
   }
 
@@ -120,6 +151,19 @@ const dashboardStyles = `
     border-radius: 20px;
     margin-bottom: 2rem;
     box-shadow: 0 10px 25px -5px rgba(23, 196, 145, 0.4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 2s infinite;
   }
 
   .icon-gradient {
@@ -128,6 +172,69 @@ const dashboardStyles = `
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg, #f0f0f0 25%, #f8fafc 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .modern-card {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+
+  .floating-icon {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(23, 196, 145, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(23, 196, 145, 0.6);
+    }
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #17c491, #0fa372);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hover-scale {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.05);
+  }
+
+  .status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 8px;
+  }
+
+  .status-online { background: #10b981; }
+  .status-offline { background: #ef4444; }
+  .status-busy { background: #f59e0b; }
 `;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -173,28 +280,59 @@ const StatCard: React.FC<{
   description?: string;
   colorClass?: string;
 }> = ({ title, value, icon, trend, description, colorClass = "gradient-bg-blue" }) => (
-  <Card className={`metric-card hover-lift stat-card-enter border-0 shadow-lg`}>
-    <CardContent className="pt-6">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
-          <p className="text-3xl font-bold mt-2 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
-          {description && (
-            <p className="text-xs text-gray-500 mt-2 font-medium">{description}</p>
-          )}
-          {trend && (
-            <p className="text-xs text-green-600 mt-2 flex items-center gap-1 font-semibold">
-              <TrendingUp className="w-3 h-3" /> {trend}
-            </p>
-          )}
+  <div className="modern-card hover-scale p-6">
+    <div className="flex items-start justify-between">
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`w-12 h-12 ${colorClass} rounded-xl flex items-center justify-center text-white shadow-lg floating-icon`}>
+            {icon}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
+            <p className="text-3xl font-bold mt-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
+            {description && (
+              <p className="text-xs text-gray-500 mt-2 font-medium">{description}</p>
+            )}
+          </div>
         </div>
-        <div className={`w-14 h-14 ${colorClass} rounded-xl flex items-center justify-center text-white shadow-lg transform rotate-3 hover:rotate-6 transition-transform duration-300`}>
-          {icon}
-        </div>
+        {trend && (
+          <div className="flex items-center gap-2 mt-3">
+            <div className="status-indicator status-online"></div>
+            <p className="text-sm text-green-600 font-semibold">{trend}</p>
+          </div>
+        )}
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 );
+
+const chartColors = {
+  present: "#17c491",
+  absent: "#0f8f6a",
+  half: "#53d8b4",
+  grid: "#d6f4eb",
+  axis: "#2f6f5f",
+};
+
+const prettyMonth = (value?: string) => {
+  if (!value) return "";
+  return value.replace("-", " ");
+};
+
+const DashboardTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xl">
+      <p className="mb-2 text-sm font-semibold text-slate-800">{prettyMonth(label)}</p>
+      {payload.map((item: any) => (
+        <p key={item.dataKey} className="text-sm font-medium" style={{ color: item.color }}>
+          {item.name}: {item.value}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -253,18 +391,38 @@ const AdminDashboard = () => {
   const departmentData = charts?.departmentData || [];
   const departmentAttendanceData = charts?.departmentAttendanceData || [];
   const leaveData = charts?.leaveData || [];
+  const monthlyAttendanceChart = monthlyAttendance.map((item: any) => ({
+    ...item,
+    month: prettyMonth(item.month),
+  }));
+  const departmentAttendanceChart = departmentAttendanceData.map((item: any) => ({
+    ...item,
+    attendanceRate: item.total > 0 ? Math.round((item.present / item.total) * 100) : 0,
+  }));
 
   return (
     <div className="space-y-8">
       {/* Dashboard Header */}
       <div className="dashboard-header">
-        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-white/80">Welcome back! Here's your organization overview</p>
+        <div className="relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 gradient-bg-blue rounded-2xl flex items-center justify-center text-white shadow-xl">
+              <Users className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
+              <p className="text-white/90 text-lg">Welcome back! Here's your organization overview</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* KPI Cards */}
-      <div>
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Key Metrics</h2>
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
+          <h2 className="text-3xl font-bold text-gray-800">Key Metrics</h2>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Employees"
@@ -304,166 +462,200 @@ const AdminDashboard = () => {
       <SubscriptionStatus />
 
       {/* Quick Actions */}
-      <div>
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Quick Actions</h2>
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
+          <h2 className="text-3xl font-bold text-gray-800">Quick Actions</h2>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          <Card className="hover-lift cursor-pointer border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100" onClick={() => navigate('/client-assignment')}>
-            <CardContent className="pt-6">
+          <div className="modern-card hover-scale cursor-pointer group" onClick={() => navigate('/client-assignment')}>
+            <div className="p-6">
               <div className="flex flex-col items-center text-center">
-                <div className="w-14 h-14 gradient-bg-blue rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
-                  <Building className="w-7 h-7" />
+                <div className="w-16 h-16 gradient-bg-blue rounded-2xl flex items-center justify-center text-white mb-4 shadow-xl group-hover:shadow-2xl transition-shadow duration-300 floating-icon">
+                  <Building className="w-8 h-8" />
                 </div>
-                <h3 className="font-bold text-gray-800">Client Assignment</h3>
-                <p className="text-sm text-gray-600 mt-1">Manage clients</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Client Assignment</h3>
+                <p className="text-sm text-gray-600">Manage and assign clients to teams</p>
+                <div className="mt-4 flex items-center gap-2 text-[#17c491] text-sm font-medium">
+                  <span>Get Started</span>
+                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-          {/* <Card className="hover-lift cursor-pointer border-0 shadow-lg bg-gradient-to-br from-orange-50 to-amber-100" onClick={() => navigate('/sales-attendance-report')}>
-            <CardContent className="pt-6">
+            </div>
+          </div>
+          <div className="modern-card hover-scale cursor-pointer group" onClick={() => navigate('/client-geo-fence')}>
+            <div className="p-6">
               <div className="flex flex-col items-center text-center">
-                <div className="w-14 h-14 gradient-bg-orange rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
-                  <BarChart3 className="w-7 h-7" />
+                <div className="w-16 h-16 gradient-bg-green rounded-2xl flex items-center justify-center text-white mb-4 shadow-xl group-hover:shadow-2xl transition-shadow duration-300 floating-icon">
+                  <MapPin className="w-8 h-8" />
                 </div>
-                <h3 className="font-bold text-gray-800">Sales Attendance</h3>
-                <p className="text-sm text-gray-600 mt-1">View reports</p>
-              </div>
-            </CardContent>
-          </Card> */}
-          <Card className="hover-lift cursor-pointer border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-100" onClick={() => navigate('/client-geo-fence')}>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-14 h-14 gradient-bg-green rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
-                  <MapPin className="w-7 h-7" />
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Geo-Fence</h3>
+                <p className="text-sm text-gray-600">Set location boundaries for tracking</p>
+                <div className="mt-4 flex items-center gap-2 text-[#17c491] text-sm font-medium">
+                  <span>Configure</span>
+                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
-                <h3 className="font-bold text-gray-800">Geo-Fence</h3>
-                <p className="text-sm text-gray-600 mt-1">Set boundaries</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="chart-container border-0 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
-            <CardTitle className="text-gray-800 font-bold">Monthly Attendance</CardTitle>
-            <CardDescription className="text-gray-600">Attendance trends over time</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyAttendance}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
-                <Legend />
-                <Line type="monotone" dataKey="present" name="Present" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} />
-                <Line type="monotone" dataKey="absent" name="Absent" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }} />
-                <Line type="monotone" dataKey="half" name="Half Day" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="chart-container border-0 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
-            <CardTitle className="text-gray-800 font-bold">Headcount by Department</CardTitle>
-            <CardDescription className="text-gray-600">Employee distribution across departments</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={departmentData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
-                <Bar dataKey="count" fill="#8b5cf6" radius={[12, 12, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Department-wise Attendance */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Department-wise Attendance Today</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Present by Department</CardTitle>
-              <CardDescription>Number of employees present in each department today</CardDescription>
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
+          <h2 className="text-3xl font-bold text-gray-800">Analytics & Insights</h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="modern-card hover-scale overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-900 to-cyan-900 rounded-t-xl">
+              <CardTitle className="text-white font-bold flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Monthly Attendance
+              </CardTitle>
+              <CardDescription className="text-slate-200">Present, absent and half-day trend</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={departmentAttendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="dept" angle={-45} textAnchor="end" height={80} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="present" fill="#10b981" radius={[8, 8, 0, 0]} name="Present" />
-                  <Bar dataKey="half" fill="#f59e0b" radius={[8, 8, 0, 0]} name="Half Day" />
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={monthlyAttendanceChart} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="4 4" stroke={chartColors.grid} />
+                  <XAxis dataKey="month" stroke={chartColors.axis} tick={{ fontSize: 12 }} />
+                  <YAxis stroke={chartColors.axis} tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip content={<DashboardTooltip />} />
+                  <Legend wrapperStyle={{ paddingTop: 10 }} />
+                  <Line type="monotone" dataKey="present" name="Present" stroke={chartColors.present} strokeWidth={3} dot={{ fill: chartColors.present, r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="absent" name="Absent" stroke={chartColors.absent} strokeWidth={2.5} dot={{ fill: chartColors.absent, r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="half" name="Half Day" stroke={chartColors.half} strokeWidth={2.5} dot={{ fill: chartColors.half, r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </div>
+
+          <div className="modern-card hover-scale overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-emerald-900 to-teal-800 rounded-t-xl">
+              <CardTitle className="text-white font-bold flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                Headcount by Department
+              </CardTitle>
+              <CardDescription className="text-emerald-100">Employee distribution across departments</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={departmentData} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
+                  <CartesianGrid strokeDasharray="4 4" stroke={chartColors.grid} />
+                  <XAxis dataKey="dept" angle={-25} textAnchor="end" height={65} stroke={chartColors.axis} tick={{ fontSize: 12 }} />
+                  <YAxis stroke={chartColors.axis} tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip content={<DashboardTooltip />} />
+                  <Bar dataKey="count" name="Employees" fill="#14b8a6" radius={[10, 10, 0, 0]} maxBarSize={52} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
+          </div>
+        </div>
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Department Attendance Summary</CardTitle>
-              <CardDescription>Detailed attendance breakdown by department</CardDescription>
+      {/* Department-wise Attendance */}
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
+          <h2 className="text-3xl font-bold text-[#0d5f49]">Department-wise Attendance Today</h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="modern-card hover-scale overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec] rounded-t-xl">
+              <CardTitle className="text-[#0d5f49] flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Attendance Mix by Department
+              </CardTitle>
+              <CardDescription className="text-[#2f6f5f]">Present, absent and half-day counts</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={departmentAttendanceChart} margin={{ top: 10, right: 20, left: 0, bottom: 35 }}>
+                  <CartesianGrid strokeDasharray="4 4" stroke={chartColors.grid} />
+                  <XAxis dataKey="dept" angle={-25} textAnchor="end" height={70} stroke={chartColors.axis} tick={{ fontSize: 12 }} />
+                  <YAxis stroke={chartColors.axis} allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <Tooltip content={<DashboardTooltip />} />
+                  <Legend wrapperStyle={{ paddingTop: 10 }} />
+                  <Bar dataKey="present" fill={chartColors.present} radius={[8, 8, 0, 0]} name="Present" maxBarSize={38} />
+                  <Bar dataKey="half" fill={chartColors.half} radius={[8, 8, 0, 0]} name="Half Day" maxBarSize={38} />
+                  <Bar dataKey="absent" fill={chartColors.absent} radius={[8, 8, 0, 0]} name="Absent" maxBarSize={38} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </div>
+
+          <div className="modern-card hover-scale overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec] rounded-t-xl">
+              <CardTitle className="text-[#0d5f49] flex items-center gap-2">
+                <div className="w-5 h-5 bg-[#17c491] rounded-full flex items-center justify-center text-white text-xs font-bold">%</div>
+                Department Attendance Summary
+              </CardTitle>
+              <CardDescription className="text-[#2f6f5f]">Quick comparison with attendance rate</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
               <div className="space-y-4">
-                {departmentAttendanceData.length > 0 ? (
-                  departmentAttendanceData.map((dept, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{dept.dept}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Total: {dept.total} employees
-                        </p>
+                {departmentAttendanceChart.length > 0 ? (
+                  departmentAttendanceChart.map((dept, idx) => (
+                    <div key={idx} className="rounded-xl border border-[#17c491]/20 bg-[#f3fcf9] p-4 hover:shadow-lg transition-shadow duration-300">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-[#0d5f49] text-lg">{dept.dept}</p>
+                          <p className="text-sm text-[#2f6f5f]">Total: {dept.total} employees</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="inline-flex items-center gap-2">
+                            <p className="text-2xl font-bold text-[#17c491]">{dept.attendanceRate}%</p>
+                            <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
+                          </div>
+                          <p className="text-xs text-[#2f6f5f]">Attendance Rate</p>
+                        </div>
                       </div>
-                      <div className="flex gap-4 text-sm">
-                        <div className="text-center">
-                          <p className="font-bold text-green-600">{dept.present}</p>
-                          <p className="text-xs text-muted-foreground">Present</p>
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded-xl bg-[#e8f9f4] p-3 border border-[#17c491]/20">
+                          <p className="text-2xl font-bold text-[#0fa97f]">{dept.present}</p>
+                          <p className="text-xs text-[#0d5f49]">Present</p>
                         </div>
-                        <div className="text-center">
-                          <p className="font-bold text-yellow-600">{dept.half}</p>
-                          <p className="text-xs text-muted-foreground">Half</p>
+                        <div className="rounded-xl bg-[#def8ef] p-3 border border-[#17c491]/20">
+                          <p className="text-2xl font-bold text-[#17c491]">{dept.half}</p>
+                          <p className="text-xs text-[#0d5f49]">Half Day</p>
                         </div>
-                        <div className="text-center">
-                          <p className="font-bold text-red-600">{dept.absent}</p>
-                          <p className="text-xs text-muted-foreground">Absent</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-bold text-blue-600">
-                            {dept.total > 0 ? Math.round((dept.present / dept.total) * 100) : 0}%
-                          </p>
-                          <p className="text-xs text-muted-foreground">Rate</p>
+                        <div className="rounded-xl bg-[#d2f4e8] p-3 border border-[#17c491]/20">
+                          <p className="text-2xl font-bold text-[#0f8f6a]">{dept.absent}</p>
+                          <p className="text-xs text-[#0d5f49]">Absent</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No attendance data available for today
-                  </p>
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-[#17c491]/20 rounded-full flex items-center justify-center">
+                        <svg className="w-6 h-6 text-[#17c491]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 0v6m0 6h6m-6 0v6" />
+                        </svg>
+                      </div>
+                      <p className="text-[#2f6f5f] text-sm">No attendance data available for today</p>
+                    </div>
+                  </div>
                 )}
               </div>
             </CardContent>
-          </Card>
+          </div>
         </div>
       </div>
 
       {/* Additional Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Leave Utilization</CardTitle>
-            <CardDescription>Leave balance across all employees</CardDescription>
+        <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+          <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+            <CardTitle className="text-[#0d5f49]">Leave Utilization</CardTitle>
+            <CardDescription className="text-[#2f6f5f]">Leave balance across all employees</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -479,7 +671,7 @@ const AdminDashboard = () => {
                   dataKey="value"
                 >
                   {leaveData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry?.fill || '#8884d8'} />
+                    <Cell key={`cell-${index}`} fill={index === 0 ? '#0f8f6a' : '#17c491'} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -488,106 +680,106 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activities</CardTitle>
-            <CardDescription>Latest system activities and updates</CardDescription>
+        <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+          <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+            <CardTitle className="text-[#0d5f49]">Recent Activities</CardTitle>
+            <CardDescription className="text-[#2f6f5f]">Latest system activities and updates</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {recentActivities.map((item, idx) => (
-                <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm flex-shrink-0">
+                <div key={idx} className="flex gap-3 pb-4 border-b border-[#17c491]/15 last:border-b-0 last:pb-0">
+                  <div className="w-8 h-8 rounded-full bg-[#e8f9f4] flex items-center justify-center text-[#17c491] text-sm flex-shrink-0">
                     {item?.icon || '📝'}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{item?.activity || 'No activity'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{item?.time || ''}</p>
+                    <p className="text-sm font-medium text-[#0d5f49]">{item?.activity || 'No activity'}</p>
+                    <p className="text-xs text-[#2f6f5f] mt-1">{item?.time || ''}</p>
                   </div>
                 </div>
               ))}
               {(!recentActivities || recentActivities.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-4">No recent activities</p>
+                <p className="text-sm text-[#2f6f5f] text-center py-4">No recent activities</p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Joinings</CardTitle>
-            <CardDescription>Recently onboarded employees</CardDescription>
+        <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+          <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+            <CardTitle className="text-[#0d5f49]">Recent Joinings</CardTitle>
+            <CardDescription className="text-[#2f6f5f]">Recently onboarded employees</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {recentJoinings.map((emp, idx) => {
                 const initials = emp?.name?.split(" ").filter(Boolean).map(n => n[0]).join("") || '👤';
                 return (
-                  <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
-                    <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  <div key={idx} className="flex gap-3 pb-4 border-b border-[#17c491]/15 last:border-b-0 last:pb-0">
+                    <div className="w-10 h-10 rounded-full bg-[#17c491] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">{emp?.name || 'New Employee'}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm font-medium text-[#0d5f49]">{emp?.name || 'New Employee'}</p>
+                      <p className="text-xs text-[#2f6f5f]">
                         {[emp?.role, emp?.dept].filter(Boolean).join(' • ') || 'Role not specified'}
                       </p>
                       {emp?.joinDate && (
-                        <p className="text-xs text-muted-foreground mt-1">Joined: {emp.joinDate}</p>
+                        <p className="text-xs text-[#2f6f5f] mt-1">Joined: {emp.joinDate}</p>
                       )}
                     </div>
                   </div>
                 );
               })}
               {(!recentJoinings || recentJoinings.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-4">No recent joinings</p>
+                <p className="text-sm text-[#2f6f5f] text-center py-4">No recent joinings</p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Birthdays</CardTitle>
-            <CardDescription>Celebrate with your team</CardDescription>
+        <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+          <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+            <CardTitle className="text-[#0d5f49]">Upcoming Birthdays</CardTitle>
+            <CardDescription className="text-[#2f6f5f]">Celebrate with your team</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {upcomingBirthdays?.map((emp, idx) => (
-                <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
+                <div key={idx} className="flex gap-3 pb-4 border-b border-[#17c491]/15 last:border-b-0 last:pb-0">
                   <div className="text-2xl flex-shrink-0">{emp.emoji || "🎂"}</div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{emp.name}</p>
-                    <p className="text-xs text-muted-foreground">{emp.date}</p>
+                    <p className="text-sm font-medium text-[#0d5f49]">{emp.name}</p>
+                    <p className="text-xs text-[#2f6f5f]">{emp.date}</p>
                   </div>
                 </div>
               ))}
               {(!upcomingBirthdays || upcomingBirthdays.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-4">No upcoming birthdays</p>
+                <p className="text-sm text-[#2f6f5f] text-center py-4">No upcoming birthdays</p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Holidays</CardTitle>
-            <CardDescription>Public and company holidays</CardDescription>
+        <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+          <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+            <CardTitle className="text-[#0d5f49]">Upcoming Holidays</CardTitle>
+            <CardDescription className="text-[#2f6f5f]">Public and company holidays</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {upcomingHolidays?.map((holiday, idx) => (
-                <div key={idx} className="flex gap-3 pb-4 border-b last:border-b-0 last:pb-0">
+                <div key={idx} className="flex gap-3 pb-4 border-b border-[#17c491]/15 last:border-b-0 last:pb-0">
                   <div className="text-2xl flex-shrink-0">{holiday.icon || "🏖️"}</div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{holiday.name}</p>
-                    <p className="text-xs text-muted-foreground">{holiday.date}</p>
-                    <p className="text-xs text-primary/70 font-medium mt-1">{holiday.type}</p>
+                    <p className="text-sm font-medium text-[#0d5f49]">{holiday.name}</p>
+                    <p className="text-xs text-[#2f6f5f]">{holiday.date}</p>
+                    <p className="text-xs text-[#17c491] font-medium mt-1">{holiday.type}</p>
                   </div>
                 </div>
               ))}
               {(!upcomingHolidays || upcomingHolidays.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-4">No upcoming holidays</p>
+                <p className="text-sm text-[#2f6f5f] text-center py-4">No upcoming holidays</p>
               )}
             </div>
           </CardContent>
@@ -596,38 +788,38 @@ const AdminDashboard = () => {
 
       {/* Team Health Score Section */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">Team Health Score</h2>
+        <h2 className="text-2xl font-bold mb-4 text-[#0d5f49]">Team Health Score</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Overall Health</CardTitle>
-              <CardDescription>Team performance metrics summary</CardDescription>
+          <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+            <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+              <CardTitle className="text-[#0d5f49]">Overall Health</CardTitle>
+              <CardDescription className="text-[#2f6f5f]">Team performance metrics summary</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/10">
+                  <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-[#e8f9f4] to-[#d7f5ec]">
                     <div className="text-center">
-                      <div className="text-4xl font-bold text-primary">
+                      <div className="text-4xl font-bold text-[#17c491]">
                         {teamHealth?.overallScore ?? 'N/A'}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">out of 100</div>
+                      <div className="text-xs text-[#2f6f5f] mt-1">out of 100</div>
                     </div>
                   </div>
-                  <p className="text-sm font-medium text-foreground mt-4">
+                  <p className="text-sm font-medium text-[#0d5f49] mt-4">
                     {teamHealth?.status ?? 'Loading...'}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#17c491]/20">
                   <div>
-                    <p className="text-xs text-muted-foreground">Trend</p>
-                    <p className="text-lg font-bold text-green-600">
+                    <p className="text-xs text-[#2f6f5f]">Trend</p>
+                    <p className="text-lg font-bold text-[#17c491]">
                       {teamHealth?.trend ?? 'N/A'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last Updated</p>
-                    <p className="text-sm font-medium">
+                    <p className="text-xs text-[#2f6f5f]">Last Updated</p>
+                    <p className="text-sm font-medium text-[#0d5f49]">
                       {teamHealth?.lastUpdated ?? 'N/A'}
                     </p>
                   </div>
@@ -636,24 +828,24 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Health Metrics</CardTitle>
-              <CardDescription>Individual performance indicators</CardDescription>
+          <Card className="border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+            <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+              <CardTitle className="text-[#0d5f49]">Health Metrics</CardTitle>
+              <CardDescription className="text-[#2f6f5f]">Individual performance indicators</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-5">
                 {(teamHealth?.metrics || []).map((metric, idx) => (
                   <div key={idx}>
                     <div className="flex justify-between items-center mb-2">
-                      <p className="text-sm font-medium text-foreground">{metric.label}</p>
-                      <span className="text-sm font-bold text-primary">
+                      <p className="text-sm font-medium text-[#0d5f49]">{metric.label}</p>
+                      <span className="text-sm font-bold text-[#17c491]">
                         {metric.value}%
                       </span>
                     </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#e8f9f4] rounded-full overflow-hidden">
                       <div
-                        className={`h-full ${metric.color} rounded-full transition-all duration-500`}
+                        className="h-full bg-[#17c491] rounded-full transition-all duration-500"
                         style={{ width: `${metric.value}%` }}
                       />
                     </div>
@@ -664,41 +856,41 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Health Insights</CardTitle>
-            <CardDescription>Areas requiring attention and strengths</CardDescription>
+        <Card className="mt-6 border border-[#17c491]/25 shadow-xl shadow-[#17c491]/10">
+          <CardHeader className="bg-gradient-to-r from-[#e8f9f4] to-[#d7f5ec]">
+            <CardTitle className="text-[#0d5f49]">Health Insights</CardTitle>
+            <CardDescription className="text-[#2f6f5f]">Areas requiring attention and strengths</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <span className="text-green-600">✓</span> Strengths
+                <h4 className="text-sm font-semibold text-[#0d5f49] mb-3 flex items-center gap-2">
+                  <span className="text-[#17c491]">✓</span> Strengths
                 </h4>
                 <ul className="space-y-2">
                   {(teamHealth?.strengths || []).map((strength, idx) => (
-                    <li key={`strength-${idx}`} className="text-sm text-muted-foreground">
+                    <li key={`strength-${idx}`} className="text-sm text-[#2f6f5f]">
                       - {strength}
                     </li>
                   ))}
                   {(!teamHealth?.strengths || teamHealth.strengths.length === 0) && (
-                    <li className="text-sm text-muted-foreground">No strengths data available</li>
+                    <li className="text-sm text-[#2f6f5f]">No strengths data available</li>
                   )}
                 </ul>
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-[#0d5f49] mb-3 flex items-center gap-2">
                   <span className="text-yellow-600">⚠</span> Areas to Improve
                 </h4>
                 <ul className="space-y-2">
                   {(teamHealth?.improvements || []).length > 0 ? (
                     (teamHealth?.improvements || []).map((improvement, idx) => (
-                      <li key={`improve-${idx}`} className="text-sm text-muted-foreground">
+                      <li key={`improve-${idx}`} className="text-sm text-[#2f6f5f]">
                         - {improvement}
                       </li>
                     ))
                   ) : (
-                    <li className="text-sm text-muted-foreground">No critical issues found</li>
+                    <li className="text-sm text-[#2f6f5f]">No critical issues found</li>
                   )}
                 </ul>
               </div>
@@ -1308,3 +1500,4 @@ export default function Dashboard() {
     </>
   );
 }
+

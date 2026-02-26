@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { GoogleMap, LoadScript, Marker, InfoWindow, Polyline, Circle, OverlayView } from "@react-google-maps/api";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +24,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Employee } from "@/lib/employees";
-import { getAllOfficeLocations, OfficeLocation } from "@/lib/locationUtils";
+import { OfficeLocation } from "@/lib/locationUtils";
 import { toast } from "sonner";
 import { liveApi } from "@/components/helper/livetracking/livetracking";
+import branchApi from "@/components/helper/branch/branch";
 import { useRole } from "@/context/RoleContext";
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
@@ -82,10 +83,8 @@ export default function LiveTracking() {
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [animationProgress, setAnimationProgress] = useState<Record<string, { current: number; waypoint: number }>>({});
-  const [animatedLocations, setAnimatedLocations] = useState<Record<string, any>>({});
   const [travelPaths, setTravelPaths] = useState<Record<string, Array<{ lat: number; lng: number }>>>({});
-  const animationRef = useRef<NodeJS.Timeout | null>(null);
+  const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
 
   const canViewTracking = hasModuleAccess('live_tracking') || hasModuleAccess('attendance');
 
@@ -177,6 +176,51 @@ export default function LiveTracking() {
   }, [canViewTracking]);
 
   useEffect(() => {
+    if (!canViewTracking) return;
+
+    const fetchBranchLocations = async () => {
+      try {
+        const result = await branchApi.getBranches();
+        if (!result.data) {
+          setOfficeLocations([]);
+          return;
+        }
+
+        const mappedLocations: OfficeLocation[] = result.data
+          .map((branch) => {
+            const [latRaw, lngRaw] = String(branch.coordinates || "")
+              .split(",")
+              .map((value) => value.trim());
+            const latitude = Number(latRaw);
+            const longitude = Number(lngRaw);
+
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+              return null;
+            }
+
+            return {
+              id: String(branch.id),
+              name: branch.name || "Office",
+              latitude,
+              longitude,
+              address: branch.address || "",
+              city: "",
+              country: "",
+            } as OfficeLocation;
+          })
+          .filter((item): item is OfficeLocation => item !== null);
+
+        setOfficeLocations(mappedLocations);
+      } catch (error) {
+        console.error("Error loading branch office locations:", error);
+        setOfficeLocations([]);
+      }
+    };
+
+    fetchBranchLocations();
+  }, [canViewTracking]);
+
+  useEffect(() => {
     if (!autoRefresh || !canViewTracking) return;
 
     const interval = setInterval(async () => {
@@ -196,22 +240,10 @@ export default function LiveTracking() {
       } catch (error) {
         console.error("Error refreshing data:", error);
       }
-    }, 30000);
+    }, isAnimating ? 5000 : 30000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, canViewTracking]);
-
-  useEffect(() => {
-    if (!canViewTracking || employees.length === 0) return;
-    
-    const initialProgress: Record<string, { current: number; waypoint: number }> = {};
-    employees.forEach(emp => {
-      if (emp.location_tracking_enabled === 1) {
-        initialProgress[emp.id] = { current: 0, waypoint: 0 };
-      }
-    });
-    setAnimationProgress(initialProgress);
-  }, [employees, canViewTracking]);
+  }, [autoRefresh, canViewTracking, isAnimating]);
 
   const trackedEmployees = useMemo(() => {
     if (!canViewTracking || employees.length === 0) {
@@ -227,9 +259,7 @@ export default function LiveTracking() {
         const isCheckedIn = latestAttendance && latestAttendance.check_in && !latestAttendance.check_out;
         
         let currentLocation = undefined;
-        if (animatedLocations[emp.id]) {
-          currentLocation = animatedLocations[emp.id];
-        } else if (emp.latitude && emp.longitude) {
+        if (emp.latitude && emp.longitude) {
           currentLocation = {
             latitude: emp.latitude,
             longitude: emp.longitude,
@@ -273,33 +303,7 @@ export default function LiveTracking() {
     }
 
     return [];
-  }, [employees, attendanceLogs, animatedLocations, canViewTracking]);
-
-  const travelRoutes: Record<string, Array<{ latitude: number; longitude: number; address: string }>> = useMemo(() => {
-    if (!canViewTracking) return {};
-    
-    const routes: Record<string, Array<{ latitude: number; longitude: number; address: string }>> = {};
-    
-    trackedEmployees.forEach(emp => {
-      if (emp.trackingStatus === "checked-in" && emp.currentLocation) {
-        const baseLocation = emp.currentLocation;
-        const baseLat = baseLocation.latitude;
-        const baseLng = baseLocation.longitude;
-        
-        const waypoints = [
-          { latitude: baseLat, longitude: baseLng, address: baseLocation.address || "Current Location" },
-          { latitude: baseLat + 0.005, longitude: baseLng + 0.005, address: "Nearby Location 1" },
-          { latitude: baseLat + 0.003, longitude: baseLng - 0.003, address: "Nearby Location 2" },
-          { latitude: baseLat - 0.004, longitude: baseLng + 0.002, address: "Nearby Location 3" },
-          { latitude: baseLat, longitude: baseLng, address: baseLocation.address || "Back to Current Location" },
-        ];
-        
-        routes[emp.id] = waypoints;
-      }
-    });
-    
-    return routes;
-  }, [trackedEmployees, canViewTracking]);
+  }, [employees, attendanceLogs, canViewTracking]);
 
   const filteredEmployees = useMemo(() => {
     if (!canViewTracking) return [];
@@ -319,11 +323,6 @@ export default function LiveTracking() {
       .sort((a, b) => b.trackingStatus.localeCompare(a.trackingStatus));
   }, [trackedEmployees, searchTerm, showAll, canViewTracking]);
 
-  const officeLocations = useMemo(() => {
-    if (!canViewTracking) return [];
-    return getAllOfficeLocations();
-  }, [canViewTracking]);
-
   const mapCenter = useMemo(() => {
     if (!canViewTracking) return { lat: 13.0827, lng: 80.2707 };
     
@@ -337,76 +336,37 @@ export default function LiveTracking() {
   }, [trackedEmployees, canViewTracking]);
 
   useEffect(() => {
-    if (!isAnimating || !canViewTracking) {
-      if (animationRef.current) {
-        clearInterval(animationRef.current);
-      }
-      return;
-    }
+    if (!isAnimating || !canViewTracking) return;
 
-    animationRef.current = setInterval(() => {
-      setAnimationProgress((prevProgress) => {
-        const newProgress = { ...prevProgress };
-        const newAnimatedLocations: Record<string, any> = {};
-        const newPaths: Record<string, Array<{ lat: number; lng: number }>> = {};
+    setTravelPaths((prev) => {
+      const next = { ...prev };
 
-        const checkedInEmployees = trackedEmployees.filter(emp => emp.trackingStatus === "checked-in");
+      trackedEmployees.forEach((emp) => {
+        if (emp.trackingStatus !== "checked-in" || !emp.currentLocation) return;
 
-        Object.keys(newProgress).forEach((empId) => {
-          if (!checkedInEmployees.find(emp => emp.id === empId)) {
-            return;
-          }
+        const newPoint = {
+          lat: emp.currentLocation.latitude,
+          lng: emp.currentLocation.longitude,
+        };
 
-          const route = travelRoutes[empId];
-          if (!route) return;
+        const currentPath = next[emp.id] || [];
+        const lastPoint = currentPath[currentPath.length - 1];
 
-          let { current, waypoint } = newProgress[empId];
-          current += 0.02;
+        // Avoid adding duplicate points when location has not changed.
+        if (lastPoint && lastPoint.lat === newPoint.lat && lastPoint.lng === newPoint.lng) {
+          return;
+        }
 
-          if (current >= 1) {
-            current = 0;
-            waypoint = (waypoint + 1) % route.length;
-          }
-
-          newProgress[empId] = { current, waypoint };
-
-          const currentWaypoint = route[waypoint];
-          const nextWaypoint = route[(waypoint + 1) % route.length];
-
-          const interpolatedLat = currentWaypoint.latitude +
-            (nextWaypoint.latitude - currentWaypoint.latitude) * current;
-          const interpolatedLng = currentWaypoint.longitude +
-            (nextWaypoint.longitude - currentWaypoint.longitude) * current;
-
-          newAnimatedLocations[empId] = {
-            latitude: interpolatedLat,
-            longitude: interpolatedLng,
-            accuracy: 10,
-            address: currentWaypoint.address,
-            timestamp: new Date().toISOString(),
-          };
-
-          if (!newPaths[empId]) {
-            newPaths[empId] = [];
-          }
-          newPaths[empId].push({ lat: interpolatedLat, lng: interpolatedLng });
-        });
-
-        setAnimatedLocations(newAnimatedLocations);
-        setTravelPaths(newPaths);
-        return newProgress;
+        next[emp.id] = [...currentPath, newPoint].slice(-500);
       });
-    }, 100);
 
-    return () => {
-      if (animationRef.current) {
-        clearInterval(animationRef.current);
-      }
-    };
-  }, [isAnimating, trackedEmployees, travelRoutes, canViewTracking]);
+      return next;
+    });
+  }, [isAnimating, trackedEmployees, canViewTracking]);
 
   useEffect(() => {
     if (!mapInstance || filteredEmployees.length === 0 || !canViewTracking) return;
+    if (isAnimating) return;
 
     if (typeof window === 'undefined' || !window.google || !window.google.maps) {
       return;
@@ -431,7 +391,7 @@ export default function LiveTracking() {
     } catch (error) {
       console.error('Error fitting map bounds:', error);
     }
-  }, [mapInstance, filteredEmployees, officeLocations, canViewTracking]);
+  }, [mapInstance, filteredEmployees, officeLocations, canViewTracking, isAnimating]);
 
   const handleRefresh = async () => {
     if (!canViewTracking) return;
@@ -598,7 +558,14 @@ export default function LiveTracking() {
 
               <div className="flex gap-2 border-l pl-2 ml-2">
                 <Button
-                  onClick={() => setIsAnimating(true)}
+                  onClick={() => {
+                    const hasCheckedInEmployees = trackedEmployees.some((emp) => emp.trackingStatus === "checked-in");
+                    if (!hasCheckedInEmployees) {
+                      toast.error("No checked-in employees to track");
+                      return;
+                    }
+                    setIsAnimating(true);
+                  }}
                   variant={isAnimating ? "default" : "outline"}
                   size="sm"
                   className="gap-2"
@@ -620,14 +587,6 @@ export default function LiveTracking() {
                 <Button
                   onClick={() => {
                     setIsAnimating(false);
-                    const resetProgress: Record<string, { current: number; waypoint: number }> = {};
-                    trackedEmployees.forEach(emp => {
-                      if ((emp as any).isLiveTrackingEnabled || emp.trackingStatus === "checked-in") {
-                        resetProgress[emp.id] = { current: 0, waypoint: 0 };
-                      }
-                    });
-                    setAnimationProgress(resetProgress);
-                    setAnimatedLocations({});
                     setTravelPaths({});
                   }}
                   variant="outline"

@@ -93,6 +93,9 @@ const HRRequirements: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [editingRequirement, setEditingRequirement] = useState<JobRequirement | null>(null);
+  const [isCreatingRequirement, setIsCreatingRequirement] = useState(false);
+  const [isUpdatingRequirement, setIsUpdatingRequirement] = useState(false);
+  const [isUpdatingRequirementStatus, setIsUpdatingRequirementStatus] = useState(false);
   const [statusFormData, setStatusFormData] = useState({
     status: 'active' as 'active' | 'closed' | 'on-hold' | 'draft'
   });
@@ -186,6 +189,7 @@ const HRRequirements: React.FC = () => {
     e.preventDefault();
     if (!editingRequirement) return;
 
+    setIsUpdatingRequirement(true);
     try {
       const submitData = {
         ...editFormData,
@@ -205,6 +209,8 @@ const HRRequirements: React.FC = () => {
     } catch (err) {
       console.error('Error updating job requirement:', err);
       setError('Failed to update job requirement');
+    } finally {
+      setIsUpdatingRequirement(false);
     }
   };
 
@@ -212,6 +218,7 @@ const HRRequirements: React.FC = () => {
     e.preventDefault();
     if (!editingRequirement) return;
 
+    setIsUpdatingRequirementStatus(true);
     try {
       const response = await ENDPOINTS.updateJobRequirement(editingRequirement.id, {
         status: statusFormData.status
@@ -227,12 +234,15 @@ const HRRequirements: React.FC = () => {
     } catch (err) {
       console.error('Error updating status:', err);
       setError('Failed to update status');
+    } finally {
+      setIsUpdatingRequirementStatus(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsCreatingRequirement(true);
     try {
       const submitData = {
         ...formData,
@@ -268,6 +278,8 @@ const HRRequirements: React.FC = () => {
     } catch (err) {
       console.error('Error creating job requirement:', err);
       setError('Failed to create job requirement');
+    } finally {
+      setIsCreatingRequirement(false);
     }
   };
 
@@ -744,8 +756,8 @@ const HRRequirements: React.FC = () => {
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  Add Requirement
+                <Button type="submit" disabled={isCreatingRequirement}>
+                  {isCreatingRequirement ? "Creating..." : "Add Requirement"}
                 </Button>
               </div>
             </form>
@@ -1041,8 +1053,8 @@ const HRRequirements: React.FC = () => {
                 <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  Update Requirement
+                <Button type="submit" disabled={isUpdatingRequirement}>
+                  {isUpdatingRequirement ? "Updating..." : "Update Requirement"}
                 </Button>
               </div>
             </form>
@@ -1077,8 +1089,8 @@ const HRRequirements: React.FC = () => {
                 <Button type="button" variant="outline" onClick={() => setStatusDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  Update Status
+                <Button type="submit" disabled={isUpdatingRequirementStatus}>
+                  {isUpdatingRequirementStatus ? "Updating..." : "Update Status"}
                 </Button>
               </div>
             </form>

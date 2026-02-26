@@ -73,6 +73,7 @@ const SubscriptionPlansManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [isPaying, setIsPaying] = useState(false);
   
@@ -147,6 +148,7 @@ const SubscriptionPlansManagement: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsSavingPlan(true);
     try {
       const planData = {
         ...formData,
@@ -178,6 +180,8 @@ const SubscriptionPlansManagement: React.FC = () => {
       console.error('Error saving plan:', error);
       console.error('Error response:', error.response?.data);
       showToast.error(error.response?.data?.message || 'Failed to save plan');
+    } finally {
+      setIsSavingPlan(false);
     }
   };
 
@@ -470,9 +474,22 @@ const SubscriptionPlansManagement: React.FC = () => {
                   </Button>
                   <Button 
                     type="submit"
+                    disabled={isSavingPlan}
                     className="bg-green-600 hover:bg-green-700 px-6"
                   >
-                    {isCreating ? (
+                    {isSavingPlan ? (
+                      editingPlan ? (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Creating...
+                        </>
+                      )
+                    ) : isCreating ? (
                       <>
                         <Plus className="w-4 h-4 mr-2" />
                         Create Plan

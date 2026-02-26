@@ -1,8 +1,8 @@
 // src/components/utils/api.ts
 import axios from "axios";
 
-// Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.5:3000";
+//Export the base URL for use in other components
+export const BASE_URL = "http://192.168.1.2:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -22,18 +22,106 @@ const clearAuthStorage = () => {
 };
 
 // Attach token dynamically on EVERY request
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
+api.interceptors.request.use(
+  async (config) => {
+    const requestUrl = typeof config.url === "string" ? config.url : "";
+    const isRefreshRequest = requestUrl.includes("/auth/refresh-token");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    // Avoid self-wait deadlock for refresh endpoint
+    if (isRefreshRequest) {
+      return config;
+    }
+
+    // Check and refresh token if needed before making the request
+    await checkAndRefreshTokenIfNeeded();
+    
+    const token = localStorage.getItem("accessToken");
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-
-  return config;
-});
+);
 
 // ✅ Global response handler
 let refreshPromise: Promise<string> | null = null;
+
+// ✅ Token refresh utility
+const refreshAccessToken = async (): Promise<string> => {
+  const refreshToken = localStorage.getItem("refreshToken");
+  
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  try {
+    // Use plain axios (no interceptors) to prevent recursive refresh deadlocks
+    const response = await axios.post(`${BASE_URL}/api/auth/refresh-token`, { refreshToken }, {
+      withCredentials: true,
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    });
+    const newAccessToken = response.data?.accessToken || response.data?.token;
+    
+    if (!newAccessToken) {
+      throw new Error('No access token returned from refresh');
+    }
+    
+    localStorage.setItem('accessToken', newAccessToken);
+    console.log('Access token refreshed successfully');
+    return newAccessToken;
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    throw error;
+  }
+};
+
+// ✅ Check if token is expired or will expire soon (within 5 minutes)
+const isTokenExpiredOrExpiringSoon = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const currentTime = Math.floor(Date.now() / 1000);
+    const expirationTime = payload.exp;
+    const fiveMinutesFromNow = currentTime + (5 * 60); // 5 minutes buffer
+    
+    return expirationTime <= fiveMinutesFromNow;
+  } catch (error) {
+    console.error('Error checking token expiration:', error);
+    return true; // Assume expired if we can't parse
+  }
+};
+
+// ✅ Proactive token refresh check
+const checkAndRefreshTokenIfNeeded = async (): Promise<void> => {
+  const token = localStorage.getItem('accessToken');
+  const refreshToken = localStorage.getItem('refreshToken');
+  
+  if (!token || !refreshToken) {
+    return;
+  }
+  
+  if (isTokenExpiredOrExpiringSoon(token)) {
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken().finally(() => {
+        refreshPromise = null;
+      });
+    }
+    
+    try {
+      await refreshPromise;
+    } catch (error) {
+      console.error('Proactive token refresh failed:', error);
+      // Don't clear storage here, let the 401 handler handle it
+    }
+  }
+};
 
 api.interceptors.response.use(
   (response) => response,
@@ -53,17 +141,9 @@ api.interceptors.response.use(
 
         try {
           if (!refreshPromise) {
-            refreshPromise = api
-              .post("/auth/refresh-token", { refreshToken })
-              .then((res) => res.data?.accessToken || res.data?.token)
-              .then((newToken) => {
-                if (!newToken) throw new Error("No access token returned from refresh");
-                localStorage.setItem("accessToken", newToken);
-                return newToken;
-              })
-              .finally(() => {
-                refreshPromise = null;
-              });
+            refreshPromise = refreshAccessToken().finally(() => {
+              refreshPromise = null;
+            });
           }
 
           const newAccessToken = await refreshPromise;
@@ -71,17 +151,29 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
+          console.error('Token refresh failed during 401 handling:', refreshError);
           clearAuthStorage();
+          // Redirect to login page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
           return Promise.reject(refreshError);
         }
+      } else {
+        // No refresh token or refresh token request failed
+        clearAuthStorage();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       }
-
-      clearAuthStorage();
     }
 
     return Promise.reject(error);
   }
 );
+
+// Export token refresh utilities for use in other components
+export { refreshAccessToken, checkAndRefreshTokenIfNeeded, isTokenExpiredOrExpiringSoon };
 
 const ENDPOINTS = {
   // Auth
@@ -107,7 +199,8 @@ const ENDPOINTS = {
   // Company
   getCompany: () => api.get("/company"),
   createCompany: (data: any) => api.post("/company", data),
-  updateCompany: (id: string, data: any) => api.put(`/company/update`, { id, ...data }),
+  updateCompany: (id: string, data: any, config = {}) =>
+    api.put(`/company/update`, data, config),
   deleteCompany: (id: string) => api.delete(`/company/${id}`),
 
   // Branch
@@ -176,6 +269,32 @@ const ENDPOINTS = {
 
   deleteEmployee: (id: string) => api.delete(`/employee/${id}`),
 
+  // Pulse Surveys (New)
+  createPulseSurvey: (data: any) => api.post("/pulse-surveys", data),
+  getPulseAdminOverview: () => api.get("/pulse-surveys/admin/overview"),
+  getPulseAdminSurveys: () => api.get("/pulse-surveys/admin"),
+  getPulseAdminSurvey: (id: string | number) => api.get(`/pulse-surveys/admin/${id}`),
+  getPulseAdminSurveyResponses: (id: string | number) =>
+    api.get(`/pulse-surveys/admin/${id}/responses`),
+  getMyPulseSurveys: () => api.get("/pulse-surveys/my"),
+  getPulseSurvey: (id: string | number) => api.get(`/pulse-surveys/${id}`),
+  respondPulseSurvey: (id: string | number, data: any) =>
+    api.post(`/pulse-surveys/${id}/respond`, data),
+  getPulseSurveyTemplates: (params?: any) => api.get("/pulse-surveys/templates", { params }),
+  createPulseSurveyTemplate: (data: any) => api.post("/pulse-surveys/templates", data),
+  updatePulseSurveyTemplate: (id: string | number, data: any) =>
+    api.put(`/pulse-surveys/templates/${id}`, data),
+  deletePulseSurveyTemplate: (id: string | number) =>
+    api.delete(`/pulse-surveys/templates/${id}`),
+
+  // Employee Feedback (Anonymous)
+  submitEmployeeFeedback: (data: any) => api.post("/surveys/feedback", data),
+  getEmployeeFeedbackAdmin: () => api.get("/surveys/feedback"),
+  updateEmployeeFeedbackStatus: (id: string | number, status: string) =>
+    api.put(`/surveys/feedback/${id}/status`, { status }),
+  deleteEmployeeFeedback: (id: string | number) =>
+    api.delete(`/surveys/feedback/${id}`),
+
   // attendance
 
   getAttendanceStatus: () => api.get("/attendance/status"),
@@ -199,10 +318,10 @@ const ENDPOINTS = {
     api.get("/attendance/logs", { params }),
 
   createOverride: (data: any) =>
-    api.post("/overrides", data),
+    api.post("/attendance/overrides", data),
 
   processOverride: (overrideId: string, data: any) =>
-    api.put(`/overrides/${overrideId}/process`, data),
+    api.put(`/attendance/overrides/${overrideId}/process`, data),
 
   getEmployeeSummary: (employeeId: string, params?: any) =>
     api.get(`/attendance/summary/employee/${employeeId}`, { params }),
@@ -483,26 +602,13 @@ const ENDPOINTS = {
   getPayslip: async (): Promise<{ data?: any; error?: string }> => {
     try {
       let response;
-
-      // Check if user is employee and use employee-specific endpoint
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const isEmployee = user.roles && user.roles.includes("employee") && !user.roles.includes("admin") && !user.roles.includes("hr") && !user.roles.includes("finance");
-
-      if (isEmployee) {
-        console.log('Employee user, trying /payroll/employee/payslips endpoint');
-        try {
-          response = await api.get("/payroll/employee/payslips");
-        } catch (error) {
-          console.log('Employee payslips endpoint failed, trying general payslips endpoint');
-          response = await api.get("/payroll/payslips");
-        }
-      } else {
-        console.log('Admin/HR/Finance user, trying /payroll/payslips endpoint');
+      // Permission-first endpoint fallback chain (no hardcoded role names)
+      try {
+        response = await api.get("/payroll/employee/payslips");
+      } catch (error) {
         try {
           response = await api.get("/payroll/payslips");
-        } catch (error) {
-          console.log('/payroll/payslips failed, trying /payroll');
-          // Fallback to the general payroll endpoint
+        } catch (innerError) {
           response = await api.get("/payroll");
         }
       }
@@ -549,6 +655,10 @@ const ENDPOINTS = {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
+    }),
+  deleteMyAccount: (confirmation: string) =>
+    api.delete(`/profile/me/account`, {
+      data: { confirmation }
     }),
 
   //activities

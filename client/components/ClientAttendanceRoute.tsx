@@ -31,17 +31,14 @@ const ClientAttendanceRoute: React.FC<ClientAttendanceRouteProps> = ({ children 
     );
   }
 
-  // Check access using module system or fallback to role check
-  const hasModuleAccess = canPerformModuleAction("client_attendance", "view");
-  const hasSalesRole = user.roles?.some(role => role?.toLowerCase() === "sales");
-  const hasAccess = hasModuleAccess || hasSalesRole;
+  const hasAccess = canPerformModuleAction("client_attendance", "view");
 
   if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">This page is restricted to Sales department users only.</p>
+          <p className="text-muted-foreground">You do not have permission to access this page.</p>
         </div>
       </div>
     );

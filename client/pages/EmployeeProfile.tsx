@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, Save, Upload, FileText, User } from "lucide-react";
 import { showToast } from "@/utils/toast";
+import { isValidEmail, isValidPhone } from "@/lib/validation";
 
 interface EmployeeProfileData {
   // Personal Details
@@ -111,6 +112,18 @@ export default function EmployeeProfile() {
   };
 
   const handleSave = () => {
+    if (!isValidEmail(formData.email)) {
+      showToast.error("Please enter a valid email address");
+      return;
+    }
+    if (!isValidPhone(formData.mobile)) {
+      showToast.error("Mobile number must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
+    if (!isValidPhone(formData.emergencyPhone)) {
+      showToast.error("Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
     showToast.success("Employee profile updated successfully!");
     setIsEditing(false);
   };
@@ -266,8 +279,11 @@ export default function EmployeeProfile() {
                   <div>
                     <Label>Mobile Number</Label>
                     <Input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
                       value={formData.mobile}
-                      onChange={(e) => handleInputChange("mobile", e.target.value)}
+                      onChange={(e) => handleInputChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))}
                       disabled={!isEditing}
                       className="mt-2"
                     />
@@ -301,8 +317,11 @@ export default function EmployeeProfile() {
                     <div>
                       <Label>Contact Phone</Label>
                       <Input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
                         value={formData.emergencyPhone}
-                        onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
+                        onChange={(e) => handleInputChange("emergencyPhone", e.target.value.replace(/\D/g, "").slice(0, 10))}
                         disabled={!isEditing}
                         className="mt-2"
                       />

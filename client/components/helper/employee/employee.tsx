@@ -1,9 +1,11 @@
 // src/api/employeeApi.ts
 import ENDPOINTS from "@/lib/endpoint";
 
-export interface Employee {  // ← EXPORT keyword add pannu
+export interface Employee {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   employeeId?: string;
 }
 
@@ -43,11 +45,19 @@ export const employeeApi = {
         employees = rawData.employees;
       }
 
-      // Return all employees without filtering
-      console.log(`Total employees: ${employees.length}`);
+      // Map employees to ensure proper name field
+      const mappedEmployees = employees.map(emp => ({
+        ...emp,
+        name: emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
+        firstName: emp.first_name,
+        lastName: emp.last_name,
+        employeeId: emp.employee_id
+      }));
+
+      console.log(`Total employees: ${mappedEmployees.length}`);
 
       // Fetch attendance locations for all employees
-      if (employees.length > 0) {
+      if (mappedEmployees.length > 0) {
         try {
           const attendanceResponse = await fetch('http://192.168.1.9:3000/api/attendance/locations', {
             method: 'GET',
@@ -63,7 +73,7 @@ export const employeeApi = {
             console.log('Attendance locations fetched:', attendanceLocations.length);
 
             // Merge attendance data with employee data
-            const employeesWithLocation = employees.map(employee => {
+            const employeesWithLocation = mappedEmployees.map(employee => {
               const attendanceRecord = attendanceLocations.find(
                 att => att.employee_id === employee.id || att.employeeId === employee.id
               );
@@ -88,7 +98,7 @@ export const employeeApi = {
         } catch (attendanceError) {
           console.warn('Failed to fetch attendance locations:', attendanceError);
           // Return employees without location data
-          const employeesWithoutLocation = employees.map(employee => ({
+          const employeesWithoutLocation = mappedEmployees.map(employee => ({
             ...employee,
             latitude: null,
             longitude: null,
@@ -103,7 +113,7 @@ export const employeeApi = {
         }
       }
 
-      return { data: employees };
+      return { data: mappedEmployees };
 
     } catch (error: any) {
       console.error("Error fetching employees:", error);

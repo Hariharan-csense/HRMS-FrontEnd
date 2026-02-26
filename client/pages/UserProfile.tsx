@@ -8,28 +8,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Mail, Phone, MapPin, Briefcase, Calendar, User, Lock, Camera } from "lucide-react";
+import { Mail, Phone, MapPin, Briefcase, Calendar, User, Lock, Camera, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { profileHelper, ProfileData, PasswordData } from "@/components/helper/profile/profile";
 import { handleChangePassword as handleChangePasswordHelper } from "@/components/helper/login/login";
 import { activityHelper, ActivityData } from "@/components/helper/activity/activity";
 import { documentHelper, DocumentData } from "@/components/helper/document/document";
 import { BASE_URL } from "@/lib/endpoint";
+import { isValidPhone } from "@/lib/validation";
 
 export default function UserProfile() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || "");
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [activities, setActivities] = useState<ActivityData[]>([]);
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [formData, setFormData] = useState({
     first_name: user?.name || "",
     last_name: "",
     mobile: "+91 98765 43210",
+    employee_id: "", // Add employee_id to state
+    company_id: "", // Add company_id to state
     department_id: "",
     designation_id: "",
     department_name: "",
@@ -44,6 +50,26 @@ export default function UserProfile() {
     confirmPassword: "",
   });
 
+  const resolveProfilePhotoUrl = (photoPath?: string | null) => {
+    if (!photoPath) return "";
+    if (photoPath.startsWith("http://") || photoPath.startsWith("https://") || photoPath.startsWith("data:")) {
+      return photoPath;
+    }
+    try {
+      return new URL(photoPath, BASE_URL).toString();
+    } catch {
+      const normalizedPath = photoPath.startsWith("/") ? photoPath : `/${photoPath}`;
+      return `${BASE_URL}${normalizedPath}`;
+    }
+  };
+
+  // Update avatarPreview when user context changes
+  useEffect(() => {
+    if (user?.avatar) {
+      setAvatarPreview(user.avatar);
+    }
+  }, [user?.avatar]);
+
   // Load profile data on component mount
   useEffect(() => {
     const loadProfileData = async () => {
@@ -55,6 +81,8 @@ export default function UserProfile() {
           first_name: profileData.first_name || user?.name || "",
           last_name: profileData.last_name || "",
           mobile: profileData.mobile || "+91 98765 43210",
+          employee_id: profileData.employee_id || "", // Add employee_id from API
+          company_id: profileData.company_id || "", // Add company_id from API
           department_id: profileData.department_id || "",
           designation_id: profileData.designation_id || "",
           department_name: profileData.department_name || "",
@@ -63,42 +91,42 @@ export default function UserProfile() {
           status: profileData.status || "",
           joined_date: profileData.doj ? new Date(profileData.doj).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : (profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : ""),
         });
-        const profileImageUrl = profileData.profile_photo ? `${BASE_URL}${profileData.profile_photo}` : user?.avatar || "";
+
+        const profileImageUrl = resolveProfilePhotoUrl(profileData.profile_photo) || user?.avatar || "";
         setAvatarPreview(profileImageUrl);
         
-        // Update user context if profile data is different
+        // Always update user context with profile data from API
         const newName = profileData.first_name ? `${profileData.first_name} ${profileData.last_name || ''}`.trim() : user?.name;
         const newAvatar = profileImageUrl;
         
-        if (newName !== user?.name || newAvatar !== user?.avatar) {
-          setUser({
-            ...user,
-            name: newName,
-            avatar: newAvatar,
-          });
-        }
+        // Update user context with latest profile data
+        const updatedUser = {
+          ...user,
+          name: newName,
+          avatar: newAvatar,
+        };
+        
+        setUser(updatedUser);
       } catch (error) {
-        console.error("Failed to load profile data:", error);
+        // Error handling without console.log
       }
     };
 
     const loadActivities = async () => {
       try {
         const activitiesData = await activityHelper.getActivities();
-        console.log('Activities loaded:', activitiesData);
         setActivities(activitiesData);
       } catch (error) {
-        console.error("Failed to load activities:", error);
+        // Error handling without console.log
       }
     };
 
     const loadDocuments = async () => {
       try {
         const documentsData = await documentHelper.getDocuments();
-        console.log('Documents loaded in frontend:', documentsData);
         setDocuments(documentsData);
       } catch (error) {
-        console.error("Failed to load documents:", error);
+        // Error handling without console.log
       }
     };
 
@@ -113,7 +141,9 @@ export default function UserProfile() {
     return null;
   }
 
-  console.log('Current documents state:', documents);
+  const canDeleteOrganizationAccount =
+    user.type?.toLowerCase() === "admin" &&
+    !user.roles?.some((r) => r?.toLowerCase() === "superadmin");
 
   const getInitials = (name: string) => {
     return name
@@ -131,6 +161,11 @@ export default function UserProfile() {
   };
 
   const handleSaveProfile = async () => {
+    if (!isValidPhone(formData.mobile)) {
+      toast.error("Phone number must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const profileData: ProfileData = {
@@ -220,7 +255,7 @@ export default function UserProfile() {
           // Update user context with new avatar
           setUser({
             ...user,
-            avatar: updatedProfile.profile_photo || result,
+            avatar: resolveProfilePhotoUrl(updatedProfile.profile_photo) || result,
           });
 
           // Log activity
@@ -247,6 +282,23 @@ export default function UserProfile() {
     }
   };
 
+  const handleDeleteOrganizationAccount = async () => {
+    if (deleteConfirmation.trim().toUpperCase() !== "DELETE") {
+      toast.error('Please type "DELETE" to confirm');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    try {
+      await profileHelper.deleteMyAccount("DELETE");
+      setIsDeleteDialogOpen(false);
+      setDeleteConfirmation("");
+      await logout();
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -255,6 +307,18 @@ export default function UserProfile() {
           <div>
             <h1 className="text-3xl font-bold">User Profile</h1>
             <p className="text-muted-foreground mt-2">View and manage your account information</p>
+            {/* Company Info Display */}
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800">
+                Account: <span className="font-bold">{user?.email}</span>
+              </p>
+              <p className="text-sm text-blue-600">
+                Organization: <span className="font-medium">Company ID: {formData.company_id || 'Unknown'}</span>
+              </p>
+              <p className="text-xs text-blue-500 mt-1">
+                This ensures you're viewing the correct organization's data
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
             {isEditing ? (
@@ -270,6 +334,57 @@ export default function UserProfile() {
               <Button variant="outline" onClick={() => setIsEditing(true)}>
                 Edit Profile
               </Button>
+            )}
+            {canDeleteOrganizationAccount && !isEditing && (
+              <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="destructive" className="gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Delete Account
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[520px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-red-600">
+                      <AlertTriangle className="w-5 h-5" />
+                      Delete Admin Account
+                    </DialogTitle>
+                    <DialogDescription>
+                      This will permanently delete your organization and all related data. This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Label htmlFor="delete-confirmation">
+                      Type <span className="font-semibold">DELETE</span> to confirm
+                    </Label>
+                    <Input
+                      id="delete-confirmation"
+                      value={deleteConfirmation}
+                      onChange={(e) => setDeleteConfirmation(e.target.value)}
+                      placeholder="DELETE"
+                    />
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsDeleteDialogOpen(false);
+                          setDeleteConfirmation("");
+                        }}
+                        disabled={isDeletingAccount}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteOrganizationAccount}
+                        disabled={isDeletingAccount || deleteConfirmation.trim().toUpperCase() !== "DELETE"}
+                      >
+                        {isDeletingAccount ? "Deleting..." : "Delete Permanently"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </div>
@@ -471,7 +586,7 @@ export default function UserProfile() {
 
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Employee ID</Label>
-                    <p className="text-lg font-medium mt-1">EMP001</p>
+                    <p className="text-lg font-medium mt-1">{formData.employee_id || "Not assigned"}</p>
                   </div>
 
                   <div>
@@ -509,8 +624,11 @@ export default function UserProfile() {
                     <Label className="text-sm font-medium text-muted-foreground">Phone Number</Label>
                     {isEditing ? (
                       <Input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
                         value={formData.mobile}
-                        onChange={(e) => handleFieldChange("mobile", e.target.value)}
+                        onChange={(e) => handleFieldChange("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))}
                         className="mt-1"
                       />
                     ) : (

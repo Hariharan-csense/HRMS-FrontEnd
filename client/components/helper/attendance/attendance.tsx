@@ -113,8 +113,11 @@ export const attendanceApi = {
 
   // Create override request
   createOverride: async (data: {
-    
-    date: string;
+    attendanceId?: string;
+    employeeId: string;
+    date?: string;
+    originalStatus?: string;
+    overriddenStatus?: string;
     reason: string;
     requestedCheckIn?: string;
     requestedCheckOut?: string;

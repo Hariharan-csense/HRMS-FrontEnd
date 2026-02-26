@@ -14,13 +14,32 @@ export const documentHelper = {
   // Get employee documents
   getDocuments: async (): Promise<DocumentData[]> => {
     try {
+      console.log('DOCUMENT HELPER - Fetching documents...');
       const response = await ENDPOINTS.getDocuments();
-      console.log('API response:', response);
-      console.log('Response data:', response.data);
-      return response.data.data || [];
+      console.log('DOCUMENT HELPER - Documents response:', response);
+      
+      if (response.data && response.data.success) {
+        console.log('DOCUMENT HELPER - Documents loaded successfully:', {
+          count: response.data.data?.length || 0,
+          documents: response.data.data
+        });
+        return response.data.data || [];
+      } else {
+        console.error('DOCUMENT HELPER - Documents fetch failed:', response.data);
+        toast.error(response.data?.message || "Failed to fetch documents");
+        return [];
+      }
     } catch (error: any) {
-      console.error("Error fetching documents:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch documents");
+      console.error("DOCUMENT HELPER - Error fetching documents:", error);
+      
+      // Enhanced error handling for cross-company access issues
+      if (error.response?.status === 403) {
+        toast.error("Access denied. You don't have permission to access these documents.");
+      } else if (error.response?.status === 404) {
+        toast.error("Documents not found. You may not have access to this organization's data.");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to fetch documents");
+      }
       return [];
     }
   },
@@ -28,10 +47,10 @@ export const documentHelper = {
   // Download document
   downloadDocument: async (id: string, originalName: string | null, filename: string) => {
     try {
+      console.log('DOCUMENT HELPER - Downloading document:', { id, originalName, filename });
       const response = await ENDPOINTS.downloadDocument(id);
       
-      console.log('Download response:', response);
-      console.log('Response data:', response.data);
+      console.log('DOCUMENT HELPER - Download response:', response);
       
       // Create blob from response
       const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/octet-stream' });
@@ -53,18 +72,26 @@ export const documentHelper = {
       
       toast.success("Document downloaded successfully");
     } catch (error: any) {
-      console.error("Error downloading document:", error);
-      toast.error(error.response?.data?.message || "Failed to download document");
+      console.error("DOCUMENT HELPER - Error downloading document:", error);
+      
+      // Enhanced error handling for cross-company access issues
+      if (error.response?.status === 403) {
+        toast.error("Access denied. You don't have permission to download this document.");
+      } else if (error.response?.status === 404) {
+        toast.error("Document not found. You may not have access to this organization's data.");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to download document");
+      }
     }
   },
 
   // View document in browser
   viewDocument: async (id: string, filename: string) => {
     try {
+      console.log('DOCUMENT HELPER - Viewing document:', { id, filename });
       const response = await ENDPOINTS.downloadDocument(id);
       
-      console.log('View response:', response);
-      console.log('Response data:', response.data);
+      console.log('DOCUMENT HELPER - View response:', response);
       
       // Create blob from response
       const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/octet-stream' });
@@ -84,8 +111,16 @@ export const documentHelper = {
         window.URL.revokeObjectURL(url);
       }, 1000);
     } catch (error: any) {
-      console.error("Error viewing document:", error);
-      toast.error(error.response?.data?.message || "Failed to view document");
+      console.error("DOCUMENT HELPER - Error viewing document:", error);
+      
+      // Enhanced error handling for cross-company access issues
+      if (error.response?.status === 403) {
+        toast.error("Access denied. You don't have permission to view this document.");
+      } else if (error.response?.status === 404) {
+        toast.error("Document not found. You may not have access to this organization's data.");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to view document");
+      }
     }
   },
 

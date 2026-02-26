@@ -5,11 +5,13 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, HashRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate,HashRouter } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { RoleProvider } from "@/context/RoleContext";
+import { RoleProvider, useRole } from "@/context/RoleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { RoleBasedRoute } from "@/components/RoleBasedRoute";
+import { AutoLoginHandler } from "@/components/AutoLoginHandler";
+
 
 // Pages
 import Login from "./pages/Login";
@@ -68,11 +70,6 @@ import HROfferLetters from "./pages/HROfferLetters";
 import HROnboarding from "./pages/HROnboarding";
 import HRSettlement from "./pages/HRSettlement";
 import ExportData from "./pages/ExportData";
-import PulseSurveyDashboard from "./pages/PulseSurveyDashboard";
-import PulseSurveySurveys from "./pages/PulseSurveySurveys";
-import PulseSurveyFeedback from "./pages/PulseSurveyFeedback";
-import PulseSurveyOverview from "./pages/PulseSurveyOverview";
-import PulseSurveys from "./pages/PulseSurveys";
 import RoleManagement from "./pages/RoleManagement";
 import AdminOnlyRoute from "./components/AdminOnlyRoute";
 import SuperAdminOnlyRoute from "./components/SuperAdminOnlyRoute";
@@ -81,6 +78,17 @@ import HROnlyRoute from "./components/HROnlyRoute";
 import ClientAttendanceRoute from "./components/ClientAttendanceRoute";
 import Organizations from "./pages/superadmin/Organizations";
 import { Users } from "./pages/superadmin/Users";
+import PulseSurveysOverview from "./pages/pulseSurveys/PulseSurveysOverview";
+import CreatePulseSurvey from "./pages/pulseSurveys/CreatePulseSurvey";
+import MyPulseSurveys from "./pages/pulseSurveys/MyPulseSurveys";
+import RespondPulseSurvey from "./pages/pulseSurveys/RespondPulseSurvey";
+import PulseSurveyResultsList from "./pages/pulseSurveys/PulseSurveyResultsList";
+import PulseSurveyResultsDetail from "./pages/pulseSurveys/PulseSurveyResultsDetail";
+import EmployeeFeedback from "./pages/pulseSurveys/EmployeeFeedback";
+import AdminFeedbackInbox from "./pages/pulseSurveys/AdminFeedbackInbox";
+import PulseSurveyTemplates from "./pages/pulseSurveys/PulseSurveyTemplates";
+
+import { Hash } from "lucide-react";
 const queryClient = new QueryClient();
 
 // Protected Route Component
@@ -150,9 +158,20 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
   return <>{element}</>;
 };
 
+const PulseSurveysRoot = () => {
+  const { canPerformModuleAction } = useRole();
+  const canManagePulseSurveys = canPerformModuleAction("pulse_surveys", "create");
+  return canManagePulseSurveys ? (
+    <Navigate to="/pulse-surveys/dashboard" replace />
+  ) : (
+    <Navigate to="/pulse-surveys/my-surveys" replace />
+  );
+};
+
 function AppRoutes() {
   return (
-    <Routes>
+    <AutoLoginHandler>
+      <Routes>
       {/* Public Routes */}
       <Route
         path="/"
@@ -687,48 +706,164 @@ function AppRoutes() {
         element={<ProtectedRoute element={<RoleTest />} />}
       />
 
-      {/* Pulse Surveys - Role-based access */}
+      {/* Pulse Survey Module */}
       <Route
         path="/pulse-surveys"
-        element={<ProtectedRoute element={<PulseSurveys />} />}
+        element={<ProtectedRoute element={<PulseSurveysRoot />} />}
       />
       <Route
         path="/pulse-surveys/dashboard"
         element={
-          <AdminOnlyRoute>
-            <PulseSurveyDashboard />
-          </AdminOnlyRoute>
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                allowedRoles={["admin"]}
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <PulseSurveysOverview />
+              </RoleBasedRoute>
+            }
+          />
         }
       />
       <Route
-        path="/pulse-surveys/surveys"
+        path="/pulse-surveys/create"
         element={
-          <AdminOnlyRoute>
-            <PulseSurveySurveys />
-          </AdminOnlyRoute>
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                allowedRoles={["admin"]}
+                requiredModule="pulse_surveys"
+                requiredAction="create"
+              >
+                <CreatePulseSurvey />
+              </RoleBasedRoute>
+            }
+          />
+        }
+      />
+      <Route
+        path="/pulse-surveys/results"
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                allowedRoles={["admin"]}
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <PulseSurveyResultsList />
+              </RoleBasedRoute>
+            }
+          />
+        }
+      />
+      <Route
+        path="/pulse-surveys/results/:surveyId"
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                allowedRoles={["admin"]}
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <PulseSurveyResultsDetail />
+              </RoleBasedRoute>
+            }
+          />
+        }
+      />
+      <Route
+        path="/pulse-surveys/my-surveys"
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <MyPulseSurveys />
+              </RoleBasedRoute>
+            }
+          />
+        }
+      />
+      <Route
+        path="/pulse-surveys/respond/:surveyId"
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <RespondPulseSurvey />
+              </RoleBasedRoute>
+            }
+          />
         }
       />
       <Route
         path="/pulse-surveys/feedback"
-        element={<ProtectedRoute element={<PulseSurveyFeedback />} />}
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute requiredModule="pulse_surveys" requiredAction="view">
+                <EmployeeFeedback />
+              </RoleBasedRoute>
+            }
+          />
+        }
       />
       <Route
-        path="/pulse-surveys/overview"
-        element={<ProtectedRoute element={<PulseSurveyOverview />} />}
+        path="/pulse-surveys/feedback-inbox"
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                allowedRoles={["admin"]}
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <AdminFeedbackInbox />
+              </RoleBasedRoute>
+            }
+          />
+        }
+      />
+      <Route
+        path="/pulse-surveys/templates"
+        element={
+          <ProtectedRoute
+            element={
+              <RoleBasedRoute
+                allowedRoles={["admin"]}
+                requiredModule="pulse_surveys"
+                requiredAction="view"
+              >
+                <PulseSurveyTemplates />
+              </RoleBasedRoute>
+            }
+          />
+        }
       />
 
+        
       {/* Root redirect - removed since we now have landing page at root */}
 
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </AutoLoginHandler>
   );
 }
 
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <HashRouter>
+      <BrowserRouter>
         <AuthProvider>          {/* ✅ Auth FIRST */}
           <RoleProvider>        {/* ✅ Role AFTER Auth */}
             <SubscriptionProvider> {/* ✅ Subscription AFTER Role */}
@@ -740,7 +875,7 @@ const App = () => {
             </SubscriptionProvider>
           </RoleProvider>
         </AuthProvider>
-      </HashRouter>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };

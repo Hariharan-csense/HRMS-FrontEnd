@@ -46,6 +46,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { BASE_URL } from '@/lib/endpoint';
+import { isValidEmail, normalizeEmail } from '@/lib/validation';
 
 // API service - using the configured base URL from endpoint.tsx
 const api = {
@@ -213,6 +214,8 @@ const HROfferLetters: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+  const [isSubmittingTemplate, setIsSubmittingTemplate] = useState(false);
 
   // Helper function to transform snake_case API response to camelCase
   const transformOfferData = (apiData: any): OfferLetter => {
@@ -345,13 +348,20 @@ const HROfferLetters: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!isValidEmail(formData.candidateEmail)) {
+      setError('Please enter a valid candidate email address');
+      return;
+    }
     
+    setIsSubmittingOffer(true);
     try {
       // Transform formData to match backend expected format (snake_case)
       const backendData = {
         candidate_id: formData.candidateId,
         candidate_name: formData.candidateName,
-        candidate_email: formData.candidateEmail,
+        candidate_email: normalizeEmail(formData.candidateEmail),
         position: formData.position,
         department: formData.department,
         salary: formData.salary,
@@ -427,6 +437,8 @@ const HROfferLetters: React.FC = () => {
 
       resetForm();
       setIsDialogOpen(false);
+    } finally {
+      setIsSubmittingOffer(false);
     }
   };
 
@@ -460,6 +472,7 @@ const HROfferLetters: React.FC = () => {
   const handleTemplateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsSubmittingTemplate(true);
     try {
       // Extract variables from template content - support both {{variable}} and (variable) formats
       const curlyBraceMatches = templateFormData.content.match(/\{\{([^}]+)\}\}/g);
@@ -511,6 +524,8 @@ const HROfferLetters: React.FC = () => {
     } catch (error) {
       console.error('Error in template submit:', error);
       alert(`Failed to ${editingTemplate ? 'update' : 'create'} template: ${error.message}`);
+    } finally {
+      setIsSubmittingTemplate(false);
     }
   };
 
@@ -1170,8 +1185,12 @@ const HROfferLetters: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingOffer ? 'Update' : 'Create'} Offer Letter
+              <Button type="submit" disabled={isSubmittingOffer}>
+                {isSubmittingOffer
+                  ? editingOffer
+                    ? 'Updating...'
+                    : 'Creating...'
+                  : `${editingOffer ? 'Update' : 'Create'} Offer Letter`}
               </Button>
             </div>
           </form>
@@ -1328,8 +1347,12 @@ const HROfferLetters: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setIsAddTemplateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingTemplate ? 'Update' : 'Create'} Template
+              <Button type="submit" disabled={isSubmittingTemplate}>
+                {isSubmittingTemplate
+                  ? editingTemplate
+                    ? 'Updating...'
+                    : 'Creating...'
+                  : `${editingTemplate ? 'Update' : 'Create'} Template`}
               </Button>
             </div>
           </form>

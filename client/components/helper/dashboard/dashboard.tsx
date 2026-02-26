@@ -11,9 +11,9 @@ export interface AdminDashboardData {
     pendingTrend: string;
   };
   charts?: {
-    monthlyAttendance: Array<{ month: string; present: number; absent: number; half: number }>;
+    monthlyAttendance: Array<{ month: string; present: number; absent: number; half: number; late: number }>;
     departmentData: Array<{ dept: string; count: number }>;
-    departmentAttendanceData: Array<{ dept: string; present: number; absent: number; half: number; total: number }>;
+    departmentAttendanceData: Array<{ dept: string; present: number; absent: number; half: number; late: number; total: number }>;
     leaveData: Array<{ name: string; value: number; fill: string }>;
   };
   recentActivities?: Array<{ activity: string; time: string; icon: string }>;
@@ -46,11 +46,12 @@ export interface EmployeeDashboardData {
     description: string;
   };
   monthlyAttendance?: {
-    chartData: Array<{ date: number; present: number; absent: number; half: number }>;
+    chartData: Array<{ date: number; present: number; absent: number; half: number; late: number }>;
     summary: {
       present: number;
       absent: number;
       half: number;
+      late: number;
       total: number;
     };
   };
@@ -76,6 +77,7 @@ export interface ManagerDashboardData {
     present: number;
     absent: number;
     half: number;
+    late: number;
   }>;
 }
 
@@ -136,9 +138,15 @@ export const getAdminDashboardData = async (): Promise<{
         pendingTrend: ''
       },
       charts: {
-        monthlyAttendance: payload.charts?.monthlyAttendance || [],
+        monthlyAttendance: payload.charts?.monthlyAttendance?.map((item: any) => ({
+          ...item,
+          late: item.late || 0
+        })) || [],
         departmentData: payload.charts?.departmentData || [],
-        departmentAttendanceData: payload.charts?.departmentAttendanceData || [],
+        departmentAttendanceData: payload.charts?.departmentAttendanceData?.map((item: any) => ({
+          ...item,
+          late: item.late || 0
+        })) || [],
         leaveData: payload.charts?.leaveData || []
       },
       recentActivities: payload.recentActivities || [],
@@ -209,6 +217,7 @@ export const getEmployeeDashboardData = async (): Promise<{
           present: 0,
           absent: 0,
           half: 0,
+          late: 0,
           total: 0
         }
       }

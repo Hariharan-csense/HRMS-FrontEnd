@@ -23,6 +23,21 @@ export default defineConfig(({ mode }) => ({
       "@shared": path.resolve(__dirname, "./shared"),
     },
   },
+  // Add history API fallback for client-side routing
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      // Skip API routes
+      if (req.url?.startsWith('/api/')) {
+        return next();
+      }
+      
+      // For non-API routes, serve index.html
+      if (req.url && !req.url.includes('.')) {
+        req.url = '/';
+      }
+      next();
+    });
+  },
 }));
 
 function expressPlugin(): Plugin {

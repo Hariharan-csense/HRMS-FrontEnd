@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
-import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { employeeApi } from "@/components/helper/employee/employee";
+import { roleApi } from "@/components/helper/roles/roles";
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts";
 import { showToast } from "@/utils/toast";
 import {
@@ -62,6 +62,7 @@ import {
   getStatusLabel,
   getStatusBadgeClass,
 } from "@/lib/employees";
+import { isValidEmail, normalizeEmail, sanitizePhoneInput } from "@/lib/validation";
 
 // Extend the Employee type to include shift_id from the API
 interface EmployeeWithShiftId extends Employee {
@@ -72,6 +73,9 @@ type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
   employeeId: string;
   shift: string;
   enableLiveTracking: boolean;
+  officePhone?: string;
+  officeEmail?: string;
+  salary?: number;
 };
 
 const initialFormData: FormData = {
@@ -80,6 +84,8 @@ const initialFormData: FormData = {
   lastName: "",
   email: "",
   phone: "",
+  officePhone: "",
+  officeEmail: "",
   dateOfBirth: "",
   gender: "",
   bloodGroup: "",
@@ -96,6 +102,7 @@ const initialFormData: FormData = {
   status: "active",
   role: "",
   location: "",
+  salary: 0,
   aadhaar: "",
   pan: "",
   uan: "",
@@ -148,9 +155,11 @@ const extractDatePart = (dateString: string | null | undefined): string => {
   }
 };
 
+const isLocationTrackingEnabled = (value: unknown): boolean =>
+  value === 1 || value === "1" || value === true;
+
 export default function EmployeeList() {
-  const { user } = useAuth();
-  const { canPerformAction } = useRole();
+  const { canPerformModuleAction } = useRole();
   //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDept, setFilterDept] = useState<string>("all");
@@ -168,10 +177,12 @@ export default function EmployeeList() {
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [designations, setDesignations] = useState<{ id: string; name: string }[]>([]);
+  const [roles, setRoles] = useState<string[]>([]);
   const [uploadedFileObjects, setUploadedFileObjects] = useState<Record<string, File>>({});
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loadingShifts, setLoadingShifts] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("personal");
+  const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
 
 
 
@@ -219,9 +230,10 @@ export default function EmployeeList() {
     }
   }, [formData.shift, shifts, isDialogOpen, editingId]);
 
-  // Check if user can create employees
-  const userPrimaryRole = user?.roles[0];
-  const canCreateEmployee = userPrimaryRole ? canPerformAction(userPrimaryRole, "employees", "create") : false;
+  // Module action permissions
+  const canCreateEmployee = canPerformModuleAction("employees", "create");
+  const canEditEmployee = canPerformModuleAction("employees", "edit");
+  const canDeleteEmployee = canEditEmployee;
 
   const filteredEmployees = useMemo(() => {
     console.log("Showing all employees without role-based filtering");
@@ -248,8 +260,13 @@ export default function EmployeeList() {
     console.log("Status filter:", filterStatus);
 
     return finalFiltered;
-  }, [employees, searchTerm, filterDept, filterStatus, user]);
+  }, [employees, searchTerm, filterDept, filterStatus]);
   const handleOpenDialog = (employee?: EmployeeWithShiftId) => {
+    if (employee && !canEditEmployee) {
+      showToast.error("You do not have permission to edit employees");
+      return;
+    }
+
     if (employee) {
       console.log('Opening dialog with employee:', employee);
       console.log('Employee shift_id:', (employee as any).shift_id);
@@ -261,6 +278,8 @@ export default function EmployeeList() {
         lastName: employee.lastName || "",
         email: employee.email || "",
         phone: employee.phone || "",
+        officePhone: (employee as any).officePhone || "",
+        officeEmail: (employee as any).officeEmail || "",
         dateOfBirth: employee.dateOfBirth || "",
         gender: employee.gender || "",
         bloodGroup: employee.bloodGroup || "",
@@ -278,6 +297,7 @@ export default function EmployeeList() {
         status: employee.status || "active",
         role: employee.role || "",
         location: employee.location || "",
+        salary: employee.salary || 0,
         aadhaar: employee.aadhaar || "",
         pan: employee.pan || "",
         uan: employee.uan || "",
@@ -293,8 +313,11 @@ export default function EmployeeList() {
         certificatesUrl: employee.certificatesUrl || "",
         bankProofUrl: employee.bankProofUrl || "",
         // Map location_tracking_enabled from the API to enableLiveTracking in the form
-        // Handle both number (1/0) and boolean (true/false) values
-        enableLiveTracking: employee.location_tracking_enabled === 1 || true,
+        // Handle number (1/0), string ("1"/"0"), and boolean values safely
+        enableLiveTracking:
+          employee.location_tracking_enabled === 1 ||
+          employee.location_tracking_enabled === "1" ||
+          employee.location_tracking_enabled === true,
       });
 
       // Log the form data for debugging
@@ -331,6 +354,100 @@ export default function EmployeeList() {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handlePhoneInputChange = (
+    field: "phone" | "emergencyPhone" | "officePhone",
+    value: string
+  ) => {
+    const rawDigits = value.replace(/\D/g, "");
+    const digitsOnly = sanitizePhoneInput(value);
+    if (rawDigits.length > 10) {
+      showToast.error("Phone number cannot exceed 10 digits");
+    }
+    if (digitsOnly.length > 0 && !/^[6-9]/.test(digitsOnly)) {
+      showToast.error("Phone number must start with 6, 7, 8, or 9");
+      return;
+    }
+    handleFormChange(field, digitsOnly.slice(0, 10));
+  };
+
+  const isOptionalTenDigitPhoneValid = (value?: string) => {
+    if (!value || !value.trim()) return true;
+    return /^[6-9]\d{9}$/.test(value.replace(/\D/g, ""));
+  };
+
+  const handleDigitsOnlyChange = (
+    field: "aadhaar" | "uan" | "esic" | "accountNumber",
+    value: string,
+    maxLength: number
+  ) => {
+    const digits = value.replace(/\D/g, "").slice(0, maxLength);
+    handleFormChange(field, digits);
+  };
+
+  const handleUpperAlphaNumericChange = (
+    field: "pan" | "ifscCode",
+    value: string,
+    maxLength: number
+  ) => {
+    const sanitized = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, maxLength);
+    handleFormChange(field, sanitized);
+  };
+
+  const isValidAadhaar = (value?: string) => !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
+  const isValidPan = (value?: string) =>
+    !value || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(String(value).trim().toUpperCase());
+  const isValidUan = (value?: string) => !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
+  const isValidEsic = (value?: string) => !value || /^\d{10}$/.test(value.replace(/\D/g, ""));
+  const isValidIfsc = (value?: string) =>
+    !value || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(value).trim().toUpperCase());
+  const isValidAccountNumber = (value?: string) => !value || /^\d{9,18}$/.test(value.replace(/\D/g, ""));
+
+  const validateStatutoryAndBank = (): string | null => {
+    if (!isValidAadhaar(formData.aadhaar)) {
+      return "Aadhaar must be exactly 12 digits";
+    }
+    if (!isValidPan(formData.pan)) {
+      return "PAN format is invalid (Example: ABCDE1234F)";
+    }
+    if (!isValidUan(formData.uan)) {
+      return "UAN must be exactly 12 digits";
+    }
+    if (!isValidEsic(formData.esic)) {
+      return "ESIC must be exactly 10 digits";
+    }
+
+    const bankFields = [
+      formData.bankAccountHolder,
+      formData.bankName,
+      formData.accountNumber,
+      formData.ifscCode,
+    ];
+    const isAnyBankFieldFilled = bankFields.some((f) => String(f || "").trim() !== "");
+
+    if (isAnyBankFieldFilled) {
+      if (!String(formData.bankAccountHolder || "").trim()) {
+        return "Account Holder Name is required when bank details are entered";
+      }
+      if (!String(formData.bankName || "").trim()) {
+        return "Bank Name is required when bank details are entered";
+      }
+      if (!String(formData.accountNumber || "").trim()) {
+        return "Account Number is required when bank details are entered";
+      }
+      if (!String(formData.ifscCode || "").trim()) {
+        return "IFSC Code is required when bank details are entered";
+      }
+      if (!isValidAccountNumber(formData.accountNumber)) {
+        return "Account Number must be 9 to 18 digits";
+      }
+      if (!isValidIfsc(formData.ifscCode)) {
+        return "IFSC format is invalid (Example: HDFC0001234)";
+      }
+    }
+
+    return null;
   };
 
   const handleFileUpload = (field: string, event: React.ChangeEvent<HTMLInputElement>) => {
@@ -495,6 +612,26 @@ export default function EmployeeList() {
       showToast.error("First Name and Email are required!");
       return;
     }
+    if (!isValidEmail(formData.email)) {
+      showToast.error("Please enter a valid personal email address");
+      return;
+    }
+    if (formData.officeEmail && !isValidEmail(formData.officeEmail)) {
+      showToast.error("Please enter a valid office email address");
+      return;
+    }
+    if (!isOptionalTenDigitPhoneValid(formData.phone)) {
+      showToast.error("Mobile number must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
+    if (!isOptionalTenDigitPhoneValid(formData.officePhone)) {
+      showToast.error("Office phone must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
+    if (!isOptionalTenDigitPhoneValid(formData.emergencyPhone)) {
+      showToast.error("Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
 
     if (!editingId && !newEmployeeId.trim()) {
       showToast.error("Please enter an Employee ID (e.g., EMP002)");
@@ -508,6 +645,12 @@ export default function EmployeeList() {
 
     if (!formData.shift) {
       showToast.error("Shift is required!");
+      return;
+    }
+
+    const statutoryBankError = validateStatutoryAndBank();
+    if (statutoryBankError) {
+      showToast.error(statutoryBankError);
       return;
     }
 
@@ -530,7 +673,7 @@ export default function EmployeeList() {
       // Basic fields
       formDataToSend.append("first_name", formData.firstName);
       formDataToSend.append("last_name", formData.lastName || "");
-      formDataToSend.append("email", formData.email);
+      formDataToSend.append("email", normalizeEmail(formData.email));
 
       // Ensure dates are sent in YYYY-MM-DD format
       const dojToSend = formData.dateOfJoining ? extractDatePart(formData.dateOfJoining) : "";
@@ -541,7 +684,9 @@ export default function EmployeeList() {
       formDataToSend.append("status", formData.status);
 
       // Optional fields
-      if (formData.phone) formDataToSend.append("mobile", formData.phone);
+      if (formData.phone) formDataToSend.append("mobile", formData.phone.trim());
+      if (formData.officeEmail) formDataToSend.append("office_email", normalizeEmail(formData.officeEmail));
+      if (formData.officePhone) formDataToSend.append("office_phone", formData.officePhone.trim());
       if (formData.dateOfBirth) {
         const dobToSend = extractDatePart(formData.dateOfBirth);
         console.log("Sending DOB:", dobToSend); // Debug
@@ -551,7 +696,7 @@ export default function EmployeeList() {
       if (formData.bloodGroup) formDataToSend.append("blood_group", formData.bloodGroup);
       if (formData.maritalStatus) formDataToSend.append("marital_status", formData.maritalStatus);
       if (formData.emergencyContact) formDataToSend.append("emergency_contact_name", formData.emergencyContact);
-      if (formData.emergencyPhone) formDataToSend.append("emergency_contact_phone", formData.emergencyPhone);
+      if (formData.emergencyPhone) formDataToSend.append("emergency_contact_phone", formData.emergencyPhone.trim());
 
       if (formData.departmentId) formDataToSend.append("department_id", formData.departmentId);
       if (formData.designationId) formDataToSend.append("designation_id", formData.designationId);
@@ -562,16 +707,16 @@ export default function EmployeeList() {
       if (formData.role) formDataToSend.append("role", formData.role);
 
       // Statutory
-      if (formData.aadhaar) formDataToSend.append("aadhaar", formData.aadhaar);
-      if (formData.pan) formDataToSend.append("pan", formData.pan);
-      if (formData.uan) formDataToSend.append("uan", formData.uan);
-      if (formData.esic) formDataToSend.append("esic", formData.esic);
+      if (formData.aadhaar) formDataToSend.append("aadhaar", formData.aadhaar.replace(/\D/g, ""));
+      if (formData.pan) formDataToSend.append("pan", formData.pan.trim().toUpperCase());
+      if (formData.uan) formDataToSend.append("uan", formData.uan.replace(/\D/g, ""));
+      if (formData.esic) formDataToSend.append("esic", formData.esic.replace(/\D/g, ""));
 
       // Bank
       if (formData.bankAccountHolder) formDataToSend.append("account_holder_name", formData.bankAccountHolder);
       if (formData.bankName) formDataToSend.append("bank_name", formData.bankName);
-      if (formData.accountNumber) formDataToSend.append("account_number", formData.accountNumber);
-      if (formData.ifscCode) formDataToSend.append("ifsc_code", formData.ifscCode);
+      if (formData.accountNumber) formDataToSend.append("account_number", formData.accountNumber.replace(/\D/g, ""));
+      if (formData.ifscCode) formDataToSend.append("ifsc_code", formData.ifscCode.trim().toUpperCase());
 
       // Live location tracking
       formDataToSend.append("location_tracking_enabled", formData.enableLiveTracking ? "1" : "0");
@@ -609,6 +754,82 @@ export default function EmployeeList() {
     }
   };
 
+  const validateCurrentTabBeforeNext = (): boolean => {
+    if (activeTab === "personal") {
+      if (!formData.firstName?.trim()) {
+        showToast.error("First Name is required!");
+        return false;
+      }
+      if (!formData.lastName?.trim()) {
+        showToast.error("Last Name is required!");
+        return false;
+      }
+      if (!formData.email?.trim()) {
+        showToast.error("Email is required!");
+        return false;
+      }
+      if (!isValidEmail(formData.email)) {
+        showToast.error("Please enter a valid personal email address");
+        return false;
+      }
+      if (!isOptionalTenDigitPhoneValid(formData.phone)) {
+        showToast.error("Mobile number must be 10 digits and start with 6, 7, 8, or 9");
+        return false;
+      }
+      if (!isOptionalTenDigitPhoneValid(formData.emergencyPhone)) {
+        showToast.error("Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9");
+        return false;
+      }
+      if (!editingId && !newEmployeeId.trim()) {
+        showToast.error("Please enter an Employee ID (e.g., EMP002)");
+        return false;
+      }
+    }
+
+    if (activeTab === "employment") {
+      if (!formData.dateOfJoining) {
+        showToast.error("Date of Joining is required!");
+        return false;
+      }
+      if (!formData.shift) {
+        showToast.error("Shift is required!");
+        return false;
+      }
+      if (formData.officeEmail && !isValidEmail(formData.officeEmail)) {
+        showToast.error("Please enter a valid office email address");
+        return false;
+      }
+      if (!isOptionalTenDigitPhoneValid(formData.officePhone)) {
+        showToast.error("Office phone must be 10 digits and start with 6, 7, 8, or 9");
+        return false;
+      }
+    }
+
+    if (activeTab === "statutory" || activeTab === "bank") {
+      const statutoryBankError = validateStatutoryAndBank();
+      if (statutoryBankError) {
+        showToast.error(statutoryBankError);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleTabChange = (nextTab: string) => {
+    const currentIdx = tabOrder.indexOf(activeTab);
+    const nextIdx = tabOrder.indexOf(nextTab);
+
+    if (nextIdx <= currentIdx) {
+      setActiveTab(nextTab);
+      return;
+    }
+
+    if (validateCurrentTabBeforeNext()) {
+      setActiveTab(nextTab);
+    }
+  };
+
 
 
   const fetchAndTransformEmployees = async () => {
@@ -630,6 +851,8 @@ export default function EmployeeList() {
             lastName: emp.last_name || "",
             email: emp.email || "",
             phone: emp.mobile || "",
+            officePhone: emp.office_phone || "",
+            officeEmail: emp.office_email || "",
             dateOfBirth: (() => {
               if (emp.dob) {
                 console.log("Raw DOB from API:", emp.dob); // Debug
@@ -713,7 +936,7 @@ export default function EmployeeList() {
             bankProofUrl: "",
             createdAt: emp.created_at || new Date().toISOString(),
             updatedAt: emp.updated_at || new Date().toISOString(),
-            location_tracking_enabled: emp.location_tracking_enabled || 0,
+            location_tracking_enabled: isLocationTrackingEnabled(emp.location_tracking_enabled) ? 1 : 0,
           };
 
           console.log(`Transformed employee ${emp.id}:`, {
@@ -749,11 +972,23 @@ export default function EmployeeList() {
   };
 
   const handleDeleteClick = (id: string) => {
+    if (!canDeleteEmployee) {
+      showToast.error("You do not have permission to delete employees");
+      return;
+    }
+
     setEmpToDelete(id);
     setIsDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
+    if (!canDeleteEmployee) {
+      showToast.error("You do not have permission to delete employees");
+      setIsDeleteDialogOpen(false);
+      setEmpToDelete(null);
+      return;
+    }
+
     if (empToDelete) {
       const result = await employeeApi.deleteEmployee(empToDelete);
 
@@ -803,10 +1038,21 @@ export default function EmployeeList() {
           console.warn("No valid designations array in response");
           setDesignations([]);
         }
+
+        const roleResult = await roleApi.getRoles();
+        if (roleResult.data && Array.isArray(roleResult.data)) {
+          const roleNames = roleResult.data
+            .map((role) => role.name?.trim())
+            .filter((name): name is string => Boolean(name));
+          setRoles(Array.from(new Set(roleNames)));
+        } else {
+          setRoles([]);
+        }
       } catch (err) {
         console.error("Error fetching options:", err);
         setDepartments([]);
         setDesignations([]);
+        setRoles([]);
       }
     };
     fetchOptions();
@@ -1014,7 +1260,7 @@ export default function EmployeeList() {
                               : 'N/A'}
                           </td>
                           <td className="px-3 py-3">
-                            {emp.location_tracking_enabled ? (
+                            {isLocationTrackingEnabled(emp.location_tracking_enabled) ? (
                               <span className="text-xs px-2 py-1 rounded-full border inline-flex items-center gap-1 whitespace-nowrap bg-green-100 text-green-800 border-green-200 font-medium">
                                 <MapPin className="w-3 h-3" />
                                 Enabled
@@ -1032,22 +1278,26 @@ export default function EmployeeList() {
                             </span>
                           </td>
                           <td className="px-3 py-3">
-                            {!user?.roles.includes("HR") && (
+                            {(canEditEmployee || canDeleteEmployee) && (
                               <div className="flex gap-1">
-                                <button
-                                  onClick={() => handleOpenDialog(emp)}
-                                  className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick(emp.id)}
-                                  className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
+                                {canEditEmployee && (
+                                  <button
+                                    onClick={() => handleOpenDialog(emp)}
+                                    className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {canDeleteEmployee && (
+                                  <button
+                                    onClick={() => handleDeleteClick(emp.id)}
+                                    className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -1081,22 +1331,26 @@ export default function EmployeeList() {
                             </div>
                           </div>
                         </div>
-                        {!user?.roles.includes("HR") && (
+                        {(canEditEmployee || canDeleteEmployee) && (
                           <div className="flex gap-1 flex-shrink-0">
-                            <button
-                              onClick={() => handleOpenDialog(emp)}
-                              className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
-                              title="Edit"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(emp.id)}
-                              className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            {canEditEmployee && (
+                              <button
+                                onClick={() => handleOpenDialog(emp)}
+                                className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                            )}
+                            {canDeleteEmployee && (
+                              <button
+                                onClick={() => handleDeleteClick(emp.id)}
+                                className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1118,7 +1372,7 @@ export default function EmployeeList() {
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground font-medium block mb-1">Tracking</label>
-                          {emp.location_tracking_enabled ? (
+                          {isLocationTrackingEnabled(emp.location_tracking_enabled) ? (
                             <span className="text-xs px-2 py-1 rounded-full border inline-flex items-center gap-1 whitespace-nowrap bg-green-100 text-green-800 border-green-200 font-medium">
                               <MapPin className="w-3 h-3" />
                               Enabled
@@ -1150,7 +1404,7 @@ export default function EmployeeList() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 h-auto gap-1 md:gap-0 bg-muted p-1">
               <TabsTrigger value="personal" className="text-xs sm:text-sm py-2">
                 <span className="hidden sm:inline">Personal</span>
@@ -1290,8 +1544,11 @@ export default function EmployeeList() {
                   <Label htmlFor="phone">Mobile Number</Label>
                   <Input
                     id="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={formData.phone}
-                    onChange={(e) => handleFormChange("phone", e.target.value)}
+                    onChange={(e) => handlePhoneInputChange("phone", e.target.value)}
                     className="mt-2"
                   />
                 </div>
@@ -1313,8 +1570,11 @@ export default function EmployeeList() {
                     <Label htmlFor="emergencyPhone">Contact Phone</Label>
                     <Input
                       id="emergencyPhone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
                       value={formData.emergencyPhone || ""}
-                      onChange={(e) => handleFormChange("emergencyPhone", e.target.value)}
+                      onChange={(e) => handlePhoneInputChange("emergencyPhone", e.target.value)}
                       className="mt-2"
                     />
                   </div>
@@ -1453,13 +1713,30 @@ export default function EmployeeList() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Input
-                    id="role"
+                  <Select
                     value={formData.role || ""}
-                    onChange={(e) => handleFormChange("role", e.target.value)}
-                    placeholder="e.g., Admin, Manager, User"
-                    className="mt-2"
-                  />
+                    onValueChange={(val) => handleFormChange("role", val)}
+                  >
+                    <SelectTrigger id="role" className="mt-2">
+                      <SelectValue placeholder="Select Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formData.role && !roles.includes(formData.role) && (
+                        <SelectItem value={formData.role}>{formData.role}</SelectItem>
+                      )}
+                      {roles.length > 0 ? (
+                        roles.map((roleName) => (
+                          <SelectItem key={roleName} value={roleName}>
+                            {roleName}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <p className="px-4 py-2 text-sm text-muted-foreground">
+                          No roles available
+                        </p>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="location">Location/Office</Label>
@@ -1467,6 +1744,33 @@ export default function EmployeeList() {
                     id="location"
                     value={formData.location || ""}
                     onChange={(e) => handleFormChange("location", e.target.value)}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="officeEmail">Office Email</Label>
+                  <Input
+                    id="officeEmail"
+                    type="email"
+                    value={formData.officeEmail || ""}
+                    onChange={(e) => handleFormChange("officeEmail", e.target.value)}
+                    placeholder="employee@company.com"
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="officePhone">Office Phone</Label>
+                  <Input
+                    id="officePhone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={formData.officePhone || ""}
+                    onChange={(e) => handlePhoneInputChange("officePhone", e.target.value)}
+                    placeholder="Office extension or direct line"
                     className="mt-2"
                   />
                 </div>
@@ -1518,7 +1822,9 @@ export default function EmployeeList() {
                   <Input
                     id="aadhaar"
                     value={formData.aadhaar || ""}
-                    onChange={(e) => handleFormChange("aadhaar", e.target.value)}
+                    onChange={(e) => handleDigitsOnlyChange("aadhaar", e.target.value, 12)}
+                    inputMode="numeric"
+                    maxLength={12}
                     placeholder="XXXX-XXXX-XXXX"
                     className="mt-2"
                   />
@@ -1528,7 +1834,8 @@ export default function EmployeeList() {
                   <Input
                     id="pan"
                     value={formData.pan || ""}
-                    onChange={(e) => handleFormChange("pan", e.target.value)}
+                    onChange={(e) => handleUpperAlphaNumericChange("pan", e.target.value, 10)}
+                    maxLength={10}
                     placeholder="XXXXX0000X"
                     className="mt-2"
                   />
@@ -1541,7 +1848,9 @@ export default function EmployeeList() {
                   <Input
                     id="uan"
                     value={formData.uan || ""}
-                    onChange={(e) => handleFormChange("uan", e.target.value)}
+                    onChange={(e) => handleDigitsOnlyChange("uan", e.target.value, 12)}
+                    inputMode="numeric"
+                    maxLength={12}
                     placeholder="XXXXXXXXXXXX"
                     className="mt-2"
                   />
@@ -1551,8 +1860,10 @@ export default function EmployeeList() {
                   <Input
                     id="esic"
                     value={formData.esic || ""}
-                    onChange={(e) => handleFormChange("esic", e.target.value)}
-                    placeholder="XXXXXXXXXXXX"
+                    onChange={(e) => handleDigitsOnlyChange("esic", e.target.value, 10)}
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="XXXXXXXXXX"
                     className="mt-2"
                   />
                 </div>
@@ -1588,7 +1899,9 @@ export default function EmployeeList() {
                   <Input
                     id="accountNumber"
                     value={formData.accountNumber || ""}
-                    onChange={(e) => handleFormChange("accountNumber", e.target.value)}
+                    onChange={(e) => handleDigitsOnlyChange("accountNumber", e.target.value, 18)}
+                    inputMode="numeric"
+                    maxLength={18}
                     className="mt-2"
                   />
                 </div>
@@ -1597,7 +1910,8 @@ export default function EmployeeList() {
                   <Input
                     id="ifscCode"
                     value={formData.ifscCode || ""}
-                    onChange={(e) => handleFormChange("ifscCode", e.target.value)}
+                    onChange={(e) => handleUpperAlphaNumericChange("ifscCode", e.target.value, 11)}
+                    maxLength={11}
                     placeholder="XXXXX0000XXX"
                     className="mt-2"
                   />
@@ -1669,9 +1983,11 @@ export default function EmployeeList() {
             {activeTab !== "documents" ? (
               <Button
                 onClick={() => {
-                  const order = ["personal", "employment", "statutory", "bank", "documents"];
-                  const idx = order.indexOf(activeTab);
-                  if (idx >= 0 && idx < order.length - 1) setActiveTab(order[idx + 1]);
+                  const idx = tabOrder.indexOf(activeTab);
+                  if (idx >= 0 && idx < tabOrder.length - 1) {
+                    if (!validateCurrentTabBeforeNext()) return;
+                    setActiveTab(tabOrder[idx + 1]);
+                  }
                 }}
                 className="w-full sm:w-auto"
               >
@@ -1720,4 +2036,3 @@ export default function EmployeeList() {
     </Layout>
   );
 }
-

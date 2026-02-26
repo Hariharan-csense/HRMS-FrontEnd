@@ -11,6 +11,7 @@ import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap, MapPin, Navigation
 import { clientApi, Client, Employee } from "@/components/helper/client/client";
 import { getCurrentLocation, getAddressFromCoordinates } from "@/components/helper/clientAttendance/clientAttendance";
 import { showToast } from "@/utils/toast";
+import { isOptionalPhoneValid, isValidEmail, normalizeEmail } from "@/lib/validation";
 
 export default function ClientAssignment() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -104,13 +105,26 @@ export default function ClientAssignment() {
       showToast.error("Client name is required");
       return;
     }
+    if (formData.email && !isValidEmail(formData.email)) {
+      showToast.error("Please enter a valid email address");
+      return;
+    }
+    if (!isOptionalPhoneValid(formData.phone)) {
+      showToast.error("Phone number must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
 
     try {
       let result;
+      const payload = {
+        ...formData,
+        email: formData.email ? normalizeEmail(formData.email) : "",
+        phone: formData.phone ? formData.phone.trim() : "",
+      };
       if (editingId) {
-        result = await clientApi.updateClient(editingId, formData);
+        result = await clientApi.updateClient(editingId, payload);
       } else {
-        result = await clientApi.createClient(formData);
+        result = await clientApi.createClient(payload);
       }
 
       if (result.data || result.success) {
@@ -342,7 +356,10 @@ export default function ClientAssignment() {
                 <Label>Phone</Label>
                 <Input
                   value={formData.phone || ""}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
                   className="mt-2"
                 />
               </div>

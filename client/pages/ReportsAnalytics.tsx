@@ -336,43 +336,59 @@ if ((header.toLowerCase().includes('amount') ||
       setLoading(true);
       setError(null);
 
-      try {
-        if (reportType === "attendance" || reportType === "finance") {
+      const errors: string[] = [];
+
+      if (reportType === "attendance") {
+        try {
           const response = await reportService.getAttendanceReport();
-          const attendanceResult = response?.data.data;
-          setAttendanceData(attendanceResult.trend || []);
-          setAttendanceSummary(attendanceResult.summary || {});
+          const attendanceResult = response?.data?.data;
+          setAttendanceData(attendanceResult?.trend || []);
+          setAttendanceSummary(attendanceResult?.summary || {});
+        } catch (err: any) {
+          errors.push(err?.response?.data?.message || err?.message || "Attendance report failed");
+          console.error("Attendance report fetch error:", err);
         }
+      }
 
-        if (reportType === "leave" || reportType === "finance") {
+      if (reportType === "finance") {
+        try {
+          const response = await reportService.getExpenseReport();
+          const expenseResult = response?.data?.data;
+          setExpenseData(expenseResult?.summary || []);
+          setExpenseStats(expenseResult?.stats || {});
+        } catch (err: any) {
+          errors.push(err?.response?.data?.message || err?.message || "Expense report failed");
+          console.error("Expense report fetch error:", err);
+        }
+      }
+
+      if (reportType === "leave" || reportType === "finance") {
+        try {
           const response = await reportService.getLeaveReport();
-
-          const leaveResult = response?.data.data;
-          const normalizedLeaves = leaveResult.distribution.map((l) => ({
-            name: l.name,  // Fixed: was l.type
-            value: l.value, // Fixed: was l.count
-            fill: l.fill || "#f43f5e", // Use fill from API if available
+          const leaveResult = response?.data?.data;
+          const normalizedLeaves = (leaveResult?.distribution || []).map((l) => ({
+            name: l.name,
+            value: l.value,
+            fill: l.fill || "#f43f5e",
           }));
-
           setLeaveData(normalizedLeaves);
-          setLeaveSummary(leaveResult.stats);
+          setLeaveSummary(leaveResult?.stats || {});
+        } catch (err: any) {
+          errors.push(err?.response?.data?.message || err?.message || "Leave report failed");
+          console.error("Leave report fetch error:", err);
         }
+      }
 
-        if (reportType === "payroll" || reportType === "finance") {
+      if (reportType === "payroll" || reportType === "finance") {
+        try {
           const response = await reportService.getPayrollReport();
-          console.log("Payroll API Response:", response);
-          console.log("Payroll data:", response?.data);
-          // const payrollResult = response?.data || response;
-          const payrollResult = response?.data?.data ?? response.data;
+          const payrollResult = response?.data?.data ?? response?.data;
           if (payrollResult?.trend) {
-            console.log("Setting payroll trend data:", payrollResult.trend);
             setPayrollData(payrollResult.trend);
           } else if (Array.isArray(payrollResult)) {
-            console.log("Setting payroll data as array:", payrollResult);
             setPayrollData(payrollResult);
           }
           if (payrollResult?.summary) {
-            console.log("Setting payroll summary:", payrollResult.summary);
             setPayrollSummary({
               totalEmployees: payrollResult.summary.totalEmployees,
               avgSalary: payrollResult.summary.avgSalary,
@@ -380,25 +396,29 @@ if ((header.toLowerCase().includes('amount') ||
               ytdAmount: payrollResult.summary.ytdAmount
             });
           }
+        } catch (err: any) {
+          errors.push(err?.response?.data?.message || err?.message || "Payroll report failed");
+          console.error("Payroll report fetch error:", err);
         }
+      }
 
-        if (reportType === "finance") {
+      if (reportType === "finance") {
+        try {
           const response = await reportService.getExpenseReport();
-          console.log("Expense API Response:", response);
-
           const expenseResult = response?.data?.data;
-          console.log("Expense result data:", expenseResult);
-          
-          // Use summary field for distribution data (chart data)
           setExpenseData(expenseResult?.summary || []);
           setExpenseStats(expenseResult?.stats || {});
+        } catch (err: any) {
+          errors.push(err?.response?.data?.message || err?.message || "Expense report failed");
+          console.error("Expense report fetch error:", err);
         }
-      } catch (err) {
-        setError(err.message || "Failed to fetch report data");
-        console.error("Report data fetch error:", err);
-      } finally {
-        setLoading(false);
       }
+
+      if (errors.length > 0) {
+        setError(errors[0]);
+      }
+
+      setLoading(false);
     };
 
     fetchReportData();

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import path from "path";
 import { handleDemo } from "./routes/demo";
 import { BASE_URL } from "../client/lib/endpoint";
 
@@ -11,6 +12,9 @@ export function createServer() {
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // Serve static files from the public directory
+  app.use(express.static(path.join(__dirname, "../public")));
 
   // Proxy API routes to backend
   app.get("/api/role", async (req, res) => {

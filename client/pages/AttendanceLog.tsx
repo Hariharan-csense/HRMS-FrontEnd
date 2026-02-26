@@ -375,6 +375,20 @@ const mockData: AttendanceLogRecord[] = [
   },
 ];
 
+const resolveImageUrl = (imagePath?: string | null) => {
+  if (!imagePath) return "";
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) {
+    return imagePath;
+  }
+
+  try {
+    return new URL(imagePath, BASE_URL).toString();
+  } catch {
+    const normalizedPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+    return `${BASE_URL}${normalizedPath}`;
+  }
+};
+
 export default function AttendanceLog() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -408,6 +422,25 @@ const [overrideFormData, setOverrideFormData] = useState<{
   const [holidaysLoading, setHolidaysLoading] = useState(true);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(true);
+
+  const getEmployeeCode = (employee: any): string => {
+    const directCode =
+      employee?.employee_code ||
+      employee?.employeeCode ||
+      employee?.emp_code ||
+      employee?.empCode;
+
+    if (typeof directCode === "string" && directCode.trim()) {
+      return directCode.trim();
+    }
+
+    if (typeof employee?.employee_id === "string" && employee.employee_id.trim()) {
+      return employee.employee_id.trim();
+    }
+
+    const numericId = Number(employee?.id ?? employee?.employee_id ?? 0);
+    return `EMP${String(Number.isFinite(numericId) ? numericId : 0).padStart(3, "0")}`;
+  };
 
   
   const handleOverride = (recordId: string) => {
@@ -471,7 +504,7 @@ const handleEmployeeClick = (employee: any) => {
   setSelectedEmployee({
     id: employee.id.toString(),
     name: `${employee.first_name} ${employee.last_name || ''}`.trim(),
-    employeeId: employee.employee_code || `EMP${employee.id}`
+    employeeId: getEmployeeCode(employee)
   });
   setViewMode('calendar');
 };
@@ -557,26 +590,48 @@ const fetchAttendanceLogs = async () => {
     
     console.log("Sending user info to backend:", userInfo);
 
-    const result = await attendanceApi.getAttendanceLogs({
+    const pageSize = 100;
+    const firstPage = await attendanceApi.getAttendanceLogs({
       startDate,
       endDate,
+      page: 1,
+      limit: pageSize,
       ...userInfo // Send user info for backend filtering
     });
 
-    console.log("API Result:", result);
-    console.log("API Result data:", result.data);
-    console.log("Type of result.data:", typeof result.data);
-    console.log("Is result.data an array?", Array.isArray(result.data));
+    console.log("API First Page Result:", firstPage);
+    console.log("API First Page data:", firstPage.data);
 
     // Use the data directly from the API response
-    let attendanceData: any[] = [];
-    
-    if (Array.isArray(result.data)) {
-      console.log("Using direct array data from API");
-      attendanceData = result.data;
-    } else {
-      console.log("API result.data is not an array:", result.data);
+    let attendanceData: any[] = Array.isArray(firstPage.data) ? [...firstPage.data] : [];
+    const totalCount = Number(firstPage.total || attendanceData.length || 0);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+    if (totalPages > 1) {
+      const pageRequests: Promise<any>[] = [];
+      for (let page = 2; page <= totalPages; page++) {
+        pageRequests.push(
+          attendanceApi.getAttendanceLogs({
+            startDate,
+            endDate,
+            page,
+            limit: pageSize,
+            ...userInfo
+          })
+        );
+      }
+
+      const pageResponses = await Promise.all(pageRequests);
+      pageResponses.forEach((pageResult: any, index: number) => {
+        if (Array.isArray(pageResult?.data)) {
+          attendanceData = attendanceData.concat(pageResult.data);
+        } else {
+          console.warn(`Attendance page ${index + 2} has no array data`, pageResult);
+        }
+      });
     }
+
+    console.log("Fetched total pages:", totalPages, "Total records:", attendanceData.length);
 
     console.log("Final attendanceData:", attendanceData);
     console.log("attendanceData length:", attendanceData.length);
@@ -627,11 +682,7 @@ const fetchAttendanceLogs = async () => {
 
         // Helper function to construct full image URL
         const getImageUrl = (relativePath: string | null) => {
-          if (!relativePath) return "";
-          // If it's already a full URL (starts with http), return as is
-          if (relativePath.startsWith("http")) return relativePath;
-          // Otherwise, prepend the backend base URL
-          const fullUrl = `${BASE_URL}${relativePath}`;
+          const fullUrl = resolveImageUrl(relativePath);
           console.log("Constructing image URL:", { relativePath, fullUrl });
           return fullUrl;
         };
@@ -696,7 +747,7 @@ const fetchAttendanceLogs = async () => {
 
         return {
           id: item.id.toString(),
-          employeeId: item.employee_code || `EMP${item.employee_id}`,
+          employeeId: getEmployeeCode(item),
           employeeName: `${item.first_name} ${item.last_name || ""}`.trim(),
           date: getDate(item.check_in, item.created_at) || "",
           inTime: formatTime(item.check_in),
@@ -773,7 +824,7 @@ const fetchAttendanceLogs = async () => {
             absentDates.forEach(date => {
               const absentRecord = {
                 id: `absent-${employee.id}-${date}`,
-                employeeId: employee.employee_code || `EMP${employee.id}`,
+                employeeId: getEmployeeCode(employee),
                 employeeName: `${employee.first_name} ${employee.last_name || ""}`.trim(),
                 date: date,
                 inTime: null,
@@ -1230,7 +1281,7 @@ const fetchAttendanceLogs = async () => {
                         {`${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown Employee'}
                       </h3>
                       <p className="text-sm text-gray-500 truncate">
-                        {employee.employee_code || `EMP${employee.id}`}
+                        {getEmployeeCode(employee)}
                       </p>
                       {employee.designation && (
                         <p className="text-xs text-gray-400 truncate">
@@ -1564,7 +1615,8 @@ const fetchAttendanceLogs = async () => {
                             </span>
                             {isHolidayDate && (
                               <div className="text-xs text-gray-400 font-medium">
-                                {isApiHoliday ? holidayName : "WEEKEND"}
+                                <span className="sm:hidden inline-block w-2 h-2 rounded-full bg-gray-400"></span>
+                                <span className="hidden sm:inline">{isApiHoliday ? holidayName : "WEEKEND"}</span>
                               </div>
                             )}
                             {!isHolidayDate && !(hasRecords || isTodayUnmarked) && (
@@ -1584,7 +1636,7 @@ const fetchAttendanceLogs = async () => {
                                     }
                                   })()}
                                 </div>
-                                <div className="text-xs font-medium">
+                                <div className="hidden sm:block text-xs font-medium">
                                   {(() => {
                                     const today = new Date().toISOString().split('T')[0];
                                     if (dateStr < today) {
@@ -1621,7 +1673,7 @@ const fetchAttendanceLogs = async () => {
                                   )}
                                 </div>
                                 {records.length > 1 && (
-                                  <span className="text-xs text-gray-500 font-medium">
+                                  <span className="hidden sm:inline text-xs text-gray-500 font-medium">
                                     {records.length}
                                   </span>
                                 )}
@@ -1680,9 +1732,9 @@ const fetchAttendanceLogs = async () => {
             {/* Modal for date details */}
             {/* Modal for date details - Exact design as per your image */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full mx-2 sm:mx-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
+            <DialogTitle className="text-xl sm:text-2xl font-bold pr-8">
               Attendance - {selectedDate || "Selected Date"}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
@@ -1690,7 +1742,7 @@ const fetchAttendanceLogs = async () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-6">
+          <div className="mt-4 sm:mt-6">
             {selectedDateRecords.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 No attendance records found for this date.
@@ -1712,27 +1764,27 @@ const fetchAttendanceLogs = async () => {
                       });
                       
                       return (
-                        <div key={record.id} className="p-4 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-start justify-between">
+                        <div key={record.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                                 <div>
                                   <h4 className="font-medium text-gray-900">{record.employeeName}</h4>
                                   <p className="text-sm text-gray-500">{record.employeeId}</p>
                                 </div>
-                                <div className="ml-4">
+                                <div className="sm:ml-2">
                                   {getStatusBadge(record.status)}
                                 </div>
                               </div>
-                              <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
-                                <span>Check-in: {record.inTime || "—"}</span>
-                                <span>Check-out: {record.outTime || "—"}</span>
-                                <span>Hours: {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(2)}h` : "—"}</span>
+                              <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap items-start gap-x-3 gap-y-1 text-sm text-gray-600">
+                                <span className="whitespace-nowrap">Check-in: {record.inTime || "—"}</span>
+                                <span className="whitespace-nowrap">Check-out: {record.outTime || "—"}</span>
+                                <span className="whitespace-nowrap">Hours: {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(2)}h` : "—"}</span>
                               </div>
                               
                               {/* Attendance Photos */}
                               <div className="mt-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                   {/* Check-in Photo */}
                                   <div>
                                     <h5 className="text-xs font-medium text-gray-600 mb-2">Check-in Photo</h5>
@@ -1741,7 +1793,7 @@ const fetchAttendanceLogs = async () => {
                                         <img
                                           src={record.imageIn}
                                           alt="Check-in"
-                                          className="w-full h-40 sm:h-48 object-cover rounded border border-gray-200 cursor-pointer"
+                                          className="w-full h-32 sm:h-48 object-cover rounded border border-gray-200 cursor-pointer"
                                           onClick={() => window.open(record.imageIn, '_blank')}
                                           onError={(e) => {
                                             (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E";
@@ -1754,7 +1806,7 @@ const fetchAttendanceLogs = async () => {
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="w-full h-40 sm:h-48 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                      <div className="w-full h-32 sm:h-48 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
                                         <div className="text-center text-gray-400">
                                           <CheckCircle2 className="w-6 h-6 mx-auto mb-1" />
                                           <p className="text-xs">No check-in photo</p>
@@ -1771,7 +1823,7 @@ const fetchAttendanceLogs = async () => {
                                         <img
                                           src={record.imageOut}
                                           alt="Check-out"
-                                          className="w-full h-40 sm:h-48 object-cover rounded border border-gray-200 cursor-pointer"
+                                          className="w-full h-32 sm:h-48 object-cover rounded border border-gray-200 cursor-pointer"
                                           onClick={() => window.open(record.imageOut, '_blank')}
                                           onError={(e) => {
                                             (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E";
@@ -1784,7 +1836,7 @@ const fetchAttendanceLogs = async () => {
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="w-full h-40 sm:h-48 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                      <div className="w-full h-32 sm:h-48 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
                                         <div className="text-center text-gray-400">
                                           <Clock className="w-6 h-6 mx-auto mb-1" />
                                           <p className="text-xs">No check-out photo</p>
@@ -1796,11 +1848,11 @@ const fetchAttendanceLogs = async () => {
                               </div>
                               
                               {/* Additional Info */}
-                              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-600">
+                              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs text-gray-600">
                                 <div>
                                   <span className="font-medium">Device:</span> {record.device}
                                 </div>
-                                <div>
+                                <div className="break-words">
                                   <span className="font-medium">Location:</span> {record.location.address}
                                 </div>
                               </div>
@@ -1813,7 +1865,7 @@ const fetchAttendanceLogs = async () => {
                                 }}
                                 variant="outline"
                                 size="sm"
-                                className="ml-4 mt-1"
+                                className="w-full sm:w-auto ml-0 sm:ml-4 mt-0 sm:mt-1"
                               >
                                 Override
                               </Button>

@@ -12,12 +12,30 @@ export const activityHelper = {
   // Get user activities from API
   getActivities: async (): Promise<ActivityData[]> => {
     try {
+      console.log('ACTIVITY HELPER - Fetching activities...');
       const response = await ENDPOINTS.getActivities();
-      console.log('Activities API response:', response);
-      return response.data.data || [];
+      console.log('ACTIVITY HELPER - Activities response:', response);
+      
+      if (response.data && response.data.success) {
+        console.log('ACTIVITY HELPER - Activities loaded successfully:', {
+          count: response.data.data?.length || 0,
+          activities: response.data.data
+        });
+        return response.data.data || [];
+      } else {
+        console.error('ACTIVITY HELPER - Activities fetch failed:', response.data);
+        toast.error(response.data?.message || "Failed to fetch activities");
+        return [];
+      }
     } catch (error: any) {
-      console.error("Error fetching activities:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch activities");
+      console.error("ACTIVITY HELPER - Error fetching activities:", error);
+      
+      // Enhanced error handling for cross-company access issues
+      if (error.response?.status === 403) {
+        toast.error("Access denied. You don't have permission to access these activities.");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to fetch activities");
+      }
       return [];
     }
   },
@@ -25,6 +43,7 @@ export const activityHelper = {
   // Log a new activity to API
   logActivity: async (action: string, location: string = "Bangalore, India") => {
     try {
+      console.log('ACTIVITY HELPER - Logging activity:', { action, location });
       const now = new Date();
       const activityData = {
         action,
@@ -41,10 +60,18 @@ export const activityHelper = {
       };
 
       const response = await ENDPOINTS.logActivity(activityData);
-      console.log('Activity logged:', response.data);
+      console.log('ACTIVITY HELPER - Activity logged successfully:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error("Error logging activity:", error);
+      console.error("ACTIVITY HELPER - Error logging activity:", error);
+      
+      // Enhanced error handling for cross-company access issues
+      if (error.response?.status === 403) {
+        console.error('ACTIVITY HELPER - Access denied for activity logging');
+      } else if (error.response?.status === 404) {
+        console.error('ACTIVITY HELPER - Employee not found for activity logging');
+      }
+      
       // Don't show toast for activity logging errors to avoid annoying users
       return null;
     }

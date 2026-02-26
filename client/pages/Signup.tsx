@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader, ChevronLeft, Eye, Phone, EyeOff, Check, X, Shield, Users, Building, Mail, Lock, User } from "lucide-react";
 import { registerUser } from "@/components/helper/register";
+import { isOptionalPhoneValid, isValidEmail, normalizeEmail } from "@/lib/validation";
+import { showToast } from "@/utils/toast";
 import logo from "../assets/logo.png";
 
 const signupStyles = `
@@ -262,6 +264,14 @@ export default function Signup() {
       setError("Email address is required");
       return;
     }
+    if (!isValidEmail(formData.email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    if (!isOptionalPhoneValid(formData.phone)) {
+      setError("Phone number must be 10 digits and start with 6, 7, 8, or 9");
+      return;
+    }
     if (!formData.password) {
       setError("Password is required");
       return;
@@ -285,12 +295,12 @@ export default function Signup() {
       // Prepare user data for registration
       const userData = {
         name: formData.name,
-        email: formData.email,
+        email: normalizeEmail(formData.email),
         password: formData.password,
         confirmPassword: formData.confirmPassword,
         companyName: formData.companyName,
         role: formData.role,
-        phone: formData.phone,
+        phone: formData.phone.trim(),
         department: formData.department === "Management" ? "Management" : formData.department,
         // Add any other required fields here
       };
@@ -306,7 +316,7 @@ export default function Signup() {
       if (formData.role === "admin") {
         try {
           // Normalize email (trim + lowercase) to match backend storage
-          const normalizedEmail = formData.email.trim().toLowerCase();
+          const normalizedEmail = normalizeEmail(formData.email);
           await login(normalizedEmail, formData.password, true);
           setSuccess("Admin account created! Redirecting to dashboard...");
           setTimeout(() => {
@@ -343,7 +353,9 @@ export default function Signup() {
       setShowPassword(false);
       setShowConfirmPassword(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create account");
+      const message = err instanceof Error ? err.message : "Failed to create account";
+      setError(message);
+      showToast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -550,7 +562,9 @@ export default function Signup() {
                         <Input
                           id="phone"
                           name="phone"
-                          type="phone"
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
                           placeholder="+91 1234567890"
                           value={formData.phone}
                           onChange={handleInputChange}

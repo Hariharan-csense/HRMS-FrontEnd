@@ -11,6 +11,7 @@ export interface Company {
   payrollCycle: string;
   timezone: string;
   logo?: string;
+  logoFile?: File;
   createdAt: string;
   updatedAt?: string;
 }
@@ -51,7 +52,25 @@ export const companyApi = {
 
   updateCompany: async (id: string, data: Partial<Company>): Promise<{ data?: Company; error?: string }> => {
     try {
-      const response = await ENDPOINTS.updateCompany(id, data);
+      const formData = new FormData();
+      const payload: any = data || {};
+
+      if (payload.name !== undefined) formData.append('name', payload.name);
+      if (payload.legalName !== undefined) formData.append('legalName', payload.legalName);
+      if (payload.gstin !== undefined) formData.append('gstin', payload.gstin);
+      if (payload.industry !== undefined) formData.append('industry', payload.industry);
+      if (payload.timezone !== undefined) formData.append('timezone', payload.timezone);
+      if (payload.payrollCycle !== undefined) formData.append('payrollCycle', payload.payrollCycle);
+      if (payload.address !== undefined) formData.append('address', payload.address);
+
+      // Company logo must be uploaded as multipart file field: "logo"
+      if (payload.logoFile instanceof File) {
+        formData.append('logo', payload.logoFile);
+      }
+
+      const response = await ENDPOINTS.updateCompany(id, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       if (response.data?.success && response.data.company) {
         const companyData = response.data.company;
         return {

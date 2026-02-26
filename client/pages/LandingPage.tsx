@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Users, Calendar, DollarSign, Shield, BarChart, Clock, UserCheck, AlertCircle } from "lucide-react";
+import { ArrowRight, Users, Calendar, DollarSign, Shield, BarChart, Clock, UserCheck, AlertCircle, Camera, Receipt, Scan, Zap } from "lucide-react";
 import ContactPopup from "@/components/ContactPopup";
 import Footer from "@/components/Footer";
 import image from "../assets/image.png";
@@ -36,11 +36,11 @@ const LandingPage = () => {
               {/* <h1 className="text-2xl font-bold text-gray-900">HRMS</h1> */}
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="/" className="text-green-600 font-medium hover:text-green-700 transition-colors">Home</a>
-              <a href="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</a>
-              <a href="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</a>
-              <a href="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</a>
-              <a href="/contact" className="text-gray-700 hover:text-gray-900 transition-colors">Contact</a>
+              <Link to="/" className="text-green-600 font-medium hover:text-green-700 transition-colors">Home</Link>
+              <Link to="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</Link>
+              <Link to="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</Link>
+              <Link to="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</Link>
+              <Link to="/contact" className="text-gray-700 hover:text-gray-900 transition-colors">Contact</Link>
             </nav>
             <Button variant="outline" onClick={handleGetStarted}>
               Sign In
@@ -200,6 +200,141 @@ const LandingPage = () => {
                 target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'%3E%3Crect fill='%23e0f2f7' width='800' height='500'/%3E%3C!-- World Map Background --%3E%3Cpath d='M100 150 Q200 100 300 150 T500 150 Q600 100 700 150' stroke='%2310b981' stroke-width='2' fill='none'/%3E%3Cpath d='M150 250 Q250 200 350 250 T550 250 Q650 200 750 250' stroke='%2310b981' stroke-width='2' fill='none'/%3E%3Cpath d='M100 350 Q200 300 300 350 T500 350 Q600 300 700 350' stroke='%2310b981' stroke-width='2' fill='none'/%3E%3C!-- Location Markers --%3E%3Ccircle cx='250' cy='200' r='8' fill='%2310b981'/%3E%3Ccircle cx='250' cy='200' r='15' fill='%2310b981' opacity='0.3'/%3E%3Ctext x='250' y='180' font-family='Arial' font-size='12' fill='%23065f46' text-anchor='middle'%3EChecked In%3C/text%3E%3Ccircle cx='550' cy='250' r='8' fill='%23ef4444'/%3E%3Ccircle cx='550' cy='250' r='15' fill='%23ef4444' opacity='0.3'/%3E%3Ctext x='550' y='230' font-family='Arial' font-size='12' fill='%23991b1b' text-anchor='middle'%3EChecked Out%3C/text%3E%3Ccircle cx='400' cy='300' r='10' fill='%233b82f6'/%3E%3Crect x='390' y='290' width='20' height='20' fill='%233b82f6' opacity='0.3'/%3E%3Ctext x='400' y='280' font-family='Arial' font-size='12' fill='%231e3a8a' text-anchor='middle'%3EOffice%3C/text%3E%3C!-- Title --%3E%3Ctext x='400' y='50' font-family='Arial' font-size='24' font-weight='bold' fill='%23065f46' text-anchor='middle'%3EReal-Time Location Map%3C/text%3E%3Ctext x='400' y='75' font-family='Arial' font-size='14' fill='%23065f46' text-anchor='middle'%3ELive Employee Tracking%3C/text%3E%3C/svg%3E";
               }}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Expense Claim with Auto-Scan Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Smart Expense Claims</h2>
+            <p className="text-lg text-gray-600">Submit and manage expenses effortlessly with AI-powered auto-scan technology</p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="order-2 md:order-1">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-8 shadow-lg">
+                <div className="flex items-center justify-center mb-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+                      <Scan className="w-10 h-10 text-white" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <Zap className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                </div>
+                
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">Auto-Scan Magic</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                      <Camera className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Snap & Scan</h4>
+                      <p className="text-gray-600 text-sm">Simply photograph your receipt and let AI extract all details automatically</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                      <Receipt className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Smart Data Extraction</h4>
+                      <p className="text-gray-600 text-sm">AI reads merchant, amount, date, and category with 99% accuracy</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                      <Zap className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Instant Processing</h4>
+                      <p className="text-gray-600 text-sm">Get your expense claim ready for approval in seconds, not hours</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 p-4 bg-blue-600 rounded-lg">
+                  <div className="text-center text-white">
+                    <p className="font-semibold text-lg">Try Auto-Scan Now</p>
+                    <p className="text-sm text-blue-100">Experience the future of expense management</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="order-1 md:order-2">
+              <div className="relative">
+                <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200">
+                  <div className="relative w-full" style={{ paddingBottom: '75%' }}>
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                          <Scan className="w-12 h-12 text-white" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">Smart Expense Scanner</h3>
+                        <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                          AI-powered receipt scanning with 99% accuracy
+                        </p>
+                        <div className="flex justify-center space-x-4">
+                          <div className="flex items-center text-green-600">
+                            <Zap className="w-5 h-5 mr-2" />
+                            <span className="font-semibold">Instant</span>
+                          </div>
+                          <div className="flex items-center text-blue-600">
+                            <Camera className="w-5 h-5 mr-2" />
+                            <span className="font-semibold">Auto-Scan</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
+                  <Zap className="w-4 h-4 inline mr-1" />
+                  Instant
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Feature highlights */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+            <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Camera className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Mobile First</h3>
+                <p className="text-gray-600 text-sm">Scan receipts on-the-go with our mobile app</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Zap className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Real-time Processing</h3>
+                <p className="text-gray-600 text-sm">Get instant results with AI-powered analysis</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Receipt className="w-8 h-8 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Smart Categories</h3>
+                <p className="text-gray-600 text-sm">Auto-categorization for better expense tracking</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

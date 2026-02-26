@@ -5,7 +5,6 @@ import ENDPOINTS from "@/lib/endpoint";
 export interface Designation {
   id: string;
   name: string;
-  level: string;         // frontend uses this (display & form)
   createdAt?: string;
 }
 
@@ -19,7 +18,6 @@ export const designationApi = {
         const mapped: Designation[] = response.data.designations.map((d: any) => ({
           id: d.id?.toString() || d._id?.toString() || "",
           name: d.name || "",
-          level: d.level_grade?.toString() || d.level?.toString() || "", // map level_grade → level
           createdAt: d.created_at || d.createdAt,
         }));
         return { data: mapped };
@@ -29,7 +27,6 @@ export const designationApi = {
         const mapped: Designation[] = response.data.map((d: any) => ({
           id: d.id?.toString() || d._id?.toString() || "",
           name: d.name || "",
-          level: d.level_grade?.toString() || d.level?.toString() || "",
           createdAt: d.created_at || d.createdAt,
         }));
         return { data: mapped };
@@ -44,9 +41,9 @@ export const designationApi = {
     }
   },
 
-  // Create designation – backend expects level_grade
+  // Create designation
   createDesignation: async (
-    data: { name: string; level_grade: string }
+    data: { name: string }
   ): Promise<{ data?: Designation; error?: string }> => {
     try {
       const response = await ENDPOINTS.createDesignation(data);
@@ -57,7 +54,6 @@ export const designationApi = {
           data: {
             id: d.id?.toString() || d._id?.toString() || "",
             name: d.name,
-            level: d.level_grade?.toString() || d.level?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };
@@ -69,7 +65,6 @@ export const designationApi = {
           data: {
             id: d.id?.toString() || d._id?.toString() || "",
             name: d.name,
-            level: d.level_grade?.toString() || d.level?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };
@@ -84,10 +79,10 @@ export const designationApi = {
     }
   },
 
-  // Update designation – backend expects level_grade
+  // Update designation
   updateDesignation: async (
     id: string,
-    data: { name: string; level_grade: string }
+    data: { name: string }
   ): Promise<{ data?: Designation; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateDesignation(id, data);
@@ -98,7 +93,6 @@ export const designationApi = {
           data: {
             id: d.id?.toString() || id,
             name: d.name,
-            level: d.level_grade?.toString() || d.level?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };
@@ -110,7 +104,6 @@ export const designationApi = {
           data: {
             id: d.id?.toString() || id,
             name: d.name,
-            level: d.level_grade?.toString() || d.level?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };

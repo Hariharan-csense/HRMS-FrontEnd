@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRole } from '@/context/RoleContext';
 
 interface SalesOnlyRouteProps {
   children: React.ReactNode;
@@ -7,8 +8,9 @@ interface SalesOnlyRouteProps {
 
 const SalesOnlyRoute: React.FC<SalesOnlyRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
+  const { canPerformModuleAction, loading: roleLoading } = useRole();
 
-  if (isLoading) {
+  if (isLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -29,15 +31,14 @@ const SalesOnlyRoute: React.FC<SalesOnlyRouteProps> = ({ children }) => {
     );
   }
 
-  const isSalesDept = user.department?.toLowerCase() === "sales";
-  const hasSalesRole = user.roles?.some(role => role?.toLowerCase() === "sales");
+  const hasSalesModuleAccess = canPerformModuleAction("client_attendance", "view");
 
-  if (!isSalesDept || !hasSalesRole) {
+  if (!hasSalesModuleAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">This page is restricted to Sales department users only.</p>
+          <p className="text-muted-foreground">You do not have permission to access this page.</p>
         </div>
       </div>
     );

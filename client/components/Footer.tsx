@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 const Footer = () => {
   return (
@@ -120,25 +121,25 @@ const Footer = () => {
           <div className="animate-slide-in-left" style={{animationDelay: '0.1s'}}>
             <h4 className="text-lg font-semibold mb-4">Product</h4>
             <ul className="space-y-2 text-gray-600">
-              <li><a href="/features" className="footer-link hover:text-gray-900 transition-colors">Features</a></li>
-              <li><a href="/pricing" className="footer-link hover:text-gray-900 transition-colors">Pricing</a></li>
+              <li><Link to="/features" className="footer-link hover:text-gray-900 transition-colors">Features</Link></li>
+              <li><Link to="/pricing" className="footer-link hover:text-gray-900 transition-colors">Pricing</Link></li>
               {/* <li><a href="/security" className="footer-link hover:text-gray-900 transition-colors">Security</a></li> */}
             </ul>
           </div>
           <div className="animate-slide-in-right" style={{animationDelay: '0.2s'}}>
             <h4 className="text-lg font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-gray-600">
-              <li><a href="/about" className="footer-link hover:text-gray-900 transition-colors">About Us</a></li>
+              <li><Link to="/about" className="footer-link hover:text-gray-900 transition-colors">About Us</Link></li>
               {/* <li><a href="/careers" className="footer-link hover:text-gray-900 transition-colors">Careers</a></li> */}
-              <li><a href="/contact" className="footer-link hover:text-gray-900 transition-colors">Contact</a></li>
+              <li><Link to="/contact" className="footer-link hover:text-gray-900 transition-colors">Contact</Link></li>
             </ul>
           </div>
           <div className="animate-slide-in-right" style={{animationDelay: '0.3s'}}>
             <h4 className="text-lg font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-gray-600">
-              <li><a href="/privacy-policy" className="footer-link hover:text-gray-900 transition-colors">Privacy Policy</a></li>
-              <li><a href="/terms-conditions" className="footer-link hover:text-gray-900 transition-colors">Terms and Conditions</a></li>
-              <li><a href="/refund-cancellation" className="footer-link hover:text-gray-900 transition-colors">Refund and Cancellation Policy</a></li>
+              <li><Link to="/privacy-policy" className="footer-link hover:text-gray-900 transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms-conditions" className="footer-link hover:text-gray-900 transition-colors">Terms and Conditions</Link></li>
+              <li><Link to="/refund-cancellation" className="footer-link hover:text-gray-900 transition-colors">Refund and Cancellation Policy</Link></li>
             </ul>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Mail, Phone, MapPin, Clock, Send, MessageSquare } from "lucide-react";
 import { showToast } from "@/utils/toast";
 import Footer from "@/components/Footer";
+import { isValidEmail, normalizeEmail } from "@/lib/validation";
 import logo from "../assets/logo.png";
 
 const ContactPage = () => {
@@ -40,6 +41,12 @@ const ContactPage = () => {
       return;
     }
 
+    if (!isValidEmail(formData.email)) {
+      showToast.error("Please enter a valid email address");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // Send email via Web3Forms
       const response = await fetch("https://api.web3forms.com/submit", {
@@ -50,7 +57,7 @@ const ContactPage = () => {
         body: JSON.stringify({
           access_key: "878f76fa-32d6-4ba7-8505-d8944891de11",
           name: formData.name.trim(),
-          email: formData.email.trim(),
+          email: normalizeEmail(formData.email),
           company: formData.company.trim(),
           subject: formData.subject.trim(),
           message: formData.message.trim(),

@@ -55,6 +55,8 @@ const TicketManagement: React.FC = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   
   // Form states
@@ -132,6 +134,7 @@ const TicketManagement: React.FC = () => {
   };
 
   const handleCreateTicket = async () => {
+    setIsCreatingTicket(true);
     try {
       const response = await ENDPOINTS.createTicket({
         title: formData.title,
@@ -150,12 +153,15 @@ const TicketManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
+    } finally {
+      setIsCreatingTicket(false);
     }
   };
 
   const handleUpdateTicket = async () => {
     if (!selectedTicket) return;
 
+    setIsUpdatingTicket(true);
     try {
       const updateData: any = {
         title: formData.title,
@@ -197,6 +203,8 @@ const TicketManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Error updating ticket:', error);
+    } finally {
+      setIsUpdatingTicket(false);
     }
   };
 
@@ -544,10 +552,10 @@ const TicketManagement: React.FC = () => {
             </Button>
             <Button 
               onClick={handleCreateTicket} 
-              disabled={!formData.title || !formData.description}
+              disabled={!formData.title || !formData.description || isCreatingTicket}
               className="bg-[#17c491] hover:bg-[#17c491]/90 text-white disabled:opacity-50"
             >
-              Create Ticket
+              {isCreatingTicket ? "Creating..." : "Create Ticket"}
             </Button>
           </div>
         </DialogContent>
@@ -621,10 +629,10 @@ const TicketManagement: React.FC = () => {
             </Button>
             <Button 
               onClick={handleUpdateTicket} 
-              disabled={!formData.title || !formData.description}
+              disabled={!formData.title || !formData.description || isUpdatingTicket}
               className="bg-[#17c491] hover:bg-[#17c491]/90 text-white disabled:opacity-50"
             >
-              Update Ticket
+              {isUpdatingTicket ? "Updating..." : "Update Ticket"}
             </Button>
           </div>
         </DialogContent>

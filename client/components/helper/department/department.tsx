@@ -6,9 +6,9 @@ export interface Department {
   id: string;
   name: string;
   costCenter: string;
-  head: string;         // employee name or ID
-   createdAt?: string;
-  // backend-la extra fields irundha add pannikalam
+  head: string;         // employee name
+  headId?: string;      // employee ID
+  createdAt?: string;
 }
 
 export const departmentApi = {
@@ -23,6 +23,7 @@ export const departmentApi = {
           name: d.name || d.department_name || "",
           costCenter: d.cost_center || d.costCenter || "",
           head: d.head_name || d.head || d.department_head || "",
+          headId: d.head_id?.toString() || "",
           createdAt: d.created_at || d.createdAt,
         }));
         return { data: mapped };
@@ -35,6 +36,7 @@ export const departmentApi = {
           name: d.name || "",
           costCenter: d.cost_center || d.costCenter || "",
           head: d.head_name || d.head || "",
+          headId: d.head_id?.toString() || "",
           createdAt: d.created_at,
         }));
         return { data: mapped };
@@ -53,15 +55,20 @@ export const departmentApi = {
   },
 
 
-createDepartment: async (
+  createDepartment: async (
     deptData: {
       name: string;
       costCenter: string;
-      head?: string;
+      headId?: string;
     }
   ): Promise<{ data?: Department; error?: string }> => {
     try {
-      const response = await ENDPOINTS.createDepartment(deptData);
+      const payload = {
+        name: deptData.name,
+        costCenter: deptData.costCenter,
+        head_id: deptData.headId || null,
+      };
+      const response = await ENDPOINTS.createDepartment(payload);
 
       // Common success patterns
       if (response.data?.success && response.data?.department) {
@@ -71,7 +78,8 @@ createDepartment: async (
             id: d.id?.toString() || d._id?.toString() || "",
             name: d.name,
             costCenter: d.cost_center || d.costCenter,
-            head: d.head || d.department_head,
+            head: d.head_name || d.head || d.department_head || "",
+            headId: d.head_id?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };
@@ -85,7 +93,8 @@ createDepartment: async (
             id: d.id?.toString() || d._id?.toString() || "",
             name: d.name,
             costCenter: d.cost_center || d.costCenter,
-            head: d.head,
+            head: d.head_name || d.head || "",
+            headId: d.head_id?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };
@@ -109,11 +118,16 @@ createDepartment: async (
     deptData: {
       name: string;
       costCenter?: string;  // optional – auto generated so usually not changed
-      head?: string;
+      headId?: string;
     }
   ): Promise<{ data?: Department; error?: string }> => {
     try {
-      const response = await ENDPOINTS.updateDepartment(id, deptData);
+      const payload = {
+        name: deptData.name,
+        costCenter: deptData.costCenter,
+        head_id: deptData.headId || null,
+      };
+      const response = await ENDPOINTS.updateDepartment(id, payload);
 
       if (response.data?.success && response.data?.department) {
         const d = response.data.department;
@@ -122,7 +136,8 @@ createDepartment: async (
             id: d.id?.toString() || id,
             name: d.name,
             costCenter: d.cost_center || d.costCenter,
-            head: d.head || "",
+            head: d.head_name || d.head || "",
+            headId: d.head_id?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };
@@ -136,7 +151,8 @@ createDepartment: async (
             id: d.id?.toString() || id,
             name: d.name,
             costCenter: d.cost_center || d.costCenter,
-            head: d.head || "",
+            head: d.head_name || d.head || "",
+            headId: d.head_id?.toString() || "",
             createdAt: d.created_at || d.createdAt,
           },
         };

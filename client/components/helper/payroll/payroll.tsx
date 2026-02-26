@@ -12,7 +12,11 @@ export interface SalaryStructure {
   incentives: number;
   gross: number;
   pf: number;
+  pfEnabled?: boolean;
+  pfPercentage?: number;
   esi: number;
+  esiEnabled?: boolean;
+  esiPercentage?: number;
   pt: number;
   tds: number;
   otherDeductions: number;
@@ -35,7 +39,11 @@ export const payrollApi = {
           incentives: parseFloat(item.incentives) || 0,
           gross: parseFloat(item.gross) || 0,
           pf: parseFloat(item.pf) || 0,
+          pfEnabled: Boolean(item.pf_enabled ?? (parseFloat(item.pf) || 0) > 0),
+          pfPercentage: parseFloat(item.pf_percentage) || 0,
           esi: parseFloat(item.esi) || 0,
+          esiEnabled: Boolean(item.esi_enabled ?? (parseFloat(item.esi) || 0) > 0),
+          esiPercentage: parseFloat(item.esi_percentage) || 0,
           pt: parseFloat(item.pt) || 0,
           tds: parseFloat(item.tds) || 0,
           otherDeductions: parseFloat(item.other_deductions) || 0,

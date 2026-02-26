@@ -26,6 +26,7 @@ export default function LeaveConfiguration() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load data on component mount
   useEffect(() => {
@@ -88,6 +89,7 @@ export default function LeaveConfiguration() {
       return;
     }
 
+    setIsSaving(true);
     try {
       if (activeTab === "holidays") {
         let result;
@@ -142,6 +144,8 @@ export default function LeaveConfiguration() {
     } catch (error) {
       console.error("Error saving:", error);
       showToast.error("Failed to save. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -521,7 +525,9 @@ export default function LeaveConfiguration() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

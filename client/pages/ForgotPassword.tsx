@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader, ArrowLeft, Mail, CheckCircle, Lock } from "lucide-react";
 import { showToast } from "@/utils/toast";
 import ENDPOINTS from "@/lib/endpoint";
+import { isValidEmail, normalizeEmail } from "@/lib/validation";
 import logo from "../assets/logo.png";
 
 const styles = `
@@ -188,10 +189,17 @@ export default function ForgotPassword() {
       showToast.error("Please enter your email");
       return;
     }
+    if (!isValidEmail(email)) {
+      showToast.error("Please enter a valid email address");
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
 
     setIsLoading(true);
     try {
-      const response = await ENDPOINTS.forgotPassword(email);
+      const response = await ENDPOINTS.forgotPassword(normalizedEmail);
+      setEmail(normalizedEmail);
       
       if (response.data.success) {
         showToast.success("OTP sent to your email!");

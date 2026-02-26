@@ -68,6 +68,8 @@ const HRSettlement: React.FC = () => {
   const [selectedSettlementComponents, setSelectedSettlementComponents] = useState<SettlementComponent[]>([]);
   const [selectedSettlementDocuments, setSelectedSettlementDocuments] = useState<SettlementDocument[]>([]);
   const [newStatus, setNewStatus] = useState('');
+  const [isCreatingSettlement, setIsCreatingSettlement] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [formData, setFormData] = useState({
     employeeId: '',
     resignationDate: '',
@@ -125,6 +127,7 @@ const HRSettlement: React.FC = () => {
   };
 
   const handleCreateSettlement = async () => {
+    setIsCreatingSettlement(true);
     try {
       const response = await ENDPOINTS.createSettlement({
         employeeId: formData.employeeId,
@@ -141,12 +144,15 @@ const HRSettlement: React.FC = () => {
     } catch (error: any) {
       console.error('Error creating settlement:', error);
       toast.error(error.response?.data?.error || 'Failed to create settlement');
+    } finally {
+      setIsCreatingSettlement(false);
     }
   };
 
   const handleStatusUpdate = async () => {
     if (!selectedSettlement) return;
     
+    setIsUpdatingStatus(true);
     try {
       await ENDPOINTS.updateSettlement(selectedSettlement.id, {
         status: newStatus
@@ -171,6 +177,8 @@ const HRSettlement: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating status:', error);
       toast.error(error.response?.data?.error || 'Failed to update status');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -358,8 +366,8 @@ const HRSettlement: React.FC = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
                 />
               </div>
-              <Button onClick={handleCreateSettlement} className="w-full">
-                Create Settlement
+              <Button onClick={handleCreateSettlement} className="w-full" disabled={isCreatingSettlement}>
+                {isCreatingSettlement ? "Creating..." : "Create Settlement"}
               </Button>
             </div>
           </DialogContent>
@@ -528,9 +536,9 @@ const HRSettlement: React.FC = () => {
                             <Button 
                               size="sm"
                               onClick={handleStatusUpdate}
-                              disabled={!newStatus || newStatus === selectedSettlement.status}
+                              disabled={!newStatus || newStatus === selectedSettlement.status || isUpdatingStatus}
                             >
-                              Update
+                              {isUpdatingStatus ? "Updating..." : "Update"}
                             </Button>
                           </div>
                         )}

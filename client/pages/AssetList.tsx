@@ -76,6 +76,7 @@ export default function AssetList() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Filter and search assets
   const filteredAssets = useMemo(() => {
@@ -184,6 +185,8 @@ const handleSave = async () => {
     return;
   }
 
+  setIsSaving(true);
+  try {
   const payload: any = {
     name: formData.name,
     type: formData.type.toUpperCase(), // backend "LAPTOP" expect பண்ணுது
@@ -219,6 +222,12 @@ const handleSave = async () => {
 } else {
   showToast.error(result.error || "Update failed");
 }
+  } catch (error) {
+    console.error("Error saving asset:", error);
+    showToast.error("Failed to save asset");
+  } finally {
+    setIsSaving(false);
+  }
 };
 
 
@@ -629,21 +638,7 @@ const handleSave = async () => {
     disabled={loadingEmployees}
   >
     <SelectTrigger id="assignedEmployee" className="mt-1">
-      <SelectValue placeholder={loadingEmployees ? "Loading employees..." : "Select an employee"}>
-        {formData.assignedEmployee && employees.length > 0
-          ? (() => {
-              const selected = employees.find(
-                (emp: any) => String(emp.id || emp._id) === formData.assignedEmployee
-              );
-              if (selected) {
-                const fullName = `${selected.first_name || selected.firstName || selected.name || ""} ${selected.last_name || selected.lastName || ""}`.trim();
-                const dept = selected.department || selected.dept || selected.department_name || "";
-                return fullName + (dept ? ` (${dept})` : "");
-              }
-              return "Unknown Employee";
-            })()
-          : undefined}
-      </SelectValue>
+      <SelectValue placeholder={loadingEmployees ? "Loading employees..." : "Select an employee"} />
     </SelectTrigger>
     <SelectContent>
       <SelectItem value="none">Unassigned</SelectItem>
@@ -734,8 +729,8 @@ const handleSave = async () => {
     <Button variant="outline" onClick={handleCloseDialog}>
       Cancel
     </Button>
-    <Button onClick={handleSave}>
-      {editingId ? "Update Asset" : "Add Asset"}
+    <Button onClick={handleSave} disabled={isSaving}>
+      {isSaving ? (editingId ? "Updating..." : "Creating...") : editingId ? "Update Asset" : "Add Asset"}
     </Button>
   </div>
 </DialogContent>

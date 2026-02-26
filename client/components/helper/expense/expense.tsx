@@ -20,6 +20,20 @@ export interface Expense {
   // Add other fields as per your backend response
 }
 
+const resolveFileUrl = (path?: string | null): string | undefined => {
+  if (!path) return undefined;
+  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    return path;
+  }
+
+  try {
+    return new URL(path, BASE_URL).toString();
+  } catch {
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${BASE_URL}${normalizedPath}`;
+  }
+};
+
 const expenseApi = {
   /**
    * Get all expenses
@@ -71,7 +85,7 @@ const expenseApi = {
           employeeName: fullName,
           createdAt: e.created_at ?? undefined,
           updatedAt: e.updated_at ?? undefined,
-          receipt_url: e.receipt_url ? `${BASE_URL}${e.receipt_url}` : undefined,
+          receipt_url: resolveFileUrl(e.receipt_url),
           receipt_path: e.receipt_path ?? undefined,
         };
       });
@@ -141,7 +155,7 @@ const expenseApi = {
           employeeName: fullName,
           createdAt: e.created_at ?? undefined,
           updatedAt: e.updated_at ?? undefined,
-          receipt_url: e.receipt_url ? `${BASE_URL}${e.receipt_url}` : undefined,
+          receipt_url: resolveFileUrl(e.receipt_url),
           receipt_path: e.receipt_path ?? undefined,
         };
       });

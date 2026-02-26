@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useRole } from '@/context/RoleContext';
 
@@ -10,6 +10,7 @@ interface HROnlyRouteProps {
 const HROnlyRoute: React.FC<HROnlyRouteProps> = ({ children }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { canPerformModuleAction, loading: roleLoading } = useRole();
+  const location = useLocation();
 
   if (isLoading || roleLoading) {
     return (
@@ -27,17 +28,10 @@ const HROnlyRoute: React.FC<HROnlyRouteProps> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user has HR role or HR module access
-  const hasHRRole = user?.roles?.some(role => 
-    role?.toLowerCase() === 'hr' || 
-    role?.toLowerCase() === 'human resources' ||
-    role?.toLowerCase() === 'hr manager'
-  );
+  const requiredModule = location.pathname.startsWith("/exit/") ? "exit" : "hr_management";
+  const hasModuleAccess = canPerformModuleAction(requiredModule, "view");
 
-  const hasHRModuleAccess = canPerformModuleAction("hr_management", "view");
-
-  // Grant access if user has HR role or HR module access
-  if (hasHRRole || hasHRModuleAccess) {
+  if (hasModuleAccess) {
     return <>{children}</>;
   }
 
@@ -53,8 +47,8 @@ const HROnlyRoute: React.FC<HROnlyRouteProps> = ({ children }) => {
           </div>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-        <p className="text-gray-600 mb-6">You don't have permission to access HR modules.</p>
-        <p className="text-sm text-gray-500 mb-4">This area is restricted to HR personnel only.</p>
+        <p className="text-gray-600 mb-6">You don't have permission to access this page.</p>
+        <p className="text-sm text-gray-500 mb-4">Please contact admin to assign required module access.</p>
         <button
           onClick={() => window.history.back()}
           className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg transition-colors"

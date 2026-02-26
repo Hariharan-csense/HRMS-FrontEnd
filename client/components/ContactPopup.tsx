@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Send, MessageSquare } from "lucide-react";
 import { showToast } from "@/utils/toast";
+import { isOptionalPhoneValid, isValidEmail, normalizeEmail } from "@/lib/validation";
 
 interface ContactPopupProps {
   isOpen: boolean;
@@ -40,6 +41,16 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
       setIsSubmitting(false);
       return;
     }
+    if (!isValidEmail(formData.email)) {
+      showToast.error("Please enter a valid email address");
+      setIsSubmitting(false);
+      return;
+    }
+    if (!isOptionalPhoneValid(formData.phone)) {
+      showToast.error("Phone number must be 10 digits and start with 6, 7, 8, or 9");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       // Send email via Web3Forms
@@ -51,7 +62,7 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
         body: JSON.stringify({
           access_key: "878f76fa-32d6-4ba7-8505-d8944891de11",
           name: formData.name.trim(),
-          email: formData.email.trim(),
+          email: normalizeEmail(formData.email),
           phone: formData.phone.trim(),
           organization: formData.organization.trim(),
           message: formData.message.trim(),
@@ -181,9 +192,11 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
               id="phone"
               name="phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={formData.phone}
               onChange={handleInputChange}
-              placeholder="+91 93609 55005"
+              placeholder="+91 9042894918"
               className="border-gray-200 focus:border-green-500 focus:ring-green-500 transition-all duration-200"
             />
           </div>

@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader, ArrowRight } from "lucide-react";
+import { Loader, ArrowRight, Eye, EyeOff, User } from "lucide-react";
 import { showToast } from '@/utils/toast';  
 import logo from "../assets/logo.png";
+import { profileManager } from "@/lib/profileManager";
+import { isValidEmail, normalizeEmail } from "@/lib/validation";
 const styles = `
   @keyframes fadeInDown {
     from {
@@ -160,14 +162,39 @@ const styles = `
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegisterClicked, setIsRegisterClicked] = useState(false);
   const [pageEntered, setPageEntered] = useState(false);
-  const { login, isLoading } = useAuth();
+  const [savedProfile, setSavedProfile] = useState<any>(null);
+  const { login, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     setPageEntered(true);
+    
+    // Load saved credentials on component mount
+    const savedCredentials = profileManager.getSavedCredentials();
+    const savedPassword = profileManager.getSavedPassword();
+    const savedProfileData = profileManager.getSavedProfile();
+    
+    if (savedCredentials) {
+      setEmail(savedCredentials.email);
+      setRememberMe(savedCredentials.rememberMe);
+      
+      // Auto-fill password if available
+      if (savedPassword) {
+        setPassword(savedPassword);
+        console.log('Loaded saved credentials with password for:', savedCredentials.email.substring(0, 3) + '***');
+      } else {
+        console.log('Loaded saved credentials without password for:', savedCredentials.email.substring(0, 3) + '***');
+      }
+    }
+    
+    if (savedProfileData) {
+      setSavedProfile(savedProfileData);
+      console.log('Loaded saved profile for:', savedProfileData.name || savedProfileData.email);
+    }
   }, []);
 
   const handleRegisterClick = () => {
@@ -178,10 +205,23 @@ export default function Login() {
   };
 const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
+
+  if (!isValidEmail(email)) {
+    showToast.error("Please enter a valid email address.");
+    return;
+  }
   
   try {
-    const result: { success: boolean; message?: string } = await login(email, password, rememberMe);
+    const normalizedEmail = normalizeEmail(email);
+    const result: { success: boolean; message?: string } = await login(normalizedEmail, password, rememberMe);
     if (result.success) {
+      // Save credentials and profile if remember me is checked
+      if (rememberMe) {
+        profileManager.saveCredentials(normalizedEmail, password, true);
+      } else {
+        profileManager.clearSavedCredentials();
+      }
+      
       showToast.success("Login successful! Redirecting...");
       
       // Always redirect to dashboard for successful login
@@ -193,6 +233,38 @@ const handleLogin = async (e: React.FormEvent) => {
     showToast.error("An error occurred during login. Please try again.");
     console.error("Login error:", error);
   }
+};
+
+// Auto-fill function for saved profiles (no auto-login)
+const handleAutoFill = () => {
+  if (!savedProfile || !savedProfile.email) return;
+  
+  try {
+    const savedPassword = profileManager.getSavedPassword();
+    
+    // Fill the form with saved credentials
+    setEmail(savedProfile.email);
+    setRememberMe(true);
+    
+    if (savedPassword) {
+      setPassword(savedPassword);
+      showToast.info(`Welcome back, ${savedProfile.name || savedProfile.email}! Your credentials have been filled. Click Login to continue.`);
+    } else {
+      showToast.info(`Welcome back, ${savedProfile.name || savedProfile.email}! Your email has been filled. Please enter your password to continue.`);
+    }
+  } catch (error) {
+    console.error('Auto-fill error:', error);
+    showToast.error('Failed to fill credentials. Please enter them manually.');
+  }
+};
+
+// Clear saved profile
+const handleClearSavedProfile = () => {
+  profileManager.clearAll();
+  setSavedProfile(null);
+  setEmail("");
+  setRememberMe(false);
+  showToast.success('Saved profile cleared successfully.');
 };
 
     
@@ -241,6 +313,56 @@ const handleLogin = async (e: React.FormEvent) => {
               Enter your email and password to access the system
             </CardDescription>
           </CardHeader>
+          
+          {/* Saved Profile Section */}
+          {savedProfile && (
+            <div className="px-6 pb-4 animate-slide-in" style={{ animationDelay: "0.05s" }}>
+              <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                      {savedProfile.avatar ? (
+                        <img 
+                          src={savedProfile.avatar} 
+                          alt={savedProfile.name || 'User'} 
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-teal-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-800">
+                        {savedProfile.name || savedProfile.email}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {savedProfile.companyName && `${savedProfile.companyName} • `}
+                        Last login: {new Date(savedProfile.lastLogin).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAutoFill}
+                      className="text-teal-600 border-teal-200 hover:bg-teal-50"
+                    >
+                      Fill Form
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSavedProfile}
+                      className="text-slate-500 hover:text-slate-700"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2 animate-slide-in" style={{ animationDelay: "0.1s" }}>
@@ -259,16 +381,30 @@ const handleLogin = async (e: React.FormEvent) => {
 
               <div className="space-y-2 animate-slide-in" style={{ animationDelay: "0.2s" }}>
                 <Label htmlFor="password" className="text-slate-700">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="input-focus border-slate-200 focus:border-primary focus:ring-primary/10 bg-white"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="input-focus border-slate-200 focus:border-primary focus:ring-primary/10 bg-white pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 <div className="flex justify-end pt-1">
                   <button
                     type="button"

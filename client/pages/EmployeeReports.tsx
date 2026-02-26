@@ -674,7 +674,7 @@ export default function EmployeeReports() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-2 block">Department</label>
+                <label className="text-s font-medium mb-1 block">Department</label>
                 <Select value={filterDept} onValueChange={setFilterDept}>
                   <SelectTrigger>
                     <SelectValue placeholder="All departments" />
@@ -833,42 +833,48 @@ export default function EmployeeReports() {
             ) : (
               <>
                 {/* Desktop Table - Hidden on small screens */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <Table>
+                <div className="hidden lg:block w-full overflow-x-auto">
+                  <Table className="min-w-[1200px] [&_th]:!h-auto [&_th]:py-3 [&_th]:!whitespace-nowrap [&_th]:break-normal [&_th]:[word-break:normal] [&_th]:[overflow-wrap:normal] [&_td]:break-normal [&_td]:[word-break:normal] [&_td]:[overflow-wrap:normal] [&_span]:[word-break:normal] [&_span]:[overflow-wrap:normal]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">
+                        <TableHead className="w-12 whitespace-nowrap text-left align-middle">
                           <Checkbox
                             checked={selectedEmployees.size === filteredEmployees.length && filteredEmployees.length > 0}
                             onCheckedChange={handleSelectAllEmployees}
                           />
                         </TableHead>
-                        <TableHead>Employee ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Designation</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Employment Type</TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle">Employee ID</TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle">Name</TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle min-w-[240px]">Email</TableHead>
+                        <TableHead className="text-left align-middle w-[150px] min-w-[150px]">
+                          <span className="inline-block !whitespace-nowrap">Department</span>
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle min-w-[280px]">Designation</TableHead>
+                        <TableHead className="text-left align-middle w-[130px] min-w-[130px]">
+                          <span className="inline-block !whitespace-nowrap">Status</span>
+                        </TableHead>
+                        <TableHead className="text-left align-middle w-[200px] min-w-[200px] pr-8">
+                          <span className="inline-block !whitespace-nowrap">Employment Type</span>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredEmployees.map((employee) => (
                         <TableRow key={employee.id}>
-                          <TableCell>
+                          <TableCell className="align-top">
                             <Checkbox
                               checked={selectedEmployees.has(employee.id)}
                               onCheckedChange={() => handleSelectEmployee(employee.id)}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{employee.employeeId}</TableCell>
-                          <TableCell>{`${employee.firstName} ${employee.lastName}`}</TableCell>
-                          <TableCell>{employee.email}</TableCell>
-                          <TableCell>{employee.department}</TableCell>
-                          <TableCell>{employee.designation}</TableCell>
-                          <TableCell>
+                          <TableCell className="font-medium whitespace-nowrap align-top">{employee.employeeId}</TableCell>
+                          <TableCell className="align-top">{`${employee.firstName} ${employee.lastName}`}</TableCell>
+                          <TableCell className="align-top break-all">{employee.email}</TableCell>
+                          <TableCell className="align-top whitespace-nowrap">{employee.department}</TableCell>
+                          <TableCell className="align-top">{employee.designation}</TableCell>
+                          <TableCell className="align-top w-[130px] min-w-[130px]">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              className={`inline-flex min-w-[88px] justify-center px-2 py-1 rounded-full text-xs font-medium capitalize !whitespace-nowrap break-normal [word-break:normal] [overflow-wrap:normal] ${
                                 employee.status === "active"
                                   ? "bg-green-100 text-green-800"
                                   : employee.status === "inactive"
@@ -881,7 +887,7 @@ export default function EmployeeReports() {
                               {employee.status}
                             </span>
                           </TableCell>
-                          <TableCell>{employee.employmentType}</TableCell>
+                          <TableCell className="align-top capitalize whitespace-nowrap w-[200px] min-w-[200px] pr-8">{employee.employmentType}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/context/RoleContext";
 import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles";
 import { 
   Plus, 
@@ -51,10 +52,13 @@ import {
 } from "lucide-react";
 
 const RoleManagement: React.FC = () => {
+  const { canPerformModuleAction } = useRole();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreatingRole, setIsCreatingRole] = useState(false);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const { toast } = useToast();
 
@@ -91,6 +95,9 @@ const RoleManagement: React.FC = () => {
 
   // Module actions
   const moduleActions = ['create', 'edit', 'view', 'approve', 'reject'];
+  const canCreateRole = canPerformModuleAction("role_access", "create");
+  const canEditRole = canPerformModuleAction("role_access", "edit");
+  const canDeleteRole = canEditRole;
 
   useEffect(() => {
     fetchRoles();
@@ -134,6 +141,16 @@ const RoleManagement: React.FC = () => {
   };
 
   const handleCreateRole = async () => {
+    if (!canCreateRole) {
+      toast({
+        title: "Access Denied",
+        description: "You do not have permission to create roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingRole(true);
     try {
       const roleData = {
         name: formData.name,
@@ -165,12 +182,24 @@ const RoleManagement: React.FC = () => {
         description: "Failed to create role",
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingRole(false);
     }
   };
 
   const handleUpdateRole = async () => {
+    if (!canEditRole) {
+      toast({
+        title: "Access Denied",
+        description: "You do not have permission to edit roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!selectedRole) return;
 
+    setIsUpdatingRole(true);
     try {
       const roleData = {
         name: formData.name,
@@ -202,10 +231,21 @@ const RoleManagement: React.FC = () => {
         description: "Failed to update role",
         variant: "destructive",
       });
+    } finally {
+      setIsUpdatingRole(false);
     }
   };
 
   const handleDeleteRole = async (roleId: string) => {
+    if (!canDeleteRole) {
+      toast({
+        title: "Access Denied",
+        description: "You do not have permission to delete roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this role?')) return;
 
     try {
@@ -233,6 +273,15 @@ const RoleManagement: React.FC = () => {
   };
 
   const openEditDialog = (role: Role) => {
+    if (!canEditRole) {
+      toast({
+        title: "Access Denied",
+        description: "You do not have permission to edit roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedRole(role);
     setFormData({
       name: role.name,
@@ -281,9 +330,15 @@ const RoleManagement: React.FC = () => {
             <p className="text-gray-600 mt-1">Manage roles and permissions</p>
           </div>
           <div className="flex gap-3">
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={(open) => {
+                if (open && !canCreateRole) return;
+                setIsCreateDialogOpen(open);
+              }}
+            >
               <DialogTrigger asChild>
-                <Button onClick={resetForm} className="gap-2">
+                <Button onClick={resetForm} className="gap-2" disabled={!canCreateRole}>
                   <Plus className="h-4 w-4" />
                   Create Role
                 </Button>
@@ -362,7 +417,9 @@ const RoleManagement: React.FC = () => {
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateRole}>Create Role</Button>
+                  <Button onClick={handleCreateRole} disabled={isCreatingRole || !canCreateRole}>
+                    {isCreatingRole ? "Creating..." : "Create Role"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -403,22 +460,26 @@ const RoleManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(role)}
-                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteRole(role.id)}
-                            className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canEditRole && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditDialog(role)}
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDeleteRole && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRole(role.id)}
+                              className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -501,7 +562,9 @@ const RoleManagement: React.FC = () => {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdateRole}>Update Role</Button>
+              <Button onClick={handleUpdateRole} disabled={isUpdatingRole}>
+                {isUpdatingRole ? "Updating..." : "Update Role"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

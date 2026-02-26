@@ -36,6 +36,7 @@ import {
   Loader2
 } from 'lucide-react';
 import ENDPOINTS from '@/lib/endpoint';
+import { isValidEmail, isValidPhone, normalizeEmail } from '@/lib/validation';
 
 interface Candidate {
   id: string;
@@ -153,9 +154,24 @@ const HRRecruitment: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!isValidEmail(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (!isValidPhone(formData.phone)) {
+      setError('Phone number must be 10 digits and start with 6, 7, 8, or 9');
+      return;
+    }
+
     try {
       setSubmitting(true);
-      const result = await ENDPOINTS.addCandidate(formData);
+      const result = await ENDPOINTS.addCandidate({
+        ...formData,
+        email: normalizeEmail(formData.email),
+        phone: formData.phone.trim(),
+      });
       if (result.data) {
         // Refresh the candidate list from server to get the latest data
         await fetchCandidates();
@@ -190,10 +206,24 @@ const HRRecruitment: React.FC = () => {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCandidate) return;
+    setError(null);
+
+    if (!isValidEmail(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (!isValidPhone(formData.phone)) {
+      setError('Phone number must be 10 digits and start with 6, 7, 8, or 9');
+      return;
+    }
     
     try {
       setSubmitting(true);
-      const result = await ENDPOINTS.editCandidate(selectedCandidate.id, formData);
+      const result = await ENDPOINTS.editCandidate(selectedCandidate.id, {
+        ...formData,
+        email: normalizeEmail(formData.email),
+        phone: formData.phone.trim(),
+      });
       if (result.data) {
         // Refresh the candidate list from server to get the latest data
         await fetchCandidates();
@@ -484,8 +514,11 @@ const HRRecruitment: React.FC = () => {
                     <Label htmlFor="phone">Phone</Label>
                     <Input
                       id="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
                       value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                       required
                     />
                   </div>
@@ -669,8 +702,11 @@ const HRRecruitment: React.FC = () => {
                     <Label htmlFor="edit-phone">Phone</Label>
                     <Input
                       id="edit-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
                       value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                       required
                     />
                   </div>

@@ -8,6 +8,7 @@ export type User = {
   companyName: string;
   roles: string[]; // Changed from UserRole[] to string[] for dynamic roles
   department?: string;
+  type?: string; // "admin" | "employee" (based on token)
   avatar?: string;
 };
 

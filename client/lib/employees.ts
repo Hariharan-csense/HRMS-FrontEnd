@@ -89,6 +89,8 @@ export interface Employee {
   lastName: string;
   email: string;
   phone: string;
+  officePhone?: string;
+  officeEmail?: string;
 
   dateOfBirth: string;
   gender: string;

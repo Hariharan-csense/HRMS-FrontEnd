@@ -15,12 +15,13 @@ import { branchApi, Branch } from "@/components/helper/branch/branch";
 import { departmentApi, Department } from "@/components/helper/department/department";
 import { designationApi, Designation } from "@/components/helper/designation/designation";
 import { sequenceApi, Sequence } from "@/components/helper/range/range";
+import { employeeApi, Employee } from "@/components/helper/employee/employee";
 import { showToast } from "@/utils/toast";
 import { BASE_URL } from "@/lib/endpoint";
 
 const toAbsoluteUrl = (value?: string | null): string | undefined => {
   if (!value) return undefined;
-  if (value.startsWith("data:")) return value;
+  if (value.startsWith("data:") || value.startsWith("blob:")) return value;
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
   return `${BASE_URL}${value.startsWith("/") ? value : `/${value}`}`;
 };
@@ -57,15 +58,15 @@ const mockBranches: Branch[] = [
 ];
 
 const mockDepartments: Department[] = [
-  { id: "D001", name: "Engineering", costCenter: "CC001", head: "Sarah Smith" },
-  { id: "D002", name: "Sales", costCenter: "CC002", head: "Emma Wilson" },
-  { id: "D003", name: "HR", costCenter: "CC003", head: "David Brown" },
+  { id: "D001", name: "Engineering", costCenter: "CC001", head: "Sarah Smith", headId: "1" },
+  { id: "D002", name: "Sales", costCenter: "CC002", head: "Emma Wilson", headId: "2" },
+  { id: "D003", name: "HR", costCenter: "CC003", head: "David Brown", headId: "3" },
 ];
 
 const mockDesignations: Designation[] = [
-  { id: "DG001", name: "Junior Developer", level: "1" },
-  { id: "DG002", name: "Senior Developer", level: "2" },
-  { id: "DG003", name: "Manager", level: "3" },
+  { id: "DG001", name: "Junior Developer" },
+  { id: "DG002", name: "Senior Developer" },
+  { id: "DG003", name: "Manager" },
 ];
 
 
@@ -178,6 +179,7 @@ export default function OrganizationSetup() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [sequences, setSequences] = useState<Sequence[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -294,6 +296,23 @@ export default function OrganizationSetup() {
     }
   };
 
+  const fetchEmployees = async () => {
+    setLoading(prev => ({ ...prev, employees: true }));
+    setError(prev => ({ ...prev, employees: '' }));
+    try {
+      const result = await employeeApi.getEmployees();
+      if (result.data) {
+        setEmployees(result.data);
+      } else if (result.error) {
+        setError(prev => ({ ...prev, employees: result.error }));
+      }
+    } catch (err) {
+      setError(prev => ({ ...prev, employees: 'Failed to fetch employees' }));
+    } finally {
+      setLoading(prev => ({ ...prev, employees: false }));
+    }
+  };
+
   // Initial data fetch
   useEffect(() => {
     fetchCompany();
@@ -301,6 +320,7 @@ export default function OrganizationSetup() {
     fetchDepartments();
     fetchDesignations();
     fetchSequences();
+    fetchEmployees();
   }, []);
 
   // Debug formData changes for sequences
@@ -338,6 +358,9 @@ export default function OrganizationSetup() {
 
   // Dialog handlers
   const handleOpenDialog = (item?: any) => {
+    if (activeTab === "departments") {
+      fetchEmployees();
+    }
     if (item) {
       setEditingId(item.id);
       setFormData({ ...item });
@@ -386,8 +409,13 @@ export default function OrganizationSetup() {
           }
         }
       } else if (activeTab === "departments") {
+        const data = {
+          name: formData.name,
+          costCenter: formData.costCenter,
+          headId: formData.headId || undefined
+        };
         if (editingId) {
-          const result = await departmentApi.updateDepartment(editingId, formData);
+          const result = await departmentApi.updateDepartment(editingId, data);
           if (result.data) {
             await fetchDepartments();
           } else if (result.error) {
@@ -395,7 +423,7 @@ export default function OrganizationSetup() {
             return;
           }
         } else {
-          const result = await departmentApi.createDepartment(formData);
+          const result = await departmentApi.createDepartment(data);
           if (result.data) {
             await fetchDepartments();
           } else if (result.error) {
@@ -405,8 +433,7 @@ export default function OrganizationSetup() {
         }
       } else if (activeTab === "designations") {
         const data = {
-          name: formData.name,
-          level_grade: formData.level
+          name: formData.name
         };
         if (editingId) {
           const result = await designationApi.updateDesignation(editingId, data);
@@ -507,11 +534,8 @@ export default function OrganizationSetup() {
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, logo: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      const previewUrl = URL.createObjectURL(file);
+      setFormData({ ...formData, logo: previewUrl, logoFile: file });
     }
   };
 
@@ -719,11 +743,11 @@ export default function OrganizationSetup() {
           <TabsContent value="branches">
             <div className="space-y-4">
               {/* Header Card */}
-              <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100 shadow-sm">
+              <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/30 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 bg-[#17c419] rounded-lg">
+                      <div className="p-3 bg-[#17c491] rounded-lg">
                         <Building2 className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -733,7 +757,7 @@ export default function OrganizationSetup() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c419]">{branches.length}</p>
+                        <p className="text-2xl font-bold text-[#17c491]">{branches.length}</p>
                         <p className="text-xs text-gray-500">Total Branches</p>
                       </div>
                     </div>
@@ -759,12 +783,12 @@ export default function OrganizationSetup() {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-3">
                   {filteredBranches.map((branch) => (
-                    <div key={branch.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-blue-50/50 to-cyan-50/30 hover:shadow-md transition-all duration-200">
+                    <div key={branch.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                              <Building2 className="w-4 h-4 text-[#17c419]" />
+                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                              <Building2 className="w-4 h-4 text-[#17c491]" />
                             </div>
                             <h3 className="font-bold text-base text-gray-900">{branch.name}</h3>
                           </div>
@@ -772,7 +796,7 @@ export default function OrganizationSetup() {
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(branch)}
-                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -792,7 +816,7 @@ export default function OrganizationSetup() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
                             <span className="text-sm font-medium text-gray-500">Coordinates</span>
-                            <span className="font-mono text-xs font-bold text-[#17c419]">{branch.coordinates}</span>
+                            <span className="font-mono text-xs font-bold text-[#17c491]">{branch.coordinates}</span>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
                             <span className="text-sm font-medium text-gray-500">Radius</span>
@@ -811,21 +835,21 @@ export default function OrganizationSetup() {
                   <div className="overflow-x-auto rounded-xl border border-gray-200">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Branch Name</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Address</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Coordinates</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Radius</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
+                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Branch Name</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Address</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Coordinates</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Radius</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredBranches.map((branch, index) => (
-                          <tr key={branch.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                          <tr key={branch.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                                  <Building2 className="w-4 h-4 text-[#17c419]" />
+                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                  <Building2 className="w-4 h-4 text-[#17c491]" />
                                 </div>
                                 <span className="font-semibold text-gray-900">{branch.name}</span>
                               </div>
@@ -834,7 +858,7 @@ export default function OrganizationSetup() {
                               {branch.address}
                             </td>
                             <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419] font-mono">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
                                 {branch.coordinates}
                               </span>
                             </td>
@@ -847,7 +871,7 @@ export default function OrganizationSetup() {
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenDialog(branch)}
-                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                  className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -876,11 +900,11 @@ export default function OrganizationSetup() {
           <TabsContent value="departments">
             <div className="space-y-4">
               {/* Header Card */}
-              <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100 shadow-sm">
+              <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/30 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 bg-[#17c419] rounded-lg">
+                      <div className="p-3 bg-[#17c491] rounded-lg">
                         <Building2 className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -890,7 +914,7 @@ export default function OrganizationSetup() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c419]">{departments.length}</p>
+                        <p className="text-2xl font-bold text-[#17c491]">{departments.length}</p>
                         <p className="text-xs text-gray-500">Total Departments</p>
                       </div>
                     </div>
@@ -920,8 +944,8 @@ export default function OrganizationSetup() {
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                              <Building2 className="w-4 h-4 text-[#17c419]" />
+                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                              <Building2 className="w-4 h-4 text-[#17c491]" />
                             </div>
                             <h3 className="font-bold text-base text-gray-900">{dept.name}</h3>
                           </div>
@@ -929,7 +953,7 @@ export default function OrganizationSetup() {
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(dept)}
-                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -944,7 +968,7 @@ export default function OrganizationSetup() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
                           <span className="text-sm font-medium text-gray-500">Cost Center</span>
-                          <span className="font-bold text-[#17c419]">{dept.costCenter}</span>
+                          <span className="font-bold text-[#17c491]">{dept.costCenter}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
                           <span className="text-sm font-medium text-gray-500">Department Head</span>
@@ -960,26 +984,26 @@ export default function OrganizationSetup() {
                   <div className="overflow-x-auto rounded-xl border border-gray-200">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Department Name</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Cost Center</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Department Head</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
+                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Name</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Cost Center</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Head</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredDepartments.map((dept, index) => (
-                          <tr key={dept.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                          <tr key={dept.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                                  <Building2 className="w-4 h-4 text-[#17c419]" />
+                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                  <Building2 className="w-4 h-4 text-[#17c491]" />
                                 </div>
                                 <span className="font-semibold text-gray-900">{dept.name}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419]">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
                                 {dept.costCenter}
                               </span>
                             </td>
@@ -988,7 +1012,7 @@ export default function OrganizationSetup() {
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenDialog(dept)}
-                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                  className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -1017,11 +1041,11 @@ export default function OrganizationSetup() {
           <TabsContent value="designations">
             <div className="space-y-4">
               {/* Header Card */}
-              <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-100 shadow-sm">
+              <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/30 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 bg-[#17c419] rounded-lg">
+                      <div className="p-3 bg-[#17c491] rounded-lg">
                         <Hash className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -1031,7 +1055,7 @@ export default function OrganizationSetup() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c419]">{designations.length}</p>
+                        <p className="text-2xl font-bold text-[#17c491]">{designations.length}</p>
                         <p className="text-xs text-gray-500">Total Designations</p>
                       </div>
                     </div>
@@ -1045,12 +1069,12 @@ export default function OrganizationSetup() {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-3">
                   {filteredDesignations.map((des) => (
-                    <div key={des.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-purple-50/50 to-indigo-50/30 hover:shadow-md transition-all duration-200">
+                    <div key={des.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                              <Hash className="w-4 h-4 text-[#17c419]" />
+                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                              <Hash className="w-4 h-4 text-[#17c491]" />
                             </div>
                             <h3 className="font-bold text-base text-gray-900">{des.name}</h3>
                           </div>
@@ -1058,7 +1082,7 @@ export default function OrganizationSetup() {
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(des)}
-                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -1071,12 +1095,6 @@ export default function OrganizationSetup() {
                         </div>
                       </div>
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                          <span className="text-sm font-medium text-gray-500">Career Level</span>
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419]">
-                            Level {des.level}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -1087,33 +1105,27 @@ export default function OrganizationSetup() {
                   <div className="overflow-x-auto rounded-xl border border-gray-200">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Designation Name</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Career Level</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
+                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Designation Name</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredDesignations.map((des, index) => (
-                          <tr key={des.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                          <tr key={des.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                                  <Hash className="w-4 h-4 text-[#17c419]" />
+                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                  <Hash className="w-4 h-4 text-[#17c491]" />
                                 </div>
                                 <span className="font-semibold text-gray-900">{des.name}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419]">
-                                Level {des.level}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenDialog(des)}
-                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                  className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -1141,11 +1153,11 @@ export default function OrganizationSetup() {
           <TabsContent value="sequences">
             <div className="space-y-4">
               {/* Header Card */}
-              <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-100 shadow-sm">
+              <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/30 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 bg-[#17c419] rounded-lg">
+                      <div className="p-3 bg-[#17c491] rounded-lg">
                         <Hash className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -1155,7 +1167,7 @@ export default function OrganizationSetup() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c419]">{sequences.length}</p>
+                        <p className="text-2xl font-bold text-[#17c491]">{sequences.length}</p>
                         <p className="text-xs text-gray-500">Active Sequences</p>
                       </div>
                     </div>
@@ -1169,21 +1181,21 @@ export default function OrganizationSetup() {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-3">
                   {filteredSequences.map((seq) => (
-                    <div key={seq.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-orange-50/50 to-amber-50/30 hover:shadow-md transition-all duration-200">
+                    <div key={seq.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                              <Hash className="w-4 h-4 text-[#17c419]" />
+                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                              <Hash className="w-4 h-4 text-[#17c491]" />
                             </div>
                             <h3 className="font-bold text-base text-gray-900 capitalize">{seq.module}</h3>
                           </div>
-                          <p className="text-xs text-gray-500 font-mono">Prefix: <span className="font-bold text-[#17c419]">{seq.prefix}</span></p>
+                          <p className="text-xs text-gray-500 font-mono">Prefix: <span className="font-bold text-[#17c491]">{seq.prefix}</span></p>
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(seq)}
-                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -1197,22 +1209,22 @@ export default function OrganizationSetup() {
                       </div>
                       <div className="space-y-3 bg-white rounded-lg p-3 border border-gray-100">
                         <div className="grid grid-cols-3 gap-2">
-                          <div className="text-center p-2 bg-orange-50 rounded-lg">
+                          <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
                             <p className="text-xs text-gray-500">Start</p>
-                            <p className="font-bold text-[#17c419]">{seq.start_number}</p>
+                            <p className="font-bold text-[#17c491]">{seq.start_number}</p>
                           </div>
-                          <div className="text-center p-2 bg-blue-50 rounded-lg">
+                          <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
                             <p className="text-xs text-gray-500">Current</p>
-                            <p className="font-bold text-blue-600">{seq.current_number}</p>
+                            <p className="font-bold text-[#17c491]">{seq.current_number}</p>
                           </div>
-                          <div className="text-center p-2 bg-green-50 rounded-lg">
+                          <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
                             <p className="text-xs text-gray-500">Length</p>
-                            <p className="font-bold text-green-600">{seq.number_length}</p>
+                            <p className="font-bold text-[#17c491]">{seq.number_length}</p>
                           </div>
                         </div>
                         <div className="border-t pt-3">
                           <p className="text-xs text-gray-500 mb-2">Sample Format:</p>
-                          <div className="bg-[#17c419] text-white p-2 rounded font-mono text-sm text-center">
+                          <div className="bg-[#17c491] text-white p-2 rounded font-mono text-sm text-center">
                             {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
                           </div>
                         </div>
@@ -1226,49 +1238,49 @@ export default function OrganizationSetup() {
                   <div className="overflow-x-auto rounded-xl border border-gray-200">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-gradient-to-r from-[#17c419]/10 to-emerald-50 border-b border-[#17c419]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Module</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Prefix</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Start</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Current</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Length</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c419]">Sample Format</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c419]">Actions</th>
+                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Module</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Prefix</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Start</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Current</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Length</th>
+                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Sample Format</th>
+                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredSequences.map((seq, index) => (
-                          <tr key={seq.id} className={`border-b border-gray-100 hover:bg-[#17c419]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                          <tr key={seq.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c419]/10 rounded-lg">
-                                  <Hash className="w-4 h-4 text-[#17c419]" />
+                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                  <Hash className="w-4 h-4 text-[#17c491]" />
                                 </div>
                                 <span className="font-semibold text-gray-900 capitalize">{seq.module}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c419]/10 text-[#17c419] font-mono">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
                                 {seq.prefix}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c419]/50 text-[#17c419]">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/20 text-[#17c491]">
                                 {seq.start_number}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-blue-50 text-blue-700">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
                                 {seq.current_number}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-green-50 text-green-700">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
                                 {seq.number_length}
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="bg-[#17c419] text-white px-3 py-1 rounded font-mono text-sm text-center">
+                              <div className="bg-[#17c491] text-white px-3 py-1 rounded font-mono text-sm text-center">
                                 {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
                               </div>
                             </td>
@@ -1276,7 +1288,7 @@ export default function OrganizationSetup() {
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenDialog(seq)}
-                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                  className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -1400,7 +1412,7 @@ export default function OrganizationSetup() {
                           }}
                         />
                         <button
-                          onClick={() => setFormData({ ...formData, logo: undefined })}
+                          onClick={() => setFormData({ ...formData, logo: undefined, logoFile: undefined })}
                           className="p-1 hover:bg-red-100 text-red-600 rounded"
                         >
                           <X className="w-4 h-4" />
@@ -1483,15 +1495,23 @@ export default function OrganizationSetup() {
                   />
                 </div>
                 <div>
-                  <Label>Department Head *</Label>
-                  <Select value={formData.head || ""} onValueChange={(val) => setFormData({ ...formData, head: val })}>
+                  <Label>Department Head</Label>
+                  <Select
+                    value={formData.headId?.toString() || ""}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, headId: val === "__none__" ? "" : val })
+                    }
+                  >
                     <SelectTrigger className="mt-2">
                       <SelectValue placeholder="Select employee..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Sarah Smith">Sarah Smith</SelectItem>
-                      <SelectItem value="Emma Wilson">Emma Wilson</SelectItem>
-                      <SelectItem value="David Brown">David Brown</SelectItem>
+                      <SelectItem value="__none__">No department head</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={String(emp.id)}>
+                          {emp.name || `${emp.firstName || ""} ${emp.lastName || ""}`.trim()}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1507,21 +1527,6 @@ export default function OrganizationSetup() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="mt-2"
                   />
-                </div>
-                <div>
-                  <Label>Level/Grade *</Label>
-                  <Select value={formData.level || ""} onValueChange={(val) => setFormData({ ...formData, level: val })}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select level..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Level 1 (Entry)</SelectItem>
-                      <SelectItem value="2">Level 2 (Mid)</SelectItem>
-                      <SelectItem value="3">Level 3 (Senior)</SelectItem>
-                      <SelectItem value="4">Level 4 (Lead)</SelectItem>
-                      <SelectItem value="5">Level 5 (Manager)</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </>
             )}

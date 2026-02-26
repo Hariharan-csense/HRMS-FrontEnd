@@ -53,6 +53,7 @@ import {
   CreateEmployeeData,
   OnboardingStats 
 } from '@/lib/onboardingEndpoints';
+import { isValidEmail, isValidPhone, normalizeEmail } from '@/lib/validation';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 
@@ -93,6 +94,8 @@ const HROnboarding: React.FC = () => {
   });
 
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [taskFormData, setTaskFormData] = useState({
     title: '',
     description: '',
@@ -143,7 +146,18 @@ const HROnboarding: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!isValidEmail(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (!isValidPhone(formData.phone)) {
+      setError('Phone number must be 10 digits and start with 6, 7, 8, or 9');
+      return;
+    }
     
+    setIsCreatingEmployee(true);
     try {
       // Format the date to YYYY-MM-DD format for the backend
       let formattedStartDate = '';
@@ -159,8 +173,8 @@ const HROnboarding: React.FC = () => {
 
       const employeeData: CreateEmployeeData = {
         name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
+        email: normalizeEmail(formData.email),
+        phone: formData.phone.trim(),
         position: formData.position,
         department: formData.department,
         startDate: formattedStartDate,
@@ -187,6 +201,8 @@ const HROnboarding: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create employee');
       console.error('Error creating employee:', err);
+    } finally {
+      setIsCreatingEmployee(false);
     }
   };
 
@@ -201,6 +217,7 @@ const HROnboarding: React.FC = () => {
     
     if (!selectedEmployee) return;
     
+    setIsCreatingTask(true);
     try {
       const taskData = {
         title: taskFormData.title,
@@ -235,6 +252,8 @@ const HROnboarding: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create task');
       console.error('Error creating task:', err);
+    } finally {
+      setIsCreatingTask(false);
     }
   };
 
@@ -636,8 +655,11 @@ const HROnboarding: React.FC = () => {
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                     required
                   />
                 </div>
@@ -696,8 +718,8 @@ const HROnboarding: React.FC = () => {
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  Add Employee
+                <Button type="submit" disabled={isCreatingEmployee}>
+                  {isCreatingEmployee ? "Creating..." : "Add Employee"}
                 </Button>
               </div>
             </form>
@@ -916,8 +938,8 @@ const HROnboarding: React.FC = () => {
                         <Button type="button" variant="outline" onClick={() => setTaskDialogOpen(false)}>
                           Cancel
                         </Button>
-                        <Button type="submit">
-                          Create Task
+                        <Button type="submit" disabled={isCreatingTask}>
+                          {isCreatingTask ? "Creating..." : "Create Task"}
                         </Button>
                       </div>
                     </form>
