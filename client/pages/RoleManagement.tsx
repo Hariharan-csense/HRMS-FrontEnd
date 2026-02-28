@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -24,17 +24,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -43,12 +35,7 @@ import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles
 import { 
   Plus, 
   Edit, 
-  Trash2, 
-  Users, 
-  Shield, 
-  Settings,
-  Eye,
-  EyeOff
+  Trash2
 } from "lucide-react";
 
 const RoleManagement: React.FC = () => {
@@ -65,9 +52,6 @@ const RoleManagement: React.FC = () => {
   // Form states
   const [formData, setFormData] = useState({
     name: '',
-    approval_authority: '',
-    data_visibility: '',
-    description: '',
     modules: {} as { [key: string]: ModulePermission }
   });
 
@@ -154,9 +138,6 @@ const RoleManagement: React.FC = () => {
     try {
       const roleData = {
         name: formData.name,
-        approval_authority: formData.approval_authority,
-        data_visibility: formData.data_visibility,
-        description: formData.description,
         modules: formData.modules
       };
 
@@ -203,9 +184,6 @@ const RoleManagement: React.FC = () => {
     try {
       const roleData = {
         name: formData.name,
-        approval_authority: formData.approval_authority,
-        data_visibility: formData.data_visibility,
-        description: formData.description,
         modules: formData.modules
       };
 
@@ -285,9 +263,6 @@ const RoleManagement: React.FC = () => {
     setSelectedRole(role);
     setFormData({
       name: role.name,
-      approval_authority: role.approval_authority,
-      data_visibility: role.data_visibility,
-      description: role.description || '',
       modules: role.modules
     });
     setIsEditDialogOpen(true);
@@ -296,9 +271,6 @@ const RoleManagement: React.FC = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      approval_authority: '',
-      data_visibility: '',
-      description: '',
       modules: initializeModulePermissions()
     });
     setSelectedRole(null);
@@ -315,6 +287,66 @@ const RoleManagement: React.FC = () => {
         }
       }
     }));
+  };
+
+  const toggleAllPermissions = (enabled: boolean) => {
+    setFormData((prev) => {
+      const updatedModules = { ...prev.modules };
+
+      availableModules.forEach((module) => {
+        updatedModules[module] = {
+          create: enabled ? 1 : 0,
+          edit: enabled ? 1 : 0,
+          view: enabled ? 1 : 0,
+          approve: enabled ? 1 : 0,
+          reject: enabled ? 1 : 0,
+        };
+      });
+
+      return {
+        ...prev,
+        modules: updatedModules,
+      };
+    });
+  };
+
+  const isAllPermissionsEnabled = useMemo(() => {
+    if (availableModules.length === 0) return false;
+
+    return availableModules.every((module) => {
+      const permissions = formData.modules[module];
+      if (!permissions) return false;
+
+      return moduleActions.every((action) => Number(permissions[action as keyof ModulePermission]) === 1);
+    });
+  }, [availableModules, formData.modules]);
+
+  const getEnabledModulesCount = (modules: Record<string, ModulePermission>) => {
+    const normalizeModuleKey = (key: string) =>
+      key.toLowerCase().replace(/[\s_-]+/g, "");
+
+    const validModuleByNormalizedKey = new Map(
+      availableModules.map((module) => [normalizeModuleKey(module), module])
+    );
+
+    const enabledValidModules = new Set<string>();
+
+    Object.entries(modules || {}).forEach(([moduleKey, permission]) => {
+      const canonicalModule = validModuleByNormalizedKey.get(
+        normalizeModuleKey(moduleKey)
+      );
+      if (!canonicalModule) return;
+
+      const hasAnyPermissionEnabled = Object.values(permission || {}).some(
+        (value) => Number(value) === 1
+      );
+
+      if (hasAnyPermissionEnabled) {
+        enabledValidModules.add(canonicalModule);
+      }
+    });
+
+    return enabledValidModules.size;
   };
 
   if (loading) {
@@ -351,48 +383,32 @@ const RoleManagement: React.FC = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Role Name</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="e.g., HR Manager"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="approval_authority">Approval Authority</Label>
-                      <Input
-                        id="approval_authority"
-                        value={formData.approval_authority}
-                        onChange={(e) => setFormData(prev => ({ ...prev, approval_authority: e.target.value }))}
-                        placeholder="e.g., Leave,Expense"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="data_visibility">Data Visibility</Label>
-                      <Input
-                        id="data_visibility"
-                        value={formData.data_visibility}
-                        onChange={(e) => setFormData(prev => ({ ...prev, data_visibility: e.target.value }))}
-                        placeholder="e.g., Department"
-                      />
-                    </div>
-                  </div>
                   <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Role description..."
+                    <Label htmlFor="name">Role Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g., HR Manager"
                     />
                   </div>
                   <div>
                     <Label>Module Permissions</Label>
+                    <div className="flex items-center justify-between rounded-md border p-3 my-3">
+                      <div>
+                        <p className="text-sm font-medium">Overall Permissions</p>
+                        <p className="text-xs text-muted-foreground">
+                          Enable/disable all permissions for all modules in one click
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">{isAllPermissionsEnabled ? "All Enabled" : "Enable All"}</Label>
+                        <Switch
+                          checked={isAllPermissionsEnabled}
+                          onCheckedChange={toggleAllPermissions}
+                        />
+                      </div>
+                    </div>
                     <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
                       {availableModules.map(module => (
                         <div key={module} className="mb-4 pb-4 border-b last:border-b-0">
@@ -417,7 +433,7 @@ const RoleManagement: React.FC = () => {
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateRole} disabled={isCreatingRole || !canCreateRole}>
+                  <Button onClick={handleCreateRole} disabled={isCreatingRole || !canCreateRole || !formData.name.trim()}>
                     {isCreatingRole ? "Creating..." : "Create Role"}
                   </Button>
                 </DialogFooter>
@@ -438,8 +454,6 @@ const RoleManagement: React.FC = () => {
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-[120px] font-semibold text-gray-700">Role ID</TableHead>
                     <TableHead className="font-semibold text-gray-700">Name</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Approval Authority</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Data Visibility</TableHead>
                     <TableHead className="w-[120px] font-semibold text-gray-700">Modules</TableHead>
                     <TableHead className="w-[100px] text-center font-semibold text-gray-700">Actions</TableHead>
                   </TableRow>
@@ -449,12 +463,10 @@ const RoleManagement: React.FC = () => {
                     <TableRow key={role.id} className="hover:bg-gray-50">
                       <TableCell className="font-mono text-sm font-medium">{role.role_id}</TableCell>
                       <TableCell className="font-medium">{role.name}</TableCell>
-                      <TableCell>{role.approval_authority}</TableCell>
-                      <TableCell>{role.data_visibility}</TableCell>
                       <TableCell>
                         <div className="flex justify-center">
                           <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
-                            {Object.keys(role.modules).length} modules
+                            {getEnabledModulesCount(role.modules)} modules
                           </Badge>
                         </div>
                       </TableCell>
@@ -500,44 +512,31 @@ const RoleManagement: React.FC = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-name">Role Name</Label>
-                  <Input
-                    id="edit-name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-approval_authority">Approval Authority</Label>
-                  <Input
-                    id="edit-approval_authority"
-                    value={formData.approval_authority}
-                    onChange={(e) => setFormData(prev => ({ ...prev, approval_authority: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-data_visibility">Data Visibility</Label>
-                  <Input
-                    id="edit-data_visibility"
-                    value={formData.data_visibility}
-                    onChange={(e) => setFormData(prev => ({ ...prev, data_visibility: e.target.value }))}
-                  />
-                </div>
-              </div>
               <div>
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                <Label htmlFor="edit-name">Role Name</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               <div>
                 <Label>Module Permissions</Label>
+                <div className="flex items-center justify-between rounded-md border p-3 my-3">
+                  <div>
+                    <p className="text-sm font-medium">Overall Permissions</p>
+                    <p className="text-xs text-muted-foreground">
+                      Enable/disable all permissions for all modules in one click
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">{isAllPermissionsEnabled ? "All Enabled" : "Enable All"}</Label>
+                    <Switch
+                      checked={isAllPermissionsEnabled}
+                      onCheckedChange={toggleAllPermissions}
+                    />
+                  </div>
+                </div>
                 <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
                   {availableModules.map(module => (
                     <div key={module} className="mb-4 pb-4 border-b last:border-b-0">
@@ -562,7 +561,7 @@ const RoleManagement: React.FC = () => {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdateRole} disabled={isUpdatingRole}>
+              <Button onClick={handleUpdateRole} disabled={isUpdatingRole || !formData.name.trim()}>
                 {isUpdatingRole ? "Updating..." : "Update Role"}
               </Button>
             </DialogFooter>

@@ -395,6 +395,25 @@ export default function EmployeeList() {
     handleFormChange(field, sanitized);
   };
 
+  const handleAlphabeticNameChange = (
+    field: "bankAccountHolder",
+    value: string
+  ) => {
+    const sanitized = value
+      .replace(/[^A-Za-z\s]/g, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/^\s+/, "");
+    handleFormChange(field, sanitized);
+  };
+
+  const handleBankNameChange = (value: string) => {
+    const sanitized = value
+      .replace(/[^A-Za-z\s.&'-]/g, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/^\s+/, "");
+    handleFormChange("bankName", sanitized);
+  };
+
   const isValidAadhaar = (value?: string) => !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
   const isValidPan = (value?: string) =>
     !value || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(String(value).trim().toUpperCase());
@@ -430,8 +449,14 @@ export default function EmployeeList() {
       if (!String(formData.bankAccountHolder || "").trim()) {
         return "Account Holder Name is required when bank details are entered";
       }
+      if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(String(formData.bankAccountHolder || "").trim())) {
+        return "Account Holder Name must contain only alphabets";
+      }
       if (!String(formData.bankName || "").trim()) {
         return "Bank Name is required when bank details are entered";
+      }
+      if (!/^[A-Za-z][A-Za-z\s.&'-]*$/.test(String(formData.bankName || "").trim())) {
+        return "Bank Name must contain only alphabets";
       }
       if (!String(formData.accountNumber || "").trim()) {
         return "Account Number is required when bank details are entered";
@@ -713,7 +738,9 @@ export default function EmployeeList() {
       if (formData.esic) formDataToSend.append("esic", formData.esic.replace(/\D/g, ""));
 
       // Bank
-      if (formData.bankAccountHolder) formDataToSend.append("account_holder_name", formData.bankAccountHolder);
+      if (formData.bankAccountHolder) {
+        formDataToSend.append("account_holder_name", formData.bankAccountHolder.trim());
+      }
       if (formData.bankName) formDataToSend.append("bank_name", formData.bankName);
       if (formData.accountNumber) formDataToSend.append("account_number", formData.accountNumber.replace(/\D/g, ""));
       if (formData.ifscCode) formDataToSend.append("ifsc_code", formData.ifscCode.trim().toUpperCase());
@@ -1878,7 +1905,7 @@ export default function EmployeeList() {
                   <Input
                     id="bankAccountHolder"
                     value={formData.bankAccountHolder || ""}
-                    onChange={(e) => handleFormChange("bankAccountHolder", e.target.value)}
+                    onChange={(e) => handleAlphabeticNameChange("bankAccountHolder", e.target.value)}
                     className="mt-2"
                   />
                 </div>
@@ -1887,7 +1914,7 @@ export default function EmployeeList() {
                   <Input
                     id="bankName"
                     value={formData.bankName || ""}
-                    onChange={(e) => handleFormChange("bankName", e.target.value)}
+                    onChange={(e) => handleBankNameChange(e.target.value)}
                     className="mt-2"
                   />
                 </div>

@@ -224,8 +224,13 @@ const handleLogin = async (e: React.FormEvent) => {
       
       showToast.success("Login successful! Redirecting...");
       
-      // Always redirect to dashboard for successful login
-      navigate("/dashboard");
+      // Redirect based on role
+      const loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
+      const isSuperAdmin =
+        loggedInUser?.roles?.some((role: string) => role?.toLowerCase() === "superadmin") ||
+        loggedInUser?.role?.toLowerCase() === "superadmin";
+
+      navigate(isSuperAdmin ? "/superadmin-dashboard" : "/dashboard");
     } else {
       showToast.error(result.message || "Login failed. Please try again.");
     }
@@ -370,7 +375,7 @@ const handleClearSavedProfile = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="virat@bcci.com"
+                  placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -385,7 +390,7 @@ const handleClearSavedProfile = () => {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required

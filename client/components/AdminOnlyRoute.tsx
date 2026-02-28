@@ -47,6 +47,35 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     ? canPerformModuleAction(moduleForPath, "view")
     : false;
 
+  // Special handling: Admin users should always access Client Attendance Admin
+  const isAdmin = user.roles?.some(role => role?.toLowerCase() === "admin");
+  const isClientAttendanceAdmin = location.pathname.startsWith("/client-attendance-admin");
+
+  // Debug logging
+  if (process.env.NODE_ENV === "development") {
+    console.log("=== ADMIN ROUTE DEBUG ===");
+    console.log("User Info:", {
+      name: user.name,
+      roles: user.roles,
+      email: user.email
+    });
+    console.log("Access Check:", {
+      pathname: location.pathname,
+      moduleForPath,
+      hasAccess,
+      isAdmin,
+      isClientAttendanceAdmin,
+      shouldAllow: (isClientAttendanceAdmin && isAdmin) || hasAccess
+    });
+    console.log("=== END ADMIN ROUTE DEBUG ===");
+  }
+
+  // Allow access if admin accessing Client Attendance Admin OR has module access
+  if ((isClientAttendanceAdmin && isAdmin) || hasAccess) {
+    return <>{children}</>;
+  }
+
+  // Show access denied only if not admin accessing Client Attendance Admin
   if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">

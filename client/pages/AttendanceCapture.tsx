@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ interface AttendanceRecord {
 
 export default function AttendanceCapture() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -538,6 +540,11 @@ export default function AttendanceCapture() {
           toast.success(`${type === "check-in" ? "Checked in" : "Checked out"} successfully!`, {
             description: `Confidence: ${confidence}% | Location: ${location.address}`,
           });
+          
+          // Navigate to dashboard after successful attendance
+          setTimeout(() => {
+            navigate("/dashboard");
+          }, 2000);
         }
       }
     } catch (err: any) {

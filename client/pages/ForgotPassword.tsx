@@ -376,7 +376,7 @@ export default function ForgotPassword() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="admin@company.com"
+                      placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -530,7 +530,7 @@ export default function ForgotPassword() {
 
           {/* Footer */}
           <p className="text-center text-sm text-slate-600 mt-8 animate-fade-in-up">
-            © {new Date().getFullYear()} © {new Date().getFullYear()} Procease HRMS System. All rights reserved.
+             © {new Date().getFullYear()} Procease HRMS System. All rights reserved.
           </p>
         </div>
       </div>

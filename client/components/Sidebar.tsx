@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { handleLogout } from "@/components/helper/login/login";
@@ -157,6 +157,42 @@ const navigationItems: NavItem[] = [
     moduleName: undefined, // Always accessible
   },
   {
+    label: "Quick Actions",
+    icon: <Activity className="w-5 h-5" />,
+    roles: [],
+    moduleName: "quick_actions", // Give it a proper module name
+    submenu: [
+      {
+        label: "Mark Attendance",
+        path: "/attendance/capture",
+        roles: [],
+        icon: <div />,
+        moduleName: "attendance",
+      },
+      {
+        label: "Apply for Leave",
+        path: "/leave/apply",
+        roles: [],
+        icon: <div />,
+        moduleName: "leave",
+      },
+      {
+        label: "View Payslip",
+        path: "/payroll/payslips",
+        roles: [],
+        icon: <div />,
+        moduleName: "payroll",
+      },
+      {
+        label: "Submit Expense Claim",
+        path: "/expenses/claims",
+        roles: [],
+        icon: <div />,
+        moduleName: "expenses",
+      },
+    ],
+  },
+  {
     label: "Organization Setup",
     icon: <Building2 className="w-5 h-5" />,
     roles: [], // Empty roles - access controlled by module permissions
@@ -213,21 +249,7 @@ const navigationItems: NavItem[] = [
     roles: [],
     moduleName: "role_access",
   },
-  {
-    label: "Employee Management",
-    icon: <Users className="w-5 h-5" />,
-    roles: [],
-    moduleName: "employees",
-    submenu: [
-      {
-        label: "Employee List",
-        path: "/employees",
-        roles: [],
-        icon: <div />,
-        moduleName: "employees",
-      },
-    ],
-  },
+  
   {
     label: "RMS & Recruitment",
     icon: <Users className="w-5 h-5" />,
@@ -273,12 +295,26 @@ const navigationItems: NavItem[] = [
     path: "/client-attendance",
   },
   {
+    label: "My Clients",
+    icon: <Building2 className="w-5 h-5" />,
+    roles: [],
+    moduleName: "my_clients",
+    path: "/my-clients",
+  },
+  {
+    label: "My Analytics",
+    icon: <BarChart3 className="w-5 h-5" />,
+    roles: [],
+    moduleName: "my_analytics",
+    path: "/my-analytics",
+  },
+  {
     label: "Client Attendance Admin",
     icon: <MessageSquare className="w-5 h-5" />,
     roles: [],
     moduleName: "client_attendance_admin",
     path: "/client-attendance-admin",
-  },
+  },  
   {
     label: "Attendance Management",
     icon: <Clock className="w-5 h-5" />,
@@ -323,6 +359,25 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
+
+{
+    label: "Employee Management",
+    icon: <Users className="w-5 h-5" />,
+    roles: [],
+    moduleName: "employees",
+    submenu: [
+      {
+        label: "Employee List",
+        path: "/employees",
+        roles: [],
+        icon: <div />,
+        moduleName: "employees",
+      },
+    ],
+  },
+
+
+
   {
     label: "Leave Management",
     icon: <Calendar className="w-5 h-5" />,
@@ -632,17 +687,29 @@ const navigationItems: NavItem[] = [
 ];
 
 export const Sidebar: React.FC = () => {
+  const SIDEBAR_SCROLL_KEY = "hrms.sidebar.scrollTop";
   const location = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(() =>
+    navigationItems
+      .filter(
+        (item) =>
+          item.submenu &&
+          item.submenu.some(
+            (subitem) =>
+              Boolean(subitem.path) && location.pathname.startsWith(subitem.path!)
+          )
+      )
+      .map((item) => item.label)
+  );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
 
-  // Auto-expand menu items based on current route
-  useMemo(() => {
+  // Auto-expand menu items based on current route.
+  useEffect(() => {
     const activeItems: string[] = [];
     
     navigationItems.forEach((item) => {
@@ -657,30 +724,39 @@ export const Sidebar: React.FC = () => {
     });
     
     setExpandedItems(prev => [...new Set([...prev, ...activeItems])]);
-    
-    // Scroll active item into view after a short delay
-    setTimeout(() => {
-      const activeElement = navRef.current?.querySelector('.sidebar-nav-item.active, .sidebar-submenu-item.active');
-      if (activeElement) {
-        activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 100);
   }, [location.pathname]);
 
-  if (!user) return null;
+  // Wire scroll persistence listener once per mount.
+  useEffect(() => {
+    const navElement = navRef.current;
+    if (!navElement) return;
 
-  // Debug: Log user roles and accessible modules
-  if (process.env.NODE_ENV === "development") {
-    console.log("Sidebar Debug - User Info:", {
-      name: user.name,
-      roles: user.roles,
-      email: user.email,
-    });
-    console.log("Sidebar Debug - Access Check:", {
-      hasHRAccess: canPerformModuleAction("hr_management", "view"),
-      roleLoading,
-    });
-  }
+    const handleScroll = () => {
+      window.sessionStorage.setItem(
+        SIDEBAR_SCROLL_KEY,
+        String(navElement.scrollTop)
+      );
+    };
+
+    navElement.addEventListener("scroll", handleScroll, { passive: true });
+    return () => navElement.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Restore scroll after route/expansion updates so it doesn't jump to top.
+  useLayoutEffect(() => {
+    const navElement = navRef.current;
+    if (!navElement) return;
+
+    const savedScrollTop = window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+    if (savedScrollTop === null) return;
+
+    const nextScrollTop = Number(savedScrollTop);
+    if (Number.isNaN(nextScrollTop)) return;
+
+    navElement.scrollTop = nextScrollTop;
+  }, [location.pathname, expandedItems]);
+
+  if (!user) return null;
 
   const toggleExpand = (label: string) => {
     setExpandedItems((prev) =>
@@ -688,7 +764,20 @@ export const Sidebar: React.FC = () => {
     );
   };
 
+  const persistScrollAndHandleNav = () => {
+    if (navRef.current) {
+      window.sessionStorage.setItem(
+        SIDEBAR_SCROLL_KEY,
+        String(navRef.current.scrollTop)
+      );
+    }
+    setIsMobileOpen(false);
+  };
+
   const isSuperAdmin = user.roles?.some((role) => role?.toLowerCase() === "superadmin");
+  const isEmployeeUser =
+    user.type?.toLowerCase() === "employee" ||
+    user.roles?.some((role) => role?.toLowerCase() === "employee");
 
   const allowedModulesForPlan = useMemo(() => {
     if (isSuperAdmin) return null;
@@ -701,6 +790,15 @@ export const Sidebar: React.FC = () => {
 
   // Check if user has access to a navigation item based on module permissions
   const hasItemAccess = (item: NavItem): boolean => {
+    // Simple admin fallback - always show Client Attendance Admin to admin users
+    if (item.moduleName === "client_attendance_admin") {
+      const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
+      if (isAdmin) {
+        console.log("✅ Admin access granted for Client Attendance Admin");
+        return true;
+      }
+    }
+
     // Keep debug page visible for admin users even in strict mode
     if (item.path === "/debug/roles") {
       const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
@@ -780,6 +878,61 @@ export const Sidebar: React.FC = () => {
       return canPerformModuleAction("reports", "view");
     }
 
+    // Special handling for Quick Actions - always show
+    if (item.moduleName === "quick_actions") {
+      return true; // Always show Quick Actions menu
+    }
+
+    // Special handling for Mark Attendance
+    if (item.moduleName === "attendance") {
+      return canPerformModuleAction("attendance", "view");
+    }
+
+    // Special handling for Apply for Leave
+    if (item.moduleName === "leave") {
+      return canPerformModuleAction("leave", "view");
+    }
+
+    // Special handling for View Payslip
+    if (item.moduleName === "payroll") {
+      return canPerformModuleAction("payroll", "view");
+    }
+
+    // Special handling for Submit Expense Claim
+    if (item.moduleName === "expenses") {
+      return canPerformModuleAction("expenses", "view");
+    }
+
+    // Special handling for Client Attendance - check module access
+    if (item.moduleName === "client_attendance") {
+      return canPerformModuleAction("client_attendance", "view");
+    }
+
+    // Special handling for My Clients - check module access
+    if (item.moduleName === "my_clients") {
+      return canPerformModuleAction("my_clients", "view");
+    }
+
+    // Special handling for My Analytics - check module access
+    if (item.moduleName === "my_analytics") {
+      return canPerformModuleAction("my_analytics", "view");
+    }
+
+    // Special handling for Client Attendance Admin - check module access or admin role
+    if (item.moduleName === "client_attendance_admin") {
+      const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
+      // Debug logging
+      if (process.env.NODE_ENV === "development" && item.moduleName === "client_attendance_admin") {
+        console.log("Client Attendance Admin Access Check:", {
+          userRoles: user.roles,
+          isAdmin,
+          hasModuleAccess: canPerformModuleAction("client_attendance_admin", "view"),
+          result: isAdmin || canPerformModuleAction("client_attendance_admin", "view")
+        });
+      }
+      return isAdmin || canPerformModuleAction("client_attendance_admin", "view");
+    }
+
     // For expense approval items, check approve permission
     if (item.label === "Approve Claims" || (item.path && item.path.includes("/expenses/approvals"))) {
       return canPerformModuleAction("expenses", "approve");
@@ -793,7 +946,31 @@ export const Sidebar: React.FC = () => {
     return true;
   };
 
-  const filteredItems = navigationItems.filter((item) => hasItemAccess(item));
+  // Debug: Log user roles and accessible modules (moved after function definition)
+  if (process.env.NODE_ENV === "development") {
+    console.log("=== SIDEBAR DEBUG ===");
+    console.log("User Info:", {
+      name: user.name,
+      roles: user.roles,
+      email: user.email
+    });
+    console.log("All Navigation Items:");
+    navigationItems.forEach(item => {
+      console.log(`- ${item.label}: moduleName=${item.moduleName}, hasAccess=${hasItemAccess(item)}`);
+    });
+    console.log("=== END SIDEBAR DEBUG ===");
+  }
+
+  const superAdminAllowedPaths = new Set([
+    "/dashboard",
+    "/subscription-plans",
+    "/organizations",
+    "/users",
+  ]);
+
+  const filteredItems = isSuperAdmin
+    ? navigationItems.filter((item) => item.path && superAdminAllowedPaths.has(item.path))
+    : navigationItems.filter((item) => hasItemAccess(item));
 
   // Debug: Log filtered items
   if (process.env.NODE_ENV === "development") {
@@ -806,6 +983,7 @@ export const Sidebar: React.FC = () => {
         hasAccess: hasItemAccess(item)
       })),
       userRoles: user.roles,
+      userDepartment: user.department,
       roleLoading,
       userRoleData: userRoles
     });
@@ -818,9 +996,17 @@ export const Sidebar: React.FC = () => {
     const isExpanded = expandedItems.includes(item.label);
     const hasSubmenu = item.submenu && item.submenu.length > 0;
 
-    const filteredSubmenu = hasSubmenu
+    let filteredSubmenu = hasSubmenu
       ? item.submenu.filter((sub) => hasItemAccess(sub as NavItem))
       : [];
+
+    if (item.label === "Pulse Surveys" && isEmployeeUser) {
+      filteredSubmenu = filteredSubmenu.filter(
+        (subitem) =>
+          subitem.path === "/pulse-surveys/my-surveys" ||
+          subitem.path === "/pulse-surveys/feedback"
+      );
+    }
 
     const isItemActive = Boolean(
       item.path && location.pathname.startsWith(item.path)
@@ -866,7 +1052,7 @@ export const Sidebar: React.FC = () => {
                 <Link
                   key={subitem.label}
                   to={subitem.path!}
-                  onClick={() => setIsMobileOpen(false)}
+                  onClick={persistScrollAndHandleNav}
                   className={cn(
                     "sidebar-submenu-item flex items-center gap-3 px-3 py-2 text-xs rounded-md transition-all",
                     subitem.path && location.pathname.startsWith(subitem.path)
@@ -887,7 +1073,7 @@ export const Sidebar: React.FC = () => {
       <Link
         key={item.label}
         to={item.path!}
-        onClick={() => setIsMobileOpen(false)}
+        onClick={persistScrollAndHandleNav}
         className={cn(
           "sidebar-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium",
           isActive

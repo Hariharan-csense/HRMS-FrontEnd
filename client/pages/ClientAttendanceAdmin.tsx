@@ -50,7 +50,7 @@ interface ClientAttendanceRecord {
   client_code: string;
   first_name: string;
   last_name: string;
-  emp_code: string;
+  employee_code: string;
   department_name?: string;
 }
 
@@ -114,7 +114,7 @@ export default function ClientAttendanceAdmin() {
               id: record.employee_id,
               first_name: record.first_name,
               last_name: record.last_name,
-              employee_id: record.emp_code
+              employee_id: record.employee_code
             }]
           )).values()
         );
@@ -373,7 +373,7 @@ export default function ClientAttendanceAdmin() {
                       <td className="px-4 py-3">
                         <div>
                           <p className="font-medium">{record.first_name} {record.last_name}</p>
-                          <p className="text-xs text-muted-foreground">{record.emp_code}</p>
+                          <p className="text-xs text-muted-foreground">{record.employee_code}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -496,7 +496,7 @@ export default function ClientAttendanceAdmin() {
                         <User className="w-4 h-4 text-blue-600" />
                         <span className="font-medium text-sm">{record.first_name} {record.last_name}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground ml-6">{record.emp_code}</p>
+                      <p className="text-xs text-muted-foreground ml-6">{record.employee_code}</p>
                     </div>
 
                     {/* Client Info */}
@@ -616,7 +616,7 @@ export default function ClientAttendanceAdmin() {
                       <span className="font-medium">Employee Information</span>
                     </div>
                     <p className="text-sm"><strong>Name:</strong> {selectedRecord.first_name} {selectedRecord.last_name}</p>
-                    <p className="text-sm"><strong>ID:</strong> {selectedRecord.emp_code}</p>
+                    <p className="text-sm"><strong>ID:</strong> {selectedRecord.employee_code}</p>
                     <p className="text-sm"><strong>Department:</strong> {selectedRecord.department_name}</p>
                   </CardContent>
                 </Card>

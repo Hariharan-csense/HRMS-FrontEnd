@@ -130,7 +130,10 @@ const RootRoute = () => {
 
   if (isAuthenticated) {
     // Redirect superadmin users directly to SuperAdminDashboard
-    if (user?.roles?.includes("superadmin")) {
+    if (
+      user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
+      user?.role?.toLowerCase() === "superadmin"
+    ) {
       return <Navigate to="/superadmin-dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;

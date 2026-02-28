@@ -129,13 +129,21 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
       }
       
       // Extract user data from response
+      const normalizedRolesRaw = Array.isArray(responseData.user?.roles)
+        ? responseData.user.roles
+        : [responseData.user?.role || responseData.role || 'employee'];
+      const normalizedRoles = [...new Set(
+        normalizedRolesRaw
+          .filter(Boolean)
+          .map((r: string) => String(r).toLowerCase())
+      )];
+
       const userData = {
         id: responseData.user?.id || responseData.id,
         name: responseData.user?.name || responseData.name || normalizedEmail.split('@')[0],
         email: responseData.user?.email || normalizedEmail,
-        roles: Array.isArray(responseData.user?.roles) 
-          ? responseData.user.roles 
-          : [responseData.user?.role || responseData.role || 'employee'],
+        role: (responseData.user?.role || responseData.role || normalizedRoles[0] || 'employee').toLowerCase(),
+        roles: normalizedRoles.length ? normalizedRoles : ['employee'],
         companyName: responseData.user?.companyName || responseData.company_name || 'Company',
         department: responseData.user?.department || responseData.department || null,
         type: responseData.user?.type || responseData.type || undefined,

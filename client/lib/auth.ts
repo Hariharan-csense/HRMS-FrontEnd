@@ -7,6 +7,7 @@ export type User = {
   email: string;
   companyName: string;
   roles: string[]; // Changed from UserRole[] to string[] for dynamic roles
+  role?: string;
   department?: string;
   type?: string; // "admin" | "employee" (based on token)
   avatar?: string;
@@ -63,13 +64,19 @@ export const mockUsers: Record<string, { password: string; user: User }> = {
 
 // Helper to check if user has permission
 export const hasRole = (user: User | null, role: string): boolean => {
-  if (!user || !user.roles) return false;
-  return user.roles.includes(role);
+  if (!user) return false;
+  const wanted = role.toLowerCase();
+  const assignedRoles = Array.isArray(user.roles)
+    ? user.roles.map((r) => String(r).toLowerCase())
+    : [];
+
+  if (assignedRoles.includes(wanted)) return true;
+  return (user.role || "").toLowerCase() === wanted;
 };
 
 export const hasAnyRole = (user: User | null, roles: string[]): boolean => {
-  if (!user || !user.roles) return false;
-  return roles.some((role) => user.roles.includes(role));
+  if (!user || !roles?.length) return false;
+  return roles.some((role) => hasRole(user, role));
 };
 
 // Helper to check permissions for specific actions - DEPRECATED

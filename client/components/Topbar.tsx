@@ -43,6 +43,7 @@ export const Topbar: React.FC = () => {
   } = useNotifications();
 
   if (!user) return null;
+  const dashboardPath = hasRole(user, "superadmin") ? "/superadmin-dashboard" : "/dashboard";
 
   const getInitials = (name: string) => {
     return name
@@ -130,9 +131,9 @@ export const Topbar: React.FC = () => {
       {/* Left Section - Dashboard Button */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate(dashboardPath)}
           className={`flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg transition-colors ${
-            location.pathname === "/dashboard"
+            location.pathname === dashboardPath
               ? "bg-teal-100 text-teal-700"
               : "hover:bg-muted text-muted-foreground hover:text-foreground"
           }`}

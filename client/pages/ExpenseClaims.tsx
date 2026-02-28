@@ -1062,7 +1062,9 @@ export default function ExpenseClaims() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto text-xs sm:text-sm">
               Cancel
             </Button>
-            <Button onClick={handleSave} className="w-full sm:w-auto text-xs sm:text-sm">Save</Button>
+            <Button onClick={handleSave} disabled={loading} className="w-full sm:w-auto text-xs sm:text-sm">
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : 'Save'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

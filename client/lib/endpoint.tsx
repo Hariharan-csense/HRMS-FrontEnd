@@ -1,7 +1,7 @@
 // src/components/utils/api.ts
 import axios from "axios";
 
-//Export the base URL for use in other components
+// //Export the base URL for use in other components
 export const BASE_URL = "http://192.168.1.2:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
 const api = axios.create({

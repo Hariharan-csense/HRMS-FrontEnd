@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { BASE_URL } from '@/lib/endpoint';
 import { isValidEmail, normalizeEmail } from '@/lib/validation';
+import { useAuth } from '@/context/AuthContext';
 
 // API service - using the configured base URL from endpoint.tsx
 const api = {
@@ -170,6 +171,15 @@ const api = {
       }
     });
     return response.json();
+  },
+
+  getDepartments: async () => {
+    const response = await fetch(`${BASE_URL}/api/department`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    });
+    return response.json();
   }
 };
 
@@ -201,8 +211,10 @@ interface OfferTemplate {
 }
 
 const HROfferLetters: React.FC = () => {
+  const { user } = useAuth();
   const [offerLetters, setOfferLetters] = useState<OfferLetter[]>([]);
   const [templates, setTemplates] = useState<OfferTemplate[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isAddTemplateDialogOpen, setIsAddTemplateDialogOpen] = useState(false);
@@ -285,9 +297,10 @@ const HROfferLetters: React.FC = () => {
       setError(null);
       
       try {
-        const [offerLettersResponse, templatesResponse] = await Promise.all([
+        const [offerLettersResponse, templatesResponse, departmentsResponse] = await Promise.all([
           api.getOfferLetters(),
-          api.getOfferTemplates()
+          api.getOfferTemplates(),
+          api.getDepartments()
         ]);
 
         if (offerLettersResponse.success) {
@@ -310,12 +323,22 @@ const HROfferLetters: React.FC = () => {
           console.error('Failed to fetch templates:', templatesResponse.message);
           // Don't set error for templates, just log it
         }
+
+        if (departmentsResponse.success && Array.isArray(departmentsResponse.departments)) {
+          const deptNames = departmentsResponse.departments
+            .map((dept: any) => String(dept?.name || '').trim())
+            .filter(Boolean);
+          setDepartments(deptNames);
+        } else {
+          setDepartments([]);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load data. Please try again.');
         // Don't use mock data - show empty state if API fails
         setOfferLetters([]);
         setTemplates([]);
+        setDepartments([]);
       } finally {
         setIsLoading(false);
       }
@@ -323,6 +346,13 @@ const HROfferLetters: React.FC = () => {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!user?.department) return;
+    const userDept = user.department.trim();
+    if (!userDept) return;
+    setDepartments((prev) => (prev.includes(userDept) ? prev : [userDept, ...prev]));
+  }, [user?.department]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1085,12 +1115,9 @@ const HROfferLetters: React.FC = () => {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Engineering">Engineering</SelectItem>
-                    <SelectItem value="Human Resources">Human Resources</SelectItem>
-                    <SelectItem value="Sales">Sales</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Finance">Finance</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

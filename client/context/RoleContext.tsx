@@ -8,6 +8,7 @@ interface ModulePermission {
   create: number;
   edit: number;
   approve: number;
+  reject: number;
 }
 
 interface RoleData {
@@ -51,6 +52,16 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         return;
       }
 
+      // Superadmin does not belong to a single company; skip company-scoped roles API.
+      const isSuperAdmin =
+        user.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
+        user.type?.toLowerCase() === "superadmin";
+      if (isSuperAdmin) {
+        setUserRoles([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await ENDPOINTS.getRoles();
         const data = response.data;
@@ -67,18 +78,20 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
             approval_authority: "Full Authority",
             data_visibility: "All Employees",
             modules: {
-              "employees": { view: 1, create: 1, edit: 1, approve: 1 },
-              "payroll": { view: 1, create: 1, edit: 1, approve: 1 },
-              "attendance": { view: 1, create: 1, edit: 1, approve: 1 },
-              "live_tracking": { view: 1, create: 1, edit: 1, approve: 1 },
-              "leave": { view: 1, create: 1, edit: 1, approve: 1 },
-              "expenses": { view: 1, create: 0, edit: 0, approve: 1 },
-              "assets": { view: 1, create: 1, edit: 1, approve: 1 },
-              "exit": { view: 1, create: 1, edit: 1, approve: 1 },
-              "reports": { view: 1, create: 0, edit: 0, approve: 0 },
-              "organization": { view: 1, create: 1, edit: 1, approve: 1 },
-              "role_access": { view: 1, create: 1, edit: 1, approve: 1 },
-              "shift management": { view: 1, create: 1, edit: 1, approve: 1 }
+              "employees": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "payroll": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "attendance": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "live_tracking": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "leave": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "expenses": { view: 1, create: 0, edit: 0, approve: 1, reject: 1 },
+              "assets": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "exit": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "reports": { view: 1, create: 0, edit: 0, approve: 0, reject: 1 },
+              "organization": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "role_access": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "shift management": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "client_attendance": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
+              "client_attendance_admin": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 }
             },
             description: null,
             created_at: "2025-12-31T04:24:38.000Z",
@@ -111,16 +124,17 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
             approval_authority: "Full Authority",
             data_visibility: "Department Employees",
             modules: {
-              "employees": { view: 1, create: 0, edit: 0, approve: 0 },
-              "payroll": { view: 1, create: 0, edit: 0, approve: 0 },
-              "attendance": { view: 1, create: 1, edit: 0, approve: 0 },
-              "live_tracking": { view: 0, create: 0, edit: 0, approve: 0 },
-              "shift management": { view: 1, create: 0, edit: 0, approve: 0 },
-              "leave": { view: 1, create: 1, edit: 0, approve: 1 },
-              "expenses": { view: 1, create: 0, edit: 0, approve: 0 },
-              "assets": { view: 0, create: 0, edit: 0, approve: 0 },
-              "exit": { view: 1, create: 0, edit: 0, approve: 0 },
-              "reports": { view: 1, create: 0, edit: 0, approve: 0 }
+              "employees": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
+              "payroll": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
+              "attendance": { view: 1, create: 1, edit: 0, approve: 0, reject: 0 },
+              "live_tracking": { view: 0, create: 0, edit: 0, approve: 0, reject: 0 },
+              "shift management": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
+              "leave": { view: 1, create: 1, edit: 0, approve: 1, reject: 0 },
+              "expenses": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
+              "assets": { view: 0, create: 0, edit: 0, approve: 0, reject: 0 },
+              "exit": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
+              "reports": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
+              "role_access": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 }
             },
             description: null,
             created_at: "2025-12-31T05:24:37.000Z",
@@ -162,6 +176,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Check if user has access to a specific module based on their role permissions
   const hasModuleAccess = (module: string): boolean => {
+    const isSuperAdmin =
+      user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
+      user?.type?.toLowerCase() === "superadmin";
+    if (isSuperAdmin) return true;
+
     if (!user?.roles || userRoles.length === 0) return false;
     
     // Debug logging
@@ -205,6 +224,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Check if user can perform a specific action on a module
   const canPerformModuleAction = (module: string, action: string): boolean => {
+    const isSuperAdmin =
+      user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
+      user?.type?.toLowerCase() === "superadmin";
+    if (isSuperAdmin) return true;
+
     if (!user?.roles || userRoles.length === 0) return false;
     
     // Check if any of the user's roles has permission for this action
@@ -231,6 +255,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
           return modulePermission.edit === 1;
         case 'approve':
           return modulePermission.approve === 1;
+        case 'reject':
+          return modulePermission.reject === 1;
         default:
           return false;
       }

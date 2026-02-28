@@ -307,18 +307,6 @@ export default function UserProfile() {
           <div>
             <h1 className="text-3xl font-bold">User Profile</h1>
             <p className="text-muted-foreground mt-2">View and manage your account information</p>
-            {/* Company Info Display */}
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm font-medium text-blue-800">
-                Account: <span className="font-bold">{user?.email}</span>
-              </p>
-              <p className="text-sm text-blue-600">
-                Organization: <span className="font-medium">Company ID: {formData.company_id || 'Unknown'}</span>
-              </p>
-              <p className="text-xs text-blue-500 mt-1">
-                This ensures you're viewing the correct organization's data
-              </p>
-            </div>
           </div>
           <div className="flex gap-2">
             {isEditing ? (

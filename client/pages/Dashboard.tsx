@@ -933,9 +933,12 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
   
-  // Check if user has access to Client Attendance
-  const hasClientAttendanceAccess = canPerformModuleAction("client_attendance", "view") || 
-    user?.roles?.some(role => role?.toLowerCase() === "sales");
+  // Check if user has access to Client Attendance - Sales department only
+  const hasClientAttendanceAccess = user.roles?.some(role => role?.toLowerCase() === "sales") || 
+                                     user.department?.toLowerCase() === "sales";
+
+  // Sales quick links - show for all Sales users
+  const hasSalesQuickLinksAccess = hasClientAttendanceAccess;
   
   // Check if user has HR access
   const hasHRAccess = canPerformModuleAction("hr_management", "view") ||
@@ -955,7 +958,7 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
     ...(hasClientAttendanceAccess ? [
       { label: "Client Attendance", path: "/client-attendance", module: "client_attendance" }
     ] : []),
-    ...(user?.roles?.some(role => role?.toLowerCase() === "sales") ? [
+    ...(hasSalesQuickLinksAccess ? [
       { label: "My Clients", path: "/my-clients", module: "client_attendance" },
       { label: "My Analytics", path: "/my-analytics", module: "client_attendance" },
     ] : []),
@@ -1471,10 +1474,16 @@ export default function Dashboard() {
     setPageLoaded(true);
   }, []);
 
+  const isSuperAdmin = hasRole(user, "superadmin");
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      navigate("/superadmin-dashboard", { replace: true });
+    }
+  }, [isSuperAdmin, navigate]);
+
   const getDashboard = () => {
-    if (hasRole(user, "superadmin")) {
-      // Redirect superadmin to SuperAdminDashboard
-      navigate("/superadmin-dashboard");
+    if (isSuperAdmin) {
       return null;
     } else if (hasRole(user, "admin")) {
       return <AdminDashboard />;
@@ -1500,4 +1509,3 @@ export default function Dashboard() {
     </>
   );
 }
-

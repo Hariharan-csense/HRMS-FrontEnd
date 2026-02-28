@@ -497,7 +497,7 @@ export default function Signup() {
                           id="name"
                           name="name"
                           type="text"
-                          placeholder="John Doe"
+                          placeholder="Your Name"
                           value={formData.name}
                           onChange={handleInputChange}
                           disabled={isLoading}
@@ -518,7 +518,7 @@ export default function Signup() {
                           id="companyName"
                           name="companyName"
                           type="text"
-                          placeholder="Company"
+                          placeholder="Organization Name"
                           value={formData.companyName}
                           onChange={handleInputChange}
                           disabled={isLoading}
@@ -542,7 +542,7 @@ export default function Signup() {
                           id="email"
                           name="email"
                           type="email"
-                          placeholder="you@company.com"
+                          placeholder="Enter your email"
                           value={formData.email}
                           onChange={handleInputChange}
                           disabled={isLoading}
@@ -591,7 +591,7 @@ export default function Signup() {
                           id="password"
                           name="password"
                           type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
+                          placeholder="Enter your password"
                           value={formData.password}
                           onChange={handleInputChange}
                           disabled={isLoading}
@@ -625,7 +625,7 @@ export default function Signup() {
                           id="confirmPassword"
                           name="confirmPassword"
                           type={showConfirmPassword ? "text" : "password"}
-                          placeholder="••••••••"
+                          placeholder="Re-enter your password"
                           value={formData.confirmPassword}
                           onChange={handleInputChange}
                           disabled={isLoading}

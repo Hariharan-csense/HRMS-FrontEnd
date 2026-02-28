@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles";
@@ -26,20 +25,14 @@ import {
   Key,
   Crown,
   Eye,
-  EyeOff,
   Trash2,
-  Copy,
-  Download,
-  Upload
+  Copy
 } from "lucide-react";
 
 interface RoleDebugInfo {
   id: string;
   name: string;
   modules: { [key: string]: ModulePermission };
-  approval_authority: string;
-  data_visibility: string;
-  description?: string;
   created_at?: string;
 }
 
@@ -53,9 +46,6 @@ export default function RoleAccessDebug() {
   const [addingNewRole, setAddingNewRole] = useState(false);
   const [newRoleData, setNewRoleData] = useState<Partial<RoleDebugInfo>>({
     name: '',
-    approval_authority: '',
-    data_visibility: '',
-    description: '',
     modules: {}
   });
 
@@ -134,9 +124,6 @@ export default function RoleAccessDebug() {
 
       const result = await roleApi.createRole({
         name: 'Super Admin',
-        approval_authority: 'Full Authority',
-        data_visibility: 'All Data',
-        description: 'System administrator with full access to all modules',
         modules
       });
 
@@ -157,9 +144,6 @@ export default function RoleAccessDebug() {
   const startAddNewRole = () => {
     setNewRoleData({
       name: '',
-      approval_authority: '',
-      data_visibility: '',
-      description: '',
       modules: initializeModulePermissions()
     });
     setAddingNewRole(true);
@@ -170,9 +154,6 @@ export default function RoleAccessDebug() {
     setAddingNewRole(false);
     setNewRoleData({
       name: '',
-      approval_authority: '',
-      data_visibility: '',
-      description: '',
       modules: {}
     });
   };
@@ -194,9 +175,6 @@ export default function RoleAccessDebug() {
         setAddingNewRole(false);
         setNewRoleData({
           name: '',
-          approval_authority: '',
-          data_visibility: '',
-          description: '',
           modules: {}
         });
       } else {
@@ -229,14 +207,32 @@ export default function RoleAccessDebug() {
     }));
   };
 
+  const toggleAllNewRolePermissions = (enabled: boolean) => {
+    setNewRoleData((prev) => {
+      const updatedModules: { [key: string]: ModulePermission } = { ...(prev.modules || {}) };
+
+      availableModules.forEach((module) => {
+        updatedModules[module] = {
+          create: enabled ? 1 : 0,
+          edit: enabled ? 1 : 0,
+          view: enabled ? 1 : 0,
+          approve: enabled ? 1 : 0,
+          reject: enabled ? 1 : 0,
+        };
+      });
+
+      return {
+        ...prev,
+        modules: updatedModules,
+      };
+    });
+  };
+
   // Start editing role
   const startEditRole = (role: RoleDebugInfo) => {
     setEditingRole(role.id);
     setEditFormData({
       name: role.name,
-      approval_authority: role.approval_authority,
-      data_visibility: role.data_visibility,
-      description: role.description,
       modules: { ...role.modules }
     });
   };
@@ -293,6 +289,45 @@ export default function RoleAccessDebug() {
     }));
   };
 
+  const toggleAllEditRolePermissions = (enabled: boolean) => {
+    setEditFormData((prev) => {
+      const updatedModules: { [key: string]: ModulePermission } = { ...(prev.modules || {}) };
+
+      availableModules.forEach((module) => {
+        updatedModules[module] = {
+          create: enabled ? 1 : 0,
+          edit: enabled ? 1 : 0,
+          view: enabled ? 1 : 0,
+          approve: enabled ? 1 : 0,
+          reject: enabled ? 1 : 0,
+        };
+      });
+
+      return {
+        ...prev,
+        modules: updatedModules,
+      };
+    });
+  };
+
+  const isAllNewRolePermissionsEnabled = useMemo(() => {
+    if (!addingNewRole) return false;
+    return availableModules.every((module) => {
+      const permissions = newRoleData.modules?.[module];
+      if (!permissions) return false;
+      return moduleActions.every((action) => Number(permissions[action as keyof ModulePermission]) === 1);
+    });
+  }, [addingNewRole, availableModules, newRoleData.modules]);
+
+  const isAllEditPermissionsEnabled = useMemo(() => {
+    if (!editingRole) return false;
+    return availableModules.every((module) => {
+      const permissions = editFormData.modules?.[module];
+      if (!permissions) return false;
+      return moduleActions.every((action) => Number(permissions[action as keyof ModulePermission]) === 1);
+    });
+  }, [editingRole, availableModules, editFormData.modules]);
+
   // Delete role
   const deleteRole = async (roleId: string) => {
     if (!confirm('Are you sure you want to delete this role?')) return;
@@ -315,9 +350,6 @@ export default function RoleAccessDebug() {
   const copyRole = (role: RoleDebugInfo) => {
     const roleData = {
       name: `${role.name} (Copy)`,
-      approval_authority: role.approval_authority,
-      data_visibility: role.data_visibility,
-      description: role.description,
       modules: { ...role.modules }
     };
     
@@ -498,7 +530,6 @@ export default function RoleAccessDebug() {
                   </Button>
                 </div>
               ) : addingNewRole ? (
-                /* New Role Form */
                 <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -509,61 +540,47 @@ export default function RoleAccessDebug() {
                       <p className="text-sm text-gray-600">Configure permissions for the new role</p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="role-name">Role Name</Label>
                         <Input
                           id="role-name"
-                          value={newRoleData.name || ''}
-                          onChange={(e) => handleNewRoleFormChange('name', e.target.value)}
+                          value={newRoleData.name || ""}
+                          onChange={(e) => handleNewRoleFormChange("name", e.target.value)}
                           placeholder="e.g., Manager, Developer, HR"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="approval">Approval Authority</Label>
-                        <Input
-                          id="approval"
-                          value={newRoleData.approval_authority || ''}
-                          onChange={(e) => handleNewRoleFormChange('approval_authority', e.target.value)}
-                          placeholder="e.g., Manager, Full Authority"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="visibility">Data Visibility</Label>
-                        <Input
-                          id="visibility"
-                          value={newRoleData.data_visibility || ''}
-                          onChange={(e) => handleNewRoleFormChange('data_visibility', e.target.value)}
-                          placeholder="e.g., All Employees, Self Only"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={newRoleData.description || ''}
-                          onChange={(e) => handleNewRoleFormChange('description', e.target.value)}
-                          placeholder="Role description..."
-                        />
-                      </div>
                     </div>
-                    
+
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                         <Key className="w-4 h-4" />
                         Module Permissions
                       </h4>
+                      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 mb-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">Overall Permissions</p>
+                          <p className="text-xs text-gray-500">One click to enable or disable all modules</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">{isAllNewRolePermissionsEnabled ? "All Enabled" : "Enable All"}</Label>
+                          <Switch
+                            checked={isAllNewRolePermissionsEnabled}
+                            onCheckedChange={toggleAllNewRolePermissions}
+                          />
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                        {availableModules.map(module => (
+                        {availableModules.map((module) => (
                           <div key={module} className="border border-gray-200 rounded-lg p-4 bg-white">
                             <h5 className="font-semibold text-gray-800 capitalize mb-3 flex items-center gap-2">
                               <Settings className="w-4 h-4 text-blue-600" />
-                              {module.replace('_', ' ')}
+                              {module.replace("_", " ")}
                             </h5>
                             <div className="space-y-2">
-                              {moduleActions.map(action => (
+                              {moduleActions.map((action) => (
                                 <div key={action} className="flex items-center justify-between">
                                   <Label className="text-sm font-medium text-gray-700 capitalize">{action}</Label>
                                   <Switch
@@ -577,7 +594,7 @@ export default function RoleAccessDebug() {
                         ))}
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-3 pt-4 border-t border-gray-200">
                       <Button 
                         onClick={saveNewRole} 
@@ -587,11 +604,7 @@ export default function RoleAccessDebug() {
                         <Save className="w-4 h-4" />
                         Create Role
                       </Button>
-                      <Button 
-                        onClick={cancelAddNewRole} 
-                        variant="outline" 
-                        className="gap-2 hover:bg-gray-50"
-                      >
+                      <Button onClick={cancelAddNewRole} variant="outline" className="gap-2 hover:bg-gray-50">
                         <X className="w-4 h-4" />
                         Cancel
                       </Button>
@@ -603,7 +616,6 @@ export default function RoleAccessDebug() {
                   {allRoles.map((role) => (
                     <div key={role.id} className="border border-gray-200 rounded-xl p-6 bg-white">
                       {editingRole === role.id ? (
-                        /* Edit Form */
                         <div className="space-y-6">
                           <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
@@ -614,56 +626,45 @@ export default function RoleAccessDebug() {
                               <p className="text-sm text-gray-600">Modify role permissions and settings</p>
                             </div>
                           </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                          <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`edit-name-${role.id}`}>Role Name</Label>
                               <Input
                                 id={`edit-name-${role.id}`}
-                                value={editFormData.name || ''}
-                                onChange={(e) => handleEditFormChange('name', e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`edit-approval-${role.id}`}>Approval Authority</Label>
-                              <Input
-                                id={`edit-approval-${role.id}`}
-                                value={editFormData.approval_authority || ''}
-                                onChange={(e) => handleEditFormChange('approval_authority', e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`edit-visibility-${role.id}`}>Data Visibility</Label>
-                              <Input
-                                id={`edit-visibility-${role.id}`}
-                                value={editFormData.data_visibility || ''}
-                                onChange={(e) => handleEditFormChange('data_visibility', e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`edit-description-${role.id}`}>Description</Label>
-                              <Textarea
-                                id={`edit-description-${role.id}`}
-                                value={editFormData.description || ''}
-                                onChange={(e) => handleEditFormChange('description', e.target.value)}
+                                value={editFormData.name || ""}
+                                onChange={(e) => handleEditFormChange("name", e.target.value)}
                               />
                             </div>
                           </div>
-                          
+
                           <div>
                             <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                               <Key className="w-4 h-4" />
                               Module Permissions
                             </h4>
+                            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 mb-4">
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">Overall Permissions</p>
+                                <p className="text-xs text-gray-500">One click to enable or disable all modules</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">{isAllEditPermissionsEnabled ? "All Enabled" : "Enable All"}</Label>
+                                <Switch
+                                  checked={isAllEditPermissionsEnabled}
+                                  onCheckedChange={toggleAllEditRolePermissions}
+                                />
+                              </div>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                              {availableModules.map(module => (
+                              {availableModules.map((module) => (
                                 <div key={module} className="border border-gray-200 rounded-lg p-4 bg-white">
                                   <h5 className="font-semibold text-gray-800 capitalize mb-3 flex items-center gap-2">
                                     <Settings className="w-4 h-4 text-orange-600" />
-                                    {module.replace('_', ' ')}
+                                    {module.replace("_", " ")}
                                   </h5>
                                   <div className="space-y-2">
-                                    {moduleActions.map(action => (
+                                    {moduleActions.map((action) => (
                                       <div key={action} className="flex items-center justify-between">
                                         <Label className="text-sm font-medium text-gray-700 capitalize">{action}</Label>
                                         <Switch
@@ -677,28 +678,23 @@ export default function RoleAccessDebug() {
                               ))}
                             </div>
                           </div>
-                          
+
                           <div className="flex gap-3 pt-4 border-t border-gray-200">
-                            <Button 
-                              onClick={() => saveEditedRole(role.id)} 
+                            <Button
+                              onClick={() => saveEditedRole(role.id)}
                               disabled={!editFormData.name}
                               className="gap-2 bg-[#17c491] hover:bg-[#14b389] text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
                             >
                               <Save className="w-4 h-4" />
                               Save Changes
                             </Button>
-                            <Button 
-                              onClick={cancelEdit} 
-                              variant="outline" 
-                              className="gap-2 hover:bg-gray-50"
-                            >
+                            <Button onClick={cancelEdit} variant="outline" className="gap-2 hover:bg-gray-50">
                               <X className="w-4 h-4" />
                               Cancel
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        /* Display Mode */
                         <>
                           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
                             <div className="flex-1">
@@ -708,38 +704,21 @@ export default function RoleAccessDebug() {
                                 </div>
                                 <div>
                                   <h3 className="text-xl font-bold text-gray-800">{role.name}</h3>
-                                  <p className="text-sm text-gray-600">
-                                    <span className="font-medium">Authority:</span> {role.approval_authority} • 
-                                    <span className="font-medium"> Visibility:</span> {role.data_visibility}
-                                  </p>
-                                  {role.description && (
-                                    <p className="text-sm text-gray-500 mt-1">{role.description}</p>
-                                  )}
                                 </div>
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <Button 
-                                onClick={() => copyRole(role)} 
-                                variant="outline" 
-                                size="sm"
-                                className="gap-2"
-                              >
+                              <Button onClick={() => copyRole(role)} variant="outline" size="sm" className="gap-2">
                                 <Copy className="w-4 h-4" />
                                 Copy
                               </Button>
-                              <Button 
-                                onClick={() => startEditRole(role)} 
-                                variant="outline" 
-                                size="sm"
-                                className="gap-2"
-                              >
+                              <Button onClick={() => startEditRole(role)} variant="outline" size="sm" className="gap-2">
                                 <Edit2 className="w-4 h-4" />
                                 Edit
                               </Button>
-                              <Button 
-                                onClick={() => deleteRole(role.id)} 
-                                variant="outline" 
+                              <Button
+                                onClick={() => deleteRole(role.id)}
+                                variant="outline"
                                 size="sm"
                                 className="gap-2 hover:bg-red-50 hover:border-red-300"
                               >
@@ -748,38 +727,41 @@ export default function RoleAccessDebug() {
                               </Button>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-4">
                             <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                               <Key className="w-4 h-4" />
                               Module Permissions
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {availableModules.map(module => {
+                              {availableModules.map((module) => {
                                 const modulePerms = role.modules?.[module];
                                 if (!modulePerms) return null;
 
-                                const hasAnyPermission = Object.values(modulePerms).some(p => p === 1);
+                                const hasAnyPermission = Object.values(modulePerms).some((p) => p === 1);
 
                                 return (
-                                  <div key={module} className={`border rounded-lg p-4 ${hasAnyPermission ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                                  <div
+                                    key={module}
+                                    className={`border rounded-lg p-4 ${hasAnyPermission ? "border-green-200 bg-green-50" : "border-gray-200 bg-gray-50"}`}
+                                  >
                                     <h5 className="font-semibold text-gray-800 capitalize mb-3 flex items-center gap-2">
                                       {hasAnyPermission ? (
                                         <Unlock className="w-4 h-4 text-green-600" />
                                       ) : (
                                         <Lock className="w-4 h-4 text-gray-400" />
                                       )}
-                                      {module.replace('_', ' ')}
+                                      {module.replace("_", " ")}
                                     </h5>
                                     <div className="grid grid-cols-2 gap-2">
-                                      {moduleActions.map(action => (
+                                      {moduleActions.map((action) => (
                                         <div key={action} className="flex items-center justify-between">
                                           <span className="text-xs font-medium text-gray-600 capitalize">{action}</span>
-                                          <div className={`w-2 h-2 rounded-full ${
-                                            modulePerms[action as keyof ModulePermission] === 1
-                                              ? "bg-green-500"
-                                              : "bg-gray-300"
-                                          }`} />
+                                          <div
+                                            className={`w-2 h-2 rounded-full ${
+                                              modulePerms[action as keyof ModulePermission] === 1 ? "bg-green-500" : "bg-gray-300"
+                                            }`}
+                                          />
                                         </div>
                                       ))}
                                     </div>
@@ -801,3 +783,4 @@ export default function RoleAccessDebug() {
     </Layout>
   );
 }
+

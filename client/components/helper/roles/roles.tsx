@@ -17,8 +17,8 @@ export interface Role {
   modules: {
     [key: string]: ModulePermission;
   };
-  approval_authority: string;
-  data_visibility: string;
+  approval_authority?: string;
+  data_visibility?: string;
   description?: string;
   created_at?: string;
   updated_at?: string;
