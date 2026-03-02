@@ -803,7 +803,7 @@ const fetchAttendanceLogs = async () => {
         
         // Simple logic: any past date (including today) that's not in existing dates = absent
         const absentDates = allDatesInMonth.filter(date => {
-          return date <= today && !existingDates.includes(date);
+          return date <= today && !existingDates.includes(date) && !isWeekendDate(date);
         });
         
         console.log("Dates that should show as absent:", absentDates);
@@ -875,7 +875,7 @@ const fetchAttendanceLogs = async () => {
         const absentDates = [];
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          if (dateStr <= today && !existingDates.includes(dateStr)) {
+          if (dateStr <= today && !existingDates.includes(dateStr) && !isWeekendDate(dateStr)) {
             absentDates.push(dateStr);
           }
         }
@@ -1058,6 +1058,32 @@ const fetchAttendanceLogs = async () => {
     console.log("Final filtered data:", data);
     return data;
   }, [logs, searchTerm, filterStatus, user, viewMode, selectedEmployee]);
+
+  const effectiveEmployees = useMemo(() => {
+    if (Array.isArray(employees) && employees.length > 0) {
+      return employees;
+    }
+
+    const map = new Map<string, any>();
+    logs.forEach((log) => {
+      const uniqueId = String(log.originalEmployeeId || log.employeeId || log.id);
+      if (!uniqueId || map.has(uniqueId)) return;
+
+      const fullName = String(log.employeeName || "").trim();
+      const nameParts = fullName.split(" ").filter(Boolean);
+      const firstName = nameParts[0] || "Employee";
+      const lastName = nameParts.slice(1).join(" ");
+
+      map.set(uniqueId, {
+        id: uniqueId,
+        first_name: firstName,
+        last_name: lastName,
+        employee_code: log.employeeId,
+      });
+    });
+
+    return Array.from(map.values());
+  }, [employees, logs]);
   // Get records for the selected date
   const selectedDateRecords = useMemo(() => {
     if (!selectedDate) return [];
@@ -1156,6 +1182,12 @@ const fetchAttendanceLogs = async () => {
     return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   };
 
+  const isWeekendDate = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    const dayOfWeek = d.getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6;
+  };
+
   const handlePrevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   };
@@ -1246,18 +1278,18 @@ const fetchAttendanceLogs = async () => {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <p className="mt-4 text-sm text-muted-foreground">Loading employees...</p>
           </div>
-        ) : !Array.isArray(employees) || employees.length === 0 ? (
+        ) : !Array.isArray(effectiveEmployees) || effectiveEmployees.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground">No employees found</p>
             <p className="text-xs text-muted-foreground mt-2">
               Debug: employeesLoading={employeesLoading.toString()}, 
-              employeesType={Array.isArray(employees) ? 'array' : typeof employees}, 
-              employeesLength={Array.isArray(employees) ? employees.length : 'N/A'}
+              employeesType={Array.isArray(effectiveEmployees) ? 'array' : typeof effectiveEmployees}, 
+              employeesLength={Array.isArray(effectiveEmployees) ? effectiveEmployees.length : 'N/A'}
             </p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {employees.map((employee) => {
+            {effectiveEmployees.map((employee) => {
               // Ensure employee has required properties
               if (!employee || !employee.id) {
                 console.warn("Invalid employee data:", employee);
@@ -1531,6 +1563,8 @@ const fetchAttendanceLogs = async () => {
                       const hasLate = statuses.includes("late");
                       const hasUnmarked = statuses.includes("unmarked") || isTodayUnmarked;
                       const hasFlag = records.some((r) => r.autoFlag);
+                      const hasAttendanceOnHoliday = isHolidayDate && (hasPresent || hasHalf || hasLate);
+                      const disableHolidayCell = isHolidayDate && !hasAttendanceOnHoliday;
 
                       // Debug status checking
                       if (day >= 20 && day <= 28) {
@@ -1547,14 +1581,14 @@ const fetchAttendanceLogs = async () => {
                       }
 
                       let bgColor = "bg-white border-gray-200";
-                      if (isHolidayDate) {
-                        bgColor = "bg-gray-100 border-gray-300"; // Holiday styling
-                      } else if (hasRecords || isTodayUnmarked) {
+                      if (hasRecords || isTodayUnmarked) {
                         if (hasPresent) bgColor = "bg-green-50 border-green-300";
                         else if (hasHalf) bgColor = "bg-yellow-50 border-yellow-300";
                         else if (hasAbsent) bgColor = "bg-red-50 border-red-300";
                         else if (hasLate) bgColor = "bg-orange-50 border-orange-300"; // Late = orange
                         else if (isTodayUnmarked || hasUnmarked) bgColor = "bg-orange-50 border-orange-300";
+                      } else if (isHolidayDate) {
+                        bgColor = "bg-gray-100 border-gray-300"; // Holiday styling
                       } else {
                         // No records - check if past date or future date
                         const today = new Date().toISOString().split('T')[0];
@@ -1573,10 +1607,10 @@ const fetchAttendanceLogs = async () => {
                       return (
                         <button
                           key={day}
-                          onClick={() => !isHolidayDate && handleDateClick(day)}
-                          disabled={isHolidayDate}
+                          onClick={() => !disableHolidayCell && handleDateClick(day)}
+                          disabled={disableHolidayCell}
                           className={`aspect-square p-0.5 sm:p-2 rounded border sm:border-2 text-xs sm:text-sm font-medium transition-all ${
-                            isHolidayDate
+                            disableHolidayCell
                               ? "bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed"
                               : (hasRecords || isTodayUnmarked)
                               ? `${bgColor} cursor-pointer hover:shadow-md sm:hover:scale-105`
@@ -1595,7 +1629,7 @@ const fetchAttendanceLogs = async () => {
                           <div className="flex flex-col items-center justify-center h-full gap-0.5 sm:gap-1">
                             <span
                               className={`text-xs sm:text-sm ${
-                                isHolidayDate 
+                                disableHolidayCell 
                                   ? "text-gray-500 font-medium" 
                                   : (hasRecords || isTodayUnmarked) 
                                     ? "text-gray-900 font-bold" 
@@ -1613,13 +1647,13 @@ const fetchAttendanceLogs = async () => {
                             >
                               {day}
                             </span>
-                            {isHolidayDate && (
+                            {disableHolidayCell && (
                               <div className="text-xs text-gray-400 font-medium">
                                 <span className="sm:hidden inline-block w-2 h-2 rounded-full bg-gray-400"></span>
                                 <span className="hidden sm:inline">{isApiHoliday ? holidayName : "WEEKEND"}</span>
                               </div>
                             )}
-                            {!isHolidayDate && !(hasRecords || isTodayUnmarked) && (
+                            {!disableHolidayCell && !(hasRecords || isTodayUnmarked) && (
                               <div className="flex flex-col gap-0.5 sm:gap-1 items-center">
                                 <div className="flex gap-0.5 sm:gap-1 flex-wrap justify-center">
                                   {(() => {
@@ -1650,7 +1684,7 @@ const fetchAttendanceLogs = async () => {
                                 </div>
                               </div>
                             )}
-                            {!isHolidayDate && (hasRecords || isTodayUnmarked) && (
+                            {!disableHolidayCell && (hasRecords || isTodayUnmarked) && (
                               <div className="flex flex-col gap-0.5 sm:gap-1 items-center">
                                 <div className="flex gap-0.5 sm:gap-1 flex-wrap justify-center">
                                   {hasFlag && (

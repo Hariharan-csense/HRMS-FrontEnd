@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { hasRole } from "@/lib/auth";
+import { useRole } from "@/context/RoleContext";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -117,6 +118,7 @@ const updateLeaveApplicationStatus = async (id: string, status: "approved" | "re
 
 export default function LeaveApprovals() {
   const { user } = useAuth();
+  const { canPerformModuleAction } = useRole();
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -140,8 +142,11 @@ export default function LeaveApprovals() {
     fetchLeaveApplications();
   }, []);
 
-  // Only Manager and HR can approve leaves
-  const canApprove = hasRole(user, "manager") || hasRole(user, "hr");
+  // RBAC-based approval access (no hardcoded role gate)
+  const canApprove =
+    canPerformModuleAction("leave", "approve", "approvals") ||
+    canPerformModuleAction("leave", "reject", "approvals") ||
+    canPerformModuleAction("leave", "update", "approvals");
 
   const pendingApplications = useMemo(() => {
     let filtered = leaveApplications.filter((la) => la.status === "applied");
@@ -268,7 +273,7 @@ export default function LeaveApprovals() {
 
           <Card>
             <CardContent className="pt-6 text-center text-muted-foreground">
-              You don't have permission to access this page. Only Manager and HR can approve leave requests.
+              You don't have permission to access this page based on current role permissions.
             </CardContent>
           </Card>
         </div>

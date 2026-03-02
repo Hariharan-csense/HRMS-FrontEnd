@@ -4,10 +4,21 @@ import ENDPOINTS from "@/lib/endpoint";
 
 export interface ModulePermission {
   create: number;
-  edit: number;
   view: number;
+  update: number;
+  delete: number;
   approve: number;
   reject: number;
+  edit?: number; // legacy alias of update
+}
+
+export interface ModulePermissionNode {
+  permissions: ModulePermission;
+  submodules?: {
+    [key: string]: {
+      permissions: ModulePermission;
+    };
+  };
 }
 
 export interface Role {
@@ -15,7 +26,7 @@ export interface Role {
   role_id: string;
   name: string;
   modules: {
-    [key: string]: ModulePermission;
+    [key: string]: ModulePermission | ModulePermissionNode;
   };
   approval_authority?: string;
   data_visibility?: string;
@@ -53,12 +64,43 @@ export interface EmployeeRoleAssignment {
   approval_authority: string;
   data_visibility: string;
   modules: {
-    [key: string]: ModulePermission;
+    [key: string]: ModulePermission | ModulePermissionNode;
   };
   description?: string;
 }
 
+export interface RbacSubmoduleCatalog {
+  key: string;
+  label: string;
+}
+
+export interface RbacModuleCatalog {
+  key: string;
+  label: string;
+  submodules: RbacSubmoduleCatalog[];
+}
+
 export const roleApi = {
+  getRoleCatalog: async (): Promise<{ data?: { actions: string[]; modules: RbacModuleCatalog[] }; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getRoleCatalog();
+      if (response.data?.success) {
+        return {
+          data: {
+            actions: Array.isArray(response.data.actions) ? response.data.actions : [],
+            modules: Array.isArray(response.data.modules) ? response.data.modules : [],
+          },
+        };
+      }
+
+      return { error: "Failed to load role catalog" };
+    } catch (error: any) {
+      return {
+        error: error.response?.data?.message || "Failed to load role catalog",
+      };
+    }
+  },
+
   // Get all roles
   getRoles: async (): Promise<{ data?: Role[]; error?: string }> => {
     try {
@@ -66,7 +108,7 @@ export const roleApi = {
 
       if (response.data?.success && Array.isArray(response.data.roles)) {
         const mapped: Role[] = response.data.roles.map((r: any) => ({
-          id: r.id?.toString() || "",
+          id: r.id?.toString() || r.role_id || "",
           role_id: r.role_id || "",
           name: r.name || "",
           modules: r.modules || {},
@@ -95,7 +137,7 @@ export const roleApi = {
       
       if (response.data?.success) {
         const role: Role = {
-          id: response.data.role.id?.toString() || "",
+          id: response.data.role.id?.toString() || response.data.role.role_id || "",
           role_id: response.data.role.role_id || "",
           name: response.data.role.name || "",
           modules: response.data.role.modules || {},
@@ -132,7 +174,7 @@ export const roleApi = {
       
       if (response.data?.success) {
         const newRole: Role = {
-          id: response.data.role.id?.toString() || "",
+          id: response.data.role.id?.toString() || response.data.role.role_id || "",
           role_id: response.data.role.role_id || "",
           name: response.data.role.name || roleData.name,
           modules: response.data.role.modules || roleData.modules,
@@ -169,7 +211,7 @@ export const roleApi = {
       
       if (response.data?.success) {
         const updatedRole: Role = {
-          id: response.data.role.id?.toString() || id,
+          id: response.data.role.id?.toString() || response.data.role.role_id || id,
           role_id: response.data.role.role_id || "",
           name: response.data.role.name || roleData.name || "",
           modules: response.data.role.modules || roleData.modules || {},

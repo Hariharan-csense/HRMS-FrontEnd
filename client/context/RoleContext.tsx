@@ -6,9 +6,16 @@ import { ENDPOINTS } from '../lib/endpoint';
 interface ModulePermission {
   view: number;
   create: number;
-  edit: number;
+  update: number;
+  delete: number;
   approve: number;
   reject: number;
+  edit?: number;
+}
+
+interface ModulePermissionNode {
+  permissions: ModulePermission;
+  submodules?: Record<string, { permissions: ModulePermission }>;
 }
 
 interface RoleData {
@@ -17,7 +24,7 @@ interface RoleData {
   name: string;
   approval_authority: string;
   data_visibility: string;
-  modules: Record<string, ModulePermission>;
+  modules: Record<string, ModulePermission | ModulePermissionNode>;
   description?: string;
 }
 
@@ -27,7 +34,7 @@ type RoleContextType = {
   hasSubModuleAccess: (role: string, module: string, subModule: string) => boolean;
   canPerformAction: (role: string, module: string, action: string) => boolean;
   hasModuleAccess: (module: string) => boolean;
-  canPerformModuleAction: (module: string, action: string) => boolean;
+  canPerformModuleAction: (module: string, action: string, subModule?: string) => boolean;
   userRoles: RoleData[];
   loading: boolean;
 };
@@ -43,6 +50,14 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const [userRoles, setUserRoles] = useState<RoleData[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const hasAnyUserRole = (...wantedRoles: string[]) => {
+    const wanted = new Set(wantedRoles.map((r) => r.toLowerCase()));
+    const roles = Array.isArray(user?.roles) ? user.roles : [];
+    const primaryRole = user?.role ? [user.role] : [];
+    const allRoles = [...roles, ...primaryRole].map((r) => String(r || "").toLowerCase());
+    return allRoles.some((r) => wanted.has(r));
+  };
+
   // Fetch user roles from backend
   useEffect(() => {
     const fetchRoles = async () => {
@@ -53,9 +68,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       }
 
       // Superadmin does not belong to a single company; skip company-scoped roles API.
-      const isSuperAdmin =
-        user.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
-        user.type?.toLowerCase() === "superadmin";
+      const isSuperAdmin = hasAnyUserRole("superadmin") || user.type?.toLowerCase() === "superadmin";
       if (isSuperAdmin) {
         setUserRoles([]);
         setLoading(false);
@@ -69,79 +82,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         setUserRoles(data.roles || []);
       } catch (error) {
         console.error('Error fetching roles:', error);
-        // Fallback to mock role data for development
-        const mockRoles = [
-          {
-            id: "4",
-            role_id: "ROLE001",
-            name: "admin",
-            approval_authority: "Full Authority",
-            data_visibility: "All Employees",
-            modules: {
-              "employees": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "payroll": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "attendance": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "live_tracking": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "leave": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "expenses": { view: 1, create: 0, edit: 0, approve: 1, reject: 1 },
-              "assets": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "exit": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "reports": { view: 1, create: 0, edit: 0, approve: 0, reject: 1 },
-              "organization": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "role_access": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "shift management": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "client_attendance": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 },
-              "client_attendance_admin": { view: 1, create: 1, edit: 1, approve: 1, reject: 1 }
-            },
-            description: null,
-            created_at: "2025-12-31T04:24:38.000Z",
-            updated_at: "2026-01-13T07:13:16.000Z"
-          },
-          {
-            id: "6",
-            role_id: "ROLE02",
-            name: "employee",
-            approval_authority: "No Authority",
-            data_visibility: "Self Only",
-            modules: {
-              "employees": { view: 1, create: 0, edit: 0, approve: 0 },
-              "payroll": { view: 1, create: 0, edit: 0, approve: 0 },
-              "attendance": { view: 1, create: 0, edit: 1, approve: 0 },
-              "live_tracking": { view: 0, create: 0, edit: 0, approve: 0 },
-              "leave": { view: 1, create: 1, edit: 0, approve: 0 },
-              "expenses": { view: 0, create: 0, edit: 0, approve: 0 },
-              "assets": { view: 0, create: 0, edit: 0, approve: 0 },
-              "role_access": { view: 1, create: 0, edit: 0, approve: 0 }
-            },
-            description: null,
-            created_at: "2026-01-06T06:15:42.000Z",
-            updated_at: "2026-01-06T06:22:14.000Z"
-          },
-          {
-            id: "5",
-            role_id: "ROLE01",
-            name: "hr",
-            approval_authority: "Full Authority",
-            data_visibility: "Department Employees",
-            modules: {
-              "employees": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
-              "payroll": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
-              "attendance": { view: 1, create: 1, edit: 0, approve: 0, reject: 0 },
-              "live_tracking": { view: 0, create: 0, edit: 0, approve: 0, reject: 0 },
-              "shift management": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
-              "leave": { view: 1, create: 1, edit: 0, approve: 1, reject: 0 },
-              "expenses": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
-              "assets": { view: 0, create: 0, edit: 0, approve: 0, reject: 0 },
-              "exit": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
-              "reports": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 },
-              "role_access": { view: 1, create: 0, edit: 0, approve: 0, reject: 0 }
-            },
-            description: null,
-            created_at: "2025-12-31T05:24:37.000Z",
-            updated_at: "2026-01-13T12:03:53.000Z"
-          }
-        ];
-        setUserRoles(mockRoles);
+        // Strict RBAC behavior: never grant fallback permissions when API fails.
+        setUserRoles([]);
       } finally {
         setLoading(false);
       }
@@ -151,35 +93,92 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   }, [user?.id]);
 
   const hasRole = (role: string): boolean => {
-    if (!user?.roles) return false;
-    const wanted = role.toLowerCase();
-    return user.roles.some((r) => r?.toLowerCase() === wanted);
+    if (!user) return false;
+    const wanted = String(role || "").trim().toLowerCase();
+    const allRoles = [
+      ...(Array.isArray(user.roles) ? user.roles : []),
+      user.role,
+    ]
+      .map((r) => String(r || "").trim().toLowerCase())
+      .filter(Boolean);
+    return allRoles.includes(wanted);
   };
 
   const hasAnyRole = (roles: string[]): boolean => {
-    if (!user?.roles) return false;
-    const wanted = new Set(roles.map((r) => r.toLowerCase()));
-    return user.roles.some((r) => wanted.has(r?.toLowerCase()));
+    if (!user || !roles?.length) return false;
+    const wanted = new Set(roles.map((r) => String(r || "").trim().toLowerCase()));
+    const allRoles = [
+      ...(Array.isArray(user.roles) ? user.roles : []),
+      user.role,
+    ]
+      .map((r) => String(r || "").trim().toLowerCase())
+      .filter(Boolean);
+    return allRoles.some((r) => wanted.has(r));
   };
 
-  const getModulePermission = (modules: Record<string, ModulePermission>, module: string) => {
-    // Try exact and lowercase keys first
-    const direct = modules[module] || modules[module.toLowerCase()];
-    if (direct) return direct;
+  const normalizeKey = (key: string) => key.toLowerCase().replace(/[\s_-]+/g, "");
 
-    // Normalize separators to handle keys like shift_management / shift management / shift-management
-    const normalize = (key: string) => key.toLowerCase().replace(/[\s_-]+/g, "");
-    const target = normalize(module);
-    const matchedKey = Object.keys(modules).find((key) => normalize(key) === target);
-    return matchedKey ? modules[matchedKey] : undefined;
+  const normalizeAction = (action: string) => {
+    const normalized = action.toLowerCase();
+    return normalized === "edit" ? "update" : normalized;
+  };
+
+  const normalizePermission = (rawPermission: any): ModulePermission => {
+    const updateValue =
+      rawPermission?.update !== undefined ? rawPermission.update : rawPermission?.edit;
+
+    return {
+      view: rawPermission?.view ? 1 : 0,
+      create: rawPermission?.create ? 1 : 0,
+      update: updateValue ? 1 : 0,
+      delete: rawPermission?.delete ? 1 : 0,
+      approve: rawPermission?.approve ? 1 : 0,
+      reject: rawPermission?.reject ? 1 : 0,
+      edit: updateValue ? 1 : 0,
+    };
+  };
+
+  const getMatchingKey = (obj: Record<string, any>, wanted: string) => {
+    if (!obj) return undefined;
+    if (obj[wanted]) return wanted;
+    if (obj[wanted.toLowerCase()]) return wanted.toLowerCase();
+
+    const wantedNormalized = normalizeKey(wanted);
+    return Object.keys(obj).find((key) => normalizeKey(key) === wantedNormalized);
+  };
+
+  const resolveModulePermission = (
+    modules: Record<string, ModulePermission | ModulePermissionNode>,
+    module: string,
+    subModule?: string
+  ) => {
+    const moduleKey = getMatchingKey(modules as Record<string, any>, module);
+    if (!moduleKey) return undefined;
+
+    const moduleEntry: any = modules[moduleKey];
+    if (!moduleEntry || typeof moduleEntry !== "object") return undefined;
+
+    // New shape: { permissions, submodules }
+    if (moduleEntry.permissions && typeof moduleEntry.permissions === "object") {
+      if (subModule && moduleEntry.submodules && typeof moduleEntry.submodules === "object") {
+        const subKey = getMatchingKey(moduleEntry.submodules, subModule);
+        if (subKey && moduleEntry.submodules[subKey]?.permissions) {
+          return normalizePermission(moduleEntry.submodules[subKey].permissions);
+        }
+      }
+
+      return normalizePermission(moduleEntry.permissions);
+    }
+
+    // Legacy shape: module directly contains action flags
+    return normalizePermission(moduleEntry);
   };
 
   // Check if user has access to a specific module based on their role permissions
   const hasModuleAccess = (module: string): boolean => {
-    const isSuperAdmin =
-      user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
-      user?.type?.toLowerCase() === "superadmin";
-    if (isSuperAdmin) return true;
+    if (hasAnyUserRole("superadmin") || user?.type?.toLowerCase() === "superadmin") {
+      return true;
+    }
 
     if (!user?.roles || userRoles.length === 0) return false;
     
@@ -204,7 +203,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         return false;
       }
       
-      const modulePermission = getModulePermission(role.modules, module);
+      const modulePermission = resolveModulePermission(role.modules, module);
       
       const hasAccess = modulePermission && modulePermission.view === 1;
       
@@ -223,11 +222,10 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   };
 
   // Check if user can perform a specific action on a module
-  const canPerformModuleAction = (module: string, action: string): boolean => {
-    const isSuperAdmin =
-      user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
-      user?.type?.toLowerCase() === "superadmin";
-    if (isSuperAdmin) return true;
+  const canPerformModuleAction = (module: string, action: string, subModule?: string): boolean => {
+    if (hasAnyUserRole("superadmin") || user?.type?.toLowerCase() === "superadmin") {
+      return true;
+    }
 
     if (!user?.roles || userRoles.length === 0) return false;
     
@@ -242,17 +240,19 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         return false;
       }
       
-      const modulePermission = getModulePermission(role.modules, module);
+      const modulePermission = resolveModulePermission(role.modules, module, subModule);
       
       if (!modulePermission) return false;
       
-      switch (action) {
+      switch (normalizeAction(action)) {
         case 'view':
           return modulePermission.view === 1;
         case 'create':
           return modulePermission.create === 1;
-        case 'edit':
-          return modulePermission.edit === 1;
+        case 'update':
+          return modulePermission.update === 1 || modulePermission.edit === 1;
+        case 'delete':
+          return modulePermission.delete === 1;
         case 'approve':
           return modulePermission.approve === 1;
         case 'reject':
@@ -265,8 +265,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Legacy functions for backward compatibility
   const hasSubModuleAccess = (role: string, module: string, subModule: string): boolean => {
-    // For now, delegate to module access check
-    return hasModuleAccess(module);
+    return canPerformModuleAction(module, "view", subModule);
   };
 
   const canPerformAction = (role: string, module: string, action: string): boolean => {

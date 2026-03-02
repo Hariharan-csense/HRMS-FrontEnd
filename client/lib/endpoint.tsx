@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // //Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.2:3000";
+export const BASE_URL = "http://192.168.1.11:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -226,6 +226,7 @@ const ENDPOINTS = {
   // roles
 
   getRoles: () => api.get("/role"),
+  getRoleCatalog: () => api.get("/role/catalog"),
   getRoleById: (id: string) => api.get(`/role/${id}`),
   createRole: (data: any) => api.post("/role/add", data),
   updateRole: (id: string, data: any) => api.put(`/role/${id}`, data),

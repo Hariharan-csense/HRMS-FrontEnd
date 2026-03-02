@@ -18,7 +18,6 @@ import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { employeeApi } from "@/components/helper/employee/employee";
 import { departmentApi, Department } from "@/components/helper/department/department";
 import { designationApi, Designation } from "@/components/helper/designation/designation";
-import { required } from "zod/v4-mini";
 
 // Types
 interface LeaveType {
@@ -584,7 +583,7 @@ useEffect(() => {
     }
   }, [activeTab]);
 
-  const inferUserRole = (candidate: any): "admin" | "hr" | "manager" | "employee" | "" => {
+  const inferUserRole = (candidate: any): "admin" | "ceo" | "hr" | "manager" | "employee" | "" => {
     const roleText = String(candidate?.role || "").toLowerCase();
     const designationText = String(
       candidate?.designation ||
@@ -599,6 +598,7 @@ useEffect(() => {
       : "";
     const combined = `${roleText} ${designationText} ${typeText} ${departmentText} ${rolesArrayText}`.trim();
 
+    if (combined.includes("ceo")) return "ceo";
     if (candidate?.isHR || combined.includes("human resource") || combined.includes(" hr ") || combined.startsWith("hr") || combined.endsWith("hr")) return "hr";
     if (candidate?.isAdmin || combined.includes("admin")) return "admin";
     if (candidate?.isManager || combined.includes("manager") || combined.includes("lead")) return "manager";
@@ -654,11 +654,11 @@ useEffect(() => {
     if (isEmployeeUser && !isAdminUser && !isHrUser) {
       const filtered = baseUsers.filter((u: any) => {
         const role = inferUserRole(u);
-        return role === "admin" || role === "hr" || role === "manager";
+        return role === "admin" || role === "ceo" || role === "hr" || role === "manager";
       });
       return filtered.length > 0 ? filtered : baseUsers.filter((u: any) => {
         const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
-        return txt.includes("admin") || txt.includes("hr") || txt.includes("manager") || txt.includes("lead");
+        return txt.includes("admin") || txt.includes("ceo") || txt.includes("hr") || txt.includes("manager") || txt.includes("lead");
       });
     }
 
@@ -732,6 +732,75 @@ useEffect(() => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
   const [selectedReportingManagers, setSelectedReportingManagers] = useState<string[]>([]);
+  const [applicationErrors, setApplicationErrors] = useState<Record<string, string>>({});
+
+  const parseIsoDate = (value: string): Date | null => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(year, month - 1, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const validateLeaveApplicationForm = () => {
+    const errors: Record<string, string> = {};
+    const employeeIdField = formData.employeeId || currentUserEmployee?.id || user?.id;
+    const reason = String(formData.reason || "").trim();
+    const approversSelected = (
+      (formData.reportingManagerIds && formData.reportingManagerIds.length > 0) ||
+      (selectedReportingManagers && selectedReportingManagers.length > 0) ||
+      !!formData.reportingManagerName
+    );
+
+    if (!employeeIdField) {
+      errors.employeeId = "Employee selection is required";
+    }
+    if (!formData.leaveType) {
+      errors.leaveType = "Leave type is required";
+    }
+    if (!formData.fromDate) {
+      errors.fromDate = "From date is required";
+    }
+    if (!formData.toDate) {
+      errors.toDate = "To date is required";
+    }
+    if (!reason) {
+      errors.reason = "Reason is required";
+    }
+    if (!approversSelected) {
+      errors.reportingManager = "Please select at least one approver (manager or HR)";
+    }
+
+    if (formData.fromDate) {
+      const parsedFromDate = parseIsoDate(formData.fromDate);
+      if (!parsedFromDate) {
+        errors.fromDate = "Please enter a valid from date";
+      }
+    }
+    if (formData.toDate) {
+      const parsedToDate = parseIsoDate(formData.toDate);
+      if (!parsedToDate) {
+        errors.toDate = "Please enter a valid to date";
+      }
+    }
+
+    if (formData.fromDate && formData.toDate) {
+      const parsedFromDate = parseIsoDate(formData.fromDate);
+      const parsedToDate = parseIsoDate(formData.toDate);
+      if (parsedFromDate && parsedToDate && parsedToDate < parsedFromDate) {
+        errors.toDate = "To date cannot be earlier than from date";
+      }
+    }
+
+    return errors;
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -761,6 +830,7 @@ useEffect(() => {
         reportingManagerName: managerNames,
         reportingManagerEmail: managerEmails
       }));
+      setApplicationErrors(prev => ({ ...prev, reportingManager: "" }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -861,8 +931,10 @@ useEffect(() => {
     if (item) {
       setEditingId(item.id);
       setFormData({ ...item });
+      setSelectedReportingManagers(item.reportingManagerIds || []);
     } else {
       setEditingId(null);
+      setSelectedReportingManagers([]);
       // Auto-load employee data if user is an employee and we're opening an application dialog
       if (dialogModeToUse === "applications" && hasRole(user, "employee")) {
         const employeeId = getEmployeeIdForUser(user?.id || "");
@@ -874,6 +946,7 @@ useEffect(() => {
         setFormData({});
       }
     }
+    setApplicationErrors({});
     setIsDialogOpen(true);
   };
 
@@ -884,27 +957,11 @@ useEffect(() => {
     }
     
     if (dialogMode === "applications") {
-      // Handle leave application submission
-      // Attachments are optional; all other fields are required
-      const employeeIdField = formData.employeeId || currentUserEmployee?.id || user?.id;
-      const approversSelected = (
-        (formData.reportingManagerIds && formData.reportingManagerIds.length > 0) ||
-        (selectedReportingManagers && selectedReportingManagers.length > 0) ||
-        !!formData.reportingManagerName
-      );
-
-      if (!employeeIdField) {
-        toast.error('Employee selection is required');
-        return;
-      }
-
-      if (!formData.leaveType || !formData.fromDate || !formData.toDate || !formData.reason) {
-        toast.error('Please fill in all required fields');
-        return;
-      }
-
-      if (!approversSelected) {
-        toast.error('Please select at least one approver (manager or HR)');
+      const validationErrors = validateLeaveApplicationForm();
+      setApplicationErrors(validationErrors);
+      if (Object.keys(validationErrors).length > 0) {
+        const firstError = Object.values(validationErrors)[0];
+        toast.error(firstError);
         return;
       }
 
@@ -918,6 +975,15 @@ useEffect(() => {
           toast.error("Please select a valid leave type");
           return;
         }
+
+        const parsedFromDate = parseIsoDate(formData.fromDate);
+        const parsedToDate = parseIsoDate(formData.toDate);
+        if (!parsedFromDate || !parsedToDate) {
+          toast.error("Please enter valid leave dates");
+          return;
+        }
+
+        const calculatedDays = Math.floor((parsedToDate.getTime() - parsedFromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
         // Get reporting manager details from form or current user data
         const reportingManagerId = formData.reportingManagerId || currentUserEmployee?.reporting_manager_id;
@@ -933,7 +999,7 @@ useEffect(() => {
           employee_id: formData.employeeId || currentUserEmployee?.id || '',
           employee_name: formData.employeeName || currentUserEmployee?.name || user?.name || '',
           status: 'applied',
-          days: formData.days || 1,
+          days: calculatedDays,
           // Include reporting manager details for notification
           reporting_manager_id: reportingManagerId,
           reporting_manager_name: reportingManagerName,
@@ -1724,9 +1790,6 @@ useEffect(() => {
                       <p className="font-bold text-gray-800 text-lg">
                         {formData.employeeName || (user as any)?.name || 'Current User'}
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {(user as any)?.employee_id || user?.id ? `ID: ${(user as any)?.employee_id || user?.id}` : 'Employee'}
-                      </p>
                     </div>
                     <div className="bg-purple-100 px-4 py-2 rounded-full">
                       <span className="text-purple-700 font-semibold text-sm">Current User</span>
@@ -1739,8 +1802,15 @@ useEffect(() => {
                     <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                     Leave Type *
                   </Label>
-                  <Select value={formData.leaveType || ""} onValueChange={(val) => setFormData({ ...formData, leaveType: val })}>
-                    <SelectTrigger className="h-12 text-base border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm">
+                  <Select value={formData.leaveType || ""} onValueChange={(val) => {
+                    setFormData({ ...formData, leaveType: val });
+                    if (applicationErrors.leaveType) {
+                      setApplicationErrors(prev => ({ ...prev, leaveType: "" }));
+                    }
+                  }}>
+                    <SelectTrigger className={`h-12 text-base rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm ${
+                      applicationErrors.leaveType ? "border-red-500" : "border-gray-300"
+                    }`}>
                       <SelectValue placeholder="Select leave type..." />
                     </SelectTrigger>
                     <SelectContent className="z-50 max-h-60 overflow-auto border-gray-200 rounded-xl shadow-lg">
@@ -1758,6 +1828,9 @@ useEffect(() => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {applicationErrors.leaveType && (
+                    <p className="text-sm text-red-600">{applicationErrors.leaveType}</p>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1768,10 +1841,20 @@ useEffect(() => {
                     </Label>
                     <Input
                       value={formData.fromDate || ""}
-                      onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, fromDate: e.target.value });
+                        if (applicationErrors.fromDate) {
+                          setApplicationErrors(prev => ({ ...prev, fromDate: "" }));
+                        }
+                      }}
                       type="date"
-                      className="h-12 text-base border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm"
+                      className={`h-12 text-base rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm ${
+                        applicationErrors.fromDate ? "border-red-500" : "border-gray-300"
+                      }`}
                     />
+                    {applicationErrors.fromDate && (
+                      <p className="text-sm text-red-600">{applicationErrors.fromDate}</p>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
@@ -1780,10 +1863,20 @@ useEffect(() => {
                     </Label>
                     <Input
                       value={formData.toDate || ""}
-                      onChange={(e) => setFormData({ ...formData, toDate: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, toDate: e.target.value });
+                        if (applicationErrors.toDate) {
+                          setApplicationErrors(prev => ({ ...prev, toDate: "" }));
+                        }
+                      }}
                       type="date"
-                      className="h-12 text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-sm"
+                      className={`h-12 text-base rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-sm ${
+                        applicationErrors.toDate ? "border-red-500" : "border-gray-300"
+                      }`}
                     />
+                    {applicationErrors.toDate && (
+                      <p className="text-sm text-red-600">{applicationErrors.toDate}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -1794,11 +1887,21 @@ useEffect(() => {
                   </Label>
                   <Input
                     value={formData.reason || ""}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, reason: e.target.value });
+                      if (applicationErrors.reason) {
+                        setApplicationErrors(prev => ({ ...prev, reason: "" }));
+                      }
+                    }}
                     required
-                    className="h-12 text-base border-gray-300 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm"
+                    className={`h-12 text-base rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm ${
+                      applicationErrors.reason ? "border-red-500" : "border-gray-300"
+                    }`}
                     placeholder="Please provide a reason for your leave request..."
                   />
+                  {applicationErrors.reason && (
+                    <p className="text-sm text-red-600">{applicationErrors.reason}</p>
+                  )}
                 </div>
                 
                 <div className="space-y-3">
@@ -1818,8 +1921,10 @@ useEffect(() => {
                         }
                         
                       }}
-                      className="w-full h-12 text-base border-gray-300 bg-white rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all px-4 py-3 text-left flex items-center justify-between hover:border-indigo-400 shadow-sm"
-                      
+                      className={`w-full h-12 text-base bg-white rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all px-4 py-3 text-left flex items-center justify-between hover:border-indigo-400 shadow-sm ${
+                        applicationErrors.reportingManager ? "border-red-500" : "border-gray-300"
+                      }`}
+                       
                     >
                       <div className="flex flex-wrap gap-2">
                         {selectedReportingManagers.length > 0 ? (
@@ -1830,6 +1935,7 @@ useEffect(() => {
                                 {manager.fullName || manager.name}
                                 {manager.role === 'hr' && <span className="text-indigo-600 font-bold">(HR)</span>}
                                 {manager.role === 'manager' && <span className="text-green-600 font-bold">(M)</span>}
+                                {manager.role === 'ceo' && <span className="text-amber-600 font-bold">(CEO)</span>}
                               </span>
                             ) : null;
                           })
@@ -1839,6 +1945,9 @@ useEffect(() => {
                       </div>
                       <span className="ml-2 text-gray-400 text-lg">▼</span>
                     </button>
+                    {applicationErrors.reportingManager && (
+                      <p className="mt-2 text-sm text-red-600">{applicationErrors.reportingManager}</p>
+                    )}
                     
                     {/* Dropdown Content */}
                     <div id="manager-dropdown" className="hidden absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-auto">
@@ -1876,6 +1985,11 @@ useEffect(() => {
                                   {manager.role === 'manager' && (
                                     <span className="px-2 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs rounded-full font-bold">
                                       Manager
+                                    </span>
+                                  )}
+                                  {manager.role === 'ceo' && (
+                                    <span className="px-2 py-1 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 text-xs rounded-full font-bold">
+                                      CEO
                                     </span>
                                   )}
                                 </div>

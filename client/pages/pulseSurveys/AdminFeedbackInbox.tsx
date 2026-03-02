@@ -67,9 +67,16 @@ const getCategoryColor = (category: string) => {
 
 const AdminFeedbackInbox: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = useMemo(
-    () => user?.roles?.some((r) => r?.toLowerCase() === "admin"),
-    [user?.roles],
+  const isAdmin = useMemo(() => {
+    const allRoles = [
+      ...(Array.isArray(user?.roles) ? user.roles : []),
+      user?.role || "",
+    ]
+      .map((r) => String(r || "").toLowerCase())
+      .filter(Boolean);
+    return allRoles.includes("admin") || allRoles.includes("ceo");
+  },
+    [user?.roles, user?.role],
   );
 
   const [rows, setRows] = useState<FeedbackRow[]>([]);
@@ -387,4 +394,3 @@ const AdminFeedbackInbox: React.FC = () => {
 };
 
 export default AdminFeedbackInbox;
-

@@ -233,20 +233,13 @@ const navigationItems: NavItem[] = [
       //   icon: <div />,
       //   moduleName: "organization",
       // },
-      {
-        label: "Role Management",
-        path: "/organization/role-management",
-        roles: [],
-        icon: <div />,
-        moduleName: "role_access",
-      },
     ],
   },
   {
     label: "Role & Module Access Debug",
     icon: <Settings className="w-5 h-5" />,
     path: "/debug/roles",
-    roles: [],
+    roles: ["admin", "ceo"],
     moduleName: "role_access",
   },
   
@@ -348,7 +341,8 @@ const navigationItems: NavItem[] = [
         path: "/attendance/shift",
         roles: [],
         icon: <div />,
-        moduleName: "shift management",
+        moduleName: "attendance",
+        subModuleName: "shift",
       },
       {
         label: "Live Tracking",
@@ -531,35 +525,35 @@ const navigationItems: NavItem[] = [
       {
         label: "Overview",
         path: "/pulse-surveys/dashboard",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "pulse_surveys",
       },
       {
         label: "Results",
         path: "/pulse-surveys/results",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "pulse_surveys",
       },
       {
         label: "Create Survey",
         path: "/pulse-surveys/create",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "pulse_surveys",
       },
       {
         label: "Templates",
         path: "/pulse-surveys/templates",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "pulse_surveys",
       },
       {
         label: "Feedback Inbox",
         path: "/pulse-surveys/feedback-inbox",
-        roles: ["admin"],
+        roles: [],
         icon: <div />,
         moduleName: "pulse_surveys",
       },
@@ -654,10 +648,10 @@ const navigationItems: NavItem[] = [
  
 
       
-    {
+  {
     label: "Subscription",
     icon: <CreditCard className="w-5 h-5" />,
-    roles: [],
+    roles: ["admin", "ceo"],
     moduleName: "subscription",
     path: "/subscription",
   },
@@ -774,10 +768,14 @@ export const Sidebar: React.FC = () => {
     setIsMobileOpen(false);
   };
 
-  const isSuperAdmin = user.roles?.some((role) => role?.toLowerCase() === "superadmin");
-  const isEmployeeUser =
-    user.type?.toLowerCase() === "employee" ||
-    user.roles?.some((role) => role?.toLowerCase() === "employee");
+  const normalizedUserRoles = [
+    ...(Array.isArray(user.roles) ? user.roles : []),
+    user.role || "",
+  ]
+    .map((role) => String(role || "").toLowerCase())
+    .filter(Boolean);
+  const isSuperAdmin = normalizedUserRoles.includes("superadmin");
+  const isEmployeeUser = normalizedUserRoles.includes("employee");
 
   const allowedModulesForPlan = useMemo(() => {
     if (isSuperAdmin) return null;
@@ -788,21 +786,88 @@ export const Sidebar: React.FC = () => {
     subscriptionLoading,
   ]);
 
+  const normalizeSubmoduleKey = (value: string) =>
+    value.toLowerCase().replace(/[\s-]+/g, "_");
+
+  const inferSubmoduleFromPath = (item: NavItem): string | undefined => {
+    if (item.subModuleName) return normalizeSubmoduleKey(item.subModuleName);
+    if (!item.moduleName || !item.path) return undefined;
+
+    const path = item.path;
+    switch (item.moduleName) {
+      case "organization":
+        if (path.includes("/organization/company")) return "company";
+        if (path.includes("/organization/branches")) return "branches";
+        if (path.includes("/organization/departments")) return "departments";
+        if (path.includes("/organization/designations")) return "designations";
+        if (path.includes("/organization/role-management")) return "role_management";
+        return undefined;
+      case "hr_management":
+        if (path.includes("/hr/requirements")) return "requirements";
+        if (path.includes("/hr/recruitment")) return "recruitment";
+        if (path.includes("/hr/offer-letters")) return "offer_letters";
+        if (path.includes("/hr/onboarding")) return "onboarding";
+        return undefined;
+      case "attendance":
+        if (path.includes("/attendance/capture")) return "capture";
+        if (path.includes("/attendance/log")) return "log";
+        if (path.includes("/attendance/override")) return "override";
+        return undefined;
+      case "leave":
+        if (path.includes("/leave/apply")) return "apply";
+        if (path.includes("/leave/balance")) return "balance";
+        if (path.includes("/leave/approvals")) return "approvals";
+        if (path.includes("/leave/config")) return "config";
+        if (path.includes("/leave/permission")) return "permission";
+        return undefined;
+      case "expenses":
+        if (path.includes("/expenses/claims")) return "claims";
+        if (path.includes("/expenses/approvals")) return "approvals";
+        return undefined;
+      case "assets":
+        if (path.includes("/assets/list")) return "list";
+        return undefined;
+      case "exit":
+        if (path.includes("/exit/resignations")) return "resignations";
+        if (path.includes("/exit/checklist")) return "checklist";
+        if (path.includes("/exit/settlement")) return "settlement";
+        return undefined;
+      case "pulse_surveys":
+        if (path.includes("/pulse-surveys/dashboard")) return "dashboard";
+        if (path.includes("/pulse-surveys/results")) return "results";
+        if (path.includes("/pulse-surveys/create")) return "create";
+        if (path.includes("/pulse-surveys/templates")) return "templates";
+        if (path.includes("/pulse-surveys/feedback-inbox")) return "feedback_inbox";
+        if (path.includes("/pulse-surveys/my-surveys")) return "my_surveys";
+        if (path.includes("/pulse-surveys/feedback")) return "feedback";
+        if (path.includes("/pulse-surveys/respond")) return "respond";
+        return undefined;
+      case "reports":
+        if (path.includes("/reports/attendance")) return "attendance";
+        if (path.includes("/reports/leave")) return "leave";
+        if (path.includes("/reports/payroll")) return "payroll";
+        if (path.includes("/reports/finance")) return "finance";
+        if (path.includes("/export/data")) return "export_data";
+        if (path.includes("/employees/reports")) return "employee_reports";
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
   // Check if user has access to a navigation item based on module permissions
   const hasItemAccess = (item: NavItem): boolean => {
-    // Simple admin fallback - always show Client Attendance Admin to admin users
-    if (item.moduleName === "client_attendance_admin") {
-      const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
-      if (isAdmin) {
-        console.log("✅ Admin access granted for Client Attendance Admin");
-        return true;
+    // Enforce explicit role restrictions when provided.
+    if (item.roles && item.roles.length > 0) {
+      const roleSet = new Set(
+        [...(Array.isArray(user.roles) ? user.roles : []), user.role || ""]
+          .map((r) => String(r || "").toLowerCase())
+          .filter(Boolean)
+      );
+      const allowed = item.roles.some((requiredRole) => roleSet.has(requiredRole.toLowerCase()));
+      if (!allowed) {
+        return false;
       }
-    }
-
-    // Keep debug page visible for admin users even in strict mode
-    if (item.path === "/debug/roles") {
-      const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
-      if (isAdmin) return true;
     }
 
     // Subscription-based visibility (applies to non-superadmin users)
@@ -813,9 +878,6 @@ export const Sidebar: React.FC = () => {
       // If subscription-based restriction is active, enforce it.
       // If it's null (trial full access), don't restrict sidebar by subscription.
       if (allowedModulesForPlan) {
-        // Always allow Subscription so users can upgrade/renew
-        if (item.moduleName === "subscription") return true;
-
         // If moduleName is undefined (non-dashboard), hide it (prevents showing items not tied to the plan)
         if (item.moduleName === undefined) return false;
 
@@ -827,115 +889,20 @@ export const Sidebar: React.FC = () => {
       }
     }
 
-    // While role permissions are loading, avoid hiding the entire sidebar.
-    // Subscription-based filtering already ran above for non-superadmin users.
+    // While role permissions are loading, hide permission-bound items to avoid showing unauthorized modules.
     if (roleLoading) {
-      if (!isSuperAdmin) {
-        return true;
-      }
-
-      return false;
+      return item.moduleName === undefined;
     }
 
-    // For Role & Module Access Debug, check if user has the specific module
-    if (item.moduleName === "role_access") {
-      return canPerformModuleAction("role_access", "view");
+    // Parent items with submenu should be shown when at least one submenu is accessible.
+    if (item.submenu && item.submenu.length > 0) {
+      return item.submenu.some((subItem) => hasItemAccess(subItem as NavItem));
     }
 
-    // Strict permission mode: module must have view access to appear
-    if (item.moduleName && !canPerformModuleAction(item.moduleName, "view")) {
-      // Keep superadmin-specific modules visible for superadmin users
-      if (
-        isSuperAdmin &&
-        ["subscription_plans", "organizations", "users"].includes(item.moduleName)
-      ) {
-        return true;
-      }
-      return false;
-    }
-
-    // For sub-modules, check specific permissions
-    if (item.subModuleName) {
-      // Special handling for payroll sub-modules
-      if (item.moduleName === "payroll") {
-        switch (item.subModuleName) {
-          case "payslips":
-            // Anyone with payroll view access can see payslips
-            return canPerformModuleAction("payroll", "view");
-          case "salary-structure":
-          case "processing":
-            // These require higher permissions, but HR with view access should see them
-            // The actual permissions will be enforced at the route/component level
-            return canPerformModuleAction("payroll", "view");
-          default:
-            return true;
-        }
-      }
-    }
-
-    // For reports, ensure view permission
-    if (item.moduleName === "reports") {
-      return canPerformModuleAction("reports", "view");
-    }
-
-    // Special handling for Quick Actions - always show
-    if (item.moduleName === "quick_actions") {
-      return true; // Always show Quick Actions menu
-    }
-
-    // Special handling for Mark Attendance
-    if (item.moduleName === "attendance") {
-      return canPerformModuleAction("attendance", "view");
-    }
-
-    // Special handling for Apply for Leave
-    if (item.moduleName === "leave") {
-      return canPerformModuleAction("leave", "view");
-    }
-
-    // Special handling for View Payslip
-    if (item.moduleName === "payroll") {
-      return canPerformModuleAction("payroll", "view");
-    }
-
-    // Special handling for Submit Expense Claim
-    if (item.moduleName === "expenses") {
-      return canPerformModuleAction("expenses", "view");
-    }
-
-    // Special handling for Client Attendance - check module access
-    if (item.moduleName === "client_attendance") {
-      return canPerformModuleAction("client_attendance", "view");
-    }
-
-    // Special handling for My Clients - check module access
-    if (item.moduleName === "my_clients") {
-      return canPerformModuleAction("my_clients", "view");
-    }
-
-    // Special handling for My Analytics - check module access
-    if (item.moduleName === "my_analytics") {
-      return canPerformModuleAction("my_analytics", "view");
-    }
-
-    // Special handling for Client Attendance Admin - check module access or admin role
-    if (item.moduleName === "client_attendance_admin") {
-      const isAdmin = user.roles?.some((role) => role?.toLowerCase() === "admin");
-      // Debug logging
-      if (process.env.NODE_ENV === "development" && item.moduleName === "client_attendance_admin") {
-        console.log("Client Attendance Admin Access Check:", {
-          userRoles: user.roles,
-          isAdmin,
-          hasModuleAccess: canPerformModuleAction("client_attendance_admin", "view"),
-          result: isAdmin || canPerformModuleAction("client_attendance_admin", "view")
-        });
-      }
-      return isAdmin || canPerformModuleAction("client_attendance_admin", "view");
-    }
-
-    // For expense approval items, check approve permission
-    if (item.label === "Approve Claims" || (item.path && item.path.includes("/expenses/approvals"))) {
-      return canPerformModuleAction("expenses", "approve");
+    // Submodule-aware visibility: prefer submodule RBAC check when available.
+    const inferredSubmodule = inferSubmoduleFromPath(item);
+    if (item.moduleName && inferredSubmodule) {
+      return canPerformModuleAction(item.moduleName, "view", inferredSubmodule);
     }
 
     // If we get here and have a module name, check view permission

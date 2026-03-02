@@ -117,6 +117,7 @@ export const payrollApi = {
         const transformedData = response.data.payrolls.map((item: any) => ({
           id: item.id.toString(),
           employeeId: (item.employee_id || item.employeeId || '').toString(),
+          employeeCode: item.employee_code || item.employeeCode || null,
           employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
           month: item.month,
           payableDays: item.payable_days || 0,
@@ -178,6 +179,7 @@ export const payrollApi = {
         const transformedData = payrollsData.map((item: any) => ({
           id: item.id.toString(),
           employeeId: (item.employee_id || item.employeeId || '').toString(),
+          employeeCode: item.employee_code || item.employeeCode || null,
           employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
           month: item.month,
           payableDays: item.payable_days || 0,

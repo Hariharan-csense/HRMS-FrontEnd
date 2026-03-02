@@ -65,13 +65,16 @@ export const mockUsers: Record<string, { password: string; user: User }> = {
 // Helper to check if user has permission
 export const hasRole = (user: User | null, role: string): boolean => {
   if (!user) return false;
-  const wanted = role.toLowerCase();
-  const assignedRoles = Array.isArray(user.roles)
-    ? user.roles.map((r) => String(r).toLowerCase())
-    : [];
+  const normalize = (value: unknown) => String(value ?? "").trim().toLowerCase();
+  const wanted = normalize(role);
+  const assignedRoles = [
+    ...(Array.isArray(user.roles) ? user.roles : []),
+    user.role,
+  ]
+    .map(normalize)
+    .filter(Boolean);
 
-  if (assignedRoles.includes(wanted)) return true;
-  return (user.role || "").toLowerCase() === wanted;
+  return assignedRoles.includes(wanted);
 };
 
 export const hasAnyRole = (user: User | null, roles: string[]): boolean => {

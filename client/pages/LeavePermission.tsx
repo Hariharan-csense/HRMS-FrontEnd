@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { hasRole } from "@/lib/auth";
+import { useRole } from "@/context/RoleContext";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { leavePermissionApi, type LeavePermission, type LeavePermissionFormData 
 
 export default function LeavePermission() {
   const { user } = useAuth();
+  const { canPerformModuleAction } = useRole();
   const [permissions, setPermissions] = useState<LeavePermission[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -79,12 +81,30 @@ export default function LeavePermission() {
   };
 
   // Validation functions
+  const parseIsoDate = (value: string): Date | null => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    const parsed = new Date(year, month - 1, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
   const validateDate = (date: string): string => {
     if (!date) {
       return "Date is required";
     }
 
-    const selectedDate = new Date(date);
+    const selectedDate = parseIsoDate(date);
+    if (!selectedDate) {
+      return "Please enter a valid date";
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day for comparison
 
@@ -332,7 +352,11 @@ export default function LeavePermission() {
   };
 
   const canApproveReject = () => {
-    return hasRole(user, "hr") || hasRole(user, "admin") || hasRole(user, "manager");
+    return (
+      canPerformModuleAction("leave", "approve", "permission") ||
+      canPerformModuleAction("leave", "reject", "permission") ||
+      canPerformModuleAction("leave", "update", "permission")
+    );
   };
 
   return (
@@ -365,15 +389,17 @@ export default function LeavePermission() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-2 mb-4">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by employee name, reason, or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
+            {canApproveReject() && (
+              <div className="flex items-center space-x-2 mb-4">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by employee name, reason, or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+            )}
 
             {loading ? (
               <div className="text-center py-8">Loading...</div>

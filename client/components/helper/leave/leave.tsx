@@ -393,8 +393,8 @@ export const leaveTypeApi = {
       let users: any[] = [];
 
       // Handle grouped response formats:
-      // { manager: {...} | [...], hr: [...], admin: [...] }
-      if (response.data?.manager || response.data?.hr || response.data?.admin) {
+      // { manager: {...} | [...], hr: [...], admin: [...], ceo: [...] }
+      if (response.data?.manager || response.data?.hr || response.data?.admin || response.data?.ceo) {
         const pushUser = (entry: any, fallbackRole: string, fallbackDesignation: string) => {
           users.push({
             id: entry?.id?.toString() || entry?._id?.toString() || "",
@@ -431,6 +431,10 @@ export const leaveTypeApi = {
 
         if (Array.isArray(response.data.admin)) {
           response.data.admin.forEach((admin: any) => pushUser(admin, "admin", "Admin"));
+        }
+
+        if (Array.isArray(response.data.ceo)) {
+          response.data.ceo.forEach((ceo: any) => pushUser(ceo, "ceo", "CEO"));
         }
       }
       // Case 1: Wrapped response { success: true, users: [...] }

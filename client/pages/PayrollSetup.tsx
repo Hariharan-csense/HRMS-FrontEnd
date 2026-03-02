@@ -45,6 +45,7 @@ interface Payslip {
   id: string;
   number?: string;
   employeeId: string;
+  employeeCode?: string | null;
   employeeName: string;
   reportingManager?: string;
   month: string;
@@ -1915,7 +1916,7 @@ export default function PayrollSetup() {
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-sm text-slate-600">Employee ID:</p>
-                          <p className="text-sm font-medium text-slate-900">{payslip.employeeId}</p>
+                          <p className="text-sm font-medium text-slate-900">{payslip.employeeCode || payslip.employeeId}</p>
                         </div>
                       </div>
                       <div className="space-y-2">

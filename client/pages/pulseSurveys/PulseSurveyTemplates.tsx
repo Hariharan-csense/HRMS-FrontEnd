@@ -24,9 +24,16 @@ type Template = {
 
 const PulseSurveyTemplates: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = useMemo(
-    () => user?.roles?.some((r) => r?.toLowerCase() === "admin"),
-    [user?.roles],
+  const isAdmin = useMemo(() => {
+    const allRoles = [
+      ...(Array.isArray(user?.roles) ? user.roles : []),
+      user?.role || "",
+    ]
+      .map((r) => String(r || "").toLowerCase())
+      .filter(Boolean);
+    return allRoles.includes("admin") || allRoles.includes("ceo");
+  },
+    [user?.roles, user?.role],
   );
 
   const [rows, setRows] = useState<Template[]>([]);
@@ -427,4 +434,3 @@ const PulseSurveyTemplates: React.FC = () => {
 };
 
 export default PulseSurveyTemplates;
-

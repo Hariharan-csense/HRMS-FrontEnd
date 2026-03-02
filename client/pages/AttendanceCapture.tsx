@@ -53,6 +53,8 @@ export default function AttendanceCapture() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
@@ -75,13 +77,27 @@ export default function AttendanceCapture() {
   const [lastLocationUpdate, setLastLocationUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
+    mountedRef.current = true;
     startWebcam();
     fetchAttendanceStatus();
     fetchBranchLocations();
+
+    const handlePageHide = () => stopWebcam();
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopWebcam();
+      }
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     
     // Cleanup live tracking on unmount
     return () => {
+      mountedRef.current = false;
       stopWebcam();
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (isTrackingActive) {
         liveLocationService.stopAutoTracking();
       }
@@ -255,6 +271,9 @@ export default function AttendanceCapture() {
 
   const startWebcam = async () => {
     try {
+      // Defensive: ensure no previous stream is left open before starting a new one.
+      stopWebcam();
+
       // Check if we're on a secure context (required for camera access)
       const isSecureOrigin = window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
       if (!isSecureOrigin) {
@@ -308,6 +327,13 @@ export default function AttendanceCapture() {
           audio: false
         });
       }
+
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      streamRef.current = stream;
 
       if (videoRef.current) {
         // Ensure video element is ready before attaching stream
@@ -376,6 +402,17 @@ export default function AttendanceCapture() {
   };
 
   const stopWebcam = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (error) {
+          console.warn("Failed to stop media track:", error);
+        }
+      });
+      streamRef.current = null;
+    }
+
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       const tracks = stream.getTracks();
@@ -383,6 +420,11 @@ export default function AttendanceCapture() {
         track.stop();
       });
       videoRef.current.srcObject = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.onloadedmetadata = null;
+      videoRef.current.onerror = null;
     }
   };
 
@@ -534,6 +576,9 @@ export default function AttendanceCapture() {
           setTodayRecords((prev) => [record, ...prev]);
           setIsCheckedIn(type === "check-in" ? true : false);
           
+          // Stop camera immediately after successful attendance marking.
+          stopWebcam();
+
           // Refresh status after successful check-in/out
           await fetchAttendanceStatus();
 

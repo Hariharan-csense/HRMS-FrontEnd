@@ -32,6 +32,14 @@ import { useRole } from "@/context/RoleContext";
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
+const toFiniteNumber = (value: unknown): number | null => {
+  const num = typeof value === "string" ? Number(value) : (value as number);
+  return Number.isFinite(num) ? num : null;
+};
+
+const isValidLatLng = (lat: number | null, lng: number | null): lat is number =>
+  lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+
 interface TrackedEmployee extends Employee {
   currentLocation?: {
     latitude: number;
@@ -85,6 +93,10 @@ export default function LiveTracking() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [travelPaths, setTravelPaths] = useState<Record<string, Array<{ lat: number; lng: number }>>>({});
   const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
+  const [mapLoadError, setMapLoadError] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("google_maps_blocked") === "1" ? "GOOGLE_MAP_BLOCKED" : null;
+  });
 
   const canViewTracking = hasModuleAccess('live_tracking') || hasModuleAccess('attendance');
 
@@ -259,11 +271,14 @@ export default function LiveTracking() {
         const isCheckedIn = latestAttendance && latestAttendance.check_in && !latestAttendance.check_out;
         
         let currentLocation = undefined;
-        if (emp.latitude && emp.longitude) {
+        const empLat = toFiniteNumber((emp as any).latitude);
+        const empLng = toFiniteNumber((emp as any).longitude);
+        if (isValidLatLng(empLat, empLng)) {
+          const empAccuracy = toFiniteNumber((emp as any).accuracy);
           currentLocation = {
-            latitude: emp.latitude,
-            longitude: emp.longitude,
-            accuracy: emp.accuracy || 10,
+            latitude: empLat,
+            longitude: empLng,
+            accuracy: empAccuracy ?? 10,
             address: emp.address || "Unknown location",
             timestamp: emp.locationTimestamp || new Date().toISOString(),
           };
@@ -272,13 +287,18 @@ export default function LiveTracking() {
             const locationData = typeof latestAttendance.check_in_location === 'string' 
               ? JSON.parse(latestAttendance.check_in_location) 
               : latestAttendance.check_in_location;
-            currentLocation = {
-              latitude: locationData.latitude,
-              longitude: locationData.longitude,
-              accuracy: locationData.accuracy || 10,
-              address: locationData.address || "Unknown location",
-              timestamp: latestAttendance.check_in,
-            };
+            const checkInLat = toFiniteNumber(locationData?.latitude);
+            const checkInLng = toFiniteNumber(locationData?.longitude);
+            const checkInAccuracy = toFiniteNumber(locationData?.accuracy);
+            if (isValidLatLng(checkInLat, checkInLng)) {
+              currentLocation = {
+                latitude: checkInLat,
+                longitude: checkInLng,
+                accuracy: checkInAccuracy ?? 10,
+                address: locationData.address || "Unknown location",
+                timestamp: latestAttendance.check_in,
+              };
+            }
           } catch (error) {
             console.error('Error parsing check-in location:', error);
           }
@@ -335,6 +355,17 @@ export default function LiveTracking() {
       : { lat: 13.0827, lng: 80.2707 };
   }, [trackedEmployees, canViewTracking]);
 
+  const fallbackMapUrl = useMemo(() => {
+    const lat = mapCenter.lat;
+    const lng = mapCenter.lng;
+    const delta = 0.08;
+    const left = lng - delta;
+    const right = lng + delta;
+    const top = lat + delta;
+    const bottom = lat - delta;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik`;
+  }, [mapCenter]);
+
   useEffect(() => {
     if (!isAnimating || !canViewTracking) return;
 
@@ -344,9 +375,12 @@ export default function LiveTracking() {
       trackedEmployees.forEach((emp) => {
         if (emp.trackingStatus !== "checked-in" || !emp.currentLocation) return;
 
+        const pointLat = toFiniteNumber(emp.currentLocation.latitude);
+        const pointLng = toFiniteNumber(emp.currentLocation.longitude);
+        if (!isValidLatLng(pointLat, pointLng)) return;
         const newPoint = {
-          lat: emp.currentLocation.latitude,
-          lng: emp.currentLocation.longitude,
+          lat: pointLat,
+          lng: pointLng,
         };
 
         const currentPath = next[emp.id] || [];
@@ -639,14 +673,53 @@ export default function LiveTracking() {
                 <AlertCircle className="w-4 h-4" />
                 <AlertDescription>No employees match your search criteria</AlertDescription>
               </Alert>
+            ) : mapLoadError ? (
+              <div className="space-y-4">
+                <Alert>
+                  <AlertCircle className="w-4 h-4" />
+                  <AlertDescription>
+                    Google Maps is blocked for this API key. Showing OpenStreetMap fallback.
+                  </AlertDescription>
+                </Alert>
+                <iframe
+                  title="Fallback Map"
+                  src={fallbackMapUrl}
+                  className="w-full h-[500px] rounded-md border"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {filteredEmployees
+                    .filter((emp) => emp.currentLocation)
+                    .map((emp) => (
+                      <a
+                        key={`fallback-link-${emp.id}`}
+                        href={`https://www.openstreetmap.org/?mlat=${emp.currentLocation!.latitude}&mlon=${emp.currentLocation!.longitude}#map=15/${emp.currentLocation!.latitude}/${emp.currentLocation!.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        {emp.firstName} {emp.lastName} - Open location
+                      </a>
+                    ))}
+                </div>
+              </div>
             ) : (
-              <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+              <LoadScript
+                googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+                onError={() => {
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("google_maps_blocked", "1");
+                  }
+                  setMapLoadError("GOOGLE_MAP_BLOCKED");
+                  toast.error("Google Maps blocked. Switched to fallback map.");
+                }}
+              >
                 <GoogleMap
                   mapContainerStyle={{ height: "500px", width: "100%" }}
                   center={mapCenter}
                   zoom={12}
                   options={mapOptions}
                   onLoad={setMapInstance}
+                  onUnmount={() => setMapInstance(null)}
                 >
                   {officeLocations.map((office) => (
                     <Marker
@@ -674,14 +747,19 @@ export default function LiveTracking() {
                     </Marker>
                   ))}
 
-                  {filteredEmployees.filter((e) => e.currentLocation).length > 1 && (
+                  {filteredEmployees.filter((e) => {
+                    const lat = toFiniteNumber(e.currentLocation?.latitude);
+                    const lng = toFiniteNumber(e.currentLocation?.longitude);
+                    return isValidLatLng(lat, lng);
+                  }).length > 1 && (
                     <Polyline
                       path={filteredEmployees
-                        .filter((e) => e.currentLocation)
-                        .map((e) => ({
-                          lat: e.currentLocation!.latitude,
-                          lng: e.currentLocation!.longitude,
-                        }))}
+                        .map((e) => {
+                          const lat = toFiniteNumber(e.currentLocation?.latitude);
+                          const lng = toFiniteNumber(e.currentLocation?.longitude);
+                          return isValidLatLng(lat, lng) ? { lat, lng } : null;
+                        })
+                        .filter((point): point is { lat: number; lng: number } => point !== null)}
                       options={{
                         strokeColor: "#3b82f6",
                         strokeOpacity: 0.7,
@@ -721,16 +799,20 @@ export default function LiveTracking() {
 
                   {filteredEmployees.map((emp) => {
                     if (!emp.currentLocation) return null;
+                    const empLat = toFiniteNumber(emp.currentLocation.latitude);
+                    const empLng = toFiniteNumber(emp.currentLocation.longitude);
+                    if (!isValidLatLng(empLat, empLng)) return null;
                     const isCheckedIn = emp.trackingStatus === "checked-in";
+                    const accuracyRadius = Math.max(1, toFiniteNumber(emp.currentLocation.accuracy) ?? 10);
 
                     return (
                       <div key={`emp-${emp.id}`}>
                         <Circle
                           center={{
-                            lat: emp.currentLocation.latitude,
-                            lng: emp.currentLocation.longitude,
+                            lat: empLat,
+                            lng: empLng,
                           }}
-                          radius={emp.currentLocation.accuracy}
+                          radius={accuracyRadius}
                           options={{
                             fillColor: isCheckedIn ? "#10b981" : "#ef4444",
                             fillOpacity: 0.15,
@@ -742,8 +824,8 @@ export default function LiveTracking() {
 
                         <Marker
                           position={{
-                            lat: emp.currentLocation.latitude,
-                            lng: emp.currentLocation.longitude,
+                            lat: empLat,
+                            lng: empLng,
                           }}
                           title={`${emp.firstName} ${emp.lastName}`}
                           icon={createEmployeeMarkerIcon(emp.firstName, emp.lastName, isCheckedIn) as any}

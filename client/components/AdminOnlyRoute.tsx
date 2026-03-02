@@ -48,7 +48,13 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     : false;
 
   // Special handling: Admin users should always access Client Attendance Admin
-  const isAdmin = user.roles?.some(role => role?.toLowerCase() === "admin");
+  const allUserRoles = [
+    ...(Array.isArray(user.roles) ? user.roles : []),
+    user.role,
+  ]
+    .map((role) => String(role || "").trim().toLowerCase())
+    .filter(Boolean);
+  const isAdmin = allUserRoles.includes("admin");
   const isClientAttendanceAdmin = location.pathname.startsWith("/client-attendance-admin");
 
   // Debug logging

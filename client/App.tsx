@@ -163,7 +163,9 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
 
 const PulseSurveysRoot = () => {
   const { canPerformModuleAction } = useRole();
-  const canManagePulseSurveys = canPerformModuleAction("pulse_surveys", "create");
+  const canManagePulseSurveys =
+    canPerformModuleAction("pulse_surveys", "view", "dashboard") ||
+    canPerformModuleAction("pulse_surveys", "create");
   return canManagePulseSurveys ? (
     <Navigate to="/pulse-surveys/dashboard" replace />
   ) : (
@@ -720,7 +722,6 @@ function AppRoutes() {
           <ProtectedRoute
             element={
               <RoleBasedRoute
-                allowedRoles={["admin"]}
                 requiredModule="pulse_surveys"
                 requiredAction="view"
               >
@@ -736,7 +737,6 @@ function AppRoutes() {
           <ProtectedRoute
             element={
               <RoleBasedRoute
-                allowedRoles={["admin"]}
                 requiredModule="pulse_surveys"
                 requiredAction="create"
               >
@@ -752,7 +752,6 @@ function AppRoutes() {
           <ProtectedRoute
             element={
               <RoleBasedRoute
-                allowedRoles={["admin"]}
                 requiredModule="pulse_surveys"
                 requiredAction="view"
               >
@@ -768,7 +767,6 @@ function AppRoutes() {
           <ProtectedRoute
             element={
               <RoleBasedRoute
-                allowedRoles={["admin"]}
                 requiredModule="pulse_surveys"
                 requiredAction="view"
               >
@@ -826,7 +824,6 @@ function AppRoutes() {
           <ProtectedRoute
             element={
               <RoleBasedRoute
-                allowedRoles={["admin"]}
                 requiredModule="pulse_surveys"
                 requiredAction="view"
               >
@@ -842,7 +839,6 @@ function AppRoutes() {
           <ProtectedRoute
             element={
               <RoleBasedRoute
-                allowedRoles={["admin"]}
                 requiredModule="pulse_surveys"
                 requiredAction="view"
               >
