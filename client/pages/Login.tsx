@@ -195,6 +195,20 @@ export default function Login() {
       setSavedProfile(savedProfileData);
       console.log('Loaded saved profile for:', savedProfileData.name || savedProfileData.email);
     }
+
+    const authToast = sessionStorage.getItem("authToast");
+    if (authToast) {
+      try {
+        const { type, message } = JSON.parse(authToast);
+        if (type === "success" && message) {
+          showToast.success(message);
+        }
+      } catch (error) {
+        console.warn("Failed to parse auth toast message", error);
+      } finally {
+        sessionStorage.removeItem("authToast");
+      }
+    }
   }, []);
 
   const handleRegisterClick = () => {
@@ -299,7 +313,7 @@ const handleClearSavedProfile = () => {
           <div className="text-center mb-8 animate-fade-in-down">
             <div 
               className="w-48 h-48 flex items-center justify-center mx-auto mb-2 animate-float cursor-pointer hover:scale-105 transition-transform duration-300"
-              onClick={() => navigate("/landing")}
+              onClick={() => navigate("/")}
             >
               <img 
                 src={logo}

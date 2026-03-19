@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Calendar } from "lucide-react";
+import { CheckCircle, XCircle, Calendar, Loader2 } from "lucide-react";
 import NotificationTriggerService from "@/services/notificationTriggerService";
 import ENDPOINTS from "@/lib/endpoint";
 
@@ -121,6 +121,8 @@ export default function LeaveApprovals() {
   const { canPerformModuleAction } = useRole();
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingAction, setProcessingAction] = useState<"approved" | "rejected" | null>(null);
 
   useEffect(() => {
     const fetchLeaveApplications = async () => {
@@ -185,6 +187,8 @@ export default function LeaveApprovals() {
   }, [leaveApplications, user]);
 
   const handleApproveReject = async (id: string, approved: boolean) => {
+    setProcessingId(id);
+    setProcessingAction(approved ? "approved" : "rejected");
     const application = leaveApplications.find(la => la.id === id);
     
     // Update local state first for immediate UI feedback
@@ -202,6 +206,8 @@ export default function LeaveApprovals() {
       setLeaveApplications((prev) =>
         prev.map((la) => (la.id === id ? { ...la, status: "applied" } : la))
       );
+      setProcessingId(null);
+      setProcessingAction(null);
       return;
     }
 
@@ -235,6 +241,9 @@ export default function LeaveApprovals() {
         });
       }
     }
+
+    setProcessingId(null);
+    setProcessingAction(null);
   };
 
   if (loading) {
@@ -365,17 +374,37 @@ export default function LeaveApprovals() {
                         <Button
                           onClick={() => handleApproveReject(la.id, true)}
                           className="gap-2 flex-1 bg-green-600 hover:bg-green-700"
+                          disabled={processingId === la.id}
                         >
-                          <CheckCircle className="w-4 h-4" />
-                          Approve
+                          {processingId === la.id && processingAction === "approved" ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Approving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Approve
+                            </>
+                          )}
                         </Button>
                         <Button
                           onClick={() => handleApproveReject(la.id, false)}
                           variant="destructive"
                           className="gap-2 flex-1"
+                          disabled={processingId === la.id}
                         >
-                          <XCircle className="w-4 h-4" />
-                          Reject
+                          {processingId === la.id && processingAction === "rejected" ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Rejecting...
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-4 h-4" />
+                              Reject
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

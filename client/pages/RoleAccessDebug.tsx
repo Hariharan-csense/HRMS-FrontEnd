@@ -7,9 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { useRole } from "@/context/RoleContext";
 import { roleApi, Role, RbacModuleCatalog } from "@/components/helper/roles/roles";
-import { Plus, Save, X, RefreshCw, Copy, Trash2, ShieldCheck, Layers3, Crown, Key, Lock, Unlock, Settings, Users, Grid3x3, Sparkles, Zap, CheckSquare, Square } from "lucide-react";
+import { Plus, Save, X, RefreshCw, Copy, Trash2, ShieldCheck, Layers3, Crown, Key, Lock, Unlock, Settings, Users, Grid3x3, Sparkles, Zap, CheckSquare, Square, ChevronDown } from "lucide-react";
 
 type RbacAction = "view" | "create" | "update" | "delete" | "approve" | "reject";
 
@@ -56,7 +55,7 @@ const FALLBACK_CATALOG: RbacModuleCatalog[] = [
   { key: "attendance", label: "Attendance", submodules: [{ key: "capture", label: "Check-In/Out" }, { key: "log", label: "Attendance Log" }, { key: "override", label: "Override" }, { key: "shift", label: "Shift Management" }] },
   { key: "shift_management", label: "Shift Management", submodules: [] },
   { key: "live_tracking", label: "Live Tracking", submodules: [] },
-  { key: "leave", label: "Leave", submodules: [{ key: "apply", label: "Apply Leave" }, { key: "balance", label: "Leave Balance" }, { key: "approvals", label: "Leave Approvals" }, { key: "config", label: "Leave Config" }, { key: "applications", label: "Applications" }, { key: "permission", label: "Permission" }, { key: "configuration", label: "Configuration" }] },
+  { key: "leave", label: "Leave", submodules: [{ key: "apply", label: "Apply Leave" }, { key: "balance", label: "Leave Balance" }, { key: "approvals", label: "Leave Approvals" }, { key: "config", label: "Leave Config" }, { key: "leave_types", label: "Leave Types" }, { key: "applications", label: "Applications" }, { key: "permission", label: "Permission" }, { key: "configuration", label: "Configuration" }] },
   { key: "payroll", label: "Payroll", submodules: [{ key: "salary_structure", label: "Salary Structure" }, { key: "processing", label: "Processing" }, { key: "payslips", label: "Payslips" }] },
   { key: "expenses", label: "Expenses", submodules: [{ key: "claims", label: "Claims" }, { key: "approvals", label: "Approvals" }, { key: "export", label: "Export" }] },
   { key: "assets", label: "Assets", submodules: [{ key: "list", label: "Asset List" }] },
@@ -110,6 +109,46 @@ const initializeModulesFromCatalog = (catalog: RbacModuleCatalog[]): EditableMod
   return modules;
 };
 
+const mergeCatalogWithFallback = (
+  catalogFromApi: RbacModuleCatalog[] = [],
+  fallbackCatalog: RbacModuleCatalog[] = []
+): RbacModuleCatalog[] => {
+  const merged = new Map<string, RbacModuleCatalog>();
+
+  fallbackCatalog.forEach((module) => {
+    merged.set(module.key, {
+      key: module.key,
+      label: module.label,
+      submodules: [...(module.submodules || [])],
+    });
+  });
+
+  catalogFromApi.forEach((module) => {
+    const existing = merged.get(module.key);
+    if (!existing) {
+      merged.set(module.key, {
+        key: module.key,
+        label: module.label,
+        submodules: [...(module.submodules || [])],
+      });
+      return;
+    }
+
+    const existingSubmoduleKeys = new Set(existing.submodules.map((s) => s.key));
+    const apiSubmodules = module.submodules || [];
+
+    apiSubmodules.forEach((submodule) => {
+      if (!existingSubmoduleKeys.has(submodule.key)) {
+        existing.submodules.push(submodule);
+      }
+    });
+
+    existing.label = module.label || existing.label;
+  });
+
+  return [...merged.values()];
+};
+
 const normalizeRoleModules = (rawModules: any, catalog: RbacModuleCatalog[]): EditableModules => {
   const base = initializeModulesFromCatalog(catalog);
   const modules = rawModules || {};
@@ -158,28 +197,27 @@ const serializeModulesForSave = (modules: EditableModules) => {
 
 export default function RoleAccessDebug() {
   const { user: currentUser } = useAuth();
-  const { canPerformModuleAction } = useRole();
   const [catalog, setCatalog] = useState<RbacModuleCatalog[]>(FALLBACK_CATALOG);
   const [actions, setActions] = useState<RbacAction[]>(DEFAULT_ACTIONS);
   const [allRoles, setAllRoles] = useState<RoleDebugInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorPlacement, setEditorPlacement] = useState<"top" | "inline">("top");
   const [formName, setFormName] = useState("");
   const [formModules, setFormModules] = useState<EditableModules>({});
   const [addingNewRole, setAddingNewRole] = useState(false);
   const editorCardRef = useRef<HTMLDivElement | null>(null);
-
-  const canManageRoles = canPerformModuleAction("role_access", "update") || canPerformModuleAction("role_access", "edit");
 
   const bootstrap = async () => {
     setLoading(true);
     try {
       const [catalogResult, rolesResult] = await Promise.all([roleApi.getRoleCatalog(), roleApi.getRoles()]);
 
-      const effectiveCatalog = catalogResult.data?.modules?.length
-        ? catalogResult.data.modules
-        : FALLBACK_CATALOG;
+      const effectiveCatalog = mergeCatalogWithFallback(
+        catalogResult.data?.modules || [],
+        FALLBACK_CATALOG
+      );
       setCatalog(effectiveCatalog);
 
       if (catalogResult.data?.actions?.length) {
@@ -214,6 +252,7 @@ export default function RoleAccessDebug() {
   };
 
   const beginCreate = () => {
+    setEditorPlacement("top");
     setIsEditorOpen(true);
     setAddingNewRole(true);
     setEditingRoleId(null);
@@ -223,16 +262,17 @@ export default function RoleAccessDebug() {
   };
 
   const beginEdit = (role: RoleDebugInfo) => {
+    setEditorPlacement("inline");
     setIsEditorOpen(true);
     setAddingNewRole(false);
     setEditingRoleId(role.id || role.role_id || "");
     setFormName(role.name);
     setFormModules(normalizeRoleModules(role.modules, catalog));
-    scrollToEditor();
   };
 
   const cancelForm = () => {
     setIsEditorOpen(false);
+    setEditorPlacement("top");
     setAddingNewRole(false);
     setEditingRoleId(null);
     setFormName("");
@@ -246,14 +286,19 @@ export default function RoleAccessDebug() {
       modules: serializeModulesForSave(formModules),
     };
 
-    if (addingNewRole) {
-      await roleApi.createRole(payload as any);
-    } else if (editingRoleId !== null && editingRoleId !== "") {
-      await roleApi.updateRole(editingRoleId, payload as any);
-    }
+    setLoading(true);
+    try {
+      if (addingNewRole) {
+        await roleApi.createRole(payload as any);
+      } else if (editingRoleId !== null && editingRoleId !== "") {
+        await roleApi.updateRole(editingRoleId, payload as any);
+      }
 
-    cancelForm();
-    await bootstrap();
+      cancelForm();
+      await bootstrap();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteRole = async (roleId: string) => {
@@ -263,6 +308,7 @@ export default function RoleAccessDebug() {
   };
 
   const copyRole = (role: RoleDebugInfo) => {
+    setEditorPlacement("top");
     setIsEditorOpen(true);
     setAddingNewRole(true);
     setEditingRoleId(null);
@@ -466,12 +512,21 @@ export default function RoleAccessDebug() {
       </div>
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
         <Button 
-          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-4 py-2 sm:px-6 sm:py-3 rounded-xl text-sm sm:text-base w-full sm:w-auto" 
+          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-4 py-2 sm:px-6 sm:py-3 rounded-xl text-sm sm:text-base w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed" 
           onClick={saveForm} 
-          disabled={!formName.trim()}
+          disabled={!formName.trim() || loading}
         >
-          <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-          Save Role
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+              Saving...
+            </span>
+          ) : (
+            <>
+              <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              Save Role
+            </>
+          )}
         </Button>
         <Button 
           variant="outline" 
@@ -548,34 +603,32 @@ export default function RoleAccessDebug() {
             </CardTitle>
             <CardDescription className="text-slate-600 font-medium">Manage role-based access control with {actions.join(", ")} actions.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col sm:flex-wrap gap-2 lg:gap-3 pt-2">
+          <CardContent className="flex flex-col sm:flex-row sm:flex-wrap gap-2 lg:gap-3 pt-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={bootstrap} 
               disabled={loading}
-              className="border-2 border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 font-medium px-3 py-2 lg:px-6 lg:py-3 rounded-xl transition-all duration-200 text-sm lg:text-base"
+              className="w-full sm:w-auto border-2 border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 font-medium px-3 py-2 lg:px-6 lg:py-3 rounded-xl transition-all duration-200 text-sm lg:text-base"
             >
               <RefreshCw className={`w-3 h-3 lg:w-5 lg:h-5 mr-1 lg:mr-2 ${loading ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh Data</span>
               <span className="sm:hidden">Refresh</span>
             </Button>
-            {canManageRoles && (
-              <Button 
-                size="sm" 
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-3 py-2 lg:px-6 lg:py-3 rounded-xl text-sm lg:text-base" 
-                onClick={beginCreate}
-              >
-                <Plus className="w-3 h-3 lg:w-5 lg:h-5 mr-1 lg:mr-2" />
-                <span className="hidden sm:inline">Create New Role</span>
-                <span className="sm:hidden">New Role</span>
-              </Button>
-            )}
+            <Button 
+              size="sm" 
+              className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-3 py-2 lg:px-6 lg:py-3 rounded-xl text-sm lg:text-base" 
+              onClick={beginCreate}
+            >
+              <Plus className="w-3 h-3 lg:w-5 lg:h-5 mr-1 lg:mr-2" />
+              <span className="hidden sm:inline">Create New Role</span>
+              <span className="sm:hidden">New Role</span>
+            </Button>
           </CardContent>
         </Card>
 
         {/* Matrix Editor */}
-        {isEditorOpen && canManageRoles && (
+        {isEditorOpen && editorPlacement === "top" && (
           <Card ref={editorCardRef} className="rounded-2xl sm:rounded-3xl border-0 shadow-xl bg-gradient-to-br from-white to-slate-50/50">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 lg:gap-3 text-lg sm:text-xl lg:text-2xl font-bold text-slate-800">
@@ -603,7 +656,7 @@ export default function RoleAccessDebug() {
             <CardDescription className="text-slate-600 font-medium">Manage roles, modules, submodules and their assigned privileges.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-2">
-            {allRoles.map((role, roleIndex) => (
+            {allRoles.map((role) => (
               <div key={role.id} className="border-2 border-slate-200 rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4 bg-gradient-to-br from-white to-slate-50/30 shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2 sm:gap-3">
@@ -615,8 +668,7 @@ export default function RoleAccessDebug() {
                       {role.role_id && <Badge className="bg-slate-100 text-slate-700 border border-slate-300 font-medium mt-1 text-xs sm:text-sm">{role.role_id}</Badge>}
                     </div>
                   </div>
-                  {canManageRoles && (
-                    <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-0">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-0">
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -647,83 +699,99 @@ export default function RoleAccessDebug() {
                         <span className="hidden xs:inline">Delete</span>
                         <span className="xs:hidden">🗑️</span>
                       </Button>
-                    </div>
-                  )}
+                  </div>
                 </div>
-                <div className="rounded-xl sm:rounded-2xl border-2 border-slate-200 overflow-auto shadow-inner bg-gradient-to-br from-white to-slate-50/50">
-                  <table className="w-full text-[10px] sm:text-xs">
-                    <thead className="sticky top-0 z-10 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
-                      <tr>
-                        <th className="text-left p-2 sm:p-4 min-w-[150px] sm:min-w-[280px] font-black text-xs sm:text-sm text-white">Module / Submodule</th>
-                        {actions.map((action) => (
-                          <th key={action} className="text-center p-2 sm:p-4">
-                            <div className="flex flex-col items-center gap-0.5 sm:gap-1">
-                              <div className="font-black text-sm sm:text-lg">{ACTION_SHORT_LABEL[action]}</div>
-                              <div className="text-[9px] sm:text-xs uppercase opacity-90">{action}</div>
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {catalog.map((module, moduleIndex) => (
-                        <React.Fragment key={`${role.id}-${module.key}`}>
-                          <tr className={`border-t border-slate-200 ${moduleIndex % 2 === 0 ? 'bg-gradient-to-r from-emerald-50/50 to-transparent' : 'bg-gradient-to-r from-teal-50/50 to-transparent'} hover:from-emerald-100/50 hover:to-teal-100/50 transition-all duration-200`}>
-                            <td className="p-4 font-bold text-slate-800 flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-                              {module.label}
-                            </td>
+                {isEditorOpen && editorPlacement === "inline" && !addingNewRole && editingRoleId === role.id && (
+                  <div className="rounded-xl sm:rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50/40 to-white p-4 sm:p-6 shadow-inner">
+                    {renderMatrixEditor()}
+                  </div>
+                )}
+
+                {!(isEditorOpen && editorPlacement === "inline" && !addingNewRole && editingRoleId === role.id) && (
+                  <details className="group">
+                    <summary className="flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl border-2 border-slate-200 bg-white/70 px-4 py-3 cursor-pointer select-none [&::-webkit-details-marker]:hidden">
+                      <div className="flex items-center gap-2 text-slate-800 font-bold text-xs sm:text-sm">
+                        <ChevronDown className="w-4 h-4 transition-transform duration-200 group-open:rotate-180" />
+                        Permissions
+                      </div>
+                      <div className="text-[10px] sm:text-xs text-slate-500 font-medium">Collapse / Expand</div>
+                    </summary>
+                    <div className="mt-3 rounded-xl sm:rounded-2xl border-2 border-slate-200 overflow-auto shadow-inner bg-gradient-to-br from-white to-slate-50/50">
+                      <table className="w-full text-[10px] sm:text-xs">
+                        <thead className="sticky top-0 z-10 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                          <tr>
+                            <th className="text-left p-2 sm:p-4 min-w-[150px] sm:min-w-[280px] font-black text-xs sm:text-sm text-white">Module / Submodule</th>
                             {actions.map((action) => (
-                              <td key={action} className="text-center p-4">
-                                {role.modules[module.key]?.permissions?.[action] === 1 ? (
-                                  <div className="flex justify-center">
-                                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 shadow-lg">
-                                      <Unlock className="w-4 h-4 text-white" />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex justify-center">
-                                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-200 border-2 border-slate-300">
-                                      <Lock className="w-3 h-3 text-slate-500" />
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
+                              <th key={action} className="text-center p-2 sm:p-4">
+                                <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                                  <div className="font-black text-sm sm:text-lg">{ACTION_SHORT_LABEL[action]}</div>
+                                  <div className="text-[9px] sm:text-xs uppercase opacity-90">{action}</div>
+                                </div>
+                              </th>
                             ))}
                           </tr>
-                          {module.submodules.map((submodule, subIndex) => (
-                            <tr 
-                              key={`${role.id}-${module.key}-${submodule.key}`} 
-                              className={`border-t border-slate-100 ${subIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-gradient-to-r hover:from-emerald-50/30 hover:to-teal-50/30 transition-all duration-200`}
-                            >
-                              <td className="p-4 pl-12 text-slate-600 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                                {submodule.label}
-                              </td>
-                              {actions.map((action) => (
-                                <td key={action} className="text-center p-4">
-                                  {role.modules[module.key]?.submodules?.[submodule.key]?.permissions?.[action] === 1 ? (
-                                    <div className="flex justify-center">
-                                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-emerald-300 to-teal-400 shadow-md">
-                                        <Unlock className="w-3 h-3 text-white" />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex justify-center">
-                                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 border border-slate-300">
-                                        <Lock className="w-2.5 h-2.5 text-slate-400" />
-                                      </div>
-                                    </div>
-                                  )}
+                        </thead>
+                        <tbody>
+                          {catalog.map((module, moduleIndex) => (
+                            <React.Fragment key={`${role.id}-${module.key}`}>
+                              <tr className={`border-t border-slate-200 ${moduleIndex % 2 === 0 ? 'bg-gradient-to-r from-emerald-50/50 to-transparent' : 'bg-gradient-to-r from-teal-50/50 to-transparent'} hover:from-emerald-100/50 hover:to-teal-100/50 transition-all duration-200`}>
+                                <td className="p-4 font-bold text-slate-800 flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+                                  {module.label}
                                 </td>
+                                {actions.map((action) => (
+                                  <td key={action} className="text-center p-4">
+                                    {role.modules[module.key]?.permissions?.[action] === 1 ? (
+                                      <div className="flex justify-center">
+                                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 shadow-lg">
+                                          <Unlock className="w-4 h-4 text-white" />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex justify-center">
+                                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-200 border-2 border-slate-300">
+                                          <Lock className="w-3 h-3 text-slate-500" />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                              {module.submodules.map((submodule, subIndex) => (
+                                <tr 
+                                  key={`${role.id}-${module.key}-${submodule.key}`} 
+                                  className={`border-t border-slate-100 ${subIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-gradient-to-r hover:from-emerald-50/30 hover:to-teal-50/30 transition-all duration-200`}
+                                >
+                                  <td className="p-4 pl-12 text-slate-600 flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                                    {submodule.label}
+                                  </td>
+                                  {actions.map((action) => (
+                                    <td key={action} className="text-center p-4">
+                                      {role.modules[module.key]?.submodules?.[submodule.key]?.permissions?.[action] === 1 ? (
+                                        <div className="flex justify-center">
+                                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-emerald-300 to-teal-400 shadow-md">
+                                            <Unlock className="w-3 h-3 text-white" />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex justify-center">
+                                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 border border-slate-300">
+                                            <Lock className="w-2.5 h-2.5 text-slate-400" />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
                               ))}
-                            </tr>
+                            </React.Fragment>
                           ))}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                )}
               </div>
             ))}
           </CardContent>

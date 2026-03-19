@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { employeeApi } from "@/components/helper/employee/employee";
@@ -171,6 +171,7 @@ export default function LeaveManagement() {
   const [currentUserEmployee, setCurrentUserEmployee] = useState<any>(null);
   const [dialogMode, setDialogMode] = useState<"types" | "applications">("types");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   // Helper function to map user ID to employee ID (e.g., "2" -> "EMP002")
   const getEmployeeIdForUser = (userId: string) => {
@@ -1010,6 +1011,7 @@ useEffect(() => {
         
         console.log("Sending leave data:", leaveData);
 
+        setSubmitting(true);
         // Call the applyLeave function
         const result = await leaveTypeApi.applyLeave(leaveData);
         
@@ -1028,6 +1030,7 @@ useEffect(() => {
         toast.error(error.message || "Failed to submit leave application");
       } finally {
         setLoading(false);
+        setSubmitting(false);
       }
       
       return;
@@ -2074,9 +2077,17 @@ useEffect(() => {
             <Button 
               type="button"
               onClick={handleSave} 
-              className="w-full sm:w-auto h-12 text-base font-bold bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 rounded-xl px-8"
+              disabled={submitting}
+              className="w-full sm:w-auto h-12 text-base font-bold bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 rounded-xl px-8 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {dialogMode === "applications" ? "Submit Request" : "Save"}
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Submitting...
+                </span>
+              ) : (
+                dialogMode === "applications" ? "Submit Request" : "Save"
+              )}
             </Button>
           </div>
         </DialogContent>

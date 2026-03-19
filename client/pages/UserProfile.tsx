@@ -58,7 +58,7 @@ export default function UserProfile() {
     try {
       return new URL(photoPath, BASE_URL).toString();
     } catch {
-      const normalizedPath = photoPath.startsWith("/") ? photoPath : `/${photoPath}`;
+      const normalizedPath = photoPath.startsWith("/login") ? photoPath : `/${photoPath}`;
       return `${BASE_URL}${normalizedPath}`;
     }
   };

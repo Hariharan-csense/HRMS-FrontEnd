@@ -47,6 +47,13 @@ export async function handleLogin({ email, password }: LoginParams): Promise<Log
 }
 
 export async function handleLogout(): Promise<{ success: boolean; message: string }> {
+  const storeLogoutFeedback = (message: string) => {
+    sessionStorage.setItem(
+      "authToast",
+      JSON.stringify({ type: "success", message })
+    );
+  };
+
   // Clear all auth-related data from localStorage first
   const clearAuthData = () => {
     localStorage.removeItem('authToken');
@@ -65,7 +72,7 @@ export async function handleLogout(): Promise<{ success: boolean; message: strin
 
   try {
     // Try to call the logout endpoint with credentials
-    await fetch(`${BASE_URL}/api/auth/logout`, {
+    const response = await fetch(`${BASE_URL}/api/auth/logout`, {
       method: 'POST',
       credentials: 'include', // Important for sending cookies
       headers: {
@@ -73,26 +80,30 @@ export async function handleLogout(): Promise<{ success: boolean; message: strin
         'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
       }
     });
+
+    const data = await response.json().catch(() => null);
+    const message =
+      data?.message ||
+      (response.ok ? 'Logged out successfully.' : 'Logout completed locally.');
     
     // Clear local data
     clearAuthData();
-    
-    // Redirect to login page
-    window.location.href = '/login';
+    storeLogoutFeedback(message);
     
     return {
       success: true,
-      message: 'Successfully logged out',
+      message,
     };
   } catch (error) {
     // Even if the API call fails, we should still clear local storage
     console.warn('Logout API call failed, but proceeding with local cleanup', error);
     clearAuthData();
-    window.location.href = '/login';
+    const message = 'Logged out successfully.';
+    storeLogoutFeedback(message);
     
     return {
       success: true,
-      message: 'Successfully logged out (local data cleared)',
+      message,
     };
   }
 }

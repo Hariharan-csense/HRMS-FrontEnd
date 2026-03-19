@@ -1,4 +1,5 @@
 import { api } from '@/lib/endpoint';
+import { reverseGeocode } from '@/lib/locationUtils';
 
 export interface ClientAttendance {
   id: number;
@@ -73,19 +74,10 @@ export const getCurrentLocation = (): Promise<LocationData> => {
   });
 };
 
-// Get address from coordinates using reverse geocoding (placeholder)
+// Get address from coordinates using shared reverse geocoder
 export const getAddressFromCoordinates = async (latitude: number, longitude: number): Promise<string> => {
-  try {
-    // Using Nominatim (OpenStreetMap) for reverse geocoding
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-    );
-    const data = await response.json();
-    return data.display_name || `${latitude}, ${longitude}`;
-  } catch (error) {
-    console.error('Error getting address:', error);
-    return `${latitude}, ${longitude}`;
-  }
+  const address = await reverseGeocode(latitude, longitude);
+  return address || `${latitude}, ${longitude}`;
 };
 
 export const clientAttendanceApi = {

@@ -1,5 +1,4 @@
- import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { Layout } from "@/components/Layout";
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,11 +22,18 @@ import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"
 import { holidayApi, Holiday } from "@/components/helper/leave/leave"
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts"
+import { employeeApi } from "@/components/helper/employee/employee";
 import { BASE_URL } from "@/lib/endpoint";
-import ENDPOINTS from "@/lib/endpoint";
 
 
 // src/api/attendanceApi.ts
+export interface AttendanceGeoLocation {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  address: string;
+}
+
 export interface AttendanceLogRecord {
   id: string;
   employeeId: string;           // ← employee_id → employeeId
@@ -42,12 +49,10 @@ export interface AttendanceLogRecord {
   imageIn?: string;             // Check-in image URL
   imageOut?: string;            // Check-out image URL
   device: string;
-  location: {
-    latitude: number;
-    longitude: number;
-    accuracy: number;
-    address: string;
-  };
+  // Backward-compatible convenience field (defaults to check-in location)
+  location: AttendanceGeoLocation;
+  checkInLocation?: AttendanceGeoLocation;
+  checkOutLocation?: AttendanceGeoLocation;
   status: "present" | "absent" | "half" | "miss" | "unmarked" | "late";
   hoursWorked: number;
   overtimeHours: number;
@@ -381,33 +386,55 @@ const resolveImageUrl = (imagePath?: string | null) => {
     return imagePath;
   }
 
-  try {
-    return new URL(imagePath, BASE_URL).toString();
-  } catch {
-    const normalizedPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
-    return `${BASE_URL}${normalizedPath}`;
-  }
+  const normalizedBaseUrl = BASE_URL.replace(/\/+$/, "");
+  const normalizedPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+  return `${normalizedBaseUrl}${normalizedPath}`;
 };
 
+const getAlternateImageUrl = (imageUrl?: string | null) => {
+  if (!imageUrl || imageUrl.startsWith("data:")) return "";
+
+  if (imageUrl.includes("/backend/uploads/")) {
+    return imageUrl.replace("/backend/uploads/", "/uploads/");
+  }
+
+  if (imageUrl.includes("/uploads/")) {
+    return imageUrl.replace("/uploads/", "/backend/uploads/");
+  }
+
+  return "";
+};
+
+const attendanceImageFallback =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E";
+
 export default function AttendanceLog() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { hasModuleAccess, canPerformModuleAction } = useRole();
+  const canEditAttendanceLog =
+    canPerformModuleAction("attendance", "edit", "log") ||
+    canPerformModuleAction("attendance", "edit");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOverrideOpen, setIsOverrideOpen] = useState(false);
+  const [isSubmittingOverride, setIsSubmittingOverride] = useState(false);
   const [logs, setLogs] = useState<AttendanceLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   // AttendanceLog component top-ல (other states கூட)
-const [overrideFormData, setOverrideFormData] = useState<{
-  recordId: string;
-  employeeId: string;
-  employeeName: string;
-  date: string;
-} | null>(null);
+  const [overrideDraft, setOverrideDraft] = useState<{
+    attendanceId?: string;
+    employeeId: string;
+    date: string;
+    originalStatus: "present" | "absent" | "half";
+    overriddenStatus: "present" | "absent" | "half";
+    requestedCheckIn: string;
+    requestedCheckOut: string;
+    reason: string;
+  } | null>(null);
 
   // New states for employee list view
   const [viewMode, setViewMode] = useState<'employee-list' | 'calendar'>('employee-list');
@@ -443,57 +470,98 @@ const [overrideFormData, setOverrideFormData] = useState<{
   };
 
   
+  const openOverrideCard = (record: AttendanceLogRecord) => {
+    if (!canEditAttendanceLog) {
+      toast.error("You don't have permission to edit attendance logs");
+      return;
+    }
+
+    const isPlaceholder =
+      record.id.startsWith("absent-") ||
+      record.id.startsWith("unmarked-") ||
+      record.id.startsWith("absent-fallback-");
+
+    const normalizedOriginalStatus =
+      record.status === "present" || record.status === "half"
+        ? record.status
+        : record.status === "late"
+          ? "present"
+          : "absent";
+
+    setOverrideDraft({
+      attendanceId: isPlaceholder ? undefined : record.id,
+      employeeId: record.employeeId,
+      date: record.date,
+      originalStatus: normalizedOriginalStatus,
+      overriddenStatus: "present",
+      requestedCheckIn: record.inTime || "",
+      requestedCheckOut: record.outTime || "",
+      reason: "",
+    });
+    setIsOverrideOpen(true);
+  };
+
   const handleOverride = (recordId: string) => {
-  const record = filteredData.find(r => r.id === recordId);
-  if (record) {
-    navigate(
-      `/attendance/override?recordId=${record.id}&employeeId=${record.employeeId}&date=${record.date}`
-    );
-  }
-};
+    const record = filteredData.find((r) => r.id === recordId);
+    if (record) {
+      openOverrideCard(record);
+      setIsModalOpen(false);
+    }
+  };
+
+  const handleAbsentEdit = (record: AttendanceLogRecord) => {
+    openOverrideCard(record);
+    setIsModalOpen(false);
+  };
+
+  const handleSubmitOverride = async () => {
+    if (!overrideDraft) return;
+    if (
+      !overrideDraft.employeeId.trim() ||
+      !overrideDraft.date ||
+      !overrideDraft.requestedCheckIn ||
+      !overrideDraft.requestedCheckOut ||
+      !overrideDraft.reason.trim()
+    ) {
+      toast.error("Employee ID, Date, Check-in, Check-out and Reason are required");
+      return;
+    }
+
+    setIsSubmittingOverride(true);
+    const result = await attendanceApi.createOverride({
+      attendanceId: overrideDraft.attendanceId,
+      employeeId: overrideDraft.employeeId,
+      date: overrideDraft.date,
+      originalStatus: overrideDraft.originalStatus,
+      overriddenStatus: overrideDraft.overriddenStatus,
+      reason: overrideDraft.reason,
+      requestedCheckIn: overrideDraft.requestedCheckIn || undefined,
+      requestedCheckOut: overrideDraft.requestedCheckOut || undefined,
+    });
+
+    if (result.success || result.data) {
+      toast.success("Override request created successfully!");
+      setIsOverrideOpen(false);
+      setOverrideDraft(null);
+      fetchAttendanceLogs();
+      setIsSubmittingOverride(false);
+      return;
+    }
+
+    toast.error(result.error || "Failed to create override request");
+    setIsSubmittingOverride(false);
+  };
 
   // Fetch employees list
 const fetchEmployees = async () => {
   setEmployeesLoading(true);
   try {
-    const response = await ENDPOINTS.getEmployee();
-    console.log("Full API response:", response);
-    console.log("Response data:", response.data);
-    console.log("Response data type:", typeof response.data);
-    console.log("Is response.data an array?", Array.isArray(response.data));
-    
-    let employeeData = response.data || [];
-    
-    // Handle different response structures
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      employeeData = response.data.data;
-      console.log("Using nested data array:", employeeData);
-    } else if (response.data?.employees && Array.isArray(response.data.employees)) {
-      employeeData = response.data.employees;
-      console.log("Using employees array:", employeeData);
-    } else if (!Array.isArray(employeeData)) {
-      console.warn("Employee data is not an array:", employeeData);
-      // Try to find an array in the response
-      if (typeof response.data === 'object') {
-        const possibleArrays = Object.values(response.data).filter(Array.isArray);
-        if (possibleArrays.length > 0) {
-          employeeData = possibleArrays[0];
-          console.log("Found array in response:", employeeData);
-        } else {
-          employeeData = [];
-        }
-      } else {
-        employeeData = [];
-      }
-    }
-    
-    console.log("Final employee data:", employeeData);
-    console.log("Final employee data length:", employeeData.length);
-    setEmployees(employeeData);
+    const result = await employeeApi.getEmployees();
+    setEmployees(result.data || []);
   } catch (error) {
     console.error("Error fetching employees:", error);
     toast.error("Failed to load employees");
-    setEmployees([]); // Set empty array on error
+    setEmployees([]);
   } finally {
     setEmployeesLoading(false);
   }
@@ -639,26 +707,37 @@ const fetchAttendanceLogs = async () => {
     if (attendanceData.length > 0) {
       // Map backend response → frontend interface
       const mappedLogs: AttendanceLogRecord[] = attendanceData.map((item: any) => {
-        // Parse location JSON string
-        let location = {
-          latitude: 0,
-          longitude: 0,
-          accuracy: 0,
-          address: "N/A",
-        };
-        try {
-          const loc = typeof item.check_in_location === "string" 
-            ? JSON.parse(item.check_in_location) 
-            : item.check_in_location;
-          location = {
-            latitude: loc.latitude || 0,
-            longitude: loc.longitude || 0,
-            accuracy: loc.accuracy || 0,
-            address: loc.address || "N/A",
+        const parseGeoLocation = (rawLocation: any): AttendanceGeoLocation => {
+          const fallback: AttendanceGeoLocation = {
+            latitude: 0,
+            longitude: 0,
+            accuracy: 0,
+            address: "N/A",
           };
-        } catch (e) {
-          console.warn("Failed to parse location", item.check_in_location);
-        }
+
+          if (!rawLocation) return fallback;
+
+          try {
+            const parsed = typeof rawLocation === "string" ? JSON.parse(rawLocation) : rawLocation;
+            return {
+              latitude: Number(parsed?.latitude) || 0,
+              longitude: Number(parsed?.longitude) || 0,
+              accuracy: Number(parsed?.accuracy) || 0,
+              address:
+                String(parsed?.address || "N/A")
+                  .replace(/^zone\s*\d+\s*/i, "")
+                  .trim() || "N/A",
+            };
+          } catch {
+            console.warn("Failed to parse location", rawLocation);
+            return fallback;
+          }
+        };
+
+        const checkInLocation = parseGeoLocation(item.check_in_location);
+        const checkOutLocation = parseGeoLocation(item.check_out_location);
+        // Backward compatibility: use check-in as the primary location.
+        const location = checkInLocation;
 
         // Format time from ISO string
         const formatTime = (isoString: string | null) => {
@@ -759,6 +838,8 @@ const fetchAttendanceLogs = async () => {
           flagReason: item.flag_reason || undefined,
           device: item.device_info || "Unknown",
           location,
+          checkInLocation,
+          checkOutLocation: item.check_out ? checkOutLocation : undefined,
           imageUrl: getImageUrl(item.check_in_image_url), // Legacy field
           imageIn: getImageUrl(item.check_in_image_url),
           imageOut: getImageUrl(item.check_out_image_url),
@@ -772,143 +853,7 @@ const fetchAttendanceLogs = async () => {
         };
       });
 
-      console.log("Mapped logs:", mappedLogs);
-      
-      // Fetch all employees to create individual absent records
-      try {
-        const employeesResponse = await ENDPOINTS.getEmployee();
-        const employees = employeesResponse.data || [];
-        console.log("Fetched employees:", employees);
-        console.log("Number of employees:", employees.length);
-        
-        // Create absent records for all days in the month that don't have attendance
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
-        const allDatesInMonth: string[] = [];
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          allDatesInMonth.push(dateStr);
-        }
-        
-        console.log("All dates in month:", allDatesInMonth);
-        
-        // Find dates that don't have attendance records (excluding future dates only)
-        const today = new Date().toISOString().split('T')[0];
-        const existingDates = mappedLogs.map(log => log.date);
-        
-        console.log("Today's date:", today);
-        console.log("Existing attendance dates:", existingDates);
-        
-        // Simple logic: any past date (including today) that's not in existing dates = absent
-        const absentDates = allDatesInMonth.filter(date => {
-          return date <= today && !existingDates.includes(date) && !isWeekendDate(date);
-        });
-        
-        console.log("Dates that should show as absent:", absentDates);
-        console.log("Number of absent dates:", absentDates.length);
-        console.log("Employees available:", employees.length);
-        
-        // Create absent records for each employee on each absent date
-        const absentRecords: AttendanceLogRecord[] = [];
-        if (absentDates.length > 0) {
-          console.log("Creating absent records for dates:", absentDates);
-          
-          // Create at least one absent record per date if employee API fails or returns empty
-          const employeesToUse = employees.length > 0 ? employees : [
-            { id: 1, employee_code: "EMP001", first_name: "Employee", last_name: "" }
-          ];
-          
-          employeesToUse.forEach((employee: any) => {
-            absentDates.forEach(date => {
-              const absentRecord = {
-                id: `absent-${employee.id}-${date}`,
-                employeeId: getEmployeeCode(employee),
-                employeeName: `${employee.first_name} ${employee.last_name || ""}`.trim(),
-                date: date,
-                inTime: null,
-                outTime: null,
-                status: "absent" as "present" | "absent" | "half" | "miss" | "unmarked",
-                hoursWorked: 0,
-                overtimeHours: 0,
-                autoFlag: false,
-                device: "No Attendance",
-                location: {
-                  latitude: 0,
-                  longitude: 0,
-                  accuracy: 0,
-                  address: "No attendance marked"
-                },
-                imageUrl: "",
-                imageIn: "",
-                imageOut: "",
-                type: "absent" as "full" | "half" | "absent" | "present" | "unmarked"
-              };
-              console.log("Creating absent record:", absentRecord);
-              absentRecords.push(absentRecord);
-            });
-          });
-        } else {
-          console.log("No absent dates found");
-        }
-        
-        console.log("Created absent records:", absentRecords.length);
-        absentRecords.forEach(record => console.log("Absent record status:", record.status, "Date:", record.date, "Employee:", record.employeeName));
-        
-        // Combine existing logs with absent records
-        const allLogs = [...mappedLogs, ...absentRecords];
-        console.log("Combined logs (including individual absent):", allLogs);
-        allLogs.forEach(log => console.log("Final log entry status:", log.status, "Date:", log.date, "Employee:", log.employeeName));
-        console.log("Total records:", allLogs.length);
-        setLogs(allLogs);
-        
-      } catch (employeeError) {
-        console.error("Error fetching employees:", employeeError);
-        // Fallback: create dummy absent records to ensure calendar shows red
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const today = new Date().toISOString().split('T')[0];
-        const existingDates = mappedLogs.map(log => log.date);
-        
-        const absentDates = [];
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          if (dateStr <= today && !existingDates.includes(dateStr) && !isWeekendDate(dateStr)) {
-            absentDates.push(dateStr);
-          }
-        }
-        
-        const fallbackAbsentRecords = absentDates.map(date => ({
-          id: `absent-fallback-${date}`,
-          employeeId: "EMP001",
-          employeeName: "Employee",
-          date: date,
-          inTime: null,
-          outTime: null,
-          status: "absent" as "present" | "absent" | "half" | "miss" | "unmarked",
-          hoursWorked: 0,
-          overtimeHours: 0,
-          autoFlag: false,
-          device: "No Attendance",
-          location: {
-            latitude: 0,
-            longitude: 0,
-            accuracy: 0,
-            address: "No attendance marked"
-          },
-          imageUrl: "",
-          imageIn: "",
-          imageOut: "",
-          type: "absent" as "full" | "half" | "absent" | "present" | "unmarked"
-        }));
-        
-        console.log("Fallback absent records created:", fallbackAbsentRecords.length);
-        console.log("Fallback absent dates:", absentDates);
-        const allLogs = [...mappedLogs, ...fallbackAbsentRecords];
-        setLogs(allLogs);
-      }
+      setLogs(mappedLogs);
     } else {
       console.log("No attendance data found");
       setLogs([]);
@@ -986,11 +931,7 @@ const fetchAttendanceLogs = async () => {
 
   // Helper function to check if a date is a holiday
   const isHoliday = (dateStr: string) => {
-    console.log("Checking if date is holiday:", dateStr);
-    console.log("Available holidays:", holidays.map(h => ({ name: h.name, date: h.date })));
-    const isHolidayFound = holidays.some(holiday => holiday.date === dateStr);
-    console.log("Is holiday found:", isHolidayFound);
-    return isHolidayFound;
+    return holidays.some((holiday) => holiday.date === dateStr);
   };
 
   // Helper function to get holiday name
@@ -998,10 +939,21 @@ const fetchAttendanceLogs = async () => {
     const holiday = holidays.find(holiday => holiday.date === dateStr);
     return holiday?.name || "";
   };
-  
-  
-  
-  
+
+  // Calendar helper functions (must be defined before useMemo below)
+  const formatDateString = (year: number, month: number, day: number) => {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+
+  const isWeekendDate = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    const dayOfWeek = d.getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6;
+  };
+   
+   
+   
+   
   // Get initial data based on user permissions
   const getInitialData = () => {
     if (canPerformModuleAction("attendance", "view") && !canPerformModuleAction("attendance", "edit")) {
@@ -1022,11 +974,6 @@ const fetchAttendanceLogs = async () => {
   // Apply filters + role-based visibility to logs
   const filteredData = useMemo(() => {
     let data = logs;
-    console.log("Initial logs for filtering:", data);
-    console.log("User roles:", (user as any)?.roles);
-    console.log("User info:", user);
-    console.log("hasModuleAccess('attendance'):", hasModuleAccess("attendance"));
-    console.log("canPerformModuleAction('attendance', 'edit'):", canPerformModuleAction("attendance", "edit"));
 
     // When in calendar mode with selected employee, filter by that employee
     if (viewMode === 'calendar' && selectedEmployee) {
@@ -1034,11 +981,57 @@ const fetchAttendanceLogs = async () => {
         record.originalEmployeeId?.toString() === selectedEmployee.id ||
         record.employeeId === selectedEmployee.employeeId
       );
-      console.log("Filtered by selected employee:", selectedEmployee.name, "Records:", data.length);
     }
 
     // Backend now handles role-based filtering, so no client-side filtering needed
-    console.log("Backend filtered data received:", data.length, "records");
+
+    // In calendar view, generate placeholder "absent" records for missing past dates
+    // so absent days are clickable and can be overridden/edited (RBAC-gated in UI).
+    if (viewMode === "calendar" && selectedEmployee) {
+      const year = currentMonth.getFullYear();
+      const monthIndex = currentMonth.getMonth();
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+      const today = new Date().toISOString().split("T")[0];
+      const existingDates = new Set(data.map((r) => r.date));
+      const placeholders: AttendanceLogRecord[] = [];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = formatDateString(year, monthIndex, day);
+        const isPastOrToday = dateStr <= today;
+        if (!isPastOrToday) continue;
+        if (existingDates.has(dateStr)) continue;
+        if (isWeekendDate(dateStr)) continue;
+        if (isHoliday(dateStr)) continue;
+
+        placeholders.push({
+          id: `absent-${selectedEmployee.id}-${dateStr}`,
+          employeeId: selectedEmployee.employeeId,
+          employeeName: selectedEmployee.name,
+          date: dateStr,
+          inTime: null,
+          outTime: null,
+          status: "absent",
+          hoursWorked: 0,
+          overtimeHours: 0,
+          autoFlag: false,
+          device: "No Attendance",
+          location: {
+            latitude: 0,
+            longitude: 0,
+            accuracy: 0,
+            address: "No attendance marked",
+          },
+          imageUrl: "",
+          imageIn: "",
+          imageOut: "",
+          type: "absent",
+        });
+      }
+
+      if (placeholders.length) {
+        data = data.concat(placeholders);
+      }
+    }
 
     // Search by name or ID
     if (searchTerm.trim()) {
@@ -1055,9 +1048,8 @@ const fetchAttendanceLogs = async () => {
       data = data.filter((record) => record.status === filterStatus);
     }
 
-    console.log("Final filtered data:", data);
     return data;
-  }, [logs, searchTerm, filterStatus, user, viewMode, selectedEmployee]);
+  }, [logs, searchTerm, filterStatus, viewMode, selectedEmployee, currentMonth, holidays]);
 
   const effectiveEmployees = useMemo(() => {
     if (Array.isArray(employees) && employees.length > 0) {
@@ -1176,16 +1168,6 @@ const fetchAttendanceLogs = async () => {
 
   const getFirstDayOfMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const formatDateString = (year: number, month: number, day: number) => {
-    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  };
-
-  const isWeekendDate = (dateStr: string) => {
-    const d = new Date(`${dateStr}T00:00:00`);
-    const dayOfWeek = d.getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6;
   };
 
   const handlePrevMonth = () => {
@@ -1364,7 +1346,7 @@ const fetchAttendanceLogs = async () => {
         ) : (
           <>
             {/* Filters - Only show for users with edit access */}
-            {canPerformModuleAction("attendance", "edit") && (
+            {canEditAttendanceLog && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg sm:text-xl">Filters</CardTitle>
@@ -1563,7 +1545,9 @@ const fetchAttendanceLogs = async () => {
                       const hasLate = statuses.includes("late");
                       const hasUnmarked = statuses.includes("unmarked") || isTodayUnmarked;
                       const hasFlag = records.some((r) => r.autoFlag);
-                      const hasAttendanceOnHoliday = isHolidayDate && (hasPresent || hasHalf || hasLate);
+                      // Weekend/holiday should be shown only when there is no real attendance punch.
+                      // Synthetic absent/unmarked records are excluded by hasRealRecords.
+                      const hasAttendanceOnHoliday = isHolidayDate && hasRealRecords;
                       const disableHolidayCell = isHolidayDate && !hasAttendanceOnHoliday;
 
                       // Debug status checking
@@ -1807,7 +1791,18 @@ const fetchAttendanceLogs = async () => {
                                   <p className="text-sm text-gray-500">{record.employeeId}</p>
                                 </div>
                                 <div className="sm:ml-2">
-                                  {getStatusBadge(record.status)}
+                                  {record.status === "absent" ? (
+                                    <button
+                                      type="button"
+                                      className={canEditAttendanceLog ? "cursor-pointer" : "cursor-default"}
+                                      onClick={() => canEditAttendanceLog && handleAbsentEdit(record)}
+                                      title={canEditAttendanceLog ? "Click to edit this absent record" : undefined}
+                                    >
+                                      {getStatusBadge(record.status)}
+                                    </button>
+                                  ) : (
+                                    getStatusBadge(record.status)
+                                  )}
                                 </div>
                               </div>
                               <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap items-start gap-x-3 gap-y-1 text-sm text-gray-600">
@@ -1823,24 +1818,27 @@ const fetchAttendanceLogs = async () => {
                                   <div>
                                     <h5 className="text-xs font-medium text-gray-600 mb-2">Check-in Photo</h5>
                                     {record.imageIn ? (
-                                      <div className="relative group">
+                                      <div className="relative group aspect-square w-full overflow-hidden rounded border border-gray-200 bg-slate-100">
                                         <img
                                           src={record.imageIn}
                                           alt="Check-in"
-                                          className="w-full h-32 sm:h-48 object-cover rounded border border-gray-200 cursor-pointer"
-                                          onClick={() => window.open(record.imageIn, '_blank')}
+                                          className="h-full w-full object-contain cursor-pointer"
+                                          onClick={(e) => window.open((e.currentTarget as HTMLImageElement).src, '_blank')}
                                           onError={(e) => {
-                                            (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E";
+                                            const img = e.currentTarget as HTMLImageElement;
+                                            const alternateUrl = getAlternateImageUrl(img.src);
+                                            if (alternateUrl && img.dataset.fallbackTried !== "true") {
+                                              img.dataset.fallbackTried = "true";
+                                              img.src = alternateUrl;
+                                              return;
+                                            }
+                                            img.src = attendanceImageFallback;
                                           }}
                                         />
-                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded flex items-center justify-center">
-                                          <div className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Click to enlarge
-                                          </div>
-                                        </div>
+                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
                                       </div>
                                     ) : (
-                                      <div className="w-full h-32 sm:h-48 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                      <div className="aspect-square w-full bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
                                         <div className="text-center text-gray-400">
                                           <CheckCircle2 className="w-6 h-6 mx-auto mb-1" />
                                           <p className="text-xs">No check-in photo</p>
@@ -1853,24 +1851,27 @@ const fetchAttendanceLogs = async () => {
                                   <div>
                                     <h5 className="text-xs font-medium text-gray-600 mb-2">Check-out Photo</h5>
                                     {record.imageOut ? (
-                                      <div className="relative group">
+                                      <div className="relative group aspect-square w-full overflow-hidden rounded border border-gray-200 bg-slate-100">
                                         <img
                                           src={record.imageOut}
                                           alt="Check-out"
-                                          className="w-full h-32 sm:h-48 object-cover rounded border border-gray-200 cursor-pointer"
-                                          onClick={() => window.open(record.imageOut, '_blank')}
+                                          className="h-full w-full object-contain cursor-pointer"
+                                          onClick={(e) => window.open((e.currentTarget as HTMLImageElement).src, '_blank')}
                                           onError={(e) => {
-                                            (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E";
+                                            const img = e.currentTarget as HTMLImageElement;
+                                            const alternateUrl = getAlternateImageUrl(img.src);
+                                            if (alternateUrl && img.dataset.fallbackTried !== "true") {
+                                              img.dataset.fallbackTried = "true";
+                                              img.src = alternateUrl;
+                                              return;
+                                            }
+                                            img.src = attendanceImageFallback;
                                           }}
                                         />
-                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded flex items-center justify-center">
-                                          <div className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Click to enlarge
-                                          </div>
-                                        </div>
+                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
                                       </div>
                                     ) : (
-                                      <div className="w-full h-32 sm:h-48 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                                      <div className="aspect-square w-full bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
                                         <div className="text-center text-gray-400">
                                           <Clock className="w-6 h-6 mx-auto mb-1" />
                                           <p className="text-xs">No check-out photo</p>
@@ -1882,16 +1883,63 @@ const fetchAttendanceLogs = async () => {
                               </div>
                               
                               {/* Additional Info */}
-                              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs text-gray-600">
+                              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs text-gray-600">
                                 <div>
                                   <span className="font-medium">Device:</span> {record.device}
                                 </div>
-                                <div className="break-words">
-                                  <span className="font-medium">Location:</span> {record.location.address}
+                                <div className="break-words space-y-1">
+                                  <div>
+                                    <span className="font-medium">Check-in:</span>{" "}
+                                    {record.checkInLocation &&
+                                    Number.isFinite(record.checkInLocation.latitude) &&
+                                    Number.isFinite(record.checkInLocation.longitude) &&
+                                    (record.checkInLocation.latitude !== 0 || record.checkInLocation.longitude !== 0)
+                                      ? `${record.checkInLocation.latitude},${record.checkInLocation.longitude}`
+                                      : "—"}
+                                  </div>
+                                  <div className="text-gray-500">{record.checkInLocation?.address || "—"}</div>
+                                  {record.checkInLocation &&
+                                    Number.isFinite(record.checkInLocation.latitude) &&
+                                    Number.isFinite(record.checkInLocation.longitude) &&
+                                    (record.checkInLocation.latitude !== 0 || record.checkInLocation.longitude !== 0) && (
+                                      <a
+                                        href={`https://www.google.com/maps?q=${record.checkInLocation.latitude},${record.checkInLocation.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline"
+                                      >
+                                        Open in Maps
+                                      </a>
+                                    )}
+                                </div>
+                                <div className="break-words space-y-1">
+                                  <div>
+                                    <span className="font-medium">Check-out:</span>{" "}
+                                    {record.checkOutLocation &&
+                                    Number.isFinite(record.checkOutLocation.latitude) &&
+                                    Number.isFinite(record.checkOutLocation.longitude) &&
+                                    (record.checkOutLocation.latitude !== 0 || record.checkOutLocation.longitude !== 0)
+                                      ? `${record.checkOutLocation.latitude},${record.checkOutLocation.longitude}`
+                                      : "—"}
+                                  </div>
+                                  <div className="text-gray-500">{record.checkOutLocation?.address || "—"}</div>
+                                  {record.checkOutLocation &&
+                                    Number.isFinite(record.checkOutLocation.latitude) &&
+                                    Number.isFinite(record.checkOutLocation.longitude) &&
+                                    (record.checkOutLocation.latitude !== 0 || record.checkOutLocation.longitude !== 0) && (
+                                      <a
+                                        href={`https://www.google.com/maps?q=${record.checkOutLocation.latitude},${record.checkOutLocation.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline"
+                                      >
+                                        Open in Maps
+                                      </a>
+                                    )}
                                 </div>
                               </div>
                             </div>
-                            {canPerformModuleAction("attendance", "edit") && (
+                            {canEditAttendanceLog && (
                               <Button
                                 onClick={() => {
                                   handleOverride(record.id);
@@ -1913,6 +1961,157 @@ const fetchAttendanceLogs = async () => {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Override Card (in-page) */}
+      <Dialog
+        open={isOverrideOpen}
+        onOpenChange={(open) => {
+          setIsOverrideOpen(open);
+          if (!open) setOverrideDraft(null);
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Create Attendance Override</DialogTitle>
+            <DialogDescription>All overrides are logged with audit trail</DialogDescription>
+          </DialogHeader>
+
+          {overrideDraft && (
+            <div className="space-y-5 py-4">
+              {/* Employee ID - Required */}
+              <div className="space-y-2">
+                <Label htmlFor="employeeId">
+                  Employee ID <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="employeeId"
+                  placeholder="e.g., EMP003 / CMS001"
+                  value={overrideDraft.employeeId}
+                  onChange={(e) =>
+                    setOverrideDraft((prev) => (prev ? { ...prev, employeeId: e.target.value } : prev))
+                  }
+                />
+              </div>
+
+              {/* Attendance Date - Required */}
+              <div className="space-y-2">
+                <Label htmlFor="overrideDate">
+                  Attendance Date <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="overrideDate"
+                  type="date"
+                  value={overrideDraft.date}
+                  onChange={(e) => setOverrideDraft((prev) => (prev ? { ...prev, date: e.target.value } : prev))}
+                />
+              </div>
+
+              {/* From Status & To Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>From Status</Label>
+                  <Select
+                    value={overrideDraft.originalStatus}
+                    disabled
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="absent">Absent</SelectItem>
+                      <SelectItem value="present">Present</SelectItem>
+                      <SelectItem value="half">Half Day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>To Status</Label>
+                  <Select
+                    value={overrideDraft.overriddenStatus}
+                    onValueChange={(value) =>
+                      setOverrideDraft((prev) => (prev ? { ...prev, overriddenStatus: value as any } : prev))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="present">Present</SelectItem>
+                      <SelectItem value="absent">Absent</SelectItem>
+                      <SelectItem value="half">Half Day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Requested Check-in/out (optional) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="requestedCheckIn">
+                    Requested Check-in <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="requestedCheckIn"
+                    type="time"
+                    value={overrideDraft.requestedCheckIn}
+                    onChange={(e) =>
+                      setOverrideDraft((prev) => (prev ? { ...prev, requestedCheckIn: e.target.value } : prev))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="requestedCheckOut">
+                    Requested Check-out <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="requestedCheckOut"
+                    type="time"
+                    value={overrideDraft.requestedCheckOut}
+                    onChange={(e) =>
+                      setOverrideDraft((prev) => (prev ? { ...prev, requestedCheckOut: e.target.value } : prev))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Reason - Required */}
+              <div className="space-y-2">
+                <Label htmlFor="reason">
+                  Reason for Override <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="reason"
+                  placeholder="Provide detailed reason for this override"
+                  className="min-h-32"
+                  value={overrideDraft.reason}
+                  onChange={(e) =>
+                    setOverrideDraft((prev) => (prev ? { ...prev, reason: e.target.value } : prev))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Example: Doctor appointment with verified medical certificate
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsOverrideOpen(false);
+                    setOverrideDraft(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSubmitOverride} disabled={isSubmittingOverride}>
+                  {isSubmittingOverride ? "Creating..." : "Create & Submit"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Layout>

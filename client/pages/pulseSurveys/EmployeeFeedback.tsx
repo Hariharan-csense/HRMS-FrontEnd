@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import ENDPOINTS from "@/lib/endpoint";
 import { useAuth } from "@/context/AuthContext";
-import { MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
+import { MessageSquareText, ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 
 const EmployeeFeedback: React.FC = () => {
   const { user } = useAuth();
@@ -180,7 +180,14 @@ const EmployeeFeedback: React.FC = () => {
                     disabled={submitting}
                     className="h-11 w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
                   >
-                    {submitting ? "Submitting..." : "Submit Feedback"}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Feedback"
+                    )}
                   </Button>
                 </div>
               </div>

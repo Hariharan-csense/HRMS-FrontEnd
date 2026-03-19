@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap, MapPin, Navigation, Building, Users, Mail, Phone } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap, MapPin, Navigation, Building, Users, Mail, Phone, Loader2 } from "lucide-react";
 import { clientApi, Client, Employee } from "@/components/helper/client/client";
 import { getCurrentLocation, getAddressFromCoordinates } from "@/components/helper/clientAttendance/clientAttendance";
 import { showToast } from "@/utils/toast";
@@ -25,6 +25,8 @@ export default function ClientAssignment() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Load data on component mount
   useEffect(() => {
@@ -65,7 +67,8 @@ export default function ClientAssignment() {
       setFormData({
         ...formData,
         geo_latitude: location.latitude,
-        geo_longitude: location.longitude
+        geo_longitude: location.longitude,
+        address: address || formData.address
       });
       return location;
     } catch (error) {
@@ -114,6 +117,7 @@ export default function ClientAssignment() {
       return;
     }
 
+    setSaving(true);
     try {
       let result;
       const payload = {
@@ -139,6 +143,8 @@ export default function ClientAssignment() {
     } catch (error) {
       console.error("Error saving:", error);
       showToast.error("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -148,6 +154,7 @@ export default function ClientAssignment() {
   };
 
   const confirmDelete = async () => {
+    setDeleting(true);
     try {
       const result = await clientApi.deleteClient(deleteId!);
       if (result.success) {
@@ -164,6 +171,8 @@ export default function ClientAssignment() {
     } catch (error) {
       console.error("Error deleting:", error);
       showToast.error("Failed to delete. Please try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -273,14 +282,20 @@ export default function ClientAssignment() {
                         <button
                           onClick={() => handleOpenDialog(client)}
                           className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
+                          disabled={saving || deleting}
                         >
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(client.id)}
                           className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
+                          disabled={saving || deleting}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {deleting === client.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -300,7 +315,7 @@ export default function ClientAssignment() {
                 {searchTerm ? "Try adjusting your search terms" : "Get started by adding your first client"}
               </p>
               {!searchTerm && (
-                <Button onClick={() => handleOpenDialog()} className="gap-2">
+                <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={saving || deleting}>
                   <Plus className="w-4 h-4" />
                   Add Your First Client
                 </Button>
@@ -514,11 +529,18 @@ export default function ClientAssignment() {
           </div>
 
           <div className="flex gap-3 justify-end mt-6 pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {editingId ? "Update" : "Create"} Client
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {editingId ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                <>{editingId ? "Update" : "Create"} Client</>
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -534,12 +556,20 @@ export default function ClientAssignment() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
+              disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

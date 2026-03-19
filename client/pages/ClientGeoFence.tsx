@@ -15,6 +15,7 @@ import {
   Navigation
 } from "lucide-react";
 import { clientApi, Client } from "@/components/helper/client/client";
+import { api } from "@/lib/endpoint";
 import { getCurrentLocation, getAddressFromCoordinates } from "@/components/helper/clientAttendance/clientAttendance";
 import { showToast } from "@/utils/toast";
 
@@ -72,21 +73,13 @@ export default function ClientGeoFence() {
     }
 
     try {
-      const response = await fetch(`/api/geo-fence/client/${selectedClient.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          radius: geoRadius
-        })
+      const response = await api.put(`/geo-fence/client/${selectedClient.id}`, {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        radius: geoRadius
       });
 
-      const result = await response.json();
+      const result = response.data || {};
 
       if (result.success) {
         await loadClients();

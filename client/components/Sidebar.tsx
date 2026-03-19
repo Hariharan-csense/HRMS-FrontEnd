@@ -1,7 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { handleLogout } from "@/components/helper/login/login";
 import logo from "../assets/logo.png";
 
 const sidebarStyles = `
@@ -156,42 +155,42 @@ const navigationItems: NavItem[] = [
     roles: [], // Empty roles - access controlled by moduleName being undefined
     moduleName: undefined, // Always accessible
   },
-  {
-    label: "Quick Actions",
-    icon: <Activity className="w-5 h-5" />,
-    roles: [],
-    moduleName: "quick_actions", // Give it a proper module name
-    submenu: [
-      {
-        label: "Mark Attendance",
-        path: "/attendance/capture",
-        roles: [],
-        icon: <div />,
-        moduleName: "attendance",
-      },
-      {
-        label: "Apply for Leave",
-        path: "/leave/apply",
-        roles: [],
-        icon: <div />,
-        moduleName: "leave",
-      },
-      {
-        label: "View Payslip",
-        path: "/payroll/payslips",
-        roles: [],
-        icon: <div />,
-        moduleName: "payroll",
-      },
-      {
-        label: "Submit Expense Claim",
-        path: "/expenses/claims",
-        roles: [],
-        icon: <div />,
-        moduleName: "expenses",
-      },
-    ],
-  },
+  // {
+  //   label: "Quick Actions",
+  //   icon: <Activity className="w-5 h-5" />,
+  //   roles: [],
+  //   moduleName: "quick_actions", // Give it a proper module name
+  //   submenu: [
+  //     {
+  //       label: "Mark Attendance",
+  //       path: "/attendance/capture",
+  //       roles: [],
+  //       icon: <div />,
+  //       moduleName: "attendance",
+  //     },
+  //     {
+  //       label: "Apply for Leave",
+  //       path: "/leave/apply",
+  //       roles: [],
+  //       icon: <div />,
+  //       moduleName: "leave",
+  //     },
+  //     {
+  //       label: "View Payslip",
+  //       path: "/payroll/payslips",
+  //       roles: [],
+  //       icon: <div />,
+  //       moduleName: "payroll",
+  //     },
+  //     {
+  //       label: "Submit Expense Claim",
+  //       path: "/expenses/claims",
+  //       roles: [],
+  //       icon: <div />,
+  //       moduleName: "expenses",
+  //     },
+  //   ],
+  // },
   {
     label: "Organization Setup",
     icon: <Building2 className="w-5 h-5" />,
@@ -683,8 +682,7 @@ const navigationItems: NavItem[] = [
 export const Sidebar: React.FC = () => {
   const SIDEBAR_SCROLL_KEY = "hrms.sidebar.scrollTop";
   const location = useLocation();
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const { canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const [expandedItems, setExpandedItems] = useState<string[]>(() =>
@@ -775,6 +773,7 @@ export const Sidebar: React.FC = () => {
     .map((role) => String(role || "").toLowerCase())
     .filter(Boolean);
   const isSuperAdmin = normalizedUserRoles.includes("superadmin");
+  const isCeo = normalizedUserRoles.includes("ceo");
   const isEmployeeUser = normalizedUserRoles.includes("employee");
 
   const allowedModulesForPlan = useMemo(() => {
@@ -870,9 +869,20 @@ export const Sidebar: React.FC = () => {
       }
     }
 
+    // Keep role debug entries visible for allowed roles (admin/ceo),
+    // without plan/module permission gating.
+    if (item.path === "/debug/roles" || item.path === "/debug/role-test") {
+      return true;
+    }
+
+    const hasConfiguredRoles = Array.isArray(userRoles) && userRoles.length > 0;
+
+    // Hide dashboard until roles/modules are configured for the user
+    if (item.label === "Dashboard" && !hasConfiguredRoles) return false;
+
     // Subscription-based visibility (applies to non-superadmin users)
-    if (!isSuperAdmin) {
-      // Dashboard is always accessible
+    if (!isSuperAdmin && !isCeo) {
+      // Dashboard is always accessible once roles exist
       if (item.label === "Dashboard") return true;
 
       // If subscription-based restriction is active, enforce it.
@@ -1107,10 +1117,7 @@ export const Sidebar: React.FC = () => {
         <div className="sidebar-user-section p-4 border-t border-sidebar-border/50 space-y-2">
           <button
             onClick={async () => {
-              const result = await handleLogout();
-              if (result.success) {
-                navigate("/login");
-              }
+              await logout();
             }}
             className="sidebar-logout-btn w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive rounded-lg font-medium"
           >

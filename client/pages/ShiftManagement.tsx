@@ -63,6 +63,18 @@ export default function ShiftManagement() {
       if (endTotal <= startTotal) {
         errors.endTime = 'End time must be after start time';
       }
+
+      if (formData.halfDayThreshold !== undefined && formData.halfDayThreshold !== null) {
+        const thresholdHours = Number(formData.halfDayThreshold);
+        if (!Number.isFinite(thresholdHours) || thresholdHours <= 0) {
+          errors.halfDayThreshold = 'Half day threshold must be greater than 0';
+        } else {
+          const shiftDurationHours = (endTotal - startTotal) / 60;
+          if (thresholdHours >= shiftDurationHours) {
+            errors.halfDayThreshold = 'Half day threshold must be less than total shift hours';
+          }
+        }
+      }
     }
     
     setFormErrors(errors);
@@ -87,6 +99,18 @@ export default function ShiftManagement() {
     const minutes = totalMinutes % 60;
     
     return `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`.trim();
+  };
+
+  const getHalfDayCutoffTime = (start?: string, thresholdHours?: number): string | null => {
+    if (!start || !Number.isFinite(Number(thresholdHours)) || Number(thresholdHours) <= 0) return null;
+    const [h, m] = start.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    const baseMinutes = h * 60 + m;
+    const thresholdMinutes = Math.round(Number(thresholdHours) * 60);
+    const total = baseMinutes + thresholdMinutes;
+    const outH = Math.floor((total % (24 * 60)) / 60);
+    const outM = total % 60;
+    return `${String(outH).padStart(2, '0')}:${String(outM).padStart(2, '0')}`;
   };
 
   // Open dialog
@@ -360,6 +384,7 @@ export default function ShiftManagement() {
                 <Input
                   type="number"
                   min="0"
+                  step="0.25"
                   value={formData.halfDayThreshold ?? ""}
                   onChange={(e) =>
                     setFormData({
@@ -367,7 +392,20 @@ export default function ShiftManagement() {
                       halfDayThreshold: e.target.value ? Number(e.target.value) : undefined,
                     })
                   }
+                  className={formErrors.halfDayThreshold ? 'border-red-500' : ''}
                 />
+                {formErrors.halfDayThreshold ? (
+                  <p className="text-xs text-red-500 mt-1">{formErrors.halfDayThreshold}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Employee is marked half day only when check-in is after this threshold from shift start.
+                  </p>
+                )}
+                {getHalfDayCutoffTime(formData.startTime, formData.halfDayThreshold) && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Half-day cutoff time: {getHalfDayCutoffTime(formData.startTime, formData.halfDayThreshold)}
+                  </p>
+                )}
               </div>
             </div>
 

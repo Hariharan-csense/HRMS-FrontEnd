@@ -23,14 +23,19 @@ type ApiSurvey = {
   } | null;
 };
 
-const clamp = (value: number) => Math.max(0, Math.min(10, value));
+const clamp = (value: number) => Math.max(1, Math.min(10, value));
 
 const options = [
-  { label: "Very Unhappy", score: 2, emoji: "😞" },
-  { label: "Unhappy", score: 4, emoji: "😟" },
-  { label: "Neutral", score: 6, emoji: "😐" },
-  { label: "Happy", score: 8, emoji: "🙂" },
-  { label: "Very Happy", score: 10, emoji: "😄" },
+  { label: "Very Unhappy", score: 1, emoji: "😞" },
+  { label: "Unhappy", score: 2, emoji: "☹️" },
+  { label: "Low", score: 3, emoji: "🙁" },
+  { label: "Below Neutral", score: 4, emoji: "😕" },
+  { label: "Slightly Down", score: 5, emoji: "😐" },
+  { label: "Neutral", score: 6, emoji: "😶" },
+  { label: "Slightly Up", score: 7, emoji: "🙂" },
+  { label: "Happy", score: 8, emoji: "😊" },
+  { label: "Very Happy", score: 9, emoji: "😁" },
+  { label: "Extremely Happy", score: 10, emoji: "🤩" },
 ];
 
 const RespondPulseSurvey: React.FC = () => {

@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, Search, Calendar } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, Loader2 } from "lucide-react";
 
 interface LeaveApplication {
   id: string;
@@ -61,6 +61,7 @@ export default function LeaveManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<LeaveApplication>>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Debug: Track dialog state changes
   console.log("isDialogOpen:", isDialogOpen);
@@ -86,20 +87,33 @@ export default function LeaveManagement() {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (editingId) {
-      setLeaves((prev) =>
-        prev.map((l) => (l.id === editingId ? { ...l, ...formData } : l))
-      );
-    } else {
-      const newLeave = {
-        id: `LEAVE${String(leaves.length + 1).padStart(3, "0")}`,
-        ...formData,
-        appliedOn: new Date().toISOString().split("T")[0],
-      } as LeaveApplication;
-      setLeaves((prev) => [newLeave, ...prev]);
+  const handleSave = async () => {
+    setSubmitting(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (editingId) {
+        setLeaves((prev) =>
+          prev.map((l) => (l.id === editingId ? { ...l, ...formData } : l))
+        );
+      } else {
+        const newLeave = {
+          id: `LEAVE${String(leaves.length + 1).padStart(3, "0")}`,
+          ...formData,
+          appliedOn: new Date().toISOString().split("T")[0],
+        } as LeaveApplication;
+        setLeaves((prev) => [newLeave, ...prev]);
+      }
+      
+      setIsDialogOpen(false);
+      setFormData({});
+      setEditingId(null);
+    } catch (error) {
+      console.error('Error saving leave:', error);
+    } finally {
+      setSubmitting(false);
     }
-    setIsDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -408,10 +422,19 @@ export default function LeaveManagement() {
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 border-t pt-3 sm:pt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto text-xs sm:text-sm">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting} className="w-full sm:w-auto text-xs sm:text-sm">
               Cancel
             </Button>
-            <Button onClick={handleSave} className="w-full sm:w-auto text-xs sm:text-sm">Save</Button>
+            <Button onClick={handleSave} disabled={submitting} className="w-full sm:w-auto text-xs sm:text-sm">
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {editingId ? "Updating..." : "Saving..."}
+                </>
+              ) : (
+                editingId ? "Update Leave" : "Apply Leave"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

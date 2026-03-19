@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { MessageCircle, User, Users, Calendar, Filter, Trash2, CheckCircle, Clock, AlertCircle, XCircle } from "lucide-react";
+import { MessageCircle, User, Users, Calendar, Filter, Trash2, CheckCircle, Clock, AlertCircle, XCircle, Loader2 } from "lucide-react";
 
 type FeedbackRow = {
   id: number;
@@ -324,7 +324,14 @@ const AdminFeedbackInbox: React.FC = () => {
                                 disabled={updatingId === r.id}
                               >
                                 <SelectTrigger className="w-[140px] h-9 text-sm border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500">
-                                  <SelectValue placeholder="Status" />
+                                  {updatingId === r.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      <span>Updating...</span>
+                                    </div>
+                                  ) : (
+                                    <SelectValue placeholder="Status" />
+                                  )}
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="submitted" className="text-sm">submitted</SelectItem>
@@ -340,7 +347,11 @@ const AdminFeedbackInbox: React.FC = () => {
                                 disabled={updatingId === r.id}
                                 className="h-9 px-3 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {updatingId === r.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
                               </Button>
                             </div>
                           </div>

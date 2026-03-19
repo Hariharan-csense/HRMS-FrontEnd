@@ -554,24 +554,46 @@ export const holidayApi = {
   },
 
   // Create new holiday
-  createHoliday: async (data: any): Promise<{ data?: Holiday; error?: string }> => {
+  createHoliday: async (data: any): Promise<{ data?: Holiday; message?: string; error?: string }> => {
     try {
       const response = await ENDPOINTS.createHoliday(data);
-      
-      if (response.data?.message || response.data?.id) {
-        return { 
+
+      const created = response.data?.holiday;
+      if (response.data?.success && created) {
+        const createdDate =
+          typeof created.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(created.date)
+            ? created.date
+            : created.date
+              ? new Date(created.date).toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" })
+              : undefined;
+        return {
           data: {
-            id: response.data.id || "",
+            id: created.id?.toString() || "",
+            name: created.name ?? data.name ?? "Unnamed Holiday",
+            date: createdDate ?? data.date,
+            type: created.type ?? data.type ?? "national",
+            description: created.description ?? data.description ?? "",
+            createdAt: created.createdAt ?? new Date().toISOString(),
+          },
+          message: response.data?.message,
+        };
+      }
+
+      if (response.data?.message || response.data?.id) {
+        return {
+          data: {
+            id: response.data.id?.toString() || "",
             name: data.name,
             date: data.date,
             type: data.type || "national",
             description: data.description || "",
             createdAt: new Date().toISOString(),
-          }
+          },
+          message: response.data?.message,
         };
-      } else {
-        return { error: response.data?.message || "Failed to create holiday" };
       }
+
+      return { error: response.data?.message || "Failed to create holiday" };
     } catch (error: any) {
       console.error("Error creating holiday:", error);
       return {
@@ -584,24 +606,46 @@ export const holidayApi = {
   },
 
   // Update holiday
-  updateHoliday: async (id: string, data: any): Promise<{ data?: Holiday; error?: string }> => {
+  updateHoliday: async (id: string, data: any): Promise<{ data?: Holiday; message?: string; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateHoliday(id, data);
-      
-      if (response.data?.message || response.data?.success) {
-        return { 
+
+      const updated = response.data?.holiday;
+      if (response.data?.success && updated) {
+        const updatedDate =
+          typeof updated.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(updated.date)
+            ? updated.date
+            : updated.date
+              ? new Date(updated.date).toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" })
+              : undefined;
+        return {
           data: {
-            id: id,
+            id: updated.id?.toString() || id,
+            name: updated.name ?? data.name ?? "Unnamed Holiday",
+            date: updatedDate ?? data.date,
+            type: updated.type ?? data.type ?? "national",
+            description: updated.description ?? data.description ?? "",
+            createdAt: updated.createdAt ?? new Date().toISOString(),
+          },
+          message: response.data?.message,
+        };
+      }
+
+      if (response.data?.message || response.data?.success) {
+        return {
+          data: {
+            id,
             name: data.name,
             date: data.date,
             type: data.type || "national",
             description: data.description || "",
             createdAt: new Date().toISOString(),
-          }
+          },
+          message: response.data?.message,
         };
-      } else {
-        return { error: response.data?.message || "Failed to update holiday" };
       }
+
+      return { error: response.data?.message || "Failed to update holiday" };
     } catch (error: any) {
       console.error("Error updating holiday:", error);
       return {

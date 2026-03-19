@@ -36,7 +36,7 @@ const LandingPage = () => {
               {/* <h1 className="text-2xl font-bold text-gray-900">HRMS</h1> */}
             </div>
             <nav className="hidden md:flex space-x-8">
-              <Link to="/" className="text-green-600 font-medium hover:text-green-700 transition-colors">Home</Link>
+              <Link to="/login" className="text-green-600 font-medium hover:text-green-700 transition-colors">Home</Link>
               <Link to="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</Link>
               <Link to="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</Link>
               <Link to="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</Link>

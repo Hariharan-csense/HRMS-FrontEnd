@@ -79,12 +79,17 @@ export const clientApi = {
   // Get employees for assignment
   getEmployeesForAssignment: async () => {
     try {
-      const response = await ENDPOINTS.getEmployee();
-      // Handle the response format where employees are nested under response.data.employees
-      if (response.data && response.data.employees) {
+      const response = await ENDPOINTS.getEmployeesForAssignment();
+      // Support both formats:
+      // 1) { success: true, data: [...] }
+      // 2) { success: true, employees: [...] }
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return { data: response.data.data };
+      }
+      if (response.data?.employees && Array.isArray(response.data.employees)) {
         return { data: response.data.employees };
       }
-      return response.data;
+      return { data: [] };
     } catch (error) {
       console.error('Error fetching employees:', error);
       throw error;

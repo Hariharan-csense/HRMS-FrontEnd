@@ -66,6 +66,8 @@ export default function ClientAttendance() {
       
       if (activeResult.data) {
         setActiveCheckIn(activeResult.data);
+      } else {
+        setActiveCheckIn(null);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -183,6 +185,7 @@ export default function ClientAttendance() {
       
       if (result.success) {
         await loadData();
+        setActiveCheckIn(null);
         setIsCheckOutDialogOpen(false);
         setCheckOutNotes("");
         setWorkCompleted("");

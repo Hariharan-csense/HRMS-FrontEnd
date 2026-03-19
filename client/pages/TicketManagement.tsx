@@ -301,10 +301,10 @@ const TicketManagement: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6 bg-gradient-to-br from-[#e6fbf4] via-white to-white rounded-3xl">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Ticket Management</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#17c491]">Ticket Management</h1>
             <p className="text-muted-foreground text-sm sm:text-base">Manage and track support tickets</p>
           </div>
           <Button 
@@ -317,11 +317,11 @@ const TicketManagement: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
+        <Card className="border-0 shadow-md bg-white/90">
+          <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl pb-3">
+            <CardTitle className="text-white">Filters</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="search">Search</Label>
@@ -387,10 +387,10 @@ const TicketManagement: React.FC = () => {
         </Card>
 
         {/* Tickets List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tickets ({filteredTickets.length})</CardTitle>
-            <CardDescription>Manage and track all support tickets</CardDescription>
+        <Card className="border-0 shadow-md bg-white/90">
+          <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl pb-3">
+            <CardTitle className="text-white">Tickets ({filteredTickets.length})</CardTitle>
+            <CardDescription className="text-white/80">Manage and track all support tickets</CardDescription>
           </CardHeader>
           <CardContent>
             {filteredTickets.length === 0 ? (
@@ -413,7 +413,7 @@ const TicketManagement: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 mt-2">
                 {filteredTickets.map((ticket) => (
                   <div key={ticket.id} className="border rounded-lg p-3 sm:p-4 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">

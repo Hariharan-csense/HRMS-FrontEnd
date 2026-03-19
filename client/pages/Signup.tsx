@@ -312,15 +312,15 @@ export default function Signup() {
         throw new Error(result.error || "Registration failed");
       }
 
-      // If admin, auto-login and redirect to dashboard
+      // If admin, auto-login and redirect to Role & Module Access debug
       if (formData.role === "admin") {
         try {
           // Normalize email (trim + lowercase) to match backend storage
           const normalizedEmail = normalizeEmail(formData.email);
           await login(normalizedEmail, formData.password, true);
-          setSuccess("Admin account created! Redirecting to dashboard...");
+          setSuccess("Admin account created! Redirecting to Role & Module Access...");
           setTimeout(() => {
-            navigate("/dashboard");
+            navigate("/debug/roles");
           }, 1500);
           return;
         } catch (err) {

@@ -24,8 +24,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { handleLogout } from "@/components/helper/login/login";
 import { useNotifications } from "@/hooks/useNotifications";
+import ThemeToggle from "@/components/ThemeToggle";
 
 
 export const Topbar: React.FC = () => {
@@ -120,14 +120,11 @@ export const Topbar: React.FC = () => {
   };
 
   const onLogout = async () => {
-    const result = await handleLogout();
-    if (result.success) {
-      navigate("/login");
-    }
+    await logout();
   };
 
   return (
-    <header className="h-16 sm:h-20 bg-white border-b border-border flex items-center justify-between px-4 sm:px-6 md:px-8 md:ml-64 fixed top-0 right-0 left-0 z-20">
+    <header className="h-16 sm:h-20 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 md:px-8 md:ml-64 fixed top-0 right-0 left-0 z-20">
       {/* Left Section - Dashboard Button */}
       <div className="flex items-center gap-2">
         <button
@@ -146,6 +143,7 @@ export const Topbar: React.FC = () => {
 
       {/* Right Section */}
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         {/* Notifications Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

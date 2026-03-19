@@ -30,7 +30,8 @@ import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi from "@/components/helper/branch/branch";
 import { useRole } from "@/context/RoleContext";
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+// Frontend-only key (HTTP referrer restricted). Do NOT use the server key here.
+const FRONTEND_GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
 const toFiniteNumber = (value: unknown): number | null => {
   const num = typeof value === "string" ? Number(value) : (value as number);
@@ -86,7 +87,7 @@ export default function LiveTracking() {
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(true);
   const [employees, setEmployees] = useState<any[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,7 +253,7 @@ export default function LiveTracking() {
       } catch (error) {
         console.error("Error refreshing data:", error);
       }
-    }, isAnimating ? 5000 : 30000);
+    }, isAnimating ? 5000 : 15000);
 
     return () => clearInterval(interval);
   }, [autoRefresh, canViewTracking, isAnimating]);
@@ -367,7 +368,7 @@ export default function LiveTracking() {
   }, [mapCenter]);
 
   useEffect(() => {
-    if (!isAnimating || !canViewTracking) return;
+    if (!canViewTracking) return;
 
     setTravelPaths((prev) => {
       const next = { ...prev };
@@ -396,7 +397,7 @@ export default function LiveTracking() {
 
       return next;
     });
-  }, [isAnimating, trackedEmployees, canViewTracking]);
+  }, [trackedEmployees, canViewTracking]);
 
   useEffect(() => {
     if (!mapInstance || filteredEmployees.length === 0 || !canViewTracking) return;
@@ -704,7 +705,7 @@ export default function LiveTracking() {
               </div>
             ) : (
               <LoadScript
-                googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+                googleMapsApiKey={FRONTEND_GOOGLE_MAPS_API_KEY}
                 onError={() => {
                   if (typeof window !== "undefined") {
                     localStorage.setItem("google_maps_blocked", "1");
@@ -780,7 +781,7 @@ export default function LiveTracking() {
                     />
                   )}
 
-                  {isAnimating && Object.entries(travelPaths).map(([empId, pathPoints]) => {
+                  {Object.entries(travelPaths).map(([empId, pathPoints]) => {
                     if (pathPoints.length < 2) return null;
 
                     return (
@@ -833,7 +834,7 @@ export default function LiveTracking() {
                         >
                           {selectedMarker === `emp-${emp.id}` && (
                             <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
-                              <div className="space-y-2 text-sm min-w-[280px]">
+                              <div className="map-info-window space-y-2 text-sm min-w-[280px]">
                                 <div className="border-b pb-2 flex items-center gap-3">
                                   {emp.photoUrl && (
                                     <img
@@ -847,12 +848,12 @@ export default function LiveTracking() {
                                     <div className="font-bold">
                                       {emp.firstName} {emp.lastName}
                                     </div>
-                                    <div className="text-xs text-gray-500">{emp.id}</div>
+                                    <div className="text-xs text-slate-600">{emp.id}</div>
                                   </div>
                                 </div>
                                 <div className="space-y-1">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-gray-600">Status:</span>
+                                    <span className="text-slate-700">Status:</span>
                                     <span
                                       className={`px-2 py-1 rounded text-xs font-semibold ${
                                         isCheckedIn
@@ -864,20 +865,20 @@ export default function LiveTracking() {
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between">
-                                    <span className="text-gray-600">Department:</span>
+                                    <span className="text-slate-700">Department:</span>
                                     <span className="text-xs font-medium">{emp.department}</span>
                                   </div>
                                   <div className="flex items-center justify-between">
-                                    <span className="text-gray-600">Accuracy:</span>
+                                    <span className="text-slate-700">Accuracy:</span>
                                     <span className="text-xs font-medium">±{Math.round(emp.currentLocation.accuracy)}m</span>
                                   </div>
                                 </div>
                                 <div className="border-t pt-2">
-                                  <div className="text-xs text-gray-600 mb-1">Address</div>
+                                  <div className="text-xs text-slate-700 mb-1">Address</div>
                                   <div className="text-xs font-medium">{emp.currentLocation.address}</div>
                                 </div>
                                 <div className="border-t pt-2">
-                                  <div className="text-xs text-gray-600 mb-1">Last Updated</div>
+                                  <div className="text-xs text-slate-700 mb-1">Last Updated</div>
                                   <div className="text-xs font-medium">
                                     {new Date(emp.currentLocation.timestamp).toLocaleString("en-IN")}
                                   </div>

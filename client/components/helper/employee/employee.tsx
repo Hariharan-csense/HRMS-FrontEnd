@@ -25,15 +25,16 @@ export const employeeApi = {
 
 
  
-  getEmployees: async (): Promise<{ data?: any[]; error?: string }> => {
+  getEmployees: async (
+    options?: { includeAttendanceLocations?: boolean },
+  ): Promise<{ data?: any[]; error?: string }> => {
     try {
-      console.log("Fetching employees from backend..."); // Debug
-
       const response = await ENDPOINTS.getEmployee();
-
+      /*
       console.log("Employee API Raw Response:", response); // என்ன வந்துச்சுனு பார்க்க
 
       // response structure check பண்ணி safe-ஆ data எடு
+      */
       const rawData = response?.data;
       let employees: any[] = [];
 
@@ -54,63 +55,20 @@ export const employeeApi = {
         employeeId: emp.employee_id
       }));
 
-      console.log(`Total employees: ${mappedEmployees.length}`);
-
-      // Fetch attendance locations for all employees
-      if (mappedEmployees.length > 0) {
-        try {
-          const attendanceResponse = await fetch('http://192.168.1.9:3000/api/attendance/locations', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-            }
-          });
-
-          if (attendanceResponse.ok) {
-            const attendanceData = await attendanceResponse.json();
-            const attendanceLocations = attendanceData.locations || attendanceData.data || [];
-            
-            console.log('Attendance locations fetched:', attendanceLocations.length);
-
-            // Merge attendance data with employee data
-            const employeesWithLocation = mappedEmployees.map(employee => {
-              const attendanceRecord = attendanceLocations.find(
-                att => att.employee_id === employee.id || att.employeeId === employee.id
-              );
-
-              return {
-                ...employee,
-                // Map attendance data to expected format
-                latitude: attendanceRecord?.latitude || null,
-                longitude: attendanceRecord?.longitude || null,
-                accuracy: attendanceRecord?.accuracy || null,
-                address: attendanceRecord?.address || null,
-                locationTimestamp: attendanceRecord?.timestamp || attendanceRecord?.location_timestamp || null,
-                isTracking: attendanceRecord ? true : false,
-                trackingStatus: attendanceRecord ? 'active' : 'offline',
-                deviceInfo: attendanceRecord?.device_info || null
-              };
-            });
-
-            console.log('Employees with location data:', employeesWithLocation.length);
-            return { data: employeesWithLocation };
-          }
-        } catch (attendanceError) {
-          console.warn('Failed to fetch attendance locations:', attendanceError);
-          // Return employees without location data
-          const employeesWithoutLocation = mappedEmployees.map(employee => ({
-            ...employee,
-            latitude: null,
-            longitude: null,
-            accuracy: null,
-            address: null,
-            locationTimestamp: null,
-            isTracking: false,
-            trackingStatus: 'offline',
-            deviceInfo: null
-          }));
-          return { data: employeesWithoutLocation };
-        }
+      if (options?.includeAttendanceLocations) {
+        // Live tracking fetches locations separately; keep employee load fast by default.
+        const employeesWithoutLocation = mappedEmployees.map(employee => ({
+          ...employee,
+          latitude: null,
+          longitude: null,
+          accuracy: null,
+          address: null,
+          locationTimestamp: null,
+          isTracking: false,
+          trackingStatus: 'offline',
+          deviceInfo: null
+        }));
+        return { data: employeesWithoutLocation };
       }
 
       return { data: mappedEmployees };

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import ENDPOINTS from '../lib/endpoint';
 import TrialExpirationModal from '../components/TrialExpirationModal';
 import { useAuth } from '@/context/AuthContext';
+import { hasAnyRole } from '@/lib/auth';
 
 interface CompanySubscription {
   id: number;
@@ -50,7 +51,7 @@ const isUserAuthenticated = () => {
 };
 
 export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [subscription, setSubscription] = useState<CompanySubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,13 +84,31 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         }
         
         // Get current employee count
-        try {
-          const employeesResponse = await ENDPOINTS.getEmployee();
-          if (employeesResponse.data?.data) {
-            setCurrentEmployeeCount(employeesResponse.data.data.length);
+        const canFetchEmployees = hasAnyRole(user, [
+          'admin',
+          'superadmin',
+          'hr',
+          'human resources',
+          'human resource',
+          'manager',
+        ]);
+
+        if (canFetchEmployees) {
+          try {
+            const employeesResponse = await ENDPOINTS.getEmployee();
+            if (employeesResponse.data?.data) {
+              setCurrentEmployeeCount(employeesResponse.data.data.length);
+            }
+          } catch (empError: any) {
+            // Avoid noisy console errors for forbidden roles; fall back gracefully
+            if (empError?.response?.status !== 403) {
+              console.error('Error fetching employee count:', empError);
+            }
+            setCurrentEmployeeCount(0);
           }
-        } catch (empError) {
-          console.error('Error fetching employee count:', empError);
+        } else {
+          // Skip forbidden endpoint for regular employees
+          setCurrentEmployeeCount(0);
         }
       } else {
         // No subscription found - don't show modal automatically

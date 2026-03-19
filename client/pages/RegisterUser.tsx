@@ -10,6 +10,7 @@ import { AlertCircle, Loader, ChevronLeft } from "lucide-react";
 import { mockUsers } from "@/lib/auth";
 import type { UserRole } from "@/lib/auth";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { BASE_URL } from "@/lib/endpoint";
 
 export default function RegisterUser() {
   const [formData, setFormData] = useState({
@@ -118,7 +119,7 @@ export default function RegisterUser() {
     setIsLoading(true);
     try {
       // Call backend registration API
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+      const response = await fetch(`${BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,9 +153,9 @@ export default function RegisterUser() {
         companyName: "",
       });
 
-      // Redirect after 2 seconds
+      // Redirect after 2 seconds to role & module access debug so roles can be assigned before using the app
       setTimeout(() => {
-        navigate("/employees");
+        navigate("/debug/roles");
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register user");

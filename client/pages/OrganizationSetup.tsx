@@ -23,7 +23,7 @@ const toAbsoluteUrl = (value?: string | null): string | undefined => {
   if (!value) return undefined;
   if (value.startsWith("data:") || value.startsWith("blob:")) return value;
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  return `${BASE_URL}${value.startsWith("/") ? value : `/${value}`}`;
+  return `${BASE_URL}${value.startsWith("/login") ? value : `/${value}`}`;
 };
 
 // Mock Data
@@ -625,7 +625,7 @@ export default function OrganizationSetup() {
           <TabsContent value="company">
             <div className="space-y-6">
               {/* Header */}
-              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100 shadow-sm">
+              <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/20 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -643,7 +643,7 @@ export default function OrganizationSetup() {
                       <div>
                         <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                           {!company?.logo && (
-                            <div className="p-2 bg-blue-600 rounded-lg">
+                            <div className="p-2 bg-[#17c491] rounded-lg">
                               <Building2 className="w-6 h-6 text-white" />
                             </div>
                           )}
@@ -654,7 +654,7 @@ export default function OrganizationSetup() {
                     </div>
                     <Button 
                       onClick={() => handleOpenDialog(company)} 
-                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-200 hover:shadow-lg"
+                      className="bg-[#17c491] hover:bg-[#17c491]/90 text-white shadow-md transition-all duration-200 hover:shadow-lg"
                     >
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Company
@@ -669,7 +669,7 @@ export default function OrganizationSetup() {
                 <Card className="shadow-sm border-0 bg-white">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
                       Basic Information
                     </CardTitle>
                   </CardHeader>
@@ -684,9 +684,9 @@ export default function OrganizationSetup() {
                         <p className="text-sm font-semibold text-gray-900">{company?.industry}</p>
                       </div>
                     </div>
-                    <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
-                      <Label className="text-xs font-medium text-blue-700 uppercase tracking-wider block mb-1">GSTIN/PAN</Label>
-                      <p className="text-lg font-bold text-blue-900">{company?.gstin}</p>
+                    <div className="bg-[#17c491]/10 rounded-lg p-4 border-l-4 border-[#17c491]">
+                      <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">GSTIN/PAN</Label>
+                      <p className="text-lg font-bold text-[#0b6f53]">{company?.gstin}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -695,19 +695,19 @@ export default function OrganizationSetup() {
                 <Card className="shadow-sm border-0 bg-white">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
                       Operational Settings
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-blue-50 rounded-lg p-4">
-                        <Label className="text-xs font-medium text-blue-700 uppercase tracking-wider block mb-1">Payroll Cycle</Label>
-                        <p className="text-sm font-semibold text-blue-900">{company?.payrollCycle}</p>
+                      <div className="bg-[#17c491]/10 rounded-lg p-4">
+                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Payroll Cycle</Label>
+                        <p className="text-sm font-semibold text-[#0b6f53]">{company?.payrollCycle}</p>
                       </div>
-                      <div className="bg-blue-50 rounded-lg p-4">
-                        <Label className="text-xs font-medium text-blue-700 uppercase tracking-wider block mb-1">Timezone</Label>
-                        <p className="text-sm font-semibold text-blue-900">{company?.timezone}</p>
+                      <div className="bg-[#17c491]/10 rounded-lg p-4">
+                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Timezone</Label>
+                        <p className="text-sm font-semibold text-[#0b6f53]">{company?.timezone}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -718,18 +718,18 @@ export default function OrganizationSetup() {
               <Card className="shadow-sm border-0 bg-white">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+                    <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
                     Company Address
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-orange-50 rounded-lg p-6 border-l-4 border-orange-600">
+                  <div className="bg-[#17c491]/10 rounded-lg p-6 border-l-4 border-[#17c491]">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-orange-600 rounded-lg">
+                      <div className="p-2 bg-[#17c491] rounded-lg">
                         <Building2 className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1">
-                        <Label className="text-xs font-medium text-orange-700 uppercase tracking-wider block mb-2">Registered Address</Label>
+                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-2">Registered Address</Label>
                         <p className="text-gray-900 leading-relaxed">{company?.address}</p>
                       </div>
                     </div>
@@ -821,7 +821,7 @@ export default function OrganizationSetup() {
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
                             <span className="text-sm font-medium text-gray-500">Radius</span>
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                              {branch.radius} km
+                              {branch.radius} m
                             </span>
                           </div>
                         </div>
@@ -864,7 +864,7 @@ export default function OrganizationSetup() {
                             </td>
                             <td className="px-6 py-4 text-center">
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                                {branch.radius} km
+                                {branch.radius} m
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -1464,13 +1464,15 @@ export default function OrganizationSetup() {
                   </div>
                 </div>
                 <div>
-                  <Label>Radius (km) *</Label>
+                  <Label>Radius (meters) *</Label>
                   <Input
                     value={formData.radius || ""}
                     onChange={(e) => setFormData({ ...formData, radius: e.target.value })}
                     type="number"
                     className="mt-2"
+                    min={1}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Enter geofence radius in meters (e.g., 200)</p>
                 </div>
               </>
             )}

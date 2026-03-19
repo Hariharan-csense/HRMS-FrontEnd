@@ -178,12 +178,12 @@ function AppRoutes() {
     <AutoLoginHandler>
       <Routes>
       {/* Public Routes */}
+      {/* <Route
+        path="/login"
+        element={<PublicRoute element={<LandingPage />} />}
+      /> */}
       <Route
         path="/"
-        element={<PublicRoute element={<LandingPage />} />}
-      />
-      <Route
-        path="/landing"
         element={<PublicRoute element={<LandingPage />} />}
       />
       <Route

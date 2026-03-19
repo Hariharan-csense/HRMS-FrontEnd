@@ -1,12 +1,22 @@
 // src/components/utils/api.ts
 import axios from "axios";
 
-// //Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.11:3000";
+// // //Export the base URL for use in other components
+export const BASE_URL = "http://192.168.1.12:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
-const api = axios.create({
+// Auth requests that must NOT go through interceptors (avoids side effects on login errors)
+const authApi = axios.create({
   baseURL: `${BASE_URL}/api`,
   withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  },
+});
+
+const api = axios.create({
+  baseURL: `${BASE_URL}/api`,
+  withCredentials: true,  
   headers: {
     "Content-Type": "application/json",
     "Accept": "application/json"
@@ -16,9 +26,17 @@ const api = axios.create({
 const clearAuthStorage = () => {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+  sessionStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
   localStorage.removeItem("userRole");
   localStorage.removeItem("rememberMe");
+};
+
+// Notify React side to navigate without hard reload
+const emitForceLogout = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth:logout"));
+  }
 };
 
 // Attach token dynamically on EVERY request
@@ -53,7 +71,7 @@ let refreshPromise: Promise<string> | null = null;
 
 // ✅ Token refresh utility
 const refreshAccessToken = async (): Promise<string> => {
-  const refreshToken = localStorage.getItem("refreshToken");
+  const refreshToken = localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
   
   if (!refreshToken) {
     throw new Error('No refresh token available');
@@ -101,7 +119,7 @@ const isTokenExpiredOrExpiringSoon = (token: string): boolean => {
 // ✅ Proactive token refresh check
 const checkAndRefreshTokenIfNeeded = async (): Promise<void> => {
   const token = localStorage.getItem('accessToken');
-  const refreshToken = localStorage.getItem('refreshToken');
+  const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem("refreshToken");
   
   if (!token || !refreshToken) {
     return;
@@ -128,9 +146,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest: any = error.config;
     const status = error.response?.status;
+    const requestUrl = typeof originalRequest?.url === "string" ? originalRequest.url : "";
+
+    // For login failures, let the caller handle the error (shows toast on UI)
+    if (status === 401 && requestUrl.includes("/auth/login")) {
+      return Promise.reject(error);
+    }
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
-      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshToken = localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
 
       if (
         refreshToken &&
@@ -153,18 +177,12 @@ api.interceptors.response.use(
         } catch (refreshError) {
           console.error('Token refresh failed during 401 handling:', refreshError);
           clearAuthStorage();
-          // Redirect to login page
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token or refresh token request failed
         clearAuthStorage();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        return Promise.reject(error);
       }
     }
 
@@ -178,14 +196,15 @@ export { refreshAccessToken, checkAndRefreshTokenIfNeeded, isTokenExpiredOrExpir
 const ENDPOINTS = {
   // Auth
   login: (email: string, password: string) =>
-    api.post("/auth/login", { email, password }),
+    // use bare client so 401 doesn't trigger global refresh/clears
+    authApi.post("/auth/login", { email, password }),
   refreshAccessToken: (refreshToken: string) =>
     api.post("/auth/refresh-token", { refreshToken }),
   register: (data: any) => api.post("/auth/register", data),
   logout: () => api.post("/auth/logout"),
   resetPassword: (email: string) =>
     api.post("/auth/reset-password", { email }),
-  changePassword: (data: any) => api.post("/auth/reset-password", data),
+  changePassword: (data: any) => api.post("/auth/change-password", data),
   
   // Forgot Password
   forgotPassword: (email: string) =>
@@ -329,6 +348,16 @@ const ENDPOINTS = {
 
   getOverrides: (params?: any) => api.get("/attendance/overrides", { params }),
 
+  // Live location streaming (frontend pings current position)
+  postLiveLocation: (data: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    address?: string;
+    timestamp?: string;
+    device_info?: string;
+  }) => api.post("/attendance/locations", data),
+
   //asset
 
   getAsset: () => api.get("/asset"),
@@ -340,6 +369,15 @@ const ENDPOINTS = {
 
   getExpense: () => api.get("/expenses"),
   getPendingExpenses: () => api.get("/expenses/pending"),
+  getExpenseAssignedClients: () => api.get("/expenses/assigned-clients"),
+  getExpenseDraft: () => api.get("/expenses/draft"),
+  saveExpenseDraft: (data: FormData) =>
+    api.post("/expenses/draft", data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
+  deleteExpenseDraft: () => api.delete("/expenses/draft"),
   createExpense: (data: any) => {
     const formData = new FormData();
     
@@ -360,7 +398,35 @@ const ENDPOINTS = {
       },
     });
   },
-  updateExpense: (id: string, data: any) => api.put(`/expenses/${id}`, data),
+  createExpensesBulk: (formData: FormData) => {
+    return api.post("/expenses/submit-bulk", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  updateExpense: (id: string, data: any) => {
+    const formData = new FormData();
+
+    if (data.category !== undefined) formData.append('category', data.category);
+    if (data.amount !== undefined) formData.append('amount', String(data.amount));
+    if (data.expense_date !== undefined) formData.append('expense_date', data.expense_date);
+    if (data.description !== undefined) formData.append('description', data.description);
+    if (data.client_id !== undefined) formData.append('client_id', String(data.client_id ?? ''));
+    if (data.status !== undefined) formData.append('status', data.status);
+    if (data.approval_note !== undefined) formData.append('approval_note', data.approval_note ?? '');
+    if (data.approved_by !== undefined) formData.append('approved_by', data.approved_by ?? '');
+    if (data.remove_receipt !== undefined) formData.append('remove_receipt', String(data.remove_receipt));
+    if (data.receipt) {
+      formData.append('receipt', data.receipt);
+    }
+
+    return api.put(`/expenses/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
   deleteExpense: (id: string) => api.delete(`/expenses/${id}`),
   scanReceipt: (file: File) => {
     const formData = new FormData();
@@ -471,6 +537,7 @@ const ENDPOINTS = {
   //dashboard
   getAdminDashboardData: () => api.get("/dashboard/admin-dashboard"),
   getEmployeeDashboardData: () => api.get("/dashboard/employee-dashboard"),
+  getEmployeeAnalyticsData: (period?: string) => api.get("/dashboard/employee-analytics", { params: { period } }),
   getManagerDashboardData: () => api.get("/dashboard/manager-dashboard"),
   getHRDashboardData: () => api.get("/dashboard/hr-dashboard"),
   getFinanceDashboardData: () => api.get("/dashboard/finance-dashboard"),
@@ -689,9 +756,9 @@ const ENDPOINTS = {
   getAllSubscriptionPlans: () => api.get("/subscription/plans/all"),
   getCurrentSubscription: () => api.get("/subscription/current"),
   getSubscriptionPayments: () => api.get("/subscription/payments"),
-  startSubscriptionTrial: (planId: number) => api.post("/subscription/start-trial", { plan_id: planId }),
+  startSubscriptionTrial: (data: any) => api.post("/subscription/start-trial", data),
   upgradeSubscription: (data: any) => api.post("/subscription/upgrade", data),
-  createSubscriptionUpgradeOrder: (planId: number) => api.post("/subscription/upgrade/create-order", { plan_id: planId }),
+  createSubscriptionUpgradeOrder: (data: any) => api.post("/subscription/upgrade/create-order", data),
   verifySubscriptionUpgradePayment: (data: any) => api.post("/subscription/upgrade/verify-payment", data),
   createSubscriptionPlan: (data: any) => api.post("/subscription/plans", data),
   updateSubscriptionPlan: (planId: number, data: any) => api.put(`/subscription/plans/${planId}`, data),

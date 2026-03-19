@@ -1190,17 +1190,19 @@ export default function PayrollSetup() {
       setFormData({
         employeeId: "",
         employeeName: "",
+        month: "",
+        gross: "",
         basic: "",
         hra: "",
+        lta: "",
         allowances: "",
         incentives: "",
-        gross: "",
-        pf: "",
         pfEnabled: false,
         pfPercentage: "",
-        esi: "",
+        pf: "",
         esiEnabled: false,
         esiPercentage: "",
+        esi: "",
         pt: "",
         tds: "",
         otherDeductions: "",
@@ -1210,8 +1212,8 @@ export default function PayrollSetup() {
     setIsDialogOpen(true);
   };
 
-  const calculateGross = (basic: number, hra: number, allowances: number, incentives: number) => {
-    return basic + hra + allowances + incentives;
+  const calculateGross = (gross: number, basic: number, hra: number, lta: number, allowances: number, incentives: number) => {
+    return gross || (basic + hra + lta + allowances + incentives);
   };
 
   const calculateTotalDeductions = (pf: number, esi: number, pt: number, tds: number, other: number) => {
@@ -1256,8 +1258,10 @@ export default function PayrollSetup() {
       setIsSavingStructure(true);
       const recalculatedFormData = recalculatePfEsiFromState(formData);
       const gross = calculateGross(
+        recalculatedFormData.gross || 0,
         recalculatedFormData.basic || 0,
         recalculatedFormData.hra || 0,
+        recalculatedFormData.lta || 0,
         recalculatedFormData.allowances || 0,
         recalculatedFormData.incentives || 0
       );
@@ -2060,34 +2064,53 @@ export default function PayrollSetup() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Basic Salary *</Label>
+                    <Label>Gross Salary *</Label>
                     <Input
-                      value={formData.basic || ""}
-                      onChange={(e) =>
+                      value={formData.gross || ""}
+                      onChange={(e) => {
+                        const grossValue = parseFloat(e.target.value) || 0;
                         setFormData((prev: any) =>
                           recalculatePfEsiFromState({
                             ...prev,
-                            basic: parseFloat(e.target.value) || 0,
+                            gross: grossValue,
+                            basic: grossValue * 0.6,
+                            hra: grossValue * 0.3,
+                            lta: grossValue * 0.1,
                           })
-                        )
-                      }
+                        );
+                      }}
                       type="number"
                       className="mt-2"
                     />
                   </div>
                   <div>
-                    <Label>HRA *</Label>
+                    <Label>Basic Salary *</Label>
+                    <Input
+                      value={formData.basic || ""}
+                      readOnly
+                      className="mt-2 bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <Label>HRA * </Label>
                     <Input
                       value={formData.hra || ""}
-                      onChange={(e) => setFormData({ ...formData, hra: parseFloat(e.target.value) || 0 })}
-                      type="number"
-                      className="mt-2"
+                      readOnly
+                      className="mt-2 bg-gray-50"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Allowances</Label>
+                    <Label>LTA *</Label>
+                    <Input
+                      value={formData.lta || ""}
+                      readOnly
+                      className="mt-2 bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <Label>Other Allowances</Label>
                     <Input
                       value={formData.allowances || ""}
                       onChange={(e) => setFormData({ ...formData, allowances: parseFloat(e.target.value) || 0 })}

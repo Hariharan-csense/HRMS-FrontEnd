@@ -40,11 +40,14 @@ import {
 import { Search, AlertTriangle, Clock, User, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"; // உங்க path correct ஆ இருக்கணும்
+import { useRole } from "@/context/RoleContext";
 
 interface OverrideRecord {
   requested_by: ReactNode;
+  requested_by_name?: string;
   updated_at: string | number | Date;
   created_at: string | number | Date;
+  override_date?: string;
   id: string;
   recordId: string; // attendance record ID
   employeeId: string;
@@ -53,6 +56,8 @@ interface OverrideRecord {
   overriddenStatus: "present" | "absent" | "half";
   reason: string;
   approvedBy?: string;
+  approved_by?: string;
+  approved_by_name?: string;
   status: "pending" | "approved" | "rejected";
   timestamp: string;
   auditTrail: {
@@ -63,6 +68,7 @@ interface OverrideRecord {
 }
 
 export default function AttendanceOverride() {
+  const { canPerformModuleAction, hasAnyRole } = useRole();
   const [searchParams] = useSearchParams();
   const [overrides, setOverrides] = useState<OverrideRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,8 +76,8 @@ export default function AttendanceOverride() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreatingOverride, setIsCreatingOverride] = useState(false);
   const [isSubmittingOverride, setIsSubmittingOverride] = useState(false);
+  const [processingOverrideId, setProcessingOverrideId] = useState<string | null>(null);
   const [overrideForm, setOverrideForm] = useState({
-    attendanceId: "",
     employeeId: "",
     date: "",
     originalStatus: "absent",
@@ -82,14 +88,12 @@ export default function AttendanceOverride() {
   });
 
   useEffect(() => {
-    const recordId = searchParams.get("recordId") || "";
     const employeeId = searchParams.get("employeeId") || "";
     const date = searchParams.get("date") || "";
 
-    if (recordId || employeeId || date) {
+    if (employeeId || date) {
       setOverrideForm((prev) => ({
         ...prev,
-        attendanceId: recordId,
         employeeId,
         date,
       }));
@@ -132,20 +136,25 @@ useEffect(() => {
 
 
 const handleCreateOverride = async () => {
-  if (!overrideForm.employeeId.trim() || !overrideForm.reason.trim()) {
-    toast.error("Employee ID and Reason are required");
+  if (
+    !overrideForm.employeeId.trim() ||
+    !overrideForm.date ||
+    !overrideForm.requestedCheckIn ||
+    !overrideForm.requestedCheckOut ||
+    !overrideForm.reason.trim()
+  ) {
+    toast.error("Employee ID, Date, Check-in, Check-out and Reason are required");
     return;
   }
 
   setIsSubmittingOverride(true);
   try {
     const result = await attendanceApi.createOverride({
-      attendanceId: overrideForm.attendanceId || undefined,
       employeeId: overrideForm.employeeId,
       reason: overrideForm.reason,
       requestedCheckIn: overrideForm.requestedCheckIn || undefined,
       requestedCheckOut: overrideForm.requestedCheckOut || undefined,
-      date: overrideForm.date || undefined,
+      date: overrideForm.date,
       originalStatus: overrideForm.originalStatus,
       overriddenStatus: overrideForm.overriddenStatus,
     });
@@ -154,7 +163,6 @@ const handleCreateOverride = async () => {
       toast.success("Override request created successfully!");
       setIsCreatingOverride(false);
       setOverrideForm({
-        attendanceId: "",
         employeeId: "",
         date: "",
         originalStatus: "absent",
@@ -170,6 +178,37 @@ const handleCreateOverride = async () => {
     toast.error("Network error. Please try again.");
   } finally {
     setIsSubmittingOverride(false);
+  }
+};
+
+const canApproveOverride =
+  hasAnyRole(["admin", "ceo", "superadmin"]) &&
+  (
+    canPerformModuleAction("attendance", "approve", "override") ||
+    canPerformModuleAction("attendance", "update", "override")
+  );
+
+const canRejectOverride =
+  hasAnyRole(["admin", "ceo", "superadmin"]) &&
+  (
+    canPerformModuleAction("attendance", "reject", "override") ||
+    canPerformModuleAction("attendance", "update", "override")
+  );
+
+const handleProcessOverride = async (overrideId: string, status: "approved" | "rejected") => {
+  setProcessingOverrideId(overrideId);
+  try {
+    const result = await attendanceApi.processOverride(overrideId, { status });
+    if (result.success || result.data) {
+      toast.success(`Override ${status} successfully`);
+      await fetchOverrides();
+    } else {
+      toast.error(result.error || `Failed to ${status} override`);
+    }
+  } catch (err) {
+    toast.error("Network error. Please try again.");
+  } finally {
+    setProcessingOverrideId(null);
   }
 };
  const filteredOverrides = useMemo(() => {
@@ -209,6 +248,118 @@ const handleCreateOverride = async () => {
     }
   };
 
+  const renderOverrideActions = (override: any, compact = false) => (
+    <div className={`flex items-center ${compact ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
+      {override.status === "pending" && (
+        <>
+          {canApproveOverride && (
+            <Button
+              size="sm"
+              onClick={() => handleProcessOverride(String(override.id), "approved")}
+              disabled={processingOverrideId === String(override.id)}
+            >
+              {processingOverrideId === String(override.id) ? "Processing..." : "Approve"}
+            </Button>
+          )}
+          {canRejectOverride && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => handleProcessOverride(String(override.id), "rejected")}
+              disabled={processingOverrideId === String(override.id)}
+            >
+              {processingOverrideId === String(override.id) ? "Processing..." : "Reject"}
+            </Button>
+          )}
+        </>
+      )}
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="ghost">
+            <FileText className="w-4 h-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Audit Trail - OVR{String(override.id).padStart(3, "0")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Employee ID</p>
+                <p className="font-medium">{String(override.employee_id).padStart(3, "0")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Attendance Date</p>
+                <p className="font-medium">
+                  {override.override_date
+                    ? new Date(override.override_date).toLocaleDateString("en-IN")
+                    : "-"}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="font-medium mb-2">Reason</p>
+              <p className="p-4 bg-blue-50 border border-blue-200 rounded-lg">{override.reason}</p>
+            </div>
+
+            <div>
+              <p className="font-medium mb-4">Audit Trail</p>
+              <div className="space-y-3">
+                <div className="flex gap-4 p-4 border rounded-lg">
+                  <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium">Override Created</p>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        Requested by: {override.requested_by_name || `User ID ${override.requested_by}`}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(override.created_at).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {(override.approvedBy || override.approved_by) && (
+                  <div className="flex gap-4 p-4 border rounded-lg">
+                    <div
+                      className={`w-2 h-2 mt-2 flex-shrink-0 rounded-full ${
+                        override.status === "rejected" ? "bg-red-600" : "bg-green-600"
+                      }`}
+                    />
+                    <div className="flex-1">
+                      <p
+                        className={`font-medium ${
+                          override.status === "rejected" ? "text-red-600" : "text-green-600"
+                        }`}
+                      >
+                        {override.status === "rejected" ? "Rejected" : "Approved"}
+                      </p>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          Approved by: {override.approved_by_name || override.approvedBy || override.approved_by}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(override.updated_at).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6">
@@ -238,7 +389,7 @@ const handleCreateOverride = async () => {
                 New Override Request
               </Button>
             </DialogTrigger>
-                            <DialogContent className="max-w-lg">
+                            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-xl">Create Attendance Override</DialogTitle>
                   <DialogDescription>
@@ -265,17 +416,19 @@ const handleCreateOverride = async () => {
                     />
                   </div>
 
-                  {/* Attendance Record ID - Optional */}
+                  {/* Attendance Date - Required */}
                   <div className="space-y-2">
-                    <Label htmlFor="attendanceId">Attendance Record ID (Optional)</Label>
+                    <Label htmlFor="overrideDate">
+                      Attendance Date <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      id="attendanceId"
-                      placeholder="e.g., 123"
-                      value={overrideForm.attendanceId}
+                      id="overrideDate"
+                      type="date"
+                      value={overrideForm.date}
                       onChange={(e) =>
                         setOverrideForm((prev) => ({
                           ...prev,
-                          attendanceId: e.target.value,
+                          date: e.target.value,
                         }))
                       }
                     />
@@ -325,6 +478,42 @@ const handleCreateOverride = async () => {
                           <SelectItem value="half">Half Day</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  {/* Requested Check-in/out (optional) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="requestedCheckIn">
+                        Requested Check-in <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="requestedCheckIn"
+                        type="time"
+                        value={overrideForm.requestedCheckIn}
+                        onChange={(e) =>
+                          setOverrideForm((prev) => ({
+                            ...prev,
+                            requestedCheckIn: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="requestedCheckOut">
+                        Requested Check-out <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="requestedCheckOut"
+                        type="time"
+                        value={overrideForm.requestedCheckOut}
+                        onChange={(e) =>
+                          setOverrideForm((prev) => ({
+                            ...prev,
+                            requestedCheckOut: e.target.value,
+                          }))
+                        }
+                      />
                     </div>
                   </div>
 
@@ -428,7 +617,39 @@ const handleCreateOverride = async () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="md:hidden space-y-3">
+                {filteredOverrides.map((override) => (
+                  <div key={override.id} className="rounded-lg border p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-sm">OVR{String(override.id).padStart(3, "0")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Emp: {String(override.employee_id).padStart(3, "0")}
+                        </p>
+                      </div>
+                      <Badge variant={getStatusVariant(override.status)}>{override.status.toUpperCase()}</Badge>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      Date:{" "}
+                      {override.override_date
+                        ? new Date(override.override_date).toLocaleDateString("en-IN")
+                        : "-"}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary">{override.original_status?.toUpperCase()}</Badge>
+                      <span className="text-muted-foreground">to</span>
+                      <Badge variant="default">{override.overridden_status?.toUpperCase()}</Badge>
+                    </div>
+
+                    <p className="text-sm break-words">{override.reason || "-"}</p>
+                    {renderOverrideActions(override, true)}
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -469,8 +690,8 @@ const handleCreateOverride = async () => {
 
         {/* Date */}
         <TableCell>
-          {override.created_at 
-            ? new Date(override.created_at).toLocaleDateString("en-IN")
+          {override.override_date 
+            ? new Date(override.override_date).toLocaleDateString("en-IN")
             : "-"}
         </TableCell>
 
@@ -518,80 +739,9 @@ const handleCreateOverride = async () => {
             : "-"}
         </TableCell>
 
-        {/* Actions - Audit Trail */}
+        {/* Actions - Process + Audit Trail */}
         <TableCell className="text-right">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="ghost">
-                <FileText className="w-4 h-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Audit Trail - OVR{String(override.id).padStart(3, "0")}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6 py-4">
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Employee ID</p>
-                    <p className="font-medium">{String(override.employee_id).padStart(3, "0")}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Attendance ID</p>
-                    <p className="font-medium">{override.attendance_id}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="font-medium mb-2">Reason</p>
-                  <p className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    {override.reason}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="font-medium mb-4">Audit Trail</p>
-                  <div className="space-y-3">
-                    <div className="flex gap-4 p-4 border rounded-lg">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-medium">Override Created</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            Requested by User ID: {override.requested_by}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {new Date(override.created_at).toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {override.approvedBy && (
-                      <div className="flex gap-4 p-4 border rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-green-600 mt-2 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="font-medium text-green-600">Approved</p>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                            <span className="flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              Approved by User ID: {override.approvedBy}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(override.updated_at).toLocaleString("en-IN")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {renderOverrideActions(override)}
         </TableCell>
       </TableRow>
     ))

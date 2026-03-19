@@ -30,6 +30,7 @@ import {
   Cell,
 } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { toast } from "sonner";
 import reportService from "@/components/helper/roles/report/report";
 import { PdfExportService } from "@/services/pdfExportService";
 import html2canvas from "html2canvas";
@@ -39,18 +40,21 @@ export default function ReportsAnalytics() {
   const location = useLocation();
 
   // State for report data
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
+  const [attendanceData, setAttendanceData] = useState([]); // monthly trend
+  const [attendanceRows, setAttendanceRows] = useState([]); // detailed rows for export
+  const [filteredAttendanceRows, setFilteredAttendanceRows] = useState([]);
   const [leaveData, setLeaveData] = useState([]);
   const [payrollData, setPayrollData] = useState([]);
   const [expenseData, setExpenseData] = useState([]);
   
   // Filter states
   const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
+    mode: 'month', // 'month' | 'day'
+    month: '',
+    day: '',
     employee: 'all',
-    department: 'all'
+    department: 'all',
+    status: 'all', // 'all' | 'late' | others if needed
   });
   
   const [employees, setEmployees] = useState([]);
@@ -59,6 +63,35 @@ export default function ReportsAnalytics() {
   
   // Refs for PDF export
   const reportRef = useRef(null);
+  const RADIAN = Math.PI / 180;
+  const renderLeaveLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+    name,
+    value,
+  }: any) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="hsl(var(--foreground))"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={12}
+        fontWeight={600}
+      >
+        {`${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+      </text>
+    );
+  };
 
   // Define types
   interface PayrollSummary {
@@ -110,27 +143,51 @@ export default function ReportsAnalytics() {
     fetchFilterOptions();
   }, []);
   
-  // Apply filters to attendance data
+  // Apply filters to attendance rows (export + table)
   useEffect(() => {
-    if (attendanceData.length > 0) {
-      let filtered = [...attendanceData];
-      
-      // Apply date filter
-      if (filters.startDate) {
-        filtered = filtered.filter(item => 
-          new Date(item.date) >= new Date(filters.startDate)
-        );
-      }
-      
-      if (filters.endDate) {
-        filtered = filtered.filter(item => 
-          new Date(item.date) <= new Date(filters.endDate)
-        );
-      }
-      
-      setFilteredAttendanceData(filtered);
+    if (attendanceRows.length === 0) {
+      setFilteredAttendanceRows([]);
+      return;
     }
-  }, [filters, attendanceData]);
+
+    let filtered = [...attendanceRows];
+
+    // Date granularity filters
+    if (filters.mode === 'month' && filters.month) {
+      filtered = filtered.filter((item: any) => {
+        const d = String(item.date || item.check_in || item.checkInTime || '').slice(0, 7); // YYYY-MM
+        return d === filters.month;
+      });
+    }
+
+    if (filters.mode === 'day' && filters.day) {
+      filtered = filtered.filter((item: any) => {
+        const d = String(item.date || item.check_in || item.checkInTime || '').slice(0, 10); // YYYY-MM-DD
+        return d === filters.day;
+      });
+    }
+
+    // Employee filter
+    if (filters.employee && filters.employee !== 'all') {
+      filtered = filtered.filter((item: any) => item.employeeCode === filters.employee);
+    }
+
+    // Department filter
+    if (filters.department && filters.department !== 'all') {
+      filtered = filtered.filter(
+        (item: any) => (item.department || '').toLowerCase() === filters.department.toLowerCase()
+      );
+    }
+
+    // Status filter (e.g., late arrivals)
+    if (filters.status && filters.status !== 'all') {
+      filtered = filtered.filter(
+        (item: any) => (item.status || '').toLowerCase() === filters.status.toLowerCase()
+      );
+    }
+
+    setFilteredAttendanceRows(filtered);
+  }, [filters, attendanceRows]);
   
   // Handle filter changes
   const handleFilterChange = (key, value) => {
@@ -143,10 +200,12 @@ export default function ReportsAnalytics() {
   // Reset all filters
   const resetFilters = () => {
     setFilters({
-      startDate: '',
-      endDate: '',
+      mode: 'month',
+      month: '',
+      day: '',
       employee: 'all',
-      department: 'all'
+      department: 'all',
+      status: 'all',
     });
   };
   
@@ -179,7 +238,7 @@ const exportToCSV = () => {
     // Get data based on report type
     switch(reportType) {
       case 'attendance':
-        dataToExport = filteredAttendanceData.length > 0 ? filteredAttendanceData : attendanceData;
+        dataToExport = filteredAttendanceRows.length > 0 ? filteredAttendanceRows : attendanceRows;
         break;
       case 'leave':
         dataToExport = leaveData;
@@ -199,117 +258,179 @@ const exportToCSV = () => {
       return;
     }
 
-    // Start building CSV content
-    let csvContent = '';
-    
-    // Add report header
-    csvContent += `"${reportTitles[reportType]}"\n`;
-    csvContent += `"Generated on: ${currentDate}"\n\n`;
-    
-    // Get headers from the first item
-    const headers = Object.keys(dataToExport[0] || {});
-    if (headers.length === 0) {
-      setError('No data available to export');
-      return;
-    }
-    
-    // Format headers to be more readable
-    const formattedHeaders = headers.map(header => 
-      header
-        .replace(/([A-Z])/g, ' $1')  // Add space before capital letters
-        .replace(/^./, str => str.toUpperCase())  // Capitalize first letter
-        .trim()
-    );
-    
-    // Add filtered by information if applicable
-    if (filters && (filters.startDate || filters.endDate || filters.employee || filters.department)) {
-      csvContent += '"Filters Applied:"\n';
-      if (filters.startDate || filters.endDate) {
-        const start = filters.startDate ? new Date(filters.startDate).toLocaleDateString() : 'Start';
-        const end = filters.endDate ? new Date(filters.endDate).toLocaleDateString() : 'End';
-        csvContent += `"Date Range: ${start} to ${end}"\n`;
+    if (reportType === 'attendance') {
+      if (!dataToExport || dataToExport.length === 0) {
+        toast.error("No attendance data to export");
+        return;
       }
-      if (filters.employee) {
-        csvContent += `"Employee: ${filters.employee}"\n`;
-      }
-      if (filters.department) {
-        csvContent += `"Department: ${filters.department}"\n`;
-      }
-      csvContent += '\n';
-    }
-    
-    // Add headers
-    csvContent += formattedHeaders.join(',') + '\n';
-    
-    // Add data rows
-    dataToExport.forEach(item => {
-      const values = headers.map(header => {
-        let value = item[header];
-        
-        // Format dates
-        if (header.toLowerCase().includes('date') && value) {
-          try {
-            const date = new Date(value);
-            if (!isNaN(date.getTime())) {
-              value = date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: '2-digit'
-              });
-            }
-          } catch (e) {
-            // If date parsing fails, keep original value
+
+      // SalaryBox-style headers
+      const headers = [
+        "Employee ID",
+        "Employee Name",
+        "Phone Number",
+        "Branch",
+        "Department",
+        "Designation",
+        "Date",
+        "Status",
+        "Hours worked (HH:MM:SS)",
+        "Late Arrival (HH:MM:SS)",
+        "Early Departure (HH:MM:SS)",
+        "Overtime (HH:MM:SS)",
+        "Notes",
+        "Punch in time",
+        "Punch out time",
+        "Punch Type",
+        "Name",
+        "Paid",
+        "Scheduled Start Time",
+        "Scheduled End Time",
+        "Punch in location",
+        "Punch out location",
+      ];
+
+      const pad = (n: number) => String(n).padStart(2, "0");
+
+      const fmtDate = (d: any) => {
+        if (!d) return "";
+        const parsed = new Date(d);
+        if (isNaN(parsed.getTime())) return String(d);
+        return parsed
+          .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+          .split(" ")
+          .join("-");
+      };
+
+      const fmtDuration = (val: any) => {
+        if (val === null || val === undefined || val === "") return "00:00:00";
+        const num = typeof val === "number" ? val : parseFloat(val);
+        if (isNaN(num)) return "00:00:00";
+        const totalSeconds = Math.round(num * 3600);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+      };
+
+      const fmtTime = (val: any) => {
+        if (!val) return "";
+        if (typeof val === "string" && (val.includes("AM") || val.includes("PM"))) return val;
+        const parsed =
+          typeof val === "string" && val.includes("T")
+            ? new Date(val)
+            : null;
+        const h = parsed ? parsed.getHours() : Number(String(val).split(":")[0]);
+        const m = parsed ? parsed.getMinutes() : Number(String(val).split(":")[1] || "0");
+        if (isNaN(h)) return String(val);
+        const period = h >= 12 ? "PM" : "AM";
+        const hour12 = h % 12 === 0 ? 12 : h % 12;
+        return `${hour12}:${pad(m)} ${period}`;
+      };
+
+      const normalizeString = (v: any) => (v === null || v === undefined ? "" : String(v));
+
+      const rows = dataToExport.map((item: any) => {
+        // Try multiple possible field names for each column
+        const get = (...keys: string[]) => {
+          for (const k of keys) {
+            if (item[k] !== undefined && item[k] !== null) return item[k];
           }
+          return "";
+        };
+
+        const row = {
+          // Prefer business code over numeric id
+          "Employee ID": get("employeeCode", "employee_id", "employeeId", "code"),
+          "Employee Name":
+            get("employeeName", "employee_name", "name") ||
+            `${normalizeString(get("first_name"))} ${normalizeString(get("last_name"))}`.trim(),
+          "Phone Number": get("phoneNumber", "phone", "phone_number", "mobile", "contact"),
+          "Branch": get("branch", "branch_name"),
+          "Department": get("department", "department_name", "departmentName", "dept_name"),
+          "Designation": get("designation", "designation_name", "title", "role", "job_title"),
+          "Date": fmtDate(get("date", "attendanceDate", "check_in_date")),
+          "Status": get("status", "attendance_status"),
+          "Hours worked (HH:MM:SS)": fmtDuration(get("hoursWorked", "hours_worked", "total_hours", "duration")),
+          "Late Arrival (HH:MM:SS)": fmtDuration(get("lateArrival", "late_by")),
+          "Early Departure (HH:MM:SS)": fmtDuration(get("earlyDeparture", "early_by")),
+          "Overtime (HH:MM:SS)": fmtDuration(get("overtime", "overtime_hours")),
+          "Notes": get("notes", "remarks", "flag_reason"),
+          "Punch in time": fmtTime(get("inTime", "checkInTime", "check_in_time", "punch_in_time", "check_in")),
+          "Punch out time": fmtTime(get("outTime", "checkOutTime", "check_out_time", "punch_out_time", "check_out")),
+          "Punch Type": get("punchType", "punch_type", "check_in_type") || "Shift",
+          "Name": get("shiftName", "shift_name", "shift_type") || "Regular",
+          "Paid": get("paid", "paid_status", "isPaid") ? "Yes" : "",
+          "Scheduled Start Time": fmtTime(get("scheduledStartTime", "shift_start_time", "shift_start")),
+          "Scheduled End Time": fmtTime(get("scheduledEndTime", "shift_end_time", "shift_end")),
+          "Punch in location": normalizeString(get("punchInLocation", "check_in_location", "location_in", "location")),
+          "Punch out location": normalizeString(get("punchOutLocation", "check_out_location", "location_out")),
+        };
+
+        // If locations are objects/JSON strings, stringify gracefully
+        const locIn = row["Punch in location"];
+        if (locIn && typeof locIn === "object") {
+          row["Punch in location"] = JSON.stringify(locIn);
         }
-        
-        // Format currency
-   // Format currency
-if ((header.toLowerCase().includes('amount') || 
-     header.toLowerCase().includes('salary') || 
-     header.toLowerCase().includes('total')) && 
-    typeof value === 'number') {
-  value = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,  // Changed from 2 to 0 to remove decimal places
-    maximumFractionDigits: 0   // Changed from 2 to 0 to remove decimal places
-  }).format(value);
-}
-        
-        // Handle nested objects and arrays
-        if (value && typeof value === 'object') {
-          if (Array.isArray(value)) {
-            value = value.join('; ');
-          } else {
-            value = Object.entries(value)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join('; ');
-          }
+        const locOut = row["Punch out location"];
+        if (locOut && typeof locOut === "object") {
+          row["Punch out location"] = JSON.stringify(locOut);
         }
-        
-        // Escape quotes and wrap in quotes
-        return `"${String(value || '').replace(/"/g, '""')}"`;
+
+        return row;
       });
-      csvContent += values.join(',') + '\n';
-    });
 
-    // Add summary/footer
-    csvContent += `\n"Total Records: ${dataToExport.length}"\n`;
-    csvContent += `"Generated by HRMS on ${currentDate}"\n`;
+      const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+      XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+      const fileName = `attendance-report-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } else {
+      // Non-attendance exports keep the existing CSV path
+      let csvContent = '';
+      csvContent += `"${reportTitles[reportType]}"\n`;
+      csvContent += `"Generated on: ${currentDate}"\n\n`;
 
-    // Create download link
-    const blob = new Blob(["\uFEFF" + csvContent], { 
-      type: 'text/csv;charset=utf-8;' 
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 
-      `${reportTitles[reportType].toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const headers = Object.keys(dataToExport[0] || {});
+      if (headers.length === 0) {
+        setError('No data available to export');
+        return;
+      }
+
+      const formattedHeaders = headers.map(header =>
+        header
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, str => str.toUpperCase())
+          .trim()
+      );
+
+      csvContent += formattedHeaders.join(',') + '\n';
+
+      dataToExport.forEach(item => {
+        const values = headers.map(header => {
+          let value = item[header];
+          if (value && typeof value === 'object') {
+            value = Array.isArray(value) ? value.join('; ') : JSON.stringify(value);
+          }
+          return `"${String(value || '').replace(/"/g, '""')}"`;
+        });
+        csvContent += values.join(',') + '\n';
+      });
+
+      const blob = new Blob(["\uFEFF" + csvContent], {
+        type: 'text/csv;charset=utf-8;'
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download',
+        `${reportTitles[reportType].toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
     
   } catch (error) {
     console.error('Error exporting data:', error);
@@ -342,8 +463,26 @@ if ((header.toLowerCase().includes('amount') ||
         try {
           const response = await reportService.getAttendanceReport();
           const attendanceResult = response?.data?.data;
-          setAttendanceData(attendanceResult?.trend || []);
-          setAttendanceSummary(attendanceResult?.summary || {});
+
+          // Be defensive about backend shape: accept trend, rows, data, logs, or direct array
+          const trend =
+            (attendanceResult?.trend && Array.isArray(attendanceResult.trend) ? attendanceResult.trend : null) ||
+            (attendanceResult?.rows && Array.isArray(attendanceResult.rows) ? attendanceResult.rows : null) ||
+            (attendanceResult?.data && Array.isArray(attendanceResult.data) ? attendanceResult.data : null) ||
+            (attendanceResult?.logs && Array.isArray(attendanceResult.logs) ? attendanceResult.logs : null) ||
+            (Array.isArray(attendanceResult) ? attendanceResult : null);
+
+          const summary =
+            attendanceResult?.summary ||
+            attendanceResult?.stats ||
+            null;
+
+          setAttendanceData(trend || []);
+          setAttendanceRows(attendanceResult?.rows || []);
+          setFilteredAttendanceRows(attendanceResult?.rows || []);
+          setAttendanceSummary(summary || {});
+          console.log("Attendance report payload:", attendanceResult);
+          console.log("Attendance trend used for export:", trend);
         } catch (err: any) {
           errors.push(err?.response?.data?.message || err?.message || "Attendance report failed");
           console.error("Attendance report fetch error:", err);
@@ -488,28 +627,66 @@ if ((header.toLowerCase().includes('amount') ||
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                className="w-full"
-              />
+              <Label htmlFor="mode">Report View</Label>
+              <Select
+                value={filters.mode}
+                onValueChange={(value) => handleFilterChange('mode', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select view" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">Month-wise</SelectItem>
+                  <SelectItem value="day">Day-wise</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            
+
+            {filters.mode === 'month' && (
+              <div className="space-y-2">
+                <Label htmlFor="month">Month</Label>
+                <Input
+                  id="month"
+                  type="month"
+                  value={filters.month}
+                  onChange={(e) => handleFilterChange('month', e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            )}
+
+            {filters.mode === 'day' && (
+              <div className="space-y-2">
+                <Label htmlFor="day">Date</Label>
+                <Input
+                  id="day"
+                  type="date"
+                  value={filters.day}
+                  onChange={(e) => handleFilterChange('day', e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                min={filters.startDate}
-                className="w-full"
-              />
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) => handleFilterChange('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="late">Late</SelectItem>
+                  <SelectItem value="present">Present</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
+                  <SelectItem value="half">Half Day</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
               <Select
@@ -528,25 +705,18 @@ if ((header.toLowerCase().includes('amount') ||
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="employee">Employee</Label>
               <Select
                 value={filters.employee}
                 onValueChange={(value) => handleFilterChange('employee', value)}
-                disabled={filters.department === 'all'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
                   {employees
-                    .filter(
-                      (emp) =>
-                        filters.department === 'all' ||
-                        emp.department?.toLowerCase() === filters.department ||
-                        emp.id === 'all'
-                    )
                     .map((emp) => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name}
@@ -557,7 +727,7 @@ if ((header.toLowerCase().includes('amount') ||
             </div>
           </div>
           
-          {(filters.startDate || filters.endDate || filters.employee !== 'all' || filters.department !== 'all') && (
+          {(filters.month || filters.day || filters.employee !== 'all' || filters.department !== 'all' || filters.status !== 'all') && (
             <div className="flex justify-end mt-4">
               <Button
                 variant="ghost"
@@ -620,7 +790,7 @@ if ((header.toLowerCase().includes('amount') ||
                   </CardHeader>
                   <CardContent className="pt-6">
                     <ResponsiveContainer width="100%" height={360}>
-                      <LineChart data={filteredAttendanceData.length ? filteredAttendanceData : attendanceData} margin={{ top: 15, right: 40, left: 0, bottom: 10 }}>
+                      <LineChart data={attendanceData} margin={{ top: 15, right: 40, left: 0, bottom: 10 }}>
                         <defs>
                           <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.8} />
@@ -702,18 +872,18 @@ if ((header.toLowerCase().includes('amount') ||
                           tooltip: "Average attendance rate across all employees"
                         },
                         { 
-                          label: filters.startDate || filters.endDate ? "Present" : "Present Today", 
+                          label: (filters.month || filters.day) ? "Present" : "Present Today", 
                           value: attendanceSummary?.presentToday ?? 0, 
                           gradient: "from-indigo-500 via-indigo-600 to-indigo-700", 
                           icon: "📍",
-                          tooltip: filters.startDate || filters.endDate ? "Employees present in selected date range" : "Employees present today"
+                          tooltip: (filters.month || filters.day) ? "Employees present in selected period" : "Employees present today"
                         },
                         { 
-                          label: filters.startDate || filters.endDate ? "Absent" : "On Leave", 
+                          label: (filters.month || filters.day) ? "Absent" : "On Leave", 
                           value: attendanceSummary?.onLeave ?? 0, 
                           gradient: "from-cyan-500 via-cyan-600 to-cyan-700", 
                           icon: "🏖️",
-                          tooltip: filters.startDate || filters.endDate ? "Employees absent in selected date range" : "Employees on leave today"
+                          tooltip: (filters.month || filters.day) ? "Employees absent in selected period" : "Employees on leave today"
                         },
                       ].map((item) => (
                         <Card key={item.label} className={`border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br ${item.gradient}`}>
@@ -751,7 +921,7 @@ if ((header.toLowerCase().includes('amount') ||
                           cx="50%"
                           cy="50%"
                           labelLine={true}
-                          label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                          label={renderLeaveLabel}
                           outerRadius={110}
                           innerRadius={60}
                           fill="#8884d8"
@@ -769,8 +939,10 @@ if ((header.toLowerCase().includes('amount') ||
                             borderRadius: "12px",
                             boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
                             padding: "12px 16px",
+                            color: "hsl(var(--foreground))",
                           }}
                           labelStyle={{ color: "#f1f5f9", fontWeight: "bold" }}
+                          itemStyle={{ color: "#f8fafc" }}
                         />
                       </PieChart>
                     </ResponsiveContainer>

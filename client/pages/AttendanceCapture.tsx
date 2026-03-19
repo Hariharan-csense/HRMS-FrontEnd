@@ -5,38 +5,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Camera, MapPin, CheckCircle2, Clock, AlertCircle, Loader2, Radio, Activity, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MapPin, CheckCircle2, Clock, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import {
-  reverseGeocode,
-  OfficeLocation
-} from "@/lib/locationUtils";
+import { reverseGeocode } from "@/lib/locationUtils";
 import attendanceApi from "@/components/helper/attendance/attendance";
-import branchApi from "@/components/helper/branch/branch";
 import { useAuth } from "@/context/AuthContext";
-
-// Mock liveLocationService for now - this should be implemented properly
-const liveLocationService = {
-  updateTrackingStatus: async (employeeId: number, enabled: boolean) => {
-    console.log(`Live tracking ${enabled ? 'enabled' : 'disabled'} for employee ${employeeId}`);
-    return { success: true };
-  },
-  startAutoTracking: (employeeId: number, interval: number, onSuccess: Function, onError: Function) => {
-    console.log(`Starting auto tracking for employee ${employeeId} every ${interval} minutes`);
-    // Mock implementation
-  },
-  stopAutoTracking: () => {
-    console.log('Stopping auto tracking');
-    // Mock implementation
-  }
-};
 
 
 interface AttendanceRecord {
   type: "check-in" | "check-out";
   timestamp: string;
   confidence: number;
+  attendanceStatus?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -48,6 +29,21 @@ interface AttendanceRecord {
   status: "success" | "failed";
 }
 
+interface PendingAttendanceCapture {
+  type: "check-in" | "check-out";
+  imageUrl: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    address: string;
+  };
+  confidence: number;
+}
+
+const SELFIE_CROP_RATIO = 0.72;
+const SELFIE_OUTPUT_SIZE = 1080;
+
 export default function AttendanceCapture() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -57,7 +53,6 @@ export default function AttendanceCapture() {
   const mountedRef = useRef(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
@@ -66,25 +61,17 @@ export default function AttendanceCapture() {
     address: string;
   } | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
-  const [selectedOfficeId, setSelectedOfficeId] = useState<string>("");
   const [isFrontCamera, setIsFrontCamera] = useState(true);
-  
-  // Live tracking states
-  const [isLiveTrackingEnabled, setIsLiveTrackingEnabled] = useState(false);
-  const [isTrackingActive, setIsTrackingActive] = useState(false);
-  const [trackingStatus, setTrackingStatus] = useState<string>('inactive');
-  const [lastLocationUpdate, setLastLocationUpdate] = useState<Date | null>(null);
+  const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceCapture | null>(null);
 
   useEffect(() => {
-    mountedRef.current = true;
-    startWebcam();
-    fetchAttendanceStatus();
-    fetchBranchLocations();
+      mountedRef.current = true;
+      startWebcam();
+      fetchAttendanceStatus();
 
-    const handlePageHide = () => stopWebcam();
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
+      const handlePageHide = () => stopWebcam();
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
         stopWebcam();
       }
     };
@@ -98,81 +85,8 @@ export default function AttendanceCapture() {
       stopWebcam();
       window.removeEventListener("pagehide", handlePageHide);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (isTrackingActive) {
-        liveLocationService.stopAutoTracking();
-      }
     };
   }, []);
-
-  const fetchBranchLocations = async () => {
-    try {
-      const result = await branchApi.getBranches();
-      if (!result.data) return;
-
-      const mappedLocations: OfficeLocation[] = result.data
-        .map((branch) => {
-          const [latRaw, lngRaw] = String(branch.coordinates || "")
-            .split(",")
-            .map((value) => value.trim());
-          const latitude = Number(latRaw);
-          const longitude = Number(lngRaw);
-
-          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            return null;
-          }
-
-          return {
-            id: String(branch.id),
-            name: branch.name,
-            latitude,
-            longitude,
-            address: branch.address || "",
-            city: "",
-            country: "",
-          } as OfficeLocation;
-        })
-        .filter((item): item is OfficeLocation => item !== null);
-
-      setOfficeLocations(mappedLocations);
-    } catch (error) {
-      console.error("Error loading branch office locations:", error);
-    }
-  };
-
-  const findClosestBranchOffice = (
-    latitude: number,
-    longitude: number,
-    radiusKm: number = 5
-  ): OfficeLocation | null => {
-    if (!officeLocations.length) return null;
-
-    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-      const R = 6371;
-      const dLat = ((lat2 - lat1) * Math.PI) / 180;
-      const dLon = ((lon2 - lon1) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) *
-          Math.cos((lat2 * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-
-    let closestOffice: OfficeLocation | null = null;
-    let minDistance = radiusKm;
-
-    officeLocations.forEach((office) => {
-      const distance = calculateDistance(latitude, longitude, office.latitude, office.longitude);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestOffice = office;
-      }
-    });
-
-    return closestOffice;
-  };
 
   // Fetch current attendance status
   const fetchAttendanceStatus = async () => {
@@ -181,91 +95,92 @@ export default function AttendanceCapture() {
     try {
       const statusResponse = await attendanceApi.getAttendanceStatus();
       if (statusResponse.success) {
-        setIsCheckedIn(statusResponse.isCheckedIn || false);
+        const activeSessionFromRecords = Array.isArray(statusResponse.todayRecords)
+          ? statusResponse.todayRecords.some((record: any) => Boolean(record?.check_in) && !record?.check_out)
+          : false;
+        setIsCheckedIn(
+          typeof statusResponse.isCheckedIn === "boolean"
+            ? statusResponse.isCheckedIn
+            : activeSessionFromRecords
+        );
         
         // Transform today's records to match the local format
         if (statusResponse.todayRecords && statusResponse.todayRecords.length > 0) {
-          const transformedRecords = statusResponse.todayRecords.map((record: any): AttendanceRecord => ({
-            type: record.check_out ? "check-out" : "check-in",
-            timestamp: record.check_out || record.check_in,
-            confidence: 95,
-            location: {
-              latitude: 0,
-              longitude: 0,
-              accuracy: 0,
-              address: record.check_in_location ? JSON.parse(record.check_in_location).address : "Office"
-            },
-            imageUrl: record.check_in_image_url || "/placeholder-avatar.jpg",
-            device: record.device_info || "Unknown",
-            status: "success" as const
-          }));
+          const parseLocation = (rawLocation: any) => {
+            if (!rawLocation) return null;
+            try {
+              return typeof rawLocation === "string" ? JSON.parse(rawLocation) : rawLocation;
+            } catch {
+              return null;
+            }
+          };
+
+          const formatCoordsLabel = (latitude: any, longitude: any) => {
+            const latNum = Number(latitude);
+            const lngNum = Number(longitude);
+            if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return null;
+            // Use raw values (no rounding) for display.
+            return `${String(latitude)},${String(longitude)}`;
+          };
+
+          const transformedRecords = statusResponse.todayRecords.flatMap((record: any): AttendanceRecord[] => {
+            const records: AttendanceRecord[] = [];
+
+            if (record.check_in) {
+              const parsedLocation = parseLocation(record.check_in_location);
+              const coordLabel = formatCoordsLabel(parsedLocation?.latitude, parsedLocation?.longitude);
+              const safeAddress = String(parsedLocation?.address || "")
+                .replace(/^zone\s*\d+\s*/i, "")
+                .trim();
+              records.push({
+                type: "check-in",
+                timestamp: record.check_in,
+                confidence: 95,
+                attendanceStatus: record.status,
+                location: {
+                  latitude: Number(parsedLocation?.latitude) || 0,
+                  longitude: Number(parsedLocation?.longitude) || 0,
+                  accuracy: Number(parsedLocation?.accuracy) || 0,
+                  address: safeAddress || coordLabel || "Office",
+                },
+                imageUrl: record.check_in_image_url || "/placeholder-avatar.jpg",
+                device: record.device_info || "Unknown",
+                status: "success",
+              });
+            }
+
+            if (record.check_out) {
+              const parsedLocation = parseLocation(record.check_out_location || record.check_in_location);
+              const coordLabel = formatCoordsLabel(parsedLocation?.latitude, parsedLocation?.longitude);
+              const safeAddress = String(parsedLocation?.address || "")
+                .replace(/^zone\s*\d+\s*/i, "")
+                .trim();
+              records.push({
+                type: "check-out",
+                timestamp: record.check_out,
+                confidence: 95,
+                attendanceStatus: record.status,
+                location: {
+                  latitude: Number(parsedLocation?.latitude) || 0,
+                  longitude: Number(parsedLocation?.longitude) || 0,
+                  accuracy: Number(parsedLocation?.accuracy) || 0,
+                  address: safeAddress || coordLabel || "Office",
+                },
+                imageUrl: record.check_out_image_url || record.check_in_image_url || "/placeholder-avatar.jpg",
+                device: record.device_info || "Unknown",
+                status: "success",
+              });
+            }
+
+            return records;
+          });
           setTodayRecords(transformedRecords);
+        } else {
+          setTodayRecords([]);
         }
       }
     } catch (error) {
       console.error('Error fetching attendance status:', error);
-    }
-  };
-
-  // Handle live tracking toggle
-  const handleLiveTrackingToggle = async (enabled: boolean) => {
-    if (!user?.id) {
-      toast.error("User not authenticated");
-      return;
-    }
-
-    const employeeId = parseInt(user.id);
-    setIsLiveTrackingEnabled(enabled);
-    
-    try {
-      if (enabled) {
-        // Start tracking
-        const result = await liveLocationService.updateTrackingStatus(employeeId, true);
-        
-        if (result.success) {
-          setIsTrackingActive(true);
-          setTrackingStatus('active');
-          
-          // Start automatic location updates
-          liveLocationService.startAutoTracking(
-            employeeId,
-            5, // Update every 5 minutes
-            (location) => {
-              setLastLocationUpdate(new Date());
-              toast.success("Location updated successfully", {
-                description: `Last update: ${new Date().toLocaleTimeString()}`,
-              });
-            },
-            (error) => {
-              toast.error("Location tracking error", {
-                description: error,
-              });
-            }
-          );
-          
-          toast.success("Live location tracking enabled");
-        } else {
-          setIsLiveTrackingEnabled(false);
-          toast.error((result as any).error || "Failed to enable live tracking");
-        }
-      } else {
-        // Stop tracking
-        const result = await liveLocationService.updateTrackingStatus(employeeId, false);
-        
-        if (result.success) {
-          liveLocationService.stopAutoTracking();
-          setIsTrackingActive(false);
-          setTrackingStatus('paused');
-          toast.success("Live location tracking disabled");
-        } else {
-          setIsLiveTrackingEnabled(true);
-          toast.error((result as any).error || "Failed to disable live tracking");
-        }
-      }
-    } catch (error) {
-      console.error('Live tracking toggle error:', error);
-      setIsLiveTrackingEnabled(!enabled);
-      toast.error("Failed to update tracking status");
     }
   };
 
@@ -441,28 +356,16 @@ export default function AttendanceCapture() {
           const { latitude, longitude, accuracy } = position.coords;
 
           try {
-            // Try to find closest branch office location
-            const closestOffice = findClosestBranchOffice(latitude, longitude);
-
-            // Try reverse geocoding for real address
-            setIsReverseGeocoding(true);
-            const realAddress = await reverseGeocode(latitude, longitude);
-            setIsReverseGeocoding(false);
-
-            // Use real address if available, otherwise use closest office or coordinates
-            const address = realAddress || closestOffice?.address || `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-
-            // Auto-select closest office if within radius
-            if (closestOffice && !selectedOfficeId) {
-              setSelectedOfficeId(closestOffice.id);
-            }
+            // Get readable location label (sanitized in locationUtils) but keep coords for display.
+            const coordsLabel = `${latitude},${longitude}`;
+            const readableAddress = await reverseGeocode(latitude, longitude);
+            const address = readableAddress || coordsLabel;
 
             setCurrentLocation({ latitude, longitude, accuracy, address });
             setIsLoadingLocation(false);
             resolve({ latitude, longitude, accuracy, address });
           } catch (error) {
-            // Fallback if reverse geocoding fails
-            const address = `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            const address = `${latitude},${longitude}`;
             setCurrentLocation({ latitude, longitude, accuracy, address });
             setIsLoadingLocation(false);
             resolve({ latitude, longitude, accuracy, address });
@@ -477,8 +380,60 @@ export default function AttendanceCapture() {
     });
   };
 
+  const captureSelfiePreview = () => {
+    if (!videoRef.current || !canvasRef.current) {
+      throw new Error("Camera preview is not ready");
+    }
+
+    const context = canvasRef.current.getContext("2d");
+    if (!context) {
+      throw new Error("Unable to capture photo");
+    }
+
+    const frameWidth = videoRef.current.videoWidth || 1280;
+    const frameHeight = videoRef.current.videoHeight || 720;
+    const cropSize = Math.floor(Math.min(frameWidth, frameHeight) * SELFIE_CROP_RATIO);
+    const cropX = Math.floor((frameWidth - cropSize) / 2);
+    const cropY = Math.floor((frameHeight - cropSize) / 2);
+    canvasRef.current.width = SELFIE_OUTPUT_SIZE;
+    canvasRef.current.height = SELFIE_OUTPUT_SIZE;
+
+    context.clearRect(0, 0, SELFIE_OUTPUT_SIZE, SELFIE_OUTPUT_SIZE);
+
+    if (isFrontCamera) {
+      context.save();
+      context.translate(SELFIE_OUTPUT_SIZE, 0);
+      context.scale(-1, 1);
+      context.drawImage(
+        videoRef.current,
+        cropX,
+        cropY,
+        cropSize,
+        cropSize,
+        0,
+        0,
+        SELFIE_OUTPUT_SIZE,
+        SELFIE_OUTPUT_SIZE
+      );
+      context.restore();
+    } else {
+      context.drawImage(
+        videoRef.current,
+        cropX,
+        cropY,
+        cropSize,
+        cropSize,
+        0,
+        0,
+        SELFIE_OUTPUT_SIZE,
+        SELFIE_OUTPUT_SIZE
+      );
+    }
+
+    return canvasRef.current.toDataURL("image/jpeg", 0.95);
+  };
+
   const captureAttendance = async (type: "check-in" | "check-out") => {
-    // Check if user is authenticated
     if (!user?.id) {
       toast.error("User not authenticated. Please login again.");
       return;
@@ -487,117 +442,105 @@ export default function AttendanceCapture() {
     setIsProcessing(true);
 
     try {
-      // Get location
       const location = await getLocation();
+      const imageUrl = captureSelfiePreview();
 
-      // Capture face
-      if (videoRef.current && canvasRef.current) {
-        const context = canvasRef.current.getContext("2d");
-        if (context) {
-          const frameWidth = videoRef.current.videoWidth || 1280;
-          const frameHeight = videoRef.current.videoHeight || 720;
-          canvasRef.current.width = frameWidth;
-          canvasRef.current.height = frameHeight;
-
-          if (isFrontCamera) {
-            // Unmirror front-camera frame before upload.
-            context.save();
-            context.translate(frameWidth, 0);
-            context.scale(-1, 1);
-            context.drawImage(videoRef.current, 0, 0, frameWidth, frameHeight);
-            context.restore();
-          } else {
-            context.drawImage(videoRef.current, 0, 0, frameWidth, frameHeight);
-          }
-          const imageUrl = canvasRef.current.toDataURL("image/jpeg");
-
-          // Simple confidence check (can be replaced with actual facial recognition)
-          const confidence = 95; // Fixed confidence for now
-
-          // Prepare form data for API call
-          const formData = new FormData();
-          
-          // Convert base64 to blob for image upload
-          const response = await fetch(imageUrl);
-          const blob = await response.blob();
-          formData.append('image', blob, 'attendance.jpg');
-          
-          // Add location data as JSON string
-          const locationData = {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            address: location.address,
-            accuracy: location.accuracy
-          };
-          formData.append('latitude', location.latitude.toString());
-          formData.append('longitude', location.longitude.toString());
-          formData.append('address', location.address);
-          formData.append('accuracy', location.accuracy.toString());
-          formData.append('location', JSON.stringify(locationData));
-          
-          // Add office ID if selected
-          if (selectedOfficeId) {
-            formData.append('officeId', selectedOfficeId);
-          }
-
-          // Add employee ID from current authenticated user
-          if (!user?.id) {
-            toast.error("User not authenticated. Please login again.");
-            setIsProcessing(false);
-            return;
-          }
-          formData.append('employeeId', user.id.toString());
-
-          // Call API based on type
-          let apiResponse;
-          if (type === "check-in") {
-            apiResponse = await attendanceApi.checkIn(formData);
-          } else {
-            apiResponse = await attendanceApi.checkOut(formData);
-          }
-
-          if (apiResponse.error) {
-            toast.error(apiResponse.error);
-            setIsProcessing(false);
-            return;
-          }
-
-          // Create attendance record for local display
-          const record: AttendanceRecord = {
-            type,
-            timestamp: new Date().toISOString(),
-            confidence: confidence,
-            location,
-            imageUrl,
-            device: "Browser Webcam",
-            status: "success",
-          };
-
-          setTodayRecords((prev) => [record, ...prev]);
-          setIsCheckedIn(type === "check-in" ? true : false);
-          
-          // Stop camera immediately after successful attendance marking.
-          stopWebcam();
-
-          // Refresh status after successful check-in/out
-          await fetchAttendanceStatus();
-
-          toast.success(`${type === "check-in" ? "Checked in" : "Checked out"} successfully!`, {
-            description: `Confidence: ${confidence}% | Location: ${location.address}`,
-          });
-          
-          // Navigate to dashboard after successful attendance
-          setTimeout(() => {
-            navigate("/dashboard");
-          }, 2000);
-        }
-      }
+      setPendingAttendance({
+        type,
+        imageUrl,
+        location,
+        confidence: 95,
+      });
     } catch (err: any) {
       console.error("Attendance capture error:", err);
-      toast.error(err.response?.data?.message || "Failed to capture attendance");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to capture attendance");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const submitAttendance = async () => {
+    if (!pendingAttendance) {
+      return;
     }
 
-    setIsProcessing(false);
+    if (!user?.id) {
+      toast.error("User not authenticated. Please login again.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const formData = new FormData();
+      const response = await fetch(pendingAttendance.imageUrl);
+      const blob = await response.blob();
+      formData.append("image", blob, "attendance.jpg");
+
+      const locationData = {
+        latitude: pendingAttendance.location.latitude,
+        longitude: pendingAttendance.location.longitude,
+        address: pendingAttendance.location.address,
+        accuracy: pendingAttendance.location.accuracy,
+      };
+
+      formData.append("latitude", pendingAttendance.location.latitude.toString());
+      formData.append("longitude", pendingAttendance.location.longitude.toString());
+      formData.append("address", pendingAttendance.location.address);
+      formData.append("accuracy", pendingAttendance.location.accuracy.toString());
+      formData.append("location", JSON.stringify(locationData));
+      formData.append("employeeId", user.id.toString());
+
+      const apiResponse =
+        pendingAttendance.type === "check-in"
+          ? await attendanceApi.checkIn(formData)
+          : await attendanceApi.checkOut(formData);
+
+      if (apiResponse.error) {
+        toast.error(apiResponse.error);
+        return;
+      }
+
+      const attendanceStatus = apiResponse.data?.attendance?.status;
+      const record: AttendanceRecord = {
+        type: pendingAttendance.type,
+        timestamp: new Date().toISOString(),
+        confidence: pendingAttendance.confidence,
+        attendanceStatus: attendanceStatus || undefined,
+        location: pendingAttendance.location,
+        imageUrl: pendingAttendance.imageUrl,
+        device: "Browser Webcam",
+        status: "success",
+      };
+
+      setTodayRecords((prev) => [record, ...prev]);
+      setIsCheckedIn(pendingAttendance.type === "check-in");
+      setPendingAttendance(null);
+      stopWebcam();
+      await fetchAttendanceStatus();
+
+      const statusLabel =
+        attendanceStatus === "half_day" ? "Half Day" :
+        attendanceStatus === "late" ? "Late" :
+        attendanceStatus === "present" ? "Present" :
+        "";
+
+      toast.success(
+        `${pendingAttendance.type === "check-in" ? "Checked in" : "Checked out"} successfully!`,
+        {
+          description: `Confidence: ${pendingAttendance.confidence}% | Location: ${pendingAttendance.location.address}${statusLabel ? ` | Attendance: ${statusLabel}` : ""}`,
+        }
+      );
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 2000);
+    } catch (err: any) {
+      console.error("Attendance submit error:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to submit attendance");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -617,7 +560,7 @@ export default function AttendanceCapture() {
                 <CardDescription>Position your face in the center of the camera</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative bg-black rounded-lg overflow-hidden aspect-[4/3] md:aspect-video min-h-[300px] md:min-h-[420px]">
+                <div className="relative bg-black rounded-lg overflow-hidden aspect-[4/5] sm:aspect-[4/3] md:aspect-video min-h-[260px] sm:min-h-[320px] md:min-h-[420px]">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -626,7 +569,7 @@ export default function AttendanceCapture() {
                     className="w-full h-full object-cover"
                     style={{ transform: isFrontCamera ? "scaleX(-1)" : "none" }}
                   />
-                  <div className="absolute inset-0 border-4 border-teal-500 rounded-full m-auto w-64 h-64" />
+                  <div className="absolute inset-0 m-auto h-[58vw] w-[58vw] max-h-64 max-w-64 rounded-full border-4 border-teal-500 sm:h-60 sm:w-60 md:h-64 md:w-64" />
                 </div>
 
                 <canvas
@@ -652,33 +595,6 @@ export default function AttendanceCapture() {
                         </div>
                       </AlertDescription>
                     </Alert>
-
-                    {/* Office Location Selector */}
-                    <div className="space-y-2">
-                      <label htmlFor="office" className="block text-sm font-medium text-slate-900">
-                        Select Office Location
-                      </label>
-                      <select
-                        id="office"
-                        value={selectedOfficeId}
-                        onChange={(e) => setSelectedOfficeId(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      >
-                        <option value="">
-                          {officeLocations.length > 0 ? "-- Select an office --" : "No offices available"}
-                        </option>
-                        {officeLocations.map((office) => (
-                          <option key={office.id} value={office.id}>
-                            {office.name} • {office.city}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedOfficeId && (
-                        <p className="text-xs text-green-600 font-medium">
-                          ✓ Office selected for this attendance
-                        </p>
-                      )}
-                    </div>
                   </div>
                 )}
 
@@ -686,7 +602,8 @@ export default function AttendanceCapture() {
                   <Button
                     onClick={() => captureAttendance("check-in")}
                     disabled={isProcessing || isCheckedIn}
-                    className="gap-2"
+                    variant={isCheckedIn ? "secondary" : "default"}
+                    className={`gap-2 ${isCheckedIn ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-[#17c491] hover:bg-[#12a978] text-white"}`}
                     size="lg"
                   >
                     {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -696,9 +613,9 @@ export default function AttendanceCapture() {
                   <Button
                     onClick={() => captureAttendance("check-out")}
                     disabled={isProcessing || !isCheckedIn}
-                    className="gap-2"
+                    variant={isCheckedIn ? "default" : "outline"}
+                    className={`gap-2 ${isCheckedIn ? "bg-[#17c491] hover:bg-[#12a978] text-white" : ""}`}
                     size="lg"
-                    variant="outline"
                   >
                     {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
                     <Clock className="w-4 h-4" />
@@ -706,11 +623,11 @@ export default function AttendanceCapture() {
                   </Button>
                 </div>
 
-                {(isLoadingLocation || isReverseGeocoding) && (
+                {isLoadingLocation && (
                   <Alert>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <AlertDescription>
-                      {isReverseGeocoding ? "Getting address details..." : "Fetching location..."}
+                      Fetching location...
                     </AlertDescription>
                   </Alert>
                 )}
@@ -735,22 +652,47 @@ export default function AttendanceCapture() {
                             <Badge variant={record.type === "check-in" ? "default" : "outline"}>
                               {record.type === "check-in" ? "IN" : "OUT"}
                             </Badge>
-                            <div>
-                              <p className="font-medium">
-                                {new Date(record.timestamp).toLocaleTimeString("en-IN", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                          <div>
+                            <p className="font-medium">
+                              {new Date(record.timestamp).toLocaleTimeString("en-IN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                            {record.type === "check-in" && record.attendanceStatus && (
+                              <p
+                                className={`text-xs font-semibold ${
+                                  record.attendanceStatus === "half_day"
+                                    ? "text-amber-600"
+                                    : record.attendanceStatus === "late"
+                                    ? "text-orange-600"
+                                    : "text-green-600"
+                                }`}
+                              >
+                                {record.attendanceStatus === "half_day"
+                                  ? "Half Day"
+                                  : record.attendanceStatus === "late"
+                                  ? "Late"
+                                  : "Present"}
                               </p>
-                              <p className="text-sm text-muted-foreground">
-                                Confidence: <span className="font-semibold text-green-600">{record.confidence}%</span>
-                              </p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              Confidence: <span className="font-semibold text-green-600">{record.confidence}%</span>
+                            </p>
                             </div>
                           </div>
                           <CheckCircle2 className="w-5 h-5 text-green-600" />
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1">
-                          <p>📍 {record.location.address}</p>
+                          <p>🗺️ {record.location.address}</p>
+                          <p>
+                            📍{" "}
+                            {Number.isFinite(record.location.latitude) &&
+                            Number.isFinite(record.location.longitude) &&
+                            (record.location.latitude !== 0 || record.location.longitude !== 0)
+                              ? `${record.location.latitude.toFixed(6)},${record.location.longitude.toFixed(6)}`
+                              : "—"}
+                          </p>
                           <p>
                             🎯 ±{Math.round(record.location.accuracy)}m • {record.device}
                           </p>
@@ -765,61 +707,6 @@ export default function AttendanceCapture() {
 
           {/* Status Card */}
           <div className="lg:col-span-1 space-y-4">
-            {/* Live Tracking Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Radio className="w-5 h-5" />
-                  Live Location Tracking
-                </CardTitle>
-                <CardDescription>
-                  Enable real-time location tracking during work hours
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Track My Location</p>
-                    <p className="text-xs text-muted-foreground">
-                      Updates every 5 minutes when enabled
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isLiveTrackingEnabled}
-                    onCheckedChange={handleLiveTrackingToggle}
-                    disabled={isProcessing}
-                  />
-                </div>
-
-                {isLiveTrackingEnabled && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Activity className={`w-4 h-4 ${isTrackingActive ? 'text-green-600 animate-pulse' : 'text-amber-600'}`} />
-                      <span className="text-sm font-medium">
-                        Status: {trackingStatus}
-                      </span>
-                    </div>
-                    
-                    {lastLocationUpdate && (
-                      <p className="text-xs text-muted-foreground">
-                        Last update: {lastLocationUpdate.toLocaleTimeString()}
-                      </p>
-                    )}
-                    
-                    <Alert className={isTrackingActive ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}>
-                      <Radio className={`w-4 h-4 ${isTrackingActive ? 'text-green-600' : 'text-amber-600'}`} />
-                      <AlertDescription className={`text-sm ${isTrackingActive ? 'text-green-800' : 'text-amber-800'}`}>
-                        {isTrackingActive 
-                          ? 'Your location is being tracked and shared with HR/Admin'
-                          : 'Location tracking is paused'
-                        }
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle>Status</CardTitle>
@@ -878,6 +765,74 @@ export default function AttendanceCapture() {
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(pendingAttendance)}
+        onOpenChange={(open) => {
+          if (!open && !isProcessing) {
+            setPendingAttendance(null);
+          }
+        }}
+      >
+        <DialogContent className="w-[92vw] max-w-md max-h-[90vh] overflow-y-auto p-4 sm:grid sm:aspect-square sm:w-[32rem] sm:max-w-[32rem] sm:grid-rows-[auto_1fr_auto] sm:overflow-hidden sm:p-5">
+          <DialogHeader>
+            <DialogTitle>
+              Confirm {pendingAttendance?.type === "check-in" ? "Check-In" : "Check-Out"}
+            </DialogTitle>
+            <DialogDescription>
+              Review the captured photo and confirm before marking attendance.
+            </DialogDescription>
+          </DialogHeader>
+
+          {pendingAttendance && (
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-slate-100">
+                <img
+                  src={pendingAttendance.imageUrl}
+                  alt={`${pendingAttendance.type} preview`}
+                  className="h-full w-full object-contain"
+                />
+              </div>
+
+              <div className="rounded-lg border bg-slate-50 p-3 text-sm text-slate-700 space-y-2">
+                <p>
+                  <span className="font-medium">Action:</span>{" "}
+                  {pendingAttendance.type === "check-in" ? "Check-In" : "Check-Out"}
+                </p>
+                <p>
+                  <span className="font-medium">Location:</span> {pendingAttendance.location.address}
+                </p>
+                <p>
+                  <span className="font-medium">Coordinates:</span>{" "}
+                  {pendingAttendance.location.latitude.toFixed(6)}, {pendingAttendance.location.longitude.toFixed(6)}
+                </p>
+                <p>
+                  <span className="font-medium">Accuracy:</span> +/-{Math.round(pendingAttendance.location.accuracy)}m
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              onClick={submitAttendance}
+              disabled={isProcessing || !pendingAttendance}
+              className="w-full bg-[#17c491] text-white hover:bg-[#12a978] sm:w-auto"
+            >
+              {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPendingAttendance(null)}
+              disabled={isProcessing}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

@@ -17,7 +17,7 @@ const TermsConditions = () => {
               <img src={logo} alt="HRMS Logo" className="h-20 w-20 mr-2" />
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="/" className="text-gray-700 hover:text-gray-900 transition-colors">Home</a>
+              <a href="/login" className="text-gray-700 hover:text-gray-900 transition-colors">Home</a>
               <a href="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</a>
               <a href="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</a>
               <a href="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</a>

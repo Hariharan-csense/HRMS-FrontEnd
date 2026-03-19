@@ -24,6 +24,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const storeLogoutFeedback = (message: string) => {
+    sessionStorage.setItem(
+      "authToast",
+      JSON.stringify({ type: "success", message })
+    );
+  };
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -81,6 +87,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
 
+  // Listen for forced logout requests from API layer (no page reload)
+  useEffect(() => {
+    const handleForceLogout = () => {
+      if (typeof window !== "undefined" && window.location.pathname === "/login") {
+        return;
+      }
+      logout();
+    };
+
+    window.addEventListener("auth:logout", handleForceLogout);
+    return () => window.removeEventListener("auth:logout", handleForceLogout);
+  }, []);
+
   /* =======================
      LOGIN (REPLACED LOGIC)
      ======================= */
@@ -119,13 +138,15 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
     if (accessToken) {
       localStorage.setItem("accessToken", accessToken);
 
-      // Persist refresh token only when "Remember me" is enabled
-      if (rememberMe && refreshToken) {
+      // Persist refresh token (always store so refresh works even without remember me)
+      if (refreshToken) {
         localStorage.setItem("refreshToken", refreshToken);
-        localStorage.setItem("rememberMe", "true");
-      } else {
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("rememberMe");
+        if (rememberMe) {
+          localStorage.setItem("rememberMe", "true");
+        } else {
+          localStorage.removeItem("rememberMe");
+        }
+        sessionStorage.removeItem("refreshToken");
       }
       
       // Extract user data from response
@@ -202,7 +223,12 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
     throw new Error('Invalid server response');
   } catch (error: any) {
     console.error("Login error:", error);
-    const errorMessage = error.response?.data?.message || error.message || "Login failed. Please check your credentials.";
+    const status = error.response?.status;
+    const errorMessage =
+      (status === 401 && "Invalid email or password. Please try again.") ||
+      error.response?.data?.message ||
+      error.message ||
+      "Login failed. Please check your credentials.";
     return { success: false, message: errorMessage };
   } finally {
     setIsLoading(false);
@@ -213,7 +239,7 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
   /* =======================
      LOGOUT (REPLACED LOGIC)
      ======================= */
-  const logout = async () => {
+  const logout = async (): Promise<{ success: boolean; message: string }> => {
     const clearAuthData = () => {
       localStorage.removeItem("user");
       localStorage.removeItem("accessToken");
@@ -233,8 +259,9 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
       });
     };
 
+    let message = "Logged out successfully.";
     try {
-      await fetch(`${BASE_URL}/api/auth/logout`, {
+      const response = await fetch(`${BASE_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -242,6 +269,10 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
           Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
         },
       });
+      const data = await response.json().catch(() => null);
+      message =
+        data?.message ||
+        (response.ok ? "Logged out successfully." : "Logout completed locally.");
     } catch (error) {
       console.warn(
         "Logout API call failed, but proceeding with local cleanup",
@@ -249,9 +280,12 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
       );
     } finally {
       clearAuthData();
+      storeLogoutFeedback(message);
       setUser(null);
       navigate("/login");
     }
+
+    return { success: true, message };
   };
 
   return (

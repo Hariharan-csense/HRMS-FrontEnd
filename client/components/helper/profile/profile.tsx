@@ -137,11 +137,10 @@ export const profileHelper = {
         throw new Error("Password must be at least 6 characters long");
       }
 
-      const formData = new FormData();
-      formData.append("currentPassword", passwordData.currentPassword);
-      formData.append("newPassword", passwordData.newPassword);
-
-      const response = await ENDPOINTS.updateProfile(formData);
+      const response = await ENDPOINTS.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
       toast.success("Password changed successfully");
       return response.data;
     } catch (error: any) {

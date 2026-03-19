@@ -11,10 +11,14 @@ interface SubscriptionPlan {
   id: number;
   name: string;
   price: number;
+  price_upto25?: number;
+  price_upto50?: number;
+  price_above50?: number;
   billing_cycle: string;
   description: string;
   features: string[];
   max_users: number;
+  storage_gb?: number;
   trial_days: number;
   is_popular: boolean;
   is_active: boolean;
@@ -45,13 +49,15 @@ const getStorageForPlan = (planName: string): string => {
   return '1GB'; // Default storage
 };
 
-const getYearlyPrice = (monthlyPrice: number): number => {
-  // Calculate yearly price with 2 months discount (pay for 10 months, get 12)
-  return Math.round(monthlyPrice * 10);
-};
-
 const formatPrice = (price: number): string => {
   return `₹${price.toLocaleString('en-IN')}`;
+};
+
+const getTierPrice = (plan: SubscriptionPlan, usersCount: number): number => {
+  if (usersCount <= 25 && plan.price_upto25 !== undefined) return Number(plan.price_upto25);
+  if (usersCount <= 50 && plan.price_upto50 !== undefined) return Number(plan.price_upto50);
+  if (usersCount > 50 && plan.price_above50 !== undefined) return Number(plan.price_above50);
+  return Number(plan.price) || 0;
 };
 
 const PricingPage = () => {
@@ -59,6 +65,8 @@ const PricingPage = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState(25);
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -73,10 +81,14 @@ const PricingPage = () => {
             id: plan.id,
             name: plan.name.charAt(0).toUpperCase() + plan.name.slice(1), // Capitalize first letter
             price: parseFloat(plan.price),
+            price_upto25: plan.price_upto25,
+            price_upto50: plan.price_upto50,
+            price_above50: plan.price_above50,
             billing_cycle: plan.billing_cycle,
             description: plan.description,
             features: plan.description.split('\n').filter(Boolean), // Split description into features array
             max_users: plan.max_users,
+            storage_gb: plan.storage_gb,
             trial_days: plan.trial_days,
             is_popular: plan.name.toLowerCase() === 'platinum',
             is_active: plan.is_active === 1,
@@ -111,7 +123,7 @@ const PricingPage = () => {
               {/* <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">HRMS</span> */}
             </div>
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="/" className="text-gray-600 hover:text-green-600 transition-colors">Home</a>
+              <a href="/login" className="text-gray-600 hover:text-green-600 transition-colors">Home</a>
               <a href="/features" className="text-gray-600 hover:text-green-600 transition-colors">Features</a>
               <a href="/pricing" className="font-medium text-green-600 border-b-2 border-green-600 pb-1">Pricing</a>
               <a href="/about" className="text-gray-600 hover:text-green-600 transition-colors">About</a>
@@ -177,6 +189,44 @@ const PricingPage = () => {
       {/* Pricing Plans */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
+          <Card className="border border-gray-200 shadow-sm mb-8">
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-gray-700 font-medium">Number of Users</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={selectedUsers}
+                    onChange={(e) => {
+                      const nextValue = parseInt(e.target.value, 10);
+                      setSelectedUsers(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
+                    }}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-gray-700 font-medium">Billing Cycle</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['monthly', 'yearly'] as const).map((cycle) => (
+                      <button
+                        key={cycle}
+                        type="button"
+                        onClick={() => setSelectedBillingCycle(cycle)}
+                        className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                          selectedBillingCycle === cycle
+                            ? 'border-green-600 bg-green-50 text-green-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {cycle === 'monthly' ? 'Monthly' : 'Yearly'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           <div className="relative
             before:absolute before:inset-0 before:bg-gradient-to-r before:from-green-500/20 before:to-transparent before:rounded-xl
             before:blur-2xl before:-z-10 before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2
@@ -203,7 +253,13 @@ const PricingPage = () => {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 {plans.map((plan, index) => {
                   const isMostPopular = plan.name.toLowerCase() === 'starter';
-                  
+                  const basePerUser = getTierPrice(plan, selectedUsers);
+                  const perUserMonthly = basePerUser;
+                  const multiplier = selectedBillingCycle === 'yearly' ? 12 : 1;
+                  const perUserTotal = perUserMonthly * multiplier;
+                  const totalPrice = perUserTotal * selectedUsers;
+                  const storageLabel = plan.storage_gb ? `${plan.storage_gb}GB` : getStorageForPlan(plan.name);
+                   
                   return (
                     <div 
                       key={plan.id} 
@@ -230,27 +286,20 @@ const PricingPage = () => {
                           {plan.name}
                         </h3>
                         
-                        {/* Price - Yearly Only */}
+                        {/* Price */}
                         <div className="text-center mb-6">
-                          <div className="bg-green-50 rounded-lg p-4 mt-2">
-                            <div className="flex items-baseline justify-center gap-1">
-                              <span className="text-5xl font-bold text-green-700">
-                                {plan.price > 0 ? formatPrice(getYearlyPrice(plan.price)) : '₹0'}
-                              </span>
-                              <span className="text-green-600 font-semibold text-xl">/year</span>
-                            </div>
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-5xl font-bold text-green-700">
+                              {formatPrice(perUserMonthly)}
+                            </span>
+                            <span className="text-green-600 font-semibold text-xl">/user/month</span>
                           </div>
-                          {plan.price > 0 && (
-                            <span className="text-gray-500 text-sm mt-3 block">+ Taxes</span>
-                          )}
+                          <span className="text-gray-500 text-sm mt-2 block">
+                            Total {selectedBillingCycle}: {formatPrice(totalPrice)} for {selectedUsers} users
+                          </span>
                         </div>
-                        
-                        {/* User/Storage Details */}
-                        <div className="text-center mb-8">
-                          <p className="text-gray-700 font-medium">
-                            Up to {plan.max_users} Users, {getStorageForPlan(plan.name)} Storage
-                          </p>
-                        </div>
+
+                        {/* User/Storage Details removed */}
                         
                         {/* Plan Description with Bullet Points */}
                         <div className="space-y-3 mb-8">
@@ -285,7 +334,7 @@ const PricingPage = () => {
                             {plan.trial_days} days free trial
                           </p> */}
                           <p className="text-gray-500 text-xs mt-1">
-                            Then {plan.price === 0 ? '₹0/month' : `${formatPrice(plan.price)}/month or ${formatPrice(getYearlyPrice(plan.price))}/year`}
+                            Billed {selectedBillingCycle}
                           </p>
                         </div>
                       </div>
@@ -422,3 +471,6 @@ const PricingPage = () => {
 };
 
 export default PricingPage;
+
+
+

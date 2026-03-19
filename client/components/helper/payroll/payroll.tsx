@@ -8,6 +8,7 @@ export interface SalaryStructure {
   reportingManager?: string;
   basic: number;
   hra: number;
+  lta?: number;
   allowances: number;
   incentives: number;
   gross: number;
@@ -35,6 +36,7 @@ export const payrollApi = {
           employeeName: item.employee_name || `Employee ${item.employee_id}`,
           basic: parseFloat(item.basic) || 0,
           hra: parseFloat(item.hra) || 0,
+          lta: parseFloat(item.lta) || 0,
           allowances: parseFloat(item.allowances) || 0,
           incentives: parseFloat(item.incentives) || 0,
           gross: parseFloat(item.gross) || 0,

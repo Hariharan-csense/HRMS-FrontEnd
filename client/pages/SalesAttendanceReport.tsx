@@ -131,8 +131,8 @@ export default function SalesAttendanceReport() {
     } else {
       acc.push({ pattern: emp.attendance_pattern, count: 1 });
     }
-    return acc;
-  }, [] as { pattern: string; count: number }[]);
+      return acc;
+    }, [] as { pattern: string; count: number }[]);
 
   const attendanceComparisonData = (attendanceData?.employee_comparison || []).map(emp => ({
     name: emp.employee_name?.split(' ')[0] || 'Unknown', // First name only with fallback

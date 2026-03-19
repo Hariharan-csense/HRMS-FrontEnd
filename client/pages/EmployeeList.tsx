@@ -236,8 +236,6 @@ export default function EmployeeList() {
   const canDeleteEmployee = canEditEmployee;
 
   const filteredEmployees = useMemo(() => {
-    console.log("Showing all employees without role-based filtering");
-    
     // Apply only search and filter controls (removing role-based filtering)
     const finalFiltered = employees.filter((emp) => {
       const searchLower = searchTerm.toLowerCase();
@@ -252,12 +250,6 @@ export default function EmployeeList() {
 
       return matchesSearch && matchesDept && matchesStatus;
     });
-
-    console.log("Total employees:", employees.length);
-    console.log("After search/filter:", finalFiltered.length);
-    console.log("Search term:", searchTerm);
-    console.log("Department filter:", filterDept);
-    console.log("Status filter:", filterStatus);
 
     return finalFiltered;
   }, [employees, searchTerm, filterDept, filterStatus]);
@@ -313,7 +305,7 @@ export default function EmployeeList() {
         certificatesUrl: employee.certificatesUrl || "",
         bankProofUrl: employee.bankProofUrl || "",
         // Map location_tracking_enabled from the API to enableLiveTracking in the form
-        // Handle number (1/0), string ("1"/"0"), and boolean values safely
+        // Handle number (1/0), string ("1"/login"0"), and boolean values safely
         enableLiveTracking:
           employee.location_tracking_enabled === 1 ||
           employee.location_tracking_enabled === "1" ||
@@ -862,14 +854,11 @@ export default function EmployeeList() {
   const fetchAndTransformEmployees = async () => {
     try {
       const result = await employeeApi.getEmployees();
-      console.log("Raw API employees:", result);
 
       // The API helper returns { data: employeesArray } directly
       const apiEmployees = result.data || [];
 
       if (Array.isArray(apiEmployees)) {
-        console.log("Raw API employees:", apiEmployees);
-
         const transformedEmployees = apiEmployees.map((emp: any) => {
           const transformed: Employee = {
             id: emp.id.toString(),
@@ -882,9 +871,7 @@ export default function EmployeeList() {
             officeEmail: emp.office_email || "",
             dateOfBirth: (() => {
               if (emp.dob) {
-                console.log("Raw DOB from API:", emp.dob); // Debug
                 const dateOnly = extractDatePart(emp.dob);
-                console.log("Processed DOB:", dateOnly); // Debug
                 return dateOnly;
               }
               return "";
@@ -917,9 +904,7 @@ export default function EmployeeList() {
             designation: emp.designation || emp.designation_name || "Unknown",
             dateOfJoining: (() => {
               if (emp.doj) {
-                console.log("Raw DOJ from API:", emp.doj); // Debug
                 const dateOnly = extractDatePart(emp.doj);
-                console.log("Processed DOJ:", dateOnly); // Debug
                 return dateOnly;
               }
               return "";
@@ -966,18 +951,9 @@ export default function EmployeeList() {
             location_tracking_enabled: isLocationTrackingEnabled(emp.location_tracking_enabled) ? 1 : 0,
           };
 
-          console.log(`Transformed employee ${emp.id}:`, {
-            firstName: transformed.firstName,
-            lastName: transformed.lastName,
-            department: transformed.department,
-            designation: transformed.designation,
-            status: transformed.status
-          });
-
           return transformed;
         });
 
-        console.log("Final transformed employees:", transformedEmployees);
         setEmployees(transformedEmployees);
         return transformedEmployees;
       } else {
@@ -1037,8 +1013,11 @@ export default function EmployeeList() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const deptResult = await employeeApi.getDepartments();
-        console.log("Raw departments response:", deptResult);
+        const [deptResult, desigResult, roleResult] = await Promise.all([
+          employeeApi.getDepartments(),
+          employeeApi.getDesignations(),
+          roleApi.getRoles(),
+        ]);
 
         // Response is { success: true, departments: [...] }
         if (deptResult.data?.departments && Array.isArray(deptResult.data.departments)) {
@@ -1048,12 +1027,8 @@ export default function EmployeeList() {
           }));
           setDepartments(formattedDepts);
         } else {
-          console.warn("No valid departments array in response");
           setDepartments([]);
         }
-
-        const desigResult = await employeeApi.getDesignations();
-        console.log("Raw designations response:", desigResult);
 
         if (desigResult.data?.designations && Array.isArray(desigResult.data.designations)) {
           const formattedDesigs = desigResult.data.designations.map((desig: any) => ({
@@ -1062,11 +1037,8 @@ export default function EmployeeList() {
           }));
           setDesignations(formattedDesigs);
         } else {
-          console.warn("No valid designations array in response");
           setDesignations([]);
         }
-
-        const roleResult = await roleApi.getRoles();
         if (roleResult.data && Array.isArray(roleResult.data)) {
           const roleNames = roleResult.data
             .map((role) => role.name?.trim())

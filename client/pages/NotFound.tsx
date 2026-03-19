@@ -15,7 +15,7 @@ export default function NotFound() {
         </p>
 
         <div className="flex gap-3 justify-center">
-          <Button onClick={() => navigate("/")} className="gap-2">
+          <Button onClick={() => navigate("/login")} className="gap-2">
             <Home className="w-4 h-4" />
             Go Home
           </Button>

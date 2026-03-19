@@ -56,9 +56,16 @@ const EmployeeCombobox: React.FC<{
           className="w-full justify-between h-11"
         >
           <span className={cn("truncate", !selectedLabel && "text-muted-foreground")}>
-            {selectedLabel || "Select employee"}
+            {disabled ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{selectedLabel || "Loading..."}</span>
+              </div>
+            ) : (
+              selectedLabel || "Select employee"
+            )}
           </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
+          {!disabled && <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
@@ -259,14 +266,14 @@ const CreatePulseSurvey: React.FC = () => {
     <Layout>
       <div className="w-full">
         <Card className="border-0 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-4">
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-5">
             <div className="text-xl font-bold">Create &amp; Send Survey</div>
             <div className="text-xs opacity-90 mt-1">
               Send a happiness survey to your team
             </div>
           </div>
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-5">
             <div className="space-y-2">
               <Label>Template (optional)</Label>
               <Select
@@ -436,12 +443,20 @@ const CreatePulseSurvey: React.FC = () => {
                 variant="outline"
                 type="button"
                 onClick={() => navigate("/pulse-surveys/dashboard")}
+                disabled={submitting}
                 className="h-11"
               >
                 Cancel
               </Button>
               <Button type="button" onClick={onSubmit} disabled={submitting} className="h-11">
-                {submitting ? "Sending..." : "Send Survey"}
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Survey"
+                )}
               </Button>
             </div>
           </CardContent>

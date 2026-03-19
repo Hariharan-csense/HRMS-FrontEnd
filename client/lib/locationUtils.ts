@@ -1,4 +1,6 @@
 // Office locations with coordinates
+import { api } from "@/lib/endpoint";
+
 export interface OfficeLocation {
   id: string;
   name: string;
@@ -53,35 +55,81 @@ export const reverseGeocode = async (
   latitude: number,
   longitude: number
 ): Promise<string | null> => {
+  const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+
+  if (googleKey) {
+    try {
+      const googleResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${googleKey}`
+      );
+      if (googleResponse.ok) {
+        const googleData = await googleResponse.json();
+        const formatted = googleData?.results?.[0]?.formatted_address;
+        if (formatted) return String(formatted);
+      }
+    } catch (googleError) {
+      console.error("Google reverse geocoding failed:", googleError);
+    }
+  }
+
   try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-    );
-    
-    if (!response.ok) {
-      console.error("Reverse geocoding failed:", response.status);
+    // Prefer backend proxy (Mappls / MapmyIndia). Keeps API tokens off the client.
+    const response = await api.get("/geocode/reverse", {
+      params: { lat: latitude, lng: longitude },
+    });
+
+    if (response.data?.success && response.data?.address) {
+      return String(response.data.address);
+    }
+
+    return null;
+  } catch (error) {
+    // Fallback: Nominatim (only if backend geocoder is unavailable)
+    try {
+      const nominatimResponse = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+      );
+
+      if (!nominatimResponse.ok) {
+        console.error("Reverse geocoding failed:", nominatimResponse.status);
+        return null;
+      }
+
+      const data = await nominatimResponse.json();
+      const address = data.address;
+      if (address) {
+        const sanitizePart = (value: unknown) => {
+          const raw = String(value || "").trim();
+          if (!raw) return "";
+          return raw
+            .replace(/^zone\s*\d+\s*/i, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        };
+
+        const parts = [
+          sanitizePart(address.amenity || address.building || address.shop || ""),
+          sanitizePart(address.house_number || ""),
+          sanitizePart(address.road || address.pedestrian || address.footway || ""),
+          sanitizePart(address.neighbourhood || address.quarter || address.suburb || address.city_district || ""),
+          sanitizePart(address.city || address.town || address.village || ""),
+          sanitizePart(address.state || ""),
+          sanitizePart(address.postcode || ""),
+        ].filter((part) => Boolean(String(part || "").trim()));
+
+        const combined = parts.join(", ");
+        if (combined) return combined;
+
+        const display = sanitizePart(data.display_name) || String(data.display_name || "").trim();
+        return display || null;
+      }
+
+      return data.display_name || null;
+    } catch (fallbackError) {
+      console.error("Error during reverse geocoding:", error);
+      console.error("Fallback reverse geocoding failed:", fallbackError);
       return null;
     }
-
-    const data = await response.json();
-    
-    // Extract readable address from the response
-    const address = data.address;
-    if (address) {
-      // Build a readable address string
-      const parts = [
-        address.road || address.suburb || "",
-        address.city || address.town || address.village || "",
-        address.state || "",
-      ].filter(Boolean);
-      
-      return parts.join(", ") || data.display_name || null;
-    }
-
-    return data.display_name || null;
-  } catch (error) {
-    console.error("Error during reverse geocoding:", error);
-    return null;
   }
 };
 

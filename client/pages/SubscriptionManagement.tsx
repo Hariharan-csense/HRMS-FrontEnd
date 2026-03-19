@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, Star, Zap, Shield, Crown, X, ChevronRight, Check } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, Star, Zap, Shield, Crown, ChevronRight, Check } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
@@ -19,6 +22,9 @@ interface SubscriptionPlan {
   name: string;
   description: string;
   price: number;
+  price_upto25?: number;
+  price_upto50?: number;
+  price_above50?: number;
   max_users: number;
   storage_gb?: number;
   trial_days: number;
@@ -88,9 +94,14 @@ const getStorageForPlan = (plan: SubscriptionPlan): string => {
   return '1GB'; // Default storage
 };
 
-const getYearlyPrice = (monthlyPrice: number): number => {
-  // Calculate yearly price with 2 months discount (pay for 10 months, get 12)
-  return Math.round(monthlyPrice * 10);
+const getTierPrice = (
+  record: { price?: number; price_upto25?: number; price_upto50?: number; price_above50?: number },
+  usersCount: number
+): number => {
+  if (usersCount <= 25 && record.price_upto25 !== undefined) return Number(record.price_upto25);
+  if (usersCount <= 50 && record.price_upto50 !== undefined) return Number(record.price_upto50);
+  if (usersCount > 50 && record.price_above50 !== undefined) return Number(record.price_above50);
+  return 0;
 };
 
 const formatPrice = (price: number): string => {
@@ -106,6 +117,8 @@ const SubscriptionManagement: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState(25);
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     fetchSubscriptionData();
@@ -124,6 +137,9 @@ const SubscriptionManagement: React.FC = () => {
       console.log('API responses received:', { plansRes, subscriptionRes, paymentsRes });
 
       setPlans(plansRes.data?.data || []);
+      if (!selectedPlan && (plansRes.data?.data || []).length > 0) {
+        setSelectedPlan((plansRes.data?.data || [])[0]);
+      }
       setCurrentSubscription(subscriptionRes.data?.data || null);
       setPayments(paymentsRes.data?.data || []);
     } catch (error) {
@@ -141,7 +157,11 @@ const SubscriptionManagement: React.FC = () => {
 
   const handleStartTrial = async (planId: number) => {
     try {
-      const response = await ENDPOINTS.startSubscriptionTrial(planId);
+      const response = await ENDPOINTS.startSubscriptionTrial({
+        plan_id: planId,
+        users_count: selectedUsers,
+        billing_cycle: selectedBillingCycle
+      });
       showToast.success(response.data.message);
       fetchSubscriptionData();
     } catch (error: any) {
@@ -171,7 +191,11 @@ const SubscriptionManagement: React.FC = () => {
         return;
       }
 
-      const orderRes = await ENDPOINTS.createSubscriptionUpgradeOrder(selectedPlan.id);
+      const orderRes = await ENDPOINTS.createSubscriptionUpgradeOrder({
+        plan_id: selectedPlan.id,
+        users_count: selectedUsers,
+        billing_cycle: selectedBillingCycle
+      });
       const orderData = orderRes.data?.data;
 
       if (!orderData?.order_id || !orderData?.key_id) {
@@ -191,6 +215,8 @@ const SubscriptionManagement: React.FC = () => {
           try {
             const verifyRes = await ENDPOINTS.verifySubscriptionUpgradePayment({
               plan_id: selectedPlan.id,
+              users_count: selectedUsers,
+              billing_cycle: selectedBillingCycle,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
@@ -238,17 +264,11 @@ const SubscriptionManagement: React.FC = () => {
   };
 
   const getPlanGradient = (planName: string) => {
-    const name = planName.toLowerCase();
-    if (name.includes('basic') || name.includes('starter')) {
-      return 'from-blue-50 to-indigo-50 border-blue-200';
-    }
-    if (name.includes('pro') || name.includes('professional')) {
-      return 'from-purple-50 to-pink-50 border-purple-200';
-    }
-    if (name.includes('enterprise') || name.includes('premium')) {
-      return 'from-amber-50 to-orange-50 border-amber-200';
-    }
-    return 'from-green-50 to-emerald-50 border-green-200';
+    return 'from-[#e6fbf4] to-white border-[#bff1e2]';
+  };
+
+  const getPlanAccentText = (planName: string) => {
+    return 'text-[#17c491]';
   };
 
   const getButtonVariant = (planName: string, isUpgrade: boolean = false) => {
@@ -294,24 +314,25 @@ const SubscriptionManagement: React.FC = () => {
   // Only lock/blur the current plan once the company is on a paid active subscription.
   // During an active trial, keep plans selectable so the user can compare/upgrade freely.
   const hasPaidSubscription = !!currentSubscription && currentSubscription.status === 'active';
+  const billingMultiplier = selectedBillingCycle === 'yearly' ? 12 : 1;
 
   return (
     <Layout>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 bg-gradient-to-br from-[#e6fbf4] via-white to-white rounded-3xl">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Subscription Management</h1>
+          <h1 className="text-3xl font-bold text-[#17c491]">Subscription Management</h1>
         </div>
 
       {/* Current Subscription Status */}
       {currentSubscription && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Current Subscription
+        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">
+          <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl py-4">
+            <CardTitle className="flex items-center justify-between text-white text-lg">
+              <span>Current Subscription</span>
               {getStatusBadge(currentSubscription.status)}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             {currentSubscription.status === 'trial' && currentSubscription.is_trial_active && (
               <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-green-800 font-medium">
@@ -338,7 +359,15 @@ const SubscriptionManagement: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600">Plan</p>
                 <p className="font-semibold">{currentSubscription.plan_name}</p>
-                <p className="text-sm text-gray-500">{currentSubscription.plan_description}</p>
+                <ul className="mt-2 list-disc pl-4 text-sm text-gray-500 space-y-1">
+                  {(currentSubscription.plan_description || "")
+                    .split(/,|\n/)
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+                    .map((item, index) => (
+                      <li key={`${item}-${index}`}>{item}</li>
+                    ))}
+                </ul>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Users</p>
@@ -457,6 +486,41 @@ const SubscriptionManagement: React.FC = () => {
           </div>
           )}
         </div>
+
+        <Card className="border border-gray-200 shadow-sm mb-8">
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Number of Users</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={selectedUsers}
+                  onChange={(e) => {
+                    const nextValue = parseInt(e.target.value, 10);
+                    setSelectedUsers(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Billing Cycle</Label>
+                <Select
+                  value={selectedBillingCycle}
+                  onValueChange={(value) => setSelectedBillingCycle(value as 'monthly' | 'yearly')}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select billing cycle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+          </CardContent>
+        </Card>
         {plans && plans.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {plans.map((plan) => {
@@ -470,7 +534,7 @@ const SubscriptionManagement: React.FC = () => {
               return (
                 <div 
                   key={plan.id} 
-                  className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
+                  className={`relative bg-gradient-to-br ${getPlanGradient(plan.name)} rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
                     isLockedCurrentPlan ? 'opacity-80 hover:shadow-lg' : 'hover:shadow-xl hover:scale-105'
                   } ${
                     isMostPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
@@ -492,35 +556,36 @@ const SubscriptionManagement: React.FC = () => {
                     <div className={`p-6 sm:p-8 ${isMostPopular ? 'pt-10 sm:pt-12' : 'pt-6 sm:pt-8'}`}>
                      {/* User Icon */}
                      <div className="flex justify-center mb-6">
-                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                         <Users className="w-8 h-8 text-gray-600" />
-                      </div>
-                    </div>
-                    
-                    {/* Plan Name */}
+                        <div className="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center shadow-md">
+                          {getPlanIcon(plan.name)}
+                       </div>
+                     </div>
+                     
+                     {/* Plan Name */}
                     <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-4">
                       {plan.name}
                     </h3>
                     
-                    {/* Price */}
-                    <div className="text-center mb-6">
-                      <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-4xl sm:text-5xl font-bold text-gray-900">
-                          {formatPrice(getYearlyPrice(plan.price))}
-                        </span>
-                        <span className="text-gray-600 text-lg">/year</span>
-                      </div>
-                      {plan.price > 0 && (
-                        <span className="text-gray-500 text-sm">+ Taxes</span>
-                      )}
-                    </div>
-                    
-                    {/* User/Storage Details */}
-                    <div className="text-center mb-8">
-                      <p className="text-gray-700 font-medium">
-                        Up to {plan.max_users} Users, {getStorageForPlan(plan)} Storage
-                      </p>
-                    </div>
+                     {/* Price */}
+                      {(() => {
+                        const basePerUser = getTierPrice(plan, selectedUsers);
+                        const perUserMonthly = basePerUser;
+                        const perUserTotal = perUserMonthly * billingMultiplier;
+                        const totalPrice = perUserTotal * selectedUsers;
+                        return (
+                          <div className="text-center mb-6">
+                            <div className="flex items-baseline justify-center gap-1">
+                              <span className={`text-4xl sm:text-5xl font-bold ${getPlanAccentText(plan.name)}`}>
+                                {formatPrice(perUserMonthly)}
+                              </span>
+                              <span className="text-gray-600 text-lg">/user/month</span>
+                            </div>
+                            <span className="text-gray-500 text-sm block">
+                              Total {selectedBillingCycle}: {formatPrice(totalPrice)} for {selectedUsers} users
+                            </span>
+                          </div>
+                        );
+                      })()}
                     
                     {/* Plan Description with Bullet Points */}
                     <div className="space-y-3 mb-8">
@@ -647,9 +712,9 @@ const SubscriptionManagement: React.FC = () => {
       
       {/* Payment History */}
       {payments && payments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment History</CardTitle>
+        <Card className="border-0 shadow-xl bg-white/90">
+          <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl">
+            <CardTitle className="text-white">Payment History</CardTitle>
           </CardHeader>
           <CardContent>
             {/* Desktop Table View */}
@@ -734,10 +799,23 @@ const SubscriptionManagement: React.FC = () => {
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="font-semibold">{selectedPlan.name}</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">{formatPrice(getYearlyPrice(selectedPlan.price))}</span>
-                  <span className="text-gray-600">/year</span>
+                  {(() => {
+                    const basePerUser = getTierPrice(selectedPlan, selectedUsers);
+                    const perUserMonthly = basePerUser;
+                    const perUserTotal = perUserMonthly * billingMultiplier;
+                    const totalPrice = perUserTotal * selectedUsers;
+                    return (
+                      <>
+                        <span className="text-2xl font-bold">{formatPrice(perUserMonthly)}</span>
+                        <span className="text-gray-600">/user/month</span>
+                        <span className="text-sm text-gray-500 ml-auto">
+                          Total {selectedBillingCycle}: {formatPrice(totalPrice)}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
-                <p className="text-sm text-gray-600">{selectedPlan.max_users} users</p>
+                <p className="text-sm text-gray-600">{selectedUsers} users</p>
                 <p className="text-sm text-gray-600">{getStorageForPlan(selectedPlan)} storage</p>
               </div>
 

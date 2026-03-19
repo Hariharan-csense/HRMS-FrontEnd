@@ -1,92 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { AlertCircle, Plus, Edit, Trash2, Save, X, Users, X as XIcon, Check } from 'lucide-react';
+import { Plus, Save, Trash2, Edit, X } from 'lucide-react';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
 
-declare global {
-  interface Window {
-    Razorpay?: any;
-  }
-}
+const formatPrice = (price: number): string => {
+  return `\u20B9${price.toLocaleString('en-IN')}`;
+};
+
+type BillingCycle = 'monthly' | 'yearly';
 
 interface SubscriptionPlan {
   id: number;
   name: string;
   description: string;
   price: number;
+  price_upto25?: number;
+  price_upto50?: number;
+  price_above50?: number;
   max_users: number;
-  storage_gb?: number;
   trial_days: number;
   billing_cycle: string;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  storage_gb?: number;
 }
-
-
-const getStorageForPlan = (plan: SubscriptionPlan): string => {
-  if (plan.storage_gb) {
-    return `${plan.storage_gb}GB`;
-  }
-  
-  // Fallback to name-based calculation for backward compatibility
-  const name = plan.name.toLowerCase();
-  
-  if (name.includes('free')) {
-    return '500MB';
-  }
-  
-  if (name.includes('basic') || name.includes('starter')) {
-    return '2GB';
-  }
-  
-  if (name.includes('professional') || name.includes('pro')) {
-    return '5GB';
-  }
-  
-  if (name.includes('business') || name.includes('premium') || name.includes('enterprise')) {
-    return '10GB';
-  }
-  
-  return '1GB'; // Default storage
-};
-
-const getYearlyPrice = (monthlyPrice: number): number => {
-  // Calculate yearly price with 2 months discount (pay for 10 months, get 12)
-  return Math.round(monthlyPrice * 10);
-};
-
-const formatPrice = (price: number): string => {
-  return `₹${price.toLocaleString('en-IN')}`;
-};
 
 const SubscriptionPlansManagement: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
-  const [isPaying, setIsPaying] = useState(false);
-  
-  // Form state
-  const [formData, setFormData] = useState({
+  const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+
+  const [planForm, setPlanForm] = useState({
     name: '',
     description: '',
-    monthly_price: '',
-    yearly_price: '',
-    max_users: '',
+    price_upto25: '',
+    price_upto50: '',
+    price_above50: '',
     storage_gb: '',
     trial_days: '',
-    billing_cycle: 'monthly',
+    billing_cycle: 'monthly' as BillingCycle,
     is_active: true
   });
 
@@ -97,181 +58,94 @@ const SubscriptionPlansManagement: React.FC = () => {
   const fetchPlans = async () => {
     try {
       const response = await ENDPOINTS.getAllSubscriptionPlans();
-      setPlans(response.data?.data || []);
-    } catch (error: any) {
-      console.error('Error fetching plans:', error);
-      setError(error.response?.data?.message || 'Failed to fetch plans');
+      const fetchedPlans = response.data?.data || [];
+      setPlans(fetchedPlans);
+    } catch (fetchError: any) {
+      console.error('Error fetching plans:', fetchError);
+      const message = fetchError.response?.data?.message || 'Failed to fetch plans';
+      setError(message);
+      showToast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
+  const resetPlanForm = () => {
+    setPlanForm({
       name: '',
       description: '',
-      monthly_price: '',
-      yearly_price: '',
-      max_users: '',
+      price_upto25: '',
+      price_upto50: '',
+      price_above50: '',
       storage_gb: '',
       trial_days: '',
       billing_cycle: 'monthly',
       is_active: true
     });
-    setIsCreating(false);
     setEditingPlan(null);
+    setIsCreatingPlan(false);
   };
 
-  const handleCreate = () => {
-    console.log('handleCreate called');
-    setEditingPlan(null);
-    resetForm();
-    setIsCreating(true);
-  };
-
-  const handleEdit = (plan: SubscriptionPlan) => {
+  const handleEditPlan = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
-    setIsCreating(false);
-    setFormData({
-      name: plan.name,
-      description: plan.description,
-      monthly_price: plan.price.toString(),
-      yearly_price: (plan.price * 10).toString(), // Calculate yearly price
-      max_users: plan.max_users.toString(),
+    setIsCreatingPlan(false);
+    setPlanForm({
+      name: plan.name || '',
+      description: plan.description || '',
+      price_upto25: plan.price_upto25?.toString() || '',
+      price_upto50: plan.price_upto50?.toString() || '',
+      price_above50: plan.price_above50?.toString() || '',
       storage_gb: plan.storage_gb?.toString() || '',
-      trial_days: plan.trial_days.toString(),
-      billing_cycle: plan.billing_cycle,
+      trial_days: plan.trial_days?.toString() || '',
+      billing_cycle: (plan.billing_cycle as BillingCycle) || 'monthly',
       is_active: plan.is_active
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     setIsSavingPlan(true);
     try {
-      const planData = {
-        ...formData,
-        price: parseFloat(formData.monthly_price), // Use monthly price as base
-        monthly_price: parseFloat(formData.monthly_price),
-        yearly_price: parseFloat(formData.yearly_price),
-        max_users: parseInt(formData.max_users),
-        storage_gb: parseInt(formData.storage_gb) || 1,
-        trial_days: parseInt(formData.trial_days)
+      const payload = {
+        name: planForm.name,
+        description: planForm.description,
+        price: Number(planForm.price_upto25),
+        price_upto25: Number(planForm.price_upto25),
+        price_upto50: Number(planForm.price_upto50),
+        price_above50: Number(planForm.price_above50),
+        max_users: 0,
+        storage_gb: planForm.storage_gb ? Number(planForm.storage_gb) : undefined,
+        trial_days: Number(planForm.trial_days),
+        billing_cycle: planForm.billing_cycle,
+        is_active: planForm.is_active
       };
 
-      console.log('Submitting plan data:', planData);
-
       if (editingPlan) {
-        // Update existing plan
-        console.log('Updating plan:', editingPlan.id);
-        const response = await ENDPOINTS.updateSubscriptionPlan(editingPlan.id, planData);
-        console.log('Update response:', response.data);
+        await ENDPOINTS.updateSubscriptionPlan(editingPlan.id, payload);
       } else {
-        // Create new plan
-        console.log('Creating new plan...');
-        const response = await ENDPOINTS.createSubscriptionPlan(planData);
-        console.log('Create response:', response.data);
+        await ENDPOINTS.createSubscriptionPlan(payload);
       }
 
-      resetForm();
+      showToast.success('Package saved');
+      resetPlanForm();
       fetchPlans();
-    } catch (error: any) {
-      console.error('Error saving plan:', error);
-      console.error('Error response:', error.response?.data);
-      showToast.error(error.response?.data?.message || 'Failed to save plan');
+    } catch (saveError: any) {
+      console.error('Error saving plan:', saveError);
+      showToast.error(saveError.response?.data?.message || 'Failed to save package');
     } finally {
       setIsSavingPlan(false);
     }
   };
 
-  const handleDelete = async (planId: number) => {
-    if (!confirm('Are you sure you want to delete this plan?')) return;
-
+  const handleDeletePlan = async (planId: number) => {
+    if (!confirm('Are you sure you want to delete this package?')) return;
     try {
       await ENDPOINTS.deleteSubscriptionPlan(planId);
+      showToast.success('Package deleted');
       fetchPlans();
-    } catch (error: any) {
-      console.error('Error deleting plan:', error);
-      showToast.error(error.response?.data?.message || 'Failed to delete plan');
-    }
-  };
-
-  const handleToggleActive = async (planId: number, isActive: boolean) => {
-    try {
-      await ENDPOINTS.patchSubscriptionPlan(planId, { is_active: isActive });
-      fetchPlans();
-    } catch (error: any) {
-      console.error('Error updating plan status:', error);
-      showToast.error(error.response?.data?.message || 'Failed to update plan status');
-    }
-  };
-
-  const loadRazorpayScript = () => {
-    return new Promise<boolean>((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
-  const startRazorpayUpgradePayment = async (plan: SubscriptionPlan) => {
-    setIsPaying(true);
-    try {
-      const scriptOk = await loadRazorpayScript();
-      if (!scriptOk) {
-        showToast.error('Failed to load Razorpay. Please check your internet connection.');
-        return;
-      }
-
-      const orderRes = await ENDPOINTS.createSubscriptionUpgradeOrder(plan.id);
-      const orderData = orderRes.data?.data;
-
-      if (!orderData?.order_id || !orderData?.key_id) {
-        showToast.error('Failed to create payment order');
-        return;
-      }
-
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const options: any = {
-        key: orderData.key_id,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'HRMS',
-        description: `Upgrade to ${plan.name}`,
-        order_id: orderData.order_id,
-        handler: async (response: any) => {
-          try {
-            const verifyRes = await ENDPOINTS.verifySubscriptionUpgradePayment({
-              plan_id: plan.id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            });
-            showToast.success(verifyRes.data?.message || 'Payment successful');
-          } catch (e: any) {
-            showToast.error(e.response?.data?.message || 'Payment verification failed');
-          }
-        },
-        prefill: {
-          name: user?.name || user?.username || '',
-          email: user?.email || ''
-        },
-        theme: { color: '#16a34a' }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (resp: any) {
-        showToast.error(resp?.error?.description || 'Payment failed');
-      });
-      rzp.open();
-    } catch (e: any) {
-      showToast.error(e.response?.data?.message || 'Failed to start payment');
-    } finally {
-      setIsPaying(false);
+    } catch (deleteError: any) {
+      console.error('Error deleting plan:', deleteError);
+      showToast.error(deleteError.response?.data?.message || 'Failed to delete package');
     }
   };
 
@@ -287,365 +161,303 @@ const SubscriptionPlansManagement: React.FC = () => {
 
   return (
     <Layout>
-      <div className="p-6 space-y-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Subscription Plans</h1>
-            <p className="text-gray-600 mt-1">Manage your subscription plans and pricing</p>
-          </div>
-          <Button 
-            onClick={handleCreate}
-            className="bg-green-600 hover:bg-green-700 transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Plan
-          </Button>
-        </div>
-
-        {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-                <p className="text-red-800">{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <section className="relative overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600">
+          <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIzIi8+PC9nPjwvZz48L3N2Zz4=')]"></div>
+          <div className="relative px-6 py-10 sm:px-8 sm:py-12">
+            <div className="max-w-6xl mx-auto flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                  Pricing Management
+                </span>
+                <h1 className="mt-3 text-3xl sm:text-4xl font-bold text-white">Subscription Plans</h1>
+                <p className="mt-2 text-green-100 text-sm sm:text-base">
+                  Create and manage tiered pricing packages with clear billing details.
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <Button
+                type="button"
+                className="bg-white text-green-700 hover:bg-gray-100 px-5 py-2.5 font-semibold shadow-md"
+                onClick={() => {
+                  resetPlanForm();
+                  setIsCreatingPlan(true);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Package
+              </Button>
+            </div>
+          </div>
+        </section>
 
-        {/* Create/Edit Form */}
-        {(isCreating || editingPlan) && (
-          <Card className="border-2 border-dashed border-gray-200 bg-gray-50">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-xl font-bold text-gray-900">
-                  {isCreating ? 'Create New Plan' : `Edit ${editingPlan?.name} Plan`}
-                </CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-gray-500 hover:text-gray-700"
-                  onClick={resetForm}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+        <div className="p-6 space-y-8">
+          {error && (
+            <Card className="border border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <p className="text-sm text-red-700">{error}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="border border-gray-200 shadow-sm bg-white/80 backdrop-blur-sm">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold text-gray-900">Packages</CardTitle>
+                  <p className="text-sm text-gray-600">Manage the three base packages and their tiered pricing.</p>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-gray-700 font-medium">Plan Name</Label>
-                    <Input
-                      id="name"
-                      className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="monthly_price" className="text-gray-700 font-medium">Monthly Price (₹)</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                      <Input
-                        id="monthly_price"
-                        type="number"
-                        value={formData.monthly_price}
-                        onChange={(e) => setFormData({...formData, monthly_price: e.target.value})}
-                        required
-                        className="pl-8 bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                        min="0"
-                        step="0.01"
-                        placeholder="Enter monthly price"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="yearly_price" className="text-gray-700 font-medium">Yearly Price (₹)</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                      <Input
-                        id="yearly_price"
-                        type="number"
-                        value={formData.yearly_price}
-                        onChange={(e) => setFormData({...formData, yearly_price: e.target.value})}
-                        required
-                        className="pl-8 bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                        min="0"
-                        step="0.01"
-                        placeholder="Enter yearly price"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Recommended: {formatPrice(parseFloat(formData.monthly_price) * 10 || 0)} (2 months free)
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="max_users" className="text-gray-700 font-medium">Max Users</Label>
-                    <Input
-                      id="max_users"
-                      type="number"
-                      placeholder='e.g., 10'
-                      value={formData.max_users}
-                      onChange={(e) => setFormData({...formData, max_users: e.target.value})}
-                      required
-                      min="0"
-                      className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="storage_gb" className="text-gray-700 font-medium">Storage (GB)</Label>
-                    <Input
-                      id="storage_gb"
-                      type="number"
-                      placeholder='e.g., 5'
-                      value={formData.storage_gb}
-                      onChange={(e) => setFormData({...formData, storage_gb: e.target.value})}
-                      min="0"
-                      className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="billing_cycle" className="text-gray-700 font-medium">Billing Cycle</Label>
-                    <Select
-                      value={formData.billing_cycle}
-                      onValueChange={(value) => setFormData({...formData, billing_cycle: value})}
-                    >
-                      <SelectTrigger className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500">
-                        <SelectValue placeholder="Select billing cycle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500">
-                      Customers can choose to pay monthly or yearly (with 2 months discount)
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="trial_days" className="text-gray-700 font-medium">Trial Days</Label>
-                    <Input
-                      id="trial_days"
-                      type="number"
-                      value={formData.trial_days}
-                      onChange={(e) => setFormData({...formData, trial_days: e.target.value})}
-                      required
-                      min="0"
-                      className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                      placeholder="Enter trial period in days"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                      className="rounded"
-                    />
-                    <Label htmlFor="is_active">Active</Label>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-gray-700 font-medium">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                    required
-                    className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                    placeholder="Enter plan features, one per line..."
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter each feature on a new line. They will be displayed as bullet points.
-                  </p>
-                </div>
-                <div className="flex justify-end space-x-3 pt-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={resetForm}
-                    className="px-6 border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit"
-                    disabled={isSavingPlan}
-                    className="bg-green-600 hover:bg-green-700 px-6"
-                  >
-                    {isSavingPlan ? (
-                      editingPlan ? (
-                        <>
-                          <Save className="w-4 h-4 mr-2" />
-                          Updating...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Creating...
-                        </>
-                      )
-                    ) : isCreating ? (
-                      <>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Plan
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Plans List */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan) => {
-            const isMostPopular = plan.name.toLowerCase() === 'starter';
-            
-            return (
-              <div 
-                key={plan.id} 
-                className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-105 ${
-                  plan.is_active 
-                    ? isMostPopular 
-                      ? 'border-2 border-orange-400 ring-4 ring-orange-100' 
-                      : 'border border-gray-200'
-                    : 'border border-gray-200 opacity-75'
-                }`}
-              >
-                {isMostPopular && plan.is_active && (
-                  <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
-                    Most Popular
-                  </div>
-                )}
-                
-                {!plan.is_active && (
-                  <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-bl-lg">
-                    Inactive
-                  </div>
-                )}
-                
-                <div className={`p-8 ${isMostPopular ? 'pt-12' : 'pt-8'}`}>
-                  {/* User Icon */}
-                  <div className="flex justify-center mb-6">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Users className="w-8 h-8 text-gray-600" />
-                    </div>
-                  </div>
-                  
-                  {/* Plan Name */}
-                  <h3 className="text-2xl font-bold text-center text-gray-900 mb-4">
-                    {plan.name}
-                  </h3>
-                  
-                  {/* Price */}
-                  <div className="text-center mb-6">
-                    <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-4xl font-bold text-gray-900">
-                        {formatPrice(plan.price)}
-                      </span>
-                      <span className="text-gray-600 text-lg">/month</span>
-                    </div>
-                    <div className="text-center mt-2">
-                      <span className="text-green-600 font-semibold text-lg">
-                        {formatPrice(getYearlyPrice(plan.price))}/year
-                      </span>
-                      <span className="text-green-500 text-sm block">
-                        Save {formatPrice(plan.price * 2)} (2 months free!)
-                      </span>
-                    </div>
-                    {plan.price > 0 && (
-                      <span className="text-gray-500 text-sm">+ Taxes</span>
-                    )}
-                  </div>
-                  
-                  {/* User/Storage Details */}
-                  <div className="text-center mb-8">
-                    <p className="text-gray-700 font-medium">
-                      Up to {plan.max_users} Users, {getStorageForPlan(plan)} Storage
-                    </p>
-                  </div>
-                  
-                  {/* Plan Description with Bullet Points */}
-                  <div className="space-y-3 mb-8">
-                    {plan.description.split('\n').map((item, index) => (
-                      <div key={index} className="flex items-center justify-between py-2">
-                        <span className="text-gray-700 text-sm flex-1">{item}</span>
-                        <div className="flex items-center justify-center w-6 h-6">
-                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
+            <CardContent className="space-y-6">
+              {(isCreatingPlan || editingPlan) && (
+                <Card className="border border-dashed border-gray-300 bg-white">
+                  <CardContent className="p-6">
+                    <form onSubmit={handleSavePlan} className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {editingPlan ? `Edit ${editingPlan.name}` : 'Create Package'}
+                        </h3>
+                        <Button type="button" variant="ghost" onClick={resetPlanForm}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Package Name</Label>
+                          <Input
+                            value={planForm.name}
+                            onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Billing Cycle</Label>
+                          <Select
+                            value={planForm.billing_cycle}
+                            onValueChange={(value) => setPlanForm({ ...planForm, billing_cycle: value as BillingCycle })}
+                          >
+                            <SelectTrigger className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500">
+                              <SelectValue placeholder="Select billing cycle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="yearly">Yearly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Price per user / month (Up to 25)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={planForm.price_upto25}
+                            onChange={(e) => setPlanForm({ ...planForm, price_upto25: e.target.value })}
+                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Price per user / month (Up to 50)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={planForm.price_upto50}
+                            onChange={(e) => setPlanForm({ ...planForm, price_upto50: e.target.value })}
+                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Price per user / month (Above 50)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={planForm.price_above50}
+                            onChange={(e) => setPlanForm({ ...planForm, price_above50: e.target.value })}
+                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Storage (GB)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={planForm.storage_gb}
+                            onChange={(e) => setPlanForm({ ...planForm, storage_gb: e.target.value })}
+                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-700 font-medium">Trial Days</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={planForm.trial_days}
+                            onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })}
+                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            required
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="plan-active"
+                            type="checkbox"
+                            checked={planForm.is_active}
+                            onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })}
+                          />
+                          <Label htmlFor="plan-active">Active</Label>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  
-                  {/* Admin Actions */}
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 border-blue-500 text-blue-600 hover:bg-blue-50"
-                        onClick={() => handleEdit(plan)}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
-                        onClick={() => handleDelete(plan.id)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-                    
-                    <Button
-                      variant={plan.is_active ? 'outline' : 'default'}
-                      className={`w-full ${
-                        plan.is_active 
-                          ? 'border-red-500 text-red-600 hover:bg-red-50' 
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
-                      onClick={() => handleToggleActive(plan.id, !plan.is_active)}
-                    >
-                      {plan.is_active ? 'Deactivate Plan' : 'Activate Plan'}
-                    </Button>
-                  </div>
-                  
-                  {/* Trial Information */}
-                  <div className="text-center mt-4">
-                    <p className="text-gray-600 text-sm">
-                      {plan.trial_days} days free trial
-                    </p>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Package Modules</Label>
+                        <Textarea
+                          value={planForm.description}
+                          onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
+                          rows={4}
+                          className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                          placeholder="Enter each module on a new line"
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <Button type="submit" disabled={isSavingPlan} className="bg-green-600 hover:bg-green-700 shadow-sm">
+                          <Save className="w-4 h-4 mr-2" />
+                          {isSavingPlan ? 'Saving...' : 'Save Package'}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {plans.length > 0 ? (
+                <div className="relative before:absolute before:inset-0 before:bg-gradient-to-r before:from-green-500/10 before:to-transparent before:rounded-2xl before:blur-2xl before:-z-10 before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-3/4 before:h-3/4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {plans.map((plan) => {
+                      const isPopular = plan.name?.toLowerCase?.().includes('starter');
+
+                      return (
+                        <div
+                          key={plan.id}
+                          className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${
+                            isPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
+                          }`}
+                        >
+                          {isPopular && (
+                            <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
+                              Most Popular
+                            </div>
+                          )}
+
+                          <div className={`p-6 ${isPopular ? 'pt-12' : 'pt-6'}`}>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="text-xl font-bold text-gray-900">{plan.name}</h4>
+                                <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">
+                                  {plan.billing_cycle} billing
+                                </p>
+                              </div>
+                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${plan.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                                {plan.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+
+                            <div className="mt-6 text-center">
+                              <div className="flex items-baseline justify-center gap-1">
+                                <span className="text-4xl font-bold text-green-700">
+                                  {formatPrice(plan.price_upto25 || 0)}
+                                </span>
+                                <span className="text-green-600 font-semibold text-sm">/user/month</span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-2">Up to 25 users</p>
+                            </div>
+
+                            <div className="mt-6 grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <p className="text-[10px] uppercase text-gray-500">Up to 25</p>
+                                <p className="text-sm font-semibold text-gray-900">{formatPrice(plan.price_upto25 || 0)}</p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <p className="text-[10px] uppercase text-gray-500">Up to 50</p>
+                                <p className="text-sm font-semibold text-gray-900">{formatPrice(plan.price_upto50 || 0)}</p>
+                              </div>
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <p className="text-[10px] uppercase text-gray-500">Above 50</p>
+                                <p className="text-sm font-semibold text-gray-900">{formatPrice(plan.price_above50 || 0)}</p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
+                              <span>Storage: {plan.storage_gb ? `${plan.storage_gb}GB` : '-'}</span>
+                              <span>Trial: {plan.trial_days} days</span>
+                            </div>
+
+                            <div className="mt-6 space-y-2">
+                              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Modules</p>
+                              <div className="flex flex-wrap gap-2">
+                                {plan.description
+                                  .split('\n')
+                                  .filter(Boolean)
+                                  .slice(0, 8)
+                                  .map((item, index) => (
+                                    <span
+                                      key={index}
+                                      className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700"
+                                    >
+                                      {item}
+                                    </span>
+                                  ))}
+                              </div>
+                            </div>
+
+                            <div className="mt-6 flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1"
+                                onClick={() => handleEditPlan(plan)}
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-red-500 text-red-600 hover:bg-red-50 flex-1"
+                                onClick={() => handleDeletePlan(plan.id)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {plans.length === 0 && !isCreating && (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-gray-600">No subscription plans found.</p>
-              <p className="text-sm text-gray-500 mt-2">Click "Add New Plan" to create your first subscription plan.</p>
+              ) : (
+                <Card className="border border-dashed border-gray-200 bg-white/80 backdrop-blur-sm">
+                  <CardContent className="p-8 text-center">
+                    <p className="text-gray-600">No packages created yet.</p>
+                    <Button
+                      variant="outline"
+                      className="mt-4 border-green-600 text-green-600 hover:bg-green-50"
+                      onClick={() => {
+                        resetPlanForm();
+                        setIsCreatingPlan(true);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Package
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
     </Layout>
   );

@@ -58,6 +58,26 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     return allRoles.some((r) => wanted.has(r));
   };
 
+  const shouldShowRoleAccessDebug =
+    process.env.NODE_ENV === "development" &&
+    hasAnyUserRole("admin", "ceo");
+
+  const getNormalizedUserRoleNames = (): string[] => {
+    const roleSet = new Set<string>();
+    if (Array.isArray(user?.roles)) {
+      user.roles.forEach((roleName) => {
+        const normalized = String(roleName || "").trim().toLowerCase();
+        if (normalized) roleSet.add(normalized);
+      });
+    }
+    const primaryRole = String(user?.role || "").trim().toLowerCase();
+    if (primaryRole) roleSet.add(primaryRole);
+    return [...roleSet];
+  };
+
+  const isTopAuthority = () =>
+    hasAnyUserRole("superadmin", "ceo") || user?.type?.toLowerCase() === "superadmin";
+
   // Fetch user roles from backend
   useEffect(() => {
     const fetchRoles = async () => {
@@ -78,7 +98,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       try {
         const response = await ENDPOINTS.getRoles();
         const data = response.data;
-        console.log('Role API response:', data);
+        if (shouldShowRoleAccessDebug) {
+          console.log('Role API response:', data);
+        }
         setUserRoles(data.roles || []);
       } catch (error) {
         console.error('Error fetching roles:', error);
@@ -176,14 +198,20 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Check if user has access to a specific module based on their role permissions
   const hasModuleAccess = (module: string): boolean => {
-    if (hasAnyUserRole("superadmin") || user?.type?.toLowerCase() === "superadmin") {
+    if (isTopAuthority()) {
       return true;
     }
 
-    if (!user?.roles || userRoles.length === 0) return false;
+    if (userRoles.length === 0) return false;
+
+    const normalizedUserRoleNames = getNormalizedUserRoleNames();
+    const isAdmin = normalizedUserRoleNames.includes("admin");
+    if (isAdmin && module.toLowerCase() === "payroll") {
+      return true;
+    }
     
     // Debug logging
-    if (process.env.NODE_ENV === "development") {
+    if (shouldShowRoleAccessDebug) {
       console.log("hasModuleAccess Debug:", {
         userRoles: user.roles,
         availableRoles: userRoles.map(r => r.name),
@@ -195,8 +223,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     // Check if any of the user's roles has access to this module
     return userRoles.some(role => {
       // Check if user has this role assigned (case-insensitive match)
-      const userHasRole = user.roles.some(userRole => 
-        userRole.toLowerCase() === role.name.toLowerCase()
+      const userHasRole = normalizedUserRoleNames.some(userRole => 
+        userRole === role.name.toLowerCase()
       );
       
       if (!userHasRole) {
@@ -208,7 +236,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       const hasAccess = modulePermission && modulePermission.view === 1;
       
       // Debug logging
-      if (process.env.NODE_ENV === "development") {
+      if (shouldShowRoleAccessDebug) {
         console.log(`Role ${role.name} access to ${module}:`, {
           userHasRole,
           modulePermission,
@@ -223,17 +251,29 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   // Check if user can perform a specific action on a module
   const canPerformModuleAction = (module: string, action: string, subModule?: string): boolean => {
-    if (hasAnyUserRole("superadmin") || user?.type?.toLowerCase() === "superadmin") {
+    if (isTopAuthority()) {
       return true;
     }
 
-    if (!user?.roles || userRoles.length === 0) return false;
+    if (userRoles.length === 0) return false;
+
+    const normalizedUserRoleNames = getNormalizedUserRoleNames();
+    const isAdmin = normalizedUserRoleNames.includes("admin");
+    const normalizedModule = String(module || "").toLowerCase();
+    const normalizedSubModule = String(subModule || "").toLowerCase();
+    if (
+      isAdmin &&
+      (normalizedModule === "payroll" ||
+        (normalizedModule === "employees" && normalizedSubModule === "profile"))
+    ) {
+      return true;
+    }
     
     // Check if any of the user's roles has permission for this action
     return userRoles.some(role => {
       // Check if user has this role assigned (case-insensitive match)
-      const userHasRole = user.roles.some(userRole => 
-        userRole.toLowerCase() === role.name.toLowerCase()
+      const userHasRole = normalizedUserRoleNames.some(userRole => 
+        userRole === role.name.toLowerCase()
       );
       
       if (!userHasRole) {

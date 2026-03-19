@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Layout } from '@/components/Layout';
 
 interface ClientAttendanceRouteProps {
   children: React.ReactNode;
@@ -35,12 +36,14 @@ const ClientAttendanceRoute: React.FC<ClientAttendanceRouteProps> = ({ children 
 
   if (!isSalesUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">Client Attendance is only available for Sales department users.</p>
+      <Layout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+            <p className="text-muted-foreground">Client Attendance is only available for Sales department users.</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 

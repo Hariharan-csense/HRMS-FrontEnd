@@ -200,48 +200,51 @@ export class PdfExportService {
       
       yPosition = 65;
 
-      // Process each expense
+      // Process each expense (one expense per page)
       for (let i = 0; i < expenses.length; i++) {
         const expense = expenses[i];
 
-        // Check if we need a new page
-        if (yPosition > pageHeight - 80) {
+        if (i > 0) {
           pdf.addPage();
-          yPosition = margin;
-          
-          // Add header to new page
-          pdf.setFillColor(70, 130, 180);
-          pdf.rect(0, 0, pageWidth, 50, 'F');
-          
-          pdf.setFillColor(100, 149, 237);
-          pdf.rect(0, 35, pageWidth, 30, 'F');
-          
-          yPosition = 65;
         }
 
-        // Expense card with elegant border
-        pdf.setDrawColor(70, 130, 180);
-        pdf.setLineWidth(1.2);
-        pdf.roundedRect(margin, yPosition - 5, pageWidth - 2 * margin, 30, 3, 3);
+        // Page header
+        pdf.setFillColor(70, 130, 180);
+        pdf.rect(0, 0, pageWidth, 50, 'F');
         
-        pdf.setFillColor(248, 251, 255);
-        pdf.roundedRect(margin + 1, yPosition - 4, pageWidth - 2 * margin - 2, 28, 2, 2, 'F');
-        
-        // Expense header
-        pdf.setFontSize(14);
+        pdf.setFillColor(100, 149, 237);
+        pdf.rect(0, 35, pageWidth, 30, 'F');
+
+        pdf.setFontSize(20);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('Expense Claims Report', pageWidth / 2, 22, { align: 'center' });
+
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(`Expense ${i + 1} of ${expenses.length}`, pageWidth / 2, 38, { align: 'center' });
+
+        yPosition = 75;
+
+        // Expense summary
+        pdf.setFontSize(12);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(70, 130, 180);
-        pdf.text(`Expense ${i + 1}`, margin + 8, yPosition + 3);
-        yPosition += 10;
+        pdf.text(`Employee: ${expense.employeeName}`, margin, yPosition);
+        yPosition += 8;
 
-        // Employee name
-        pdf.setFontSize(12);
+        pdf.setFontSize(11);
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(60, 60, 60);
-        pdf.text(`Employee: ${expense.employeeName}`, margin + 8, yPosition + 3);
-        yPosition += 20;
+        pdf.text(`Category: ${expense.category}`, margin, yPosition);
+        yPosition += 7;
+        pdf.text(`Amount: ₹${expense.amount.toLocaleString()}`, margin, yPosition);
+        yPosition += 7;
+        pdf.text(`Date: ${expense.date}`, margin, yPosition);
+        yPosition += 12;
 
-        // Receipt image if available
+        // Receipt image if available (large, centered)
         if (expense.receipt_url && expense.receipt_url.match(/\.(png|jpg|jpeg|webp)$/i)) {
           try {
             const img = new Image();
@@ -253,8 +256,8 @@ export class PdfExportService {
               img.src = expense.receipt_url!;
             });
 
-            const maxImgWidth = pageWidth - 2 * margin - 30;
-            const maxImgHeight = 70;
+            const maxImgWidth = pageWidth - 2 * margin;
+            const maxImgHeight = pageHeight - yPosition - 50;
             
             let imgWidth = img.width;
             let imgHeight = img.height;
@@ -268,72 +271,55 @@ export class PdfExportService {
             
             const xPosition = (pageWidth - imgWidth) / 2;
             
-            // Subtle shadow
-            pdf.setFillColor(0, 0, 0, 12);
-            pdf.roundedRect(xPosition + 1.5, yPosition + 1.5, imgWidth, imgHeight, 1.5, 1.5, 'F');
-            
-            // Elegant border
+            pdf.setFillColor(0, 0, 0, 10);
+            pdf.roundedRect(xPosition + 2, yPosition + 2, imgWidth, imgHeight, 2, 2, 'F');
             pdf.setDrawColor(70, 130, 180);
             pdf.setLineWidth(1);
-            pdf.roundedRect(xPosition, yPosition, imgWidth, imgHeight, 1.5, 1.5);
+            pdf.roundedRect(xPosition, yPosition, imgWidth, imgHeight, 2, 2);
             
             pdf.addImage(img, 'JPEG', xPosition, yPosition, imgWidth, imgHeight);
-            yPosition += imgHeight + 15;
           } catch (error) {
             console.log('Could not load receipt image:', error);
             pdf.setFillColor(255, 245, 245);
-            pdf.roundedRect(margin + 5, yPosition - 2, pageWidth - 2 * margin - 10, 18, 2, 2, 'F');
+            pdf.roundedRect(margin, yPosition - 2, pageWidth - 2 * margin, 22, 2, 2, 'F');
             pdf.setFontSize(10);
             pdf.setFont('helvetica', 'italic');
             pdf.setTextColor(220, 53, 69);
-            pdf.text('Receipt image could not be loaded', margin + 10, yPosition + 5);
-            yPosition += 18;
+            pdf.text('Receipt image could not be loaded', margin + 6, yPosition + 6);
           }
         } else {
-          // Receipt status with elegant styling
           const statusColor = expense.receipt_url ? [70, 130, 180] : [220, 53, 69];
           const statusText = expense.receipt_url ? 'Document available' : 'No receipt attached';
           const bgColor = expense.receipt_url ? [248, 251, 255] : [255, 245, 245];
           
           pdf.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-          pdf.roundedRect(margin + 5, yPosition - 2, pageWidth - 2 * margin - 10, 18, 2, 2, 'F');
+          pdf.roundedRect(margin, yPosition - 2, pageWidth - 2 * margin, 22, 2, 2, 'F');
           
           pdf.setFontSize(10);
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-          pdf.text(statusText, margin + 10, yPosition + 5);
-          yPosition += 18;
+          pdf.text(statusText, margin + 6, yPosition + 6);
         }
 
-        // Add elegant separator between expenses
-        if (i < expenses.length - 1) {
-          pdf.setDrawColor(220, 220, 230);
-          pdf.setLineWidth(0.5);
-          pdf.setLineDashPattern([3, 3], 0);
-          pdf.line(margin + 20, yPosition, pageWidth - margin - 20, yPosition);
-          pdf.setLineDashPattern([], 0);
-          yPosition += 15;
-        }
+        // Footer
+        const footerY = pageHeight - 30;
+        pdf.setFillColor(70, 130, 180);
+        pdf.rect(0, footerY, pageWidth, 30, 'F');
+        
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'italic');
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(`Generated on: ${new Date().toLocaleString('en-IN', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`, pageWidth / 2, footerY + 12, { align: 'center' });
+        
+        pdf.setFontSize(8);
+        pdf.text('HRMS Expense Management System', pageWidth / 2, footerY + 22, { align: 'center' });
       }
-
-      // Elegant footer
-      const footerY = pageHeight - 30;
-      pdf.setFillColor(70, 130, 180);
-      pdf.rect(0, footerY, pageWidth, 30, 'F');
-      
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'italic');
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(`Generated on: ${new Date().toLocaleString('en-IN', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`, pageWidth / 2, footerY + 12, { align: 'center' });
-      
-      pdf.setFontSize(8);
-      pdf.text('HRMS Expense Management System', pageWidth / 2, footerY + 22, { align: 'center' });
 
       // Save the PDF
       const fileName = `expense_claims_report_${new Date().toISOString().split('T')[0]}.pdf`;

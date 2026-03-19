@@ -13,11 +13,33 @@ export interface Expense {
   description?: string;
   employeeId?: string;
   employeeName?: string;
+  clientId?: string;
+  clientName?: string;
   createdAt?: string;
   updatedAt?: string;
   receipt_url?: string;
   receipt_path?: string;
   // Add other fields as per your backend response
+}
+
+export interface AssignedClient {
+  id: number;
+  client_id: string;
+  client_name: string;
+}
+
+export interface ExpenseDraft {
+  client_id: number | null;
+  expenses: Array<{
+    category: string;
+    amount: string | number;
+    expense_date: string;
+    description?: string;
+    receipt_path?: string | null;
+    receipt_url?: string | null;
+    client_id?: number | null;
+  }>;
+  updated_at?: string;
 }
 
 const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -26,11 +48,22 @@ const resolveFileUrl = (path?: string | null): string | undefined => {
     return path;
   }
 
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (normalizedPath.startsWith("/uploads/")) {
+    try {
+      return `${new URL(BASE_URL).origin}${normalizedPath}`;
+    } catch {
+      const normalizedBaseUrl = BASE_URL.replace(/\/backend\/?$/, "").replace(/\/+$/, "");
+      return `${normalizedBaseUrl}${normalizedPath}`;
+    }
+  }
+
   try {
     return new URL(path, BASE_URL).toString();
   } catch {
+    const normalizedBaseUrl = BASE_URL.replace(/\/+$/, "");
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${BASE_URL}${normalizedPath}`;
+    return `${normalizedBaseUrl}${normalizedPath}`;
   }
 };
 
@@ -83,6 +116,8 @@ const expenseApi = {
             e.assigned_employee_id?.toString() ||
             undefined,
           employeeName: fullName,
+          clientId: e.client_id?.toString() || undefined,
+          clientName: e.client_name ?? undefined,
           createdAt: e.created_at ?? undefined,
           updatedAt: e.updated_at ?? undefined,
           receipt_url: resolveFileUrl(e.receipt_url),
@@ -153,6 +188,8 @@ const expenseApi = {
             e.assigned_employee_id?.toString() ||
             undefined,
           employeeName: fullName,
+          clientId: e.client_id?.toString() || undefined,
+          clientName: e.client_name ?? undefined,
           createdAt: e.created_at ?? undefined,
           updatedAt: e.updated_at ?? undefined,
           receipt_url: resolveFileUrl(e.receipt_url),
@@ -182,6 +219,84 @@ const expenseApi = {
       console.error("Error creating expense:", error);
       return {
         error: error.response?.data?.message || "Failed to create expense",
+      };
+    }
+  },
+
+  getAssignedClients: async (): Promise<{ data?: AssignedClient[]; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getExpenseAssignedClients();
+      const payload = response.data;
+
+      if (!payload?.success || !Array.isArray(payload.clients)) {
+        return { error: 'Invalid API response' };
+      }
+
+      return { data: payload.clients };
+    } catch (error: any) {
+      console.error('Error fetching assigned clients:', error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          'Failed to load assigned clients',
+      };
+    }
+  },
+
+  getDraft: async (): Promise<{ data?: ExpenseDraft | null; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getExpenseDraft();
+      const payload = response.data;
+
+      if (!payload?.success) {
+        return { error: 'Invalid API response' };
+      }
+
+      return { data: payload.draft ?? null };
+    } catch (error: any) {
+      console.error('Error fetching expense draft:', error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          'Failed to load draft',
+      };
+    }
+  },
+
+  saveDraft: async (data: FormData): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.saveExpenseDraft(data);
+      return { data: response.data };
+    } catch (error: any) {
+      console.error('Error saving expense draft:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to save draft',
+      };
+    }
+  },
+
+  clearDraft: async (): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.deleteExpenseDraft();
+      return { data: response.data };
+    } catch (error: any) {
+      console.error('Error clearing expense draft:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to clear draft',
+      };
+    }
+  },
+
+  createExpensesBulk: async (formData: FormData): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.createExpensesBulk(formData);
+      return { data: response.data };
+    } catch (error: any) {
+      console.error('Error creating bulk expenses:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to submit expenses',
       };
     }
   },

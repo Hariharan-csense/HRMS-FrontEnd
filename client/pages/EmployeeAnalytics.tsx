@@ -1,60 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { ENDPOINTS } from "@/lib/endpoint";
 import {
   Users,
-  Calendar,
   Clock,
   TrendingUp,
   Target,
   Award,
   BarChart3,
-  PieChart,
-  Activity,
 } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, AreaChart, Area } from "recharts";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+} from "recharts";
 
-const monthlyAttendanceData = [
-  { month: "Jan", present: 22, absent: 1, late: 2, halfDay: 1 },
-  { month: "Feb", present: 20, absent: 2, late: 1, halfDay: 2 },
-  { month: "Mar", present: 23, absent: 0, late: 1, halfDay: 0 },
-  { month: "Apr", present: 21, absent: 1, late: 2, halfDay: 1 },
-  { month: "May", present: 22, absent: 1, late: 1, halfDay: 0 },
-  { month: "Jun", present: 20, absent: 2, late: 2, halfDay: 1 },
-];
+type Period = "1month" | "3months" | "6months" | "1year";
 
-const performanceData = [
-  { month: "Jan", score: 85, target: 90 },
-  { month: "Feb", score: 88, target: 90 },
-  { month: "Mar", score: 92, target: 90 },
-  { month: "Apr", score: 87, target: 90 },
-  { month: "May", score: 91, target: 90 },
-  { month: "Jun", score: 94, target: 90 },
-];
+interface AnalyticsResponse {
+  summary: {
+    attendanceRate: number;
+    performanceScore: number;
+    workingHoursMonth: string;
+    leaveAvailable: number;
+    presentDays: number;
+    lateDays: number;
+    halfDays: number;
+    absentDays: number;
+  };
+  charts: {
+    monthlyAttendanceData: Array<{ month: string; present: number; absent: number; late: number; halfDay: number }>;
+    performanceData: Array<{ month: string; score: number; target: number }>;
+    leaveData: Array<{ name: string; value: number }>;
+  };
+  goals: Array<{ title: string; progress: number; current: string; target: string }>;
+}
 
-const leaveData = [
-  { name: "Annual Leave", value: 12, color: "#3b82f6" },
-  { name: "Sick Leave", value: 5, color: "#10b981" },
-  { name: "Personal Leave", value: 3, color: "#f59e0b" },
-  { name: "Used", value: 8, color: "#ef4444" },
-];
-
-const taskCompletionData = [
-  { week: "Week 1", completed: 12, pending: 3 },
-  { week: "Week 2", completed: 15, pending: 2 },
-  { week: "Week 3", completed: 18, pending: 1 },
-  { week: "Week 4", completed: 14, pending: 4 },
-];
-
-const skillRadarData = [
-  { skill: "Communication", level: 85 },
-  { skill: "Technical", level: 92 },
-  { skill: "Teamwork", level: 88 },
-  { skill: "Leadership", level: 76 },
-  { skill: "Problem Solving", level: 90 },
-  { skill: "Time Management", level: 82 },
-];
+const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16"];
 
 const StatCard: React.FC<{
   title: string;
@@ -70,9 +67,7 @@ const StatCard: React.FC<{
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className="text-3xl font-bold mt-2">{value}</p>
-          {description && (
-            <p className="text-xs text-muted-foreground mt-1">{description}</p>
-          )}
+          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
           {trend && (
             <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" /> {trend}
@@ -89,12 +84,41 @@ const StatCard: React.FC<{
 
 export default function EmployeeAnalytics() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedPeriod, setSelectedPeriod] = useState("6months");
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("6months");
+  const [loading, setLoading] = useState(false);
+  const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
+
+  const fetchAnalytics = async (period: Period) => {
+    setLoading(true);
+    try {
+      const response = await ENDPOINTS.getEmployeeAnalyticsData(period);
+      setAnalytics(response.data as AnalyticsResponse);
+    } catch (error: any) {
+      console.error("Failed to fetch employee analytics:", error);
+      toast.error(error?.response?.data?.message || "Failed to load analytics");
+      setAnalytics(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics(selectedPeriod);
+  }, [selectedPeriod]);
+
+  const leavePieData = useMemo(() => {
+    const data = analytics?.charts?.leaveData || [];
+    return data.map((item, idx) => ({ ...item, color: PIE_COLORS[idx % PIE_COLORS.length] }));
+  }, [analytics]);
+
+  const summary = analytics?.summary;
+  const attendanceTrend = analytics?.charts?.monthlyAttendanceData || [];
+  const performanceData = analytics?.charts?.performanceData || [];
+  const goals = analytics?.goals || [];
 
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <BarChart3 className="w-8 h-8 text-primary" />
@@ -103,12 +127,11 @@ export default function EmployeeAnalytics() {
           <p className="text-muted-foreground mt-2">Track your performance and attendance insights</p>
         </div>
 
-        {/* Period Selector */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
-                {["1month", "3months", "6months", "1year"].map((period) => (
+                {(["1month", "3months", "6months", "1year"] as Period[]).map((period) => (
                   <button
                     key={period}
                     onClick={() => setSelectedPeriod(period)}
@@ -118,20 +141,14 @@ export default function EmployeeAnalytics() {
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                   >
-                    {period === "1month" ? "1 Month" : 
-                     period === "3months" ? "3 Months" : 
-                     period === "6months" ? "6 Months" : "1 Year"}
+                    {period === "1month" ? "1 Month" : period === "3months" ? "3 Months" : period === "6months" ? "6 Months" : "1 Year"}
                   </button>
                 ))}
               </div>
-              <button className="text-sm text-primary hover:underline">
-                Export Report
-              </button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 gap-2 bg-muted p-1">
             <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
@@ -140,45 +157,39 @@ export default function EmployeeAnalytics() {
             <TabsTrigger value="goals" className="text-xs md:text-sm">Goals</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
           <TabsContent value="overview">
             <div className="space-y-6">
-              {/* Key Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                   title="Attendance Rate"
-                  value="94.2%"
+                  value={`${summary?.attendanceRate ?? 0}%`}
                   icon={<Users className="w-6 h-6" />}
-                  trend="+2.1% from last month"
-                  description="This month"
+                  description="Current month"
                   color="green"
                 />
                 <StatCard
                   title="Performance Score"
-                  value="91/100"
+                  value={`${summary?.performanceScore ?? 0}/100`}
                   icon={<Award className="w-6 h-6" />}
-                  trend="+3 points"
-                  description="Current rating"
+                  description="Derived from attendance"
                   color="blue"
                 />
                 <StatCard
-                  title="Tasks Completed"
-                  value="59"
+                  title="Present Days"
+                  value={summary?.presentDays ?? 0}
                   icon={<Target className="w-6 h-6" />}
-                  trend="+12% from last month"
-                  description="This month"
+                  description="Current month"
                   color="purple"
                 />
                 <StatCard
                   title="Working Hours"
-                  value="168.5"
+                  value={summary?.workingHoursMonth ?? "0.0"}
                   icon={<Clock className="w-6 h-6" />}
                   description="Hours this month"
                   color="orange"
                 />
               </div>
 
-              {/* Charts Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -187,7 +198,7 @@ export default function EmployeeAnalytics() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                      <AreaChart data={monthlyAttendanceData}>
+                      <AreaChart data={attendanceTrend}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
                         <YAxis />
@@ -205,17 +216,17 @@ export default function EmployeeAnalytics() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Performance Score</CardTitle>
-                    <CardDescription>Monthly performance vs target</CardDescription>
+                    <CardDescription>Monthly score vs target</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                       <LineChart data={performanceData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
-                        <YAxis />
+                        <YAxis domain={[0, 100]} />
                         <Tooltip />
                         <Legend />
-                        <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} name="Your Score" />
+                        <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} name="Score" />
                         <Line type="monotone" dataKey="target" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" name="Target" />
                       </LineChart>
                     </ResponsiveContainer>
@@ -223,26 +234,24 @@ export default function EmployeeAnalytics() {
                 </Card>
               </div>
 
-              {/* Leave Balance */}
               <Card>
                 <CardHeader>
                   <CardTitle>Leave Balance</CardTitle>
-                  <CardDescription>Your remaining leave for this year</CardDescription>
+                  <CardDescription>Your leave distribution this year</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <RePieChart>
                       <Pie
-                        data={leaveData}
+                        data={leavePieData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
                         label={({ name, value }) => `${name}: ${value}`}
                         outerRadius={100}
-                        fill="#8884d8"
                         dataKey="value"
                       >
-                        {leaveData.map((entry, index) => (
+                        {leavePieData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -254,18 +263,17 @@ export default function EmployeeAnalytics() {
             </div>
           </TabsContent>
 
-          {/* Attendance Tab */}
           <TabsContent value="attendance">
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Detailed Attendance</CardTitle>
-                    <CardDescription>Day-by-day attendance breakdown</CardDescription>
+                    <CardDescription>Month-wise attendance breakdown</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={350}>
-                      <BarChart data={monthlyAttendanceData}>
+                      <BarChart data={attendanceTrend}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
                         <YAxis />
@@ -283,25 +291,25 @@ export default function EmployeeAnalytics() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Attendance Summary</CardTitle>
-                    <CardDescription>Key attendance metrics</CardDescription>
+                    <CardDescription>Current month metrics</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                         <span className="font-medium">Present Days</span>
-                        <span className="text-2xl font-bold text-green-600">128</span>
+                        <span className="text-2xl font-bold text-green-600">{summary?.presentDays ?? 0}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                         <span className="font-medium">Late Arrivals</span>
-                        <span className="text-2xl font-bold text-yellow-600">9</span>
+                        <span className="text-2xl font-bold text-yellow-600">{summary?.lateDays ?? 0}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                         <span className="font-medium">Half Days</span>
-                        <span className="text-2xl font-bold text-blue-600">5</span>
+                        <span className="text-2xl font-bold text-blue-600">{summary?.halfDays ?? 0}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                         <span className="font-medium">Absent Days</span>
-                        <span className="text-2xl font-bold text-red-600">7</span>
+                        <span className="text-2xl font-bold text-red-600">{summary?.absentDays ?? 0}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -310,113 +318,58 @@ export default function EmployeeAnalytics() {
             </div>
           </TabsContent>
 
-          {/* Performance Tab */}
           <TabsContent value="performance">
             <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Task Completion</CardTitle>
-                    <CardDescription>Weekly task completion rate</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={taskCompletionData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="week" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="completed" fill="#10b981" name="Completed" />
-                        <Bar dataKey="pending" fill="#f59e0b" name="Pending" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Skill Assessment</CardTitle>
-                    <CardDescription>Your skill ratings</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {skillRadarData.map((skill, index) => (
-                        <div key={index}>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">{skill.skill}</span>
-                            <span className="text-sm font-bold text-primary">{skill.level}%</span>
-                          </div>
-                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-500"
-                              style={{ width: `${skill.level}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance Trend</CardTitle>
+                  <CardDescription>Attendance-based performance score over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={performanceData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} name="Score" />
+                      <Line type="monotone" dataKey="target" stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" name="Target" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
-          {/* Goals Tab */}
           <TabsContent value="goals">
             <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Monthly Goals</CardTitle>
-                  <CardDescription>Track your progress towards objectives</CardDescription>
+                  <CardDescription>Live progress from current analytics data</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Complete 20 client meetings</span>
-                        <span className="text-sm text-muted-foreground">18/20</span>
+                    {goals.map((goal, idx) => (
+                      <div key={`${goal.title}-${idx}`}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium">{goal.title}</span>
+                          <span className="text-sm text-muted-foreground">{goal.current} / {goal.target}</span>
+                        </div>
+                        <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.max(0, Math.min(100, goal.progress))}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: "90%" }} />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Achieve 95% attendance</span>
-                        <span className="text-sm text-muted-foreground">94.2%</span>
-                      </div>
-                      <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: "94.2%" }} />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Complete training modules</span>
-                        <span className="text-sm text-muted-foreground">3/5</span>
-                      </div>
-                      <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-500 rounded-full" style={{ width: "60%" }} />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Submit all reports on time</span>
-                        <span className="text-sm text-muted-foreground">8/8</span>
-                      </div>
-                      <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: "100%" }} />
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
         </Tabs>
+
+        {loading && <p className="text-sm text-muted-foreground">Loading analytics...</p>}
       </div>
     </Layout>
   );

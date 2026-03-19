@@ -100,9 +100,21 @@ export default function LeaveConfiguration() {
         }
         
         if (result.data || result.success) {
-          await holidayApi.getHolidays().then(res => {
-            if (res.data) setHolidays(res.data);
-          });
+          if (result.data) {
+            setHolidays((prev) => {
+              const exists = prev.some((h) => h.id === result.data!.id);
+              const next = exists
+                ? prev.map((h) => (h.id === result.data!.id ? { ...h, ...result.data! } : h))
+                : [...prev, result.data!];
+
+              return [...next].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+            });
+          }
+
+          const refreshed = await holidayApi.getHolidays();
+          if (refreshed.data) setHolidays(refreshed.data);
+          showToast.success(result.message || (editingId ? "Holiday updated successfully" : "Holiday created successfully"));
+          setSearchTerm("");
         } else if (result.error) {
           showToast.error(result.error);
         }
@@ -115,11 +127,11 @@ export default function LeaveConfiguration() {
         }
         
         if (result.data || result.success) {
-          await fiscalYearApi.getFiscalYears().then(res => {
-            if (res.data && res.data.length > 0) {
-              setFiscalYear(res.data[0]);
-            }
-          });
+          if (result.data) setFiscalYear(result.data);
+
+          const refreshed = await fiscalYearApi.getFiscalYears();
+          if (refreshed.data && refreshed.data.length > 0) setFiscalYear(refreshed.data[0]);
+          showToast.success("Fiscal year saved successfully");
         } else if (result.error) {
           showToast.error(result.error);
         }
@@ -132,9 +144,19 @@ export default function LeaveConfiguration() {
         }
         
         if (result.data || result.success) {
-          await leavePolicyApi.getLeavePolicies().then(res => {
-            if (res.data) setLeavePolicies(res.data);
-          });
+          if (result.data) {
+            setLeavePolicies((prev) => {
+              const exists = prev.some((p) => p.id === result.data!.id);
+              return exists
+                ? prev.map((p) => (p.id === result.data!.id ? { ...p, ...result.data! } : p))
+                : [...prev, result.data!];
+            });
+          }
+
+          const refreshed = await leavePolicyApi.getLeavePolicies();
+          if (refreshed.data) setLeavePolicies(refreshed.data);
+          showToast.success(editingId ? "Leave policy updated successfully" : "Leave policy created successfully");
+          setSearchTerm("");
         } else if (result.error) {
           showToast.error(result.error);
         }
@@ -164,6 +186,7 @@ export default function LeaveConfiguration() {
           await holidayApi.getHolidays().then(res => {
             if (res.data) setHolidays(res.data);
           });
+          showToast.success("Holiday deleted successfully");
         }
       } else if (activeTab === "policies") {
         result = await leavePolicyApi.deleteLeavePolicy(deleteId!);
@@ -171,6 +194,7 @@ export default function LeaveConfiguration() {
           await leavePolicyApi.getLeavePolicies().then(res => {
             if (res.data) setLeavePolicies(res.data);
           });
+          showToast.success("Leave policy deleted successfully");
         }
       }
       

@@ -3,8 +3,12 @@ import { hasRole } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import SubscriptionStatus from "@/components/SubscriptionStatus";
+import AttendanceMap from "@/components/AttendanceMap";
+import AdminRealTimeMap from "@/components/AdminRealTimeMap";
+import { useOfficeLocation } from "@/hooks/useOfficeLocation";
 import { AdminDashboardData, getAdminDashboardData, EmployeeDashboardData, getEmployeeDashboardData, ManagerDashboardData, getManagerDashboardData, HRDashboardData, getHRDashboardData, FinanceDashboardData, getFinanceDashboardData } from "@/components/helper/dashboard/dashboard";
+import { leaveTypeApi } from "@/components/helper/leave/leave";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
 
@@ -234,6 +238,54 @@ const dashboardStyles = `
   .status-online { background: #10b981; }
   .status-offline { background: #ef4444; }
   .status-busy { background: #f59e0b; }
+
+  .dark .dashboard-header {
+    background: linear-gradient(135deg, #0f172a 0%, #0b1220 100%);
+    box-shadow: 0 10px 25px -5px rgba(2, 6, 23, 0.6);
+  }
+
+  .dark .dashboard-header::before {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  }
+
+  .dark .modern-card {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  .dark .metric-card {
+    background: linear-gradient(145deg, #0f172a 0%, #111827 100%);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+
+  .dark .chart-container {
+    background: linear-gradient(145deg, #0b1220 0%, #0f172a 100%);
+    box-shadow: 0 10px 25px -5px rgba(2, 6, 23, 0.6);
+  }
+
+  .dark .glass-effect {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+
+  .dark .shimmer-bg {
+    background: linear-gradient(90deg, #0f172a 25%, #111827 50%, #0f172a 75%);
+  }
+
+  .dark .text-gradient {
+    background: linear-gradient(135deg, #5eead4, #2dd4bf);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dark .stat-value {
+    background: linear-gradient(90deg, #f8fafc, #cbd5e1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 `;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -266,7 +318,7 @@ const StatCard: React.FC<{
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
-            <p className="text-3xl font-bold mt-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
+            <p className="stat-value text-3xl font-bold mt-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
             {description && (
               <p className="text-xs text-gray-500 mt-2 font-medium">{description}</p>
             )}
@@ -419,7 +471,6 @@ const AdminDashboard = () => {
   const recentJoinings = dashboardData?.recentJoinings || [];
   const upcomingBirthdays = dashboardData?.upcomingBirthdays || [];
   const upcomingHolidays = dashboardData?.upcomingHolidays || [];
-  const teamHealth = dashboardData?.teamHealth || {};
 
   // Ensure charts data is properly initialized
   const monthlyAttendance = charts?.monthlyAttendance || [];
@@ -430,14 +481,39 @@ const AdminDashboard = () => {
     ...item,
     month: item.month,
   }));
+  const monthlyTrendData = monthlyAttendanceChart.map((item: any, index: number) => ({
+    label: item.day ?? item.date ?? item.month ?? `Day ${index + 1}`,
+    present: Number(item.present || 0),
+    absent: Number(item.absent || 0),
+  }));
   const departmentAttendanceChart = departmentAttendanceData.map((item: any) => ({
     ...item,
     attendanceRate: item.total > 0 ? Math.round((item.present / item.total) * 100) : 0,
   }));
 
-  const adminModuleCards: DashboardModuleCard[] = getCommonDashboardModuleCards().filter(
-    (card) => !allowedModules || allowedModules.has(card.module)
-  );
+  const adminQuickActionCards: DashboardModuleCard[] = [
+    {
+      label: "Client Assignment",
+      description: "Manage and assign clients to teams",
+      path: "/client-assignment",
+      module: "client_attendance",
+      icon: <Building className="w-5 h-5" />,
+      colorClass: "from-emerald-50 to-teal-50 border-emerald-200",
+    },
+    {
+      label: "Geo-Fence",
+      description: "Set location boundaries for tracking",
+      path: "/client-geo-fence",
+      module: "client_attendance_admin",
+      icon: <MapPin className="w-5 h-5" />,
+      colorClass: "from-blue-50 to-cyan-50 border-blue-200",
+    },
+  ];
+
+  const adminModuleCards: DashboardModuleCard[] = [
+    ...getCommonDashboardModuleCards(),
+    ...adminQuickActionCards,
+  ].filter((card) => !allowedModules || allowedModules.has(card.module));
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-8">
@@ -497,10 +573,10 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <ModuleCardsSection cards={adminModuleCards} navigate={navigate} />
+      {/* Live tracking widget */}
+      <AdminRealTimeMap />
 
-      {/* Subscription Status */}
-      <SubscriptionStatus />
+      <ModuleCardsSection cards={adminModuleCards} navigate={navigate} />
 
       {/* Quick Actions */}
       <div className="mb-8">
@@ -578,37 +654,7 @@ const AdminDashboard = () => {
           <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
           <h2 className="text-2xl font-bold text-gray-800">Attendance & Department Numbers</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-          <div className="modern-card hover-scale overflow-hidden h-full">
-            <CardHeader className="bg-gradient-to-r from-slate-900 to-cyan-900 rounded-t-xl p-4">
-              <CardTitle className="text-white font-bold flex items-center gap-2 text-xl">
-                <BarChart3 className="w-5 h-5" />
-                Monthly Present
-              </CardTitle>
-              <CardDescription className="text-slate-200 text-xs">Total present count this month</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4">
-              <p className="text-3xl font-bold text-[#17c491] leading-none">
-                {monthlyAttendanceChart.reduce((sum: number, row: any) => sum + Number(row.present || 0), 0)}
-              </p>
-            </CardContent>
-          </div>
-
-          <div className="modern-card hover-scale overflow-hidden h-full">
-            <CardHeader className="bg-gradient-to-r from-emerald-900 to-teal-800 rounded-t-xl p-4">
-              <CardTitle className="text-white font-bold flex items-center gap-2 text-xl">
-                <Building className="w-5 h-5" />
-                Monthly Absent
-              </CardTitle>
-              <CardDescription className="text-emerald-100 text-xs">Total absent count this month</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4">
-              <p className="text-3xl font-bold text-[#ef4444] leading-none">
-                {monthlyAttendanceChart.reduce((sum: number, row: any) => sum + Number(row.absent || 0), 0)}
-              </p>
-            </CardContent>
-          </div>
-
+        <div className="grid grid-cols-1 gap-6 items-stretch">
           <div className="modern-card hover-scale overflow-hidden h-full">
             <CardHeader className="bg-gradient-to-r from-purple-900 to-indigo-800 rounded-t-xl p-4">
               <CardTitle className="text-white font-bold flex items-center gap-2 text-xl">
@@ -702,26 +748,26 @@ const AdminDashboard = () => {
       {/* Additional Metrics */}
       <div className="space-y-5">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
+          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5] dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+              <CardTitle className="flex items-center gap-2 text-[#0d5f49] dark:text-emerald-300">
                 <TrendingUp className="h-5 w-5 text-[#17c491]" />
                 Leave Utilization
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Leave balance across all employees</CardDescription>
+              <CardDescription className="text-[#2f6f5f] dark:text-emerald-200/80">Leave balance across all employees</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {(leaveData || []).map((entry: any, index: number) => (
-                  <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3">
-                    <span className="font-medium text-slate-700">{entry.name}</span>
-                    <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700">
+                  <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <span className="font-medium text-slate-700 dark:text-slate-100">{entry.name}</span>
+                    <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                       {Number(entry.value || 0)}
                     </span>
                   </div>
                 ))}
                 {(!leaveData || leaveData.length === 0) && (
-                  <p className="py-4 text-center text-sm text-[#2f6f5f]">No leave utilization data</p>
+                  <p className="py-4 text-center text-sm text-[#2f6f5f] dark:text-emerald-200/80">No leave utilization data</p>
                 )}
               </div>
             </CardContent>
@@ -842,153 +888,102 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Team Health Score Section */}
+      {/* Monthly Attendance Trends */}
       <div className="space-y-6">
         <div className="mb-5 flex items-center gap-3">
           <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
-          <h2 className="text-2xl font-bold text-gray-800">Team Health Score</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Monthly Attendance Trends</h2>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="text-[#0d5f49]">Overall Health</CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Team performance metrics summary</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 p-6">
-              <div className="space-y-6">
-                <div className="text-center">
-                  <div className="inline-flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#d7ede6] bg-gradient-to-br from-[#ecfaf5] to-[#dff4ec] shadow-sm">
-                    <div className="text-center">
-                      <div className="text-4xl font-bold text-[#17c491]">
-                        {teamHealth?.overallScore ?? 'N/A'}
-                      </div>
-                      <div className="text-xs text-[#2f6f5f] mt-1">out of 100</div>
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium text-[#0d5f49] mt-4">
-                    {teamHealth?.status ?? 'Loading...'}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 border-t border-[#e8f4f0] pt-4">
-                  <div className="rounded-lg border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <p className="text-xs text-[#2f6f5f]">Trend</p>
-                    <p className="text-lg font-bold text-[#17c491]">
-                      {teamHealth?.trend ?? 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <p className="text-xs text-[#2f6f5f]">Last Updated</p>
-                    <p className="text-sm font-medium text-[#0d5f49]">
-                      {teamHealth?.lastUpdated ?? 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="text-[#0d5f49]">Health Metrics</CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Individual performance indicators</CardDescription>
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#0e2d3a] to-[#0b4c4c]">
+              <CardTitle className="text-white flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Monthly Present
+              </CardTitle>
+              <CardDescription className="text-slate-200">Daily present counts this month</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-5">
-                {(teamHealth?.metrics || []).map((metric, idx) => (
-                  <div key={idx} className="rounded-lg border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-sm font-medium text-[#0d5f49]">{metric.label}</p>
-                      <span className="text-sm font-bold text-[#17c491]">
-                        {metric.value}%
-                      </span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#e8f9f4]">
-                      <div
-                        className="h-full rounded-full bg-[#17c491] transition-all duration-500"
-                        style={{ width: `${metric.value}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#17c491" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#17c491" stopOpacity={0.06} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      cursor={{ stroke: "#a7f3d0", strokeWidth: 1 }}
+                      contentStyle={{
+                        borderRadius: 10,
+                        border: "1px solid hsl(var(--border))",
+                        fontSize: 12,
+                        background: "hsl(var(--popover))",
+                        color: "hsl(var(--foreground))",
+                      }}
+                      formatter={(value: number) => [value, "Present"]}
+                      labelFormatter={(label: any) => `${label}`}
+                    />
+                    <Bar dataKey="present" fill="url(#presentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#3b0f1b] to-[#6b1420]">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Monthly Absent
+              </CardTitle>
+              <CardDescription className="text-rose-100">Daily absent counts this month</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.06} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      cursor={{ stroke: "#fecaca", strokeWidth: 1 }}
+                      contentStyle={{
+                        borderRadius: 10,
+                        border: "1px solid hsl(var(--border))",
+                        fontSize: 12,
+                        background: "hsl(var(--popover))",
+                        color: "hsl(var(--foreground))",
+                      }}
+                      formatter={(value: number) => [value, "Absent"]}
+                      labelFormatter={(label: any) => `${label}`}
+                    />
+                    <Bar dataKey="absent" fill="url(#absentGradient)" stroke="#dc2626" strokeWidth={1.5} radius={[10, 10, 4, 4]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#f3fbf8] px-6 py-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-[#0d5f49]">Health Insights</CardTitle>
-                <CardDescription className="text-[#2f6f5f]">
-                  Clear view of strengths and areas requiring attention
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  Strengths: {(teamHealth?.strengths || []).length}
-                </span>
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                  Improve: {(teamHealth?.improvements || []).length}
-                </span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <div className="rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50 to-white p-4">
-                <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-800">
-                  <CheckCircle className="h-4 w-4" />
-                  Strengths
-                </h4>
-                <ul className="space-y-3">
-                  {(teamHealth?.strengths || []).map((strength, idx) => (
-                    <li
-                      key={`strength-${idx}`}
-                      className="rounded-lg border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700"
-                    >
-                      {strength}
-                    </li>
-                  ))}
-                  {(!teamHealth?.strengths || teamHealth.strengths.length === 0) && (
-                    <li className="rounded-lg border border-dashed border-emerald-200 bg-white px-3 py-2 text-sm text-slate-500">
-                      No strengths data available
-                    </li>
-                  )}
-                </ul>
-              </div>
-
-              <div className="rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50 to-white p-4">
-                <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-800">
-                  <AlertCircle className="h-4 w-4" />
-                  Areas to Improve
-                </h4>
-                <ul className="space-y-3">
-                  {(teamHealth?.improvements || []).length > 0 ? (
-                    (teamHealth?.improvements || []).map((improvement, idx) => (
-                      <li
-                        key={`improve-${idx}`}
-                        className="rounded-lg border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700"
-                      >
-                        {improvement}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="rounded-lg border border-dashed border-amber-200 bg-white px-3 py-2 text-sm text-slate-500">
-                      No critical issues found
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
 };
 
 const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof useNavigate>; userName?: string }) => {
+  const { user } = useAuth();
+  const isAdmin = hasRole(user, "admin") || hasRole(user, "superadmin");
+  const { office, loading: officeLoading, error: officeError } = useOfficeLocation();
   const [dashboardData, setDashboardData] = useState<EmployeeDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -997,12 +992,30 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const result = await getEmployeeDashboardData();
+        const [dashboardResult, leaveBalanceResult] = await Promise.all([
+          getEmployeeDashboardData(),
+          leaveTypeApi.getLeaveBalances(),
+        ]);
         
-        if (result.error) {
-          setError(result.error);
+        if (dashboardResult.error) {
+          setError(dashboardResult.error);
         } else {
-          setDashboardData(result.data);
+          const totalLeaveBalance = leaveBalanceResult.data?.reduce(
+            (sum, balance) => sum + (Number(balance.available) || 0),
+            0
+          );
+
+          setDashboardData({
+            ...dashboardResult.data,
+            leaveBalance: {
+              totalDays:
+                leaveBalanceResult.error || totalLeaveBalance === undefined
+                  ? dashboardResult.data?.leaveBalance?.totalDays || 0
+                  : totalLeaveBalance,
+              description:
+                dashboardResult.data?.leaveBalance?.description || "Days remaining this year",
+            },
+          });
         }
       } catch (err) {
         setError('Failed to fetch dashboard data');
@@ -1059,6 +1072,19 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
           colorClass="gradient-bg-purple"
         />
       </div>
+
+      {isAdmin && (
+        <>
+          <AttendanceMap
+            officeLocation={office?.coordinates}
+            officeName={office?.name}
+            radiusMeters={office?.radius}
+            enableAutoCheck
+          />
+          {officeLoading && <p className="text-sm text-gray-500">Loading office geofence…</p>}
+          {officeError && <p className="text-sm text-red-500">Office geofence error: {officeError}</p>}
+        </>
+      )}
 
       <div>
         <div className="flex items-center gap-4 mb-4">
@@ -1233,7 +1259,7 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
             <CardDescription className="text-gray-600">Items requiring your attention</CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2">
               {dashboardData?.pendingApprovals?.map((item) => (
                 <div
                   key={item.id}

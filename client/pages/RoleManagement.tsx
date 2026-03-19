@@ -35,7 +35,8 @@ import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles
 import { 
   Plus, 
   Edit, 
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 
 const RoleManagement: React.FC = () => {
@@ -434,7 +435,14 @@ const RoleManagement: React.FC = () => {
                     Cancel
                   </Button>
                   <Button onClick={handleCreateRole} disabled={isCreatingRole || !canCreateRole || !formData.name.trim()}>
-                    {isCreatingRole ? "Creating..." : "Create Role"}
+                    {isCreatingRole ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      "Create Role"
+                    )}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -562,7 +570,14 @@ const RoleManagement: React.FC = () => {
                 Cancel
               </Button>
               <Button onClick={handleUpdateRole} disabled={isUpdatingRole || !formData.name.trim()}>
-                {isUpdatingRole ? "Updating..." : "Update Role"}
+                {isUpdatingRole ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Role"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
