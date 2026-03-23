@@ -29,6 +29,7 @@ export interface AssignedClient {
 }
 
 export interface ExpenseDraft {
+  id: number;
   client_id: number | null;
   expenses: Array<{
     category: string;
@@ -39,6 +40,7 @@ export interface ExpenseDraft {
     receipt_url?: string | null;
     client_id?: number | null;
   }>;
+  created_at?: string;
   updated_at?: string;
 }
 
@@ -244,7 +246,7 @@ const expenseApi = {
     }
   },
 
-  getDraft: async (): Promise<{ data?: ExpenseDraft | null; error?: string }> => {
+  getDraft: async (): Promise<{ data?: ExpenseDraft[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getExpenseDraft();
       const payload = response.data;
@@ -253,7 +255,7 @@ const expenseApi = {
         return { error: 'Invalid API response' };
       }
 
-      return { data: payload.draft ?? null };
+      return { data: Array.isArray(payload.drafts) ? payload.drafts : [] };
     } catch (error: any) {
       console.error('Error fetching expense draft:', error);
       return {
@@ -277,9 +279,9 @@ const expenseApi = {
     }
   },
 
-  clearDraft: async (): Promise<{ data?: any; error?: string }> => {
+  clearDraft: async (draftId?: string | number): Promise<{ data?: any; error?: string }> => {
     try {
-      const response = await ENDPOINTS.deleteExpenseDraft();
+      const response = await ENDPOINTS.deleteExpenseDraft(draftId);
       return { data: response.data };
     } catch (error: any) {
       console.error('Error clearing expense draft:', error);

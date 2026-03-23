@@ -54,6 +54,7 @@ interface ExpenseClaim {
   receiptUrl?: string;
   draftReceiptPaths?: string[];
   isDraft?: boolean;
+  draftId?: number;
   draftRows?: ExpenseDraft["expenses"];
   draftClientId?: string;
 }
@@ -78,6 +79,8 @@ interface GroupedExpenseClaim {
   createdAt: string;
   claims: ExpenseClaim[];
   isDraft?: boolean;
+  draftReceiptPaths?: string[];
+  draftId?: number;
   draftRows?: ExpenseDraft["expenses"];
   draftClientId?: string;
 }
@@ -133,7 +136,7 @@ export default function ExpenseClaims() {
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftClearing, setDraftClearing] = useState(false);
   const [editReceipt, setEditReceipt] = useState<ExistingReceipt | null>(null);
-  const [loadDraftOnOpen, setLoadDraftOnOpen] = useState(false);
+  const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
 
   const makeEmptyRow = (): ExpenseRow => ({
     category: "",
@@ -155,6 +158,13 @@ export default function ExpenseClaims() {
   const formatDateValue = (value?: string | null) => {
     if (!value) return new Date().toISOString().split("T")[0];
     return String(value).substring(0, 10);
+  };
+
+  const isDraftDeleteId = (value?: string | null) => Boolean(value && value.startsWith("draft-record-"));
+  const parseDraftDeleteId = (value?: string | null) => {
+    if (!isDraftDeleteId(value)) return null;
+    const numericId = Number(String(value).replace("draft-record-", ""));
+    return Number.isFinite(numericId) ? numericId : null;
   };
 
   const getDraftClientLabel = (draft: ExpenseDraft | null | undefined, clients: AssignedClient[]) => {
@@ -269,7 +279,7 @@ export default function ExpenseClaims() {
           })();
 
     return {
-      id: "draft-expense-claim",
+      id: `draft-${draft.id}`,
       employeeId: getEmployeeIdForUser(user?.id || ""),
       employeeName: user?.name || "Unknown Employee",
       clientName: getDraftClientLabel(draft, clients) || "-",
@@ -279,11 +289,12 @@ export default function ExpenseClaims() {
       date: dates.length === 1 ? dates[0] : formatDateValue(draft.updated_at),
       description: `${rows.length} expense item(s) saved as draft`,
       status: "draft",
-      createdAt: draft.updated_at || new Date().toISOString(),
+      createdAt: draft.updated_at || draft.created_at || new Date().toISOString(),
       receiptPath: firstReceiptPath,
       receiptUrl: firstReceiptPath ? resolveReceiptUrl(firstReceiptPath) : undefined,
       draftReceiptPaths,
       isDraft: true,
+      draftId: draft.id,
       draftRows: rows,
       draftClientId,
     };
@@ -299,7 +310,7 @@ export default function ExpenseClaims() {
         expenseApi.getExpense(),
         shouldLoadDraft
           ? expenseApi.getDraft()
-          : Promise.resolve<{ data?: ExpenseDraft | null; error?: string }>({ data: null }),
+          : Promise.resolve<{ data?: ExpenseDraft[]; error?: string }>({ data: [] }),
         shouldLoadDraft
           ? expenseApi.getAssignedClients()
           : Promise.resolve<{ data?: AssignedClient[]; error?: string }>({ data: [] }),
@@ -321,11 +332,13 @@ export default function ExpenseClaims() {
         console.warn("Assigned clients fetch failed:", clientsResult.error);
       }
 
-      const draftClaim = draftResult.data
-        ? buildDraftClaim(draftResult.data, clientsResult.data || [])
-        : null;
+      const draftClaims = Array.isArray(draftResult.data)
+        ? draftResult.data
+            .map((draft) => buildDraftClaim(draft, clientsResult.data || []))
+            .filter((draft): draft is ExpenseClaim => Boolean(draft))
+        : [];
 
-      setExpenses(draftClaim ? [draftClaim, ...normalizedExpenses] : normalizedExpenses);
+      setExpenses([...draftClaims, ...normalizedExpenses]);
     } catch (fetchError) {
       console.error("Error fetching expenses:", fetchError);
       setError(fetchError instanceof Error ? fetchError.message : "Failed to load expenses");
@@ -353,12 +366,7 @@ export default function ExpenseClaims() {
     const fetchDialogData = async () => {
       if (!isDialogOpen) return;
 
-      const [clientsResult, draftResult] = await Promise.all([
-        expenseApi.getAssignedClients(),
-        loadDraftOnOpen
-          ? expenseApi.getDraft()
-          : Promise.resolve<{ data?: ExpenseDraft | null; error?: string }>({ data: null }),
-      ]);
+      const clientsResult = await expenseApi.getAssignedClients();
 
       if (clientsResult.error) {
         setError(clientsResult.error);
@@ -367,55 +375,10 @@ export default function ExpenseClaims() {
         setAssignedClients(clientsResult.data || []);
       }
 
-      if (draftResult.error) {
-        // Draft is optional; don't block the form
-        console.warn("Draft load failed:", draftResult.error);
-      } else if (loadDraftOnOpen && draftResult.data) {
-        const draft = draftResult.data;
-        const draftRows = (draft.expenses || []).map((r) => ({
-          category: (r.category as any) || "",
-          amount: r.amount?.toString?.() ?? String(r.amount ?? ""),
-          description: r.description || "",
-          receiptFile: null,
-          receiptPath: r.receipt_path || r.receipt_url || null,
-        }));
-
-        setExpenseRows(draftRows.length ? draftRows : [makeEmptyRow()]);
-        setFormData((prev) => ({
-          ...prev,
-          status: "draft",
-          employeeName: user?.name || prev.employeeName || "",
-          employeeId: getEmployeeIdForUser(user?.id || ""),
-        }));
-
-        const draftDates = new Set(
-          (draft.expenses || []).map((r: any) => r.expense_date).filter(Boolean)
-        );
-        const draftClients = new Set([
-          draft.client_id,
-          ...(draft.expenses || []).map((r: any) => r.client_id),
-        ].filter((v: any) => v !== null && v !== undefined));
-
-        setExpenseDate(
-          draftDates.size === 1 ? String(Array.from(draftDates)[0]) : new Date().toISOString().split("T")[0]
-        );
-        setAssignedClientId(
-          draftClients.size === 1 ? String(Array.from(draftClients)[0]) : ""
-        );
-
-        if ((draft.expenses || []).length) {
-          const hasReceipts = (draft.expenses || []).some((r: any) => r.receipt_path || r.receipt_url);
-          showToast.info(
-            hasReceipts
-              ? "Draft loaded with saved receipts."
-              : "Draft loaded. Please re-upload files before submitting."
-          );
-        }
-      }
     };
 
     fetchDialogData();
-  }, [isDialogOpen, editingId, loadDraftOnOpen]);
+  }, [isDialogOpen, editingId]);
 
   // Helper function to map user ID to employee ID (e.g., "2" -> "EMP002")
   const getEmployeeIdForUser = (userId: string) => {
@@ -429,7 +392,7 @@ export default function ExpenseClaims() {
     expenses.forEach(expense => {
       // Skip drafts from grouping - they should remain separate
       if (expense.isDraft) {
-        const key = `draft-${expense.id}`;
+        const key = expense.id;
         grouped.set(key, [expense]);
         return;
       }
@@ -478,6 +441,8 @@ export default function ExpenseClaims() {
         createdAt: firstClaim.createdAt,
         claims,
         isDraft: firstClaim.isDraft,
+        draftReceiptPaths: firstClaim.draftReceiptPaths,
+        draftId: firstClaim.draftId,
         draftRows: firstClaim.draftRows,
         draftClientId: firstClaim.draftClientId,
       };
@@ -496,7 +461,7 @@ export default function ExpenseClaims() {
     
     let filtered = [...expenses]; // Create a copy of the expenses array
 
-    // If user is an employee, show only their data
+    // First scope records by role.
     if (hasRole(user, "employee")) {
       const userId = user?.id || "";
       const formattedEmployeeId = getEmployeeIdForUser(userId);
@@ -509,25 +474,20 @@ export default function ExpenseClaims() {
                exp.employeeId === formattedEmployeeId ||
                exp.employeeId === parseInt(userId)?.toString();
       });
-    } else if (hasRole(user, "finance") || hasRole(user, "admin")) {
-      // For finance and admin, apply search filter to see all expenses
-      filtered = filtered.filter((exp) => {
-        const matchesSearch = exp.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            exp.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            exp.description?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = filterStatus === "all" || exp.status === filterStatus;
-        return matchesSearch && matchesStatus;
-      });
-    } else {
-      // For other roles, apply search filter but don't restrict by role
-      filtered = filtered.filter((exp) => {
-        const matchesSearch = exp.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            exp.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            exp.description?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = filterStatus === "all" || exp.status === filterStatus;
-        return matchesSearch && matchesStatus;
-      });
     }
+
+    // Then apply the same search and status filters for all roles.
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+    filtered = filtered.filter((exp) => {
+      const matchesSearch =
+        !normalizedSearchTerm ||
+        exp.employeeName?.toLowerCase().includes(normalizedSearchTerm) ||
+        exp.category?.toLowerCase().includes(normalizedSearchTerm) ||
+        exp.description?.toLowerCase().includes(normalizedSearchTerm) ||
+        exp.clientName?.toLowerCase().includes(normalizedSearchTerm);
+      const matchesStatus = filterStatus === "all" || exp.status === filterStatus;
+      return Boolean(matchesSearch) && matchesStatus;
+    });
 
     filtered = filtered.filter((exp) => {
       const normalizedDate = formatDateValue(exp.date);
@@ -558,7 +518,7 @@ export default function ExpenseClaims() {
     if (targetExpense?.isDraft) {
       setIsGroupedEdit(false);
       setGroupedEditingClaims([]);
-      setLoadDraftOnOpen(true);
+      setEditingDraftId(targetExpense.draftId || null);
       setEditingId(null);
       setFormData({
         status: "draft",
@@ -586,8 +546,16 @@ export default function ExpenseClaims() {
       setBillFileType("");
       setScanData(null);
       setEditReceipt(null);
+      if (targetExpense.draftRows?.length) {
+        const hasReceipts = targetExpense.draftRows.some((row) => row.receipt_path || row.receipt_url);
+        showToast.info(
+          hasReceipts
+            ? "Draft loaded with saved receipts."
+            : "Draft loaded. Please re-upload files before submitting."
+        );
+      }
     } else if (targetExpense) {
-      setLoadDraftOnOpen(false);
+      setEditingDraftId(null);
       
       // If it's a grouped expense, set up all claims for editing
       if (isGrouped && expense.claims.length > 1) {
@@ -645,7 +613,7 @@ export default function ExpenseClaims() {
     } else {
       setIsGroupedEdit(false);
       setGroupedEditingClaims([]);
-      setLoadDraftOnOpen(false);
+      setEditingDraftId(null);
       setEditingId(null);
       setFormData({
         status: "pending",
@@ -814,6 +782,9 @@ export default function ExpenseClaims() {
 
       const formData = new FormData();
       formData.append("expenses", JSON.stringify(draftRows));
+      if (editingDraftId) {
+        formData.append("draft_id", String(editingDraftId));
+      }
       expenseRows.forEach((row, index) => {
         if (row.receiptFile) {
           formData.append(`receipt_${index}`, row.receiptFile);
@@ -825,6 +796,7 @@ export default function ExpenseClaims() {
       const result = await expenseApi.saveDraft(formData);
 
       if (result.error) throw new Error(result.error);
+      setEditingDraftId(result.data?.draft_id ? Number(result.data.draft_id) : editingDraftId);
       showToast.success("Draft saved");
       await refreshExpenses();
       setIsDialogOpen(false);
@@ -842,9 +814,18 @@ export default function ExpenseClaims() {
       setDraftClearing(true);
       setError(null);
 
-      const result = await expenseApi.clearDraft();
+      if (!editingDraftId) {
+        setAssignedClientId("");
+        setExpenseDate(new Date().toISOString().split("T")[0]);
+        setExpenseRows([makeEmptyRow()]);
+        showToast.success("Draft form cleared");
+        return;
+      }
+
+      const result = await expenseApi.clearDraft(editingDraftId || undefined);
       if (result.error) throw new Error(result.error);
 
+      setEditingDraftId(null);
       setAssignedClientId("");
       setExpenseDate(new Date().toISOString().split("T")[0]);
       setExpenseRows([makeEmptyRow()]);
@@ -978,9 +959,11 @@ export default function ExpenseClaims() {
         }
 
         // Best-effort: clear draft after successful submit
-        try {
-          await expenseApi.clearDraft();
-        } catch {}
+        if (editingDraftId) {
+          try {
+            await expenseApi.clearDraft(editingDraftId);
+          } catch {}
+        }
 
         // Trigger a single notification (summary)
         const totalAmount = payloadRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
@@ -1052,6 +1035,7 @@ export default function ExpenseClaims() {
       setEditReceipt(null);
       setGroupedEditingClaims([]);
       setIsGroupedEdit(false);
+      setEditingDraftId(null);
     } catch (error) {
       console.error("Error saving expense:", error);
       setError(error instanceof Error ? error.message : "Failed to save expense");
@@ -1071,8 +1055,8 @@ export default function ExpenseClaims() {
       return;
     }
 
-    const resolvedDeleteId = targetExpense?.isDraft
-      ? "draft-expense-claim"
+    const resolvedDeleteId = targetExpense?.isDraft && targetExpense.draftId
+      ? `draft-record-${targetExpense.draftId}`
       : targetExpense?.claims?.[0]?.id || (typeof expenseOrId === "string" ? expenseOrId : targetExpense?.id);
 
     if (!resolvedDeleteId) {
@@ -1089,10 +1073,17 @@ export default function ExpenseClaims() {
       try {
         setLoading(true);
 
-        if (deleteId === "draft-expense-claim") {
-          const result = await expenseApi.clearDraft();
+        if (isDraftDeleteId(deleteId)) {
+          const draftId = parseDraftDeleteId(deleteId);
+          if (!draftId) {
+            throw new Error("Unable to identify the draft to delete");
+          }
+          const result = await expenseApi.clearDraft(draftId || undefined);
           if (result.error) {
             throw new Error(result.error);
+          }
+          if (draftId && editingDraftId === draftId) {
+            setEditingDraftId(null);
           }
         } else {
           const result = await expenseApi.deleteExpense(deleteId);
@@ -2319,21 +2310,23 @@ export default function ExpenseClaims() {
             </Button>
             {!editingId && !isGroupedEdit && (
               <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClearDraft}
-                  disabled={draftClearing || draftSaving || loading}
-                  className="w-full sm:w-auto text-xs sm:text-sm"
-                >
-                  {draftClearing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Clearing...
-                    </>
-                  ) : (
-                    "Clear Draft"
-                  )}
-                </Button>
+                {editingDraftId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClearDraft}
+                    disabled={draftClearing || draftSaving || loading}
+                    className="w-full sm:w-auto text-xs sm:text-sm"
+                  >
+                    {draftClearing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Clearing...
+                      </>
+                    ) : (
+                      "Clear Draft"
+                    )}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -2458,10 +2451,10 @@ export default function ExpenseClaims() {
           <AlertDialogContent className="w-full max-w-sm p-4 sm:p-6">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-lg">
-                {deleteId === "draft-expense-claim" ? "Delete Draft" : "Delete Claim"}
+                {isDraftDeleteId(deleteId) ? "Delete Draft" : "Delete Claim"}
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs sm:text-sm">
-                {deleteId === "draft-expense-claim"
+                {isDraftDeleteId(deleteId)
                   ? "Are you sure you want to remove this saved draft?"
                   : "Are you sure? This action cannot be undone."}
               </AlertDialogDescription>

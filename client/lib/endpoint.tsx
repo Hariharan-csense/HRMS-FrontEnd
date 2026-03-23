@@ -2,8 +2,8 @@
 import axios from "axios";
 
 // // //Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.12:3000";
-// export const BASE_URL="https://hrms.procease.co/backend";
+// export const BASE_URL = "http://192.168.1.18:3000";
+export const BASE_URL="https://hrms.procease.co/backend";
 // Auth requests that must NOT go through interceptors (avoids side effects on login errors)
 const authApi = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -377,7 +377,7 @@ const ENDPOINTS = {
         'Content-Type': 'multipart/form-data',
       },
     }),
-  deleteExpenseDraft: () => api.delete("/expenses/draft"),
+  deleteExpenseDraft: (draftId?: string | number) => api.delete(draftId ? `/expenses/draft/${draftId}` : "/expenses/draft"),
   createExpense: (data: any) => {
     const formData = new FormData();
     
@@ -790,6 +790,7 @@ const ENDPOINTS = {
   // Recruitment
   getCandidates: (params?: any) => api.get("/recruitment/candidates", { params }),
   getCandidateById: (id: string) => api.get(`/recruitment/candidates/${id}`),
+  bulkCreateCandidates: (data: any) => api.post("/recruitment/candidates/bulk", data),
   createCandidate: (data: any) => api.post("/recruitment/candidates", data),
   updateCandidate: (id: string, data: any) => api.put(`/recruitment/candidates/${id}`, data),
   updateCandidateStatus: (id: string, status: string) => api.put(`/recruitment/candidates/${id}/status`, { status }),
@@ -834,13 +835,24 @@ const ENDPOINTS = {
       // Convert camelCase to snake_case for backend
       const backendData = {
         name: data.name,
+        client_name: data.clientName,
         email: data.email,
         phone: data.phone,
         position: data.position,
-        department: data.department,
+        job_location: data.jobLocation,
+        age: data.age ? Number(data.age) : null,
+        gender: data.gender,
+        native_place: data.nativePlace,
+        highest_qualification: data.highestQualification,
+        department: data.department || data.clientName,
         experience: data.experience,
-        current_company: data.currentCompany,
-        expected_salary: data.expectedSalary,
+        relevant_experience: data.relevantExperience,
+        current_company: data.currentEmployer,
+        current_designation: data.currentDesignation,
+        current_location: data.currentLocation,
+        ctc: data.ctc,
+        ectc: data.ectc,
+        expected_salary: data.expectedSalary || data.ectc,
         notice_period: data.noticePeriod,
         skills: data.skills,
         resume_url: data.resumeUrl,
@@ -863,18 +875,75 @@ const ENDPOINTS = {
     }
   },
 
+  addCandidatesBulk: async (rows: any[]): Promise<{ data?: any; error?: string }> => {
+    try {
+      const backendRows = rows.map((data) => ({
+        rowNumber: data.rowNumber,
+        name: data.name,
+        client_name: data.clientName,
+        email: data.email,
+        phone: data.phone,
+        position: data.position,
+        job_location: data.jobLocation,
+        age: data.age ? Number(data.age) : null,
+        gender: data.gender,
+        native_place: data.nativePlace,
+        highest_qualification: data.highestQualification,
+        department: data.department || data.clientName,
+        experience: data.experience,
+        relevant_experience: data.relevantExperience,
+        current_company: data.currentEmployer,
+        current_designation: data.currentDesignation,
+        current_location: data.currentLocation,
+        ctc: data.ctc,
+        ectc: data.ectc,
+        expected_salary: data.expectedSalary || data.ectc,
+        notice_period: data.noticePeriod,
+        skills: data.skills,
+        resume_url: data.resumeUrl,
+        source: data.source,
+        applied_date: data.appliedDate,
+        status: data.status,
+        notes: data.notes
+      }));
+
+      const response = await ENDPOINTS.bulkCreateCandidates({ candidates: backendRows });
+      if (response.data && response.data.success) {
+        return { data: response.data.data };
+      }
+
+      return { error: 'Failed to import candidates' };
+    } catch (error: any) {
+      console.error('Error importing candidates:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to import candidates'
+      };
+    }
+  },
+
   editCandidate: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
     try {
       // Convert camelCase to snake_case for backend
       const backendData = {
         name: data.name,
+        client_name: data.clientName,
         email: data.email,
         phone: data.phone,
         position: data.position,
-        department: data.department,
+        job_location: data.jobLocation,
+        age: data.age ? Number(data.age) : null,
+        gender: data.gender,
+        native_place: data.nativePlace,
+        highest_qualification: data.highestQualification,
+        department: data.department || data.clientName,
         experience: data.experience,
-        current_company: data.currentCompany,
-        expected_salary: data.expectedSalary,
+        relevant_experience: data.relevantExperience,
+        current_company: data.currentEmployer,
+        current_designation: data.currentDesignation,
+        current_location: data.currentLocation,
+        ctc: data.ctc,
+        ectc: data.ectc,
+        expected_salary: data.expectedSalary || data.ectc,
         notice_period: data.noticePeriod,
         skills: data.skills,
         resume_url: data.resumeUrl,
