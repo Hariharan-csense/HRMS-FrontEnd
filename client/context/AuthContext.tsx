@@ -18,6 +18,19 @@ type LoginResult = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const setReadableAuthCookie = (name: string, value: string, maxAgeSeconds: number) => {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
+};
+
+const clearDebugCookies = () => {
+  if (typeof document === "undefined") return;
+  document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie = "accessTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie = "refreshTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -133,20 +146,20 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
     
     // Handle successful login
     const accessToken = responseData.accessToken || responseData.token;
-    const refreshToken = responseData.refreshToken;
 
     if (accessToken) {
       localStorage.setItem("accessToken", accessToken);
+      localStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("refreshToken");
+      setReadableAuthCookie("accessToken", accessToken, 30 * 60);
+      if (responseData.refreshToken) {
+        setReadableAuthCookie("refreshToken", responseData.refreshToken, 7 * 24 * 60 * 60);
+      }
 
-      // Persist refresh token (always store so refresh works even without remember me)
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-        if (rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-        } else {
-          localStorage.removeItem("rememberMe");
-        }
-        sessionStorage.removeItem("refreshToken");
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+      } else {
+        localStorage.removeItem("rememberMe");
       }
       
       // Extract user data from response
@@ -247,6 +260,7 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
       localStorage.removeItem("token");
       localStorage.removeItem("userRole");
       localStorage.removeItem("rememberMe");
+      clearDebugCookies();
       
       // Clear saved profiles and credentials
       profileManager.clearAll();
@@ -266,7 +280,7 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },
       });
       const data = await response.json().catch(() => null);

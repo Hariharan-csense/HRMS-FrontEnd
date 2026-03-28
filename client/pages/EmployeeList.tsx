@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
 import { useRole } from "@/context/RoleContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -158,6 +159,46 @@ const extractDatePart = (dateString: string | null | undefined): string => {
 const isLocationTrackingEnabled = (value: unknown): boolean =>
   value === 1 || value === "1" || value === true;
 
+const normalizeExcelHeader = (value: unknown): string =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const excelDateToISO = (value: unknown): string => {
+  if (!value) return "";
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    return date.toISOString().split("T")[0];
+  }
+
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().split("T")[0];
+};
+
+const normalizeImportedEmploymentType = (value: unknown): EmploymentType => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized.includes("part")) return "part-time";
+  if (normalized.includes("contract")) return "contract";
+  if (normalized.includes("intern")) return "intern";
+  return "full-time";
+};
+
+const normalizeImportedStatus = (value: unknown): EmployeeStatus => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "inactive") return "inactive";
+  if (normalized === "terminated") return "terminated";
+  if (normalized === "on leave" || normalized === "on-leave") return "on-leave";
+  return "active";
+};
+
 export default function EmployeeList() {
   const { canPerformModuleAction } = useRole();
   //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
@@ -182,6 +223,8 @@ export default function EmployeeList() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loadingShifts, setLoadingShifts] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("personal");
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [excelFileName, setExcelFileName] = useState("");
   const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
 
 
@@ -192,7 +235,7 @@ export default function EmployeeList() {
     try {
       const { data, error } = await shiftApi.getShifts();
       if (error) {
-        toast.error(error);
+        showToast.error(error);
       } else if (data) {
         // Transform the shift data to ensure consistent property names
         const transformedShifts = data.map(shift => ({
@@ -209,7 +252,7 @@ export default function EmployeeList() {
       }
     } catch (error) {
       console.error("Error loading shifts:", error);
-      toast.error("Failed to load shifts");
+      showToast.error("Failed to load shifts");
     } finally {
       setLoadingShifts(false);
     }
@@ -307,9 +350,7 @@ export default function EmployeeList() {
         // Map location_tracking_enabled from the API to enableLiveTracking in the form
         // Handle number (1/0), string ("1"/login"0"), and boolean values safely
         enableLiveTracking:
-          employee.location_tracking_enabled === 1 ||
-          employee.location_tracking_enabled === "1" ||
-          employee.location_tracking_enabled === true,
+          isLocationTrackingEnabled(employee.location_tracking_enabled),
       });
 
       // Log the form data for debugging
@@ -849,6 +890,251 @@ export default function EmployeeList() {
     }
   };
 
+  const buildImportedEmployeeFormData = (row: Record<string, unknown>) => {
+    const normalizedRow = Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
+      acc[normalizeExcelHeader(key)] = value;
+      return acc;
+    }, {});
+
+    const get = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = normalizedRow[normalizeExcelHeader(key)];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return value;
+        }
+      }
+      return "";
+    };
+
+    const departmentName = String(
+      get("department", "department_name", "dept", "departmentname")
+    ).trim();
+    const designationName = String(
+      get("designation", "designation_name", "designationname")
+    ).trim();
+    const shiftName = String(
+      get("shift", "shift_name", "shiftname")
+    ).trim();
+
+    const matchedDepartment = departments.find(
+      (dept) => dept.name.trim().toLowerCase() === departmentName.toLowerCase()
+    );
+    const matchedDesignation = designations.find(
+      (designation) => designation.name.trim().toLowerCase() === designationName.toLowerCase()
+    );
+    const matchedShift = shifts.find(
+      (shift) => String(shift.name || "").trim().toLowerCase() === shiftName.toLowerCase()
+    );
+
+    return {
+      employeeId: String(get("employee_id", "employeeid", "employee_code", "emp_id")).trim().toUpperCase(),
+      firstName: String(get("first_name", "firstname", "first name")).trim(),
+      lastName: String(get("last_name", "lastname", "last name")).trim(),
+      email: normalizeEmail(String(get("email", "personal_email")).trim()),
+      phone: sanitizePhoneInput(String(get("mobile", "phone", "mobile_number", "personal_phone")).trim()).slice(0, 10),
+      officePhone: sanitizePhoneInput(String(get("office_phone", "officephone")).trim()).slice(0, 10),
+      officeEmail: String(get("office_email", "officeemail")).trim(),
+      dateOfBirth: excelDateToISO(get("dob", "date_of_birth", "birth_date")),
+      gender: String(get("gender")).trim(),
+      bloodGroup: String(get("blood_group", "bloodgroup")).trim(),
+      maritalStatus: String(get("marital_status", "maritalstatus")).trim(),
+      emergencyContact: String(get("emergency_contact_name", "emergency_contact", "emergency_contact_person")).trim(),
+      emergencyPhone: sanitizePhoneInput(String(get("emergency_contact_phone", "emergency_phone")).trim()).slice(0, 10),
+      departmentId: matchedDepartment?.id || "",
+      departmentName,
+      designationId: matchedDesignation?.id || "",
+      designationName,
+      shiftId: matchedShift?.id?.toString() || "",
+      shiftName,
+      dateOfJoining: excelDateToISO(get("doj", "date_of_joining", "joining_date")),
+      employmentType: normalizeImportedEmploymentType(get("employment_type", "employmenttype")),
+      status: normalizeImportedStatus(get("status")),
+      role: String(get("role")).trim().toLowerCase(),
+      location: String(get("location", "location_office", "office_location")).trim(),
+      salary: String(get("salary")).trim(),
+      aadhaar: String(get("aadhaar")).replace(/\D/g, "").slice(0, 12),
+      pan: String(get("pan")).trim().toUpperCase(),
+      uan: String(get("uan")).replace(/\D/g, "").slice(0, 12),
+      esic: String(get("esic")).replace(/\D/g, "").slice(0, 10),
+      bankAccountHolder: String(get("account_holder_name", "bank_account_holder", "bank_accountholder")).trim(),
+      bankName: String(get("bank_name")).trim(),
+      accountNumber: String(get("account_number")).replace(/\D/g, ""),
+      ifscCode: String(get("ifsc_code", "ifsc")).trim().toUpperCase(),
+      enableLiveTracking: ["1", "true", "yes", "enabled"].includes(
+        String(get("enable_live_tracking", "location_tracking_enabled")).trim().toLowerCase()
+      ),
+    };
+  };
+
+  const createEmployeePayloadFromImport = (employee: ReturnType<typeof buildImportedEmployeeFormData>) => {
+    const payload = new globalThis.FormData();
+
+    payload.append("employee_id", employee.employeeId);
+    payload.append("first_name", employee.firstName);
+    payload.append("last_name", employee.lastName);
+    payload.append("email", employee.email);
+    payload.append("doj", employee.dateOfJoining);
+    payload.append("employment_type", employee.employmentType);
+    payload.append("status", employee.status);
+    payload.append("shift_id", employee.shiftId);
+    payload.append("location_tracking_enabled", employee.enableLiveTracking ? "1" : "0");
+
+    if (employee.phone) payload.append("mobile", employee.phone);
+    if (employee.officePhone) payload.append("office_phone", employee.officePhone);
+    if (employee.officeEmail) payload.append("office_email", normalizeEmail(employee.officeEmail));
+    if (employee.dateOfBirth) payload.append("dob", employee.dateOfBirth);
+    if (employee.gender) payload.append("gender", employee.gender);
+    if (employee.bloodGroup) payload.append("blood_group", employee.bloodGroup);
+    if (employee.maritalStatus) payload.append("marital_status", employee.maritalStatus);
+    if (employee.emergencyContact) payload.append("emergency_contact_name", employee.emergencyContact);
+    if (employee.emergencyPhone) payload.append("emergency_contact_phone", employee.emergencyPhone);
+    if (employee.departmentId) payload.append("department_id", employee.departmentId);
+    if (employee.designationId) payload.append("designation_id", employee.designationId);
+    if (employee.location) payload.append("location_office", employee.location);
+    if (employee.role) payload.append("role", employee.role);
+    if (employee.salary) payload.append("salary", employee.salary);
+    if (employee.aadhaar) payload.append("aadhaar", employee.aadhaar);
+    if (employee.pan) payload.append("pan", employee.pan);
+    if (employee.uan) payload.append("uan", employee.uan);
+    if (employee.esic) payload.append("esic", employee.esic);
+    if (employee.bankAccountHolder) payload.append("account_holder_name", employee.bankAccountHolder);
+    if (employee.bankName) payload.append("bank_name", employee.bankName);
+    if (employee.accountNumber) payload.append("account_number", employee.accountNumber);
+    if (employee.ifscCode) payload.append("ifsc_code", employee.ifscCode);
+
+    return payload;
+  };
+
+  const importEmployeesFromRows = async (rows: Record<string, unknown>[], fileName: string) => {
+    setImportingExcel(true);
+    setError(null);
+
+    try {
+      const failures: string[] = [];
+      const importPayloads: { rowNumber: number; payload: globalThis.FormData }[] = [];
+
+      rows.forEach((row, index) => {
+        const rowNumber = index + 2;
+        const employee = buildImportedEmployeeFormData(row);
+
+        if (!employee.employeeId || !employee.firstName || !employee.lastName || !employee.email || !employee.dateOfJoining) {
+          failures.push(`Row ${rowNumber}: employee_id, first_name, last_name, email, doj required`);
+          return;
+        }
+
+        if (!isValidEmail(employee.email)) {
+          failures.push(`Row ${rowNumber}: invalid email`);
+          return;
+        }
+
+        if (employee.phone && !isOptionalTenDigitPhoneValid(employee.phone)) {
+          failures.push(`Row ${rowNumber}: invalid mobile number`);
+          return;
+        }
+
+        if (employee.officePhone && !isOptionalTenDigitPhoneValid(employee.officePhone)) {
+          failures.push(`Row ${rowNumber}: invalid office phone`);
+          return;
+        }
+
+        if (employee.emergencyPhone && !isOptionalTenDigitPhoneValid(employee.emergencyPhone)) {
+          failures.push(`Row ${rowNumber}: invalid emergency phone`);
+          return;
+        }
+
+        if (!employee.departmentId && employee.departmentName) {
+          console.warn(`Row ${rowNumber}: department "${employee.departmentName}" not found. Importing without department.`);
+        }
+
+        if (!employee.designationId && employee.designationName) {
+          console.warn(`Row ${rowNumber}: designation "${employee.designationName}" not found. Importing without designation.`);
+        }
+
+        if (!employee.shiftId && employee.shiftName) {
+          console.warn(`Row ${rowNumber}: shift "${employee.shiftName}" not found. Importing without shift.`);
+        }
+
+        importPayloads.push({
+          rowNumber,
+          payload: createEmployeePayloadFromImport(employee),
+        });
+      });
+
+      let successCount = 0;
+      for (const item of importPayloads) {
+        const result = await employeeApi.createEmployee(item.payload);
+        if (result.data) {
+          successCount += 1;
+        } else {
+          failures.push(`Row ${item.rowNumber}: ${result.error || "failed to create employee"}`);
+        }
+      }
+
+      setExcelFileName(fileName);
+
+      if (successCount > 0) {
+        await refreshEmployees();
+      }
+
+      if (successCount > 0 && failures.length === 0) {
+        showToast.success(`${successCount} employee${successCount > 1 ? "s" : ""} imported successfully`);
+        return;
+      }
+
+      if (successCount > 0) {
+        const summary = `${successCount} imported, ${failures.length} failed`;
+        setError(`${summary}. ${failures.slice(0, 4).join(" | ")}`);
+        showToast.success(summary);
+        return;
+      }
+
+      const failureMessage = failures.slice(0, 4).join(" | ") || "No valid employee rows found in Excel";
+      setError(failureMessage);
+      showToast.error(failureMessage);
+    } finally {
+      setImportingExcel(false);
+    }
+  };
+
+  const handleEmployeeExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith(".xls") && !lowerName.endsWith(".xlsx")) {
+      showToast.error("Please upload a valid Excel file (.xls or .xlsx)");
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+
+      if (!worksheet) {
+        throw new Error("No worksheet found in the uploaded Excel file");
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" });
+      const nonEmptyRows = rows.filter((row) =>
+        Object.values(row).some((value) => String(value ?? "").trim() !== "")
+      );
+
+      if (!nonEmptyRows.length) {
+        throw new Error("Excel file is empty");
+      }
+
+      await importEmployeesFromRows(nonEmptyRows, file.name);
+    } catch (uploadError) {
+      const message = uploadError instanceof Error ? uploadError.message : "Failed to import Excel file";
+      setError(message);
+      showToast.error(message);
+    }
+  };
+
 
 
   const fetchAndTransformEmployees = async () => {
@@ -930,6 +1216,7 @@ export default function EmployeeList() {
             })() as EmployeeStatus,
             role: emp.role || "",
             location: emp.location_office || "",
+            salary: Number(emp.salary) || 0,
             aadhaar: emp.aadhaar || "",
             pan: emp.pan || "",
             uan: emp.uan || "",
@@ -1020,8 +1307,9 @@ export default function EmployeeList() {
         ]);
 
         // Response is { success: true, departments: [...] }
-        if (deptResult.data?.departments && Array.isArray(deptResult.data.departments)) {
-          const formattedDepts = deptResult.data.departments.map((dept: any) => ({
+        const deptData: any = deptResult.data;
+        if (deptData?.departments && Array.isArray(deptData.departments)) {
+          const formattedDepts = deptData.departments.map((dept: any) => ({
             id: dept.id.toString(),  // number → string
             name: dept.name || "Unknown"
           }));
@@ -1030,8 +1318,9 @@ export default function EmployeeList() {
           setDepartments([]);
         }
 
-        if (desigResult.data?.designations && Array.isArray(desigResult.data.designations)) {
-          const formattedDesigs = desigResult.data.designations.map((desig: any) => ({
+        const desigData: any = desigResult.data;
+        if (desigData?.designations && Array.isArray(desigData.designations)) {
+          const formattedDesigs = desigData.designations.map((desig: any) => ({
             id: desig.id.toString(),
             name: desig.name || "Unknown"
           }));
@@ -1077,6 +1366,9 @@ export default function EmployeeList() {
             <h1 className="text-xl sm:text-2xl font-bold">Employee Management</h1>
           </div>
           <p className="text-white text-xs sm:text-sm">Manage employee records and information</p>
+          {excelFileName && (
+            <p className="text-white/90 text-xs mt-2">Last imported file: {excelFileName}</p>
+          )}
         </div>
 
         {/* Stats */}
@@ -1130,6 +1422,17 @@ export default function EmployeeList() {
             </CardContent>
           </Card>
         </div>
+
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card>
@@ -1193,10 +1496,35 @@ export default function EmployeeList() {
 
               <div className="col-span-1 flex items-end">
                 {canCreateEmployee && (
-                  <Button onClick={() => handleOpenDialog()} className="w-full gap-2 text-sm">
-                    <Plus className="w-3 h-3" />
-                    Add Employee
-                  </Button>
+                  <div className="w-full flex flex-col gap-2">
+                    <Label
+                      htmlFor="employee-excel-upload"
+                      className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition ${
+                        importingExcel
+                          ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                          : "cursor-pointer border-[#17c491]/30 bg-white text-[#12956f] hover:bg-[#17c491]/5"
+                      }`}
+                    >
+                      {importingExcel ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="mr-2 h-4 w-4" />
+                      )}
+                      {importingExcel ? "Importing..." : "Upload Excel"}
+                    </Label>
+                    <input
+                      id="employee-excel-upload"
+                      type="file"
+                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handleEmployeeExcelUpload}
+                      disabled={importingExcel}
+                      className="hidden"
+                    />
+                    <Button onClick={() => handleOpenDialog()} className="w-full gap-2 text-sm">
+                      <Plus className="w-3 h-3" />
+                      Add Employee
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

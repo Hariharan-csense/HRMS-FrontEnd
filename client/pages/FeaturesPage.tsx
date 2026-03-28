@@ -96,7 +96,7 @@ const FeaturesPage = () => {
               {/* <h1 className="text-2xl font-bold text-gray-900">HRMS</h1> */}
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="/login" className="text-gray-700 hover:text-gray-900 transition-colors">Home</a>
+              <a href="/" className="text-gray-700 hover:text-gray-900 transition-colors">Home</a>
               <a href="/features" className="text-green-600 font-medium hover:text-green-700 transition-colors">Features</a>
               <a href="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</a>
               <a href="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</a>

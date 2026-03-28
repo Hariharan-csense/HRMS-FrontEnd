@@ -123,7 +123,7 @@ const PricingPage = () => {
               {/* <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">HRMS</span> */}
             </div>
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="/login" className="text-gray-600 hover:text-green-600 transition-colors">Home</a>
+              <a href="/" className="text-gray-600 hover:text-green-600 transition-colors">Home</a>
               <a href="/features" className="text-gray-600 hover:text-green-600 transition-colors">Features</a>
               <a href="/pricing" className="font-medium text-green-600 border-b-2 border-green-600 pb-1">Pricing</a>
               <a href="/about" className="text-gray-600 hover:text-green-600 transition-colors">About</a>

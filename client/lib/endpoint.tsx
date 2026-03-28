@@ -2,24 +2,24 @@
 import axios from "axios";
 
 // // //Export the base URL for use in other components
-// export const BASE_URL = "http://192.168.1.18:3000";
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.19:3000";
+// export const BASE_URL="https://hrms.procease.co/backend";
 // Auth requests that must NOT go through interceptors (avoids side effects on login errors)
 const authApi = axios.create({
   baseURL: `${BASE_URL}/api`,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
-    "Accept": "application/json",
+    Accept: "application/json",
   },
 });
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
-  withCredentials: true,  
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
-    "Accept": "application/json"
+    Accept: "application/json",
   },
 });
 
@@ -30,6 +30,27 @@ const clearAuthStorage = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("userRole");
   localStorage.removeItem("rememberMe");
+};
+
+const setReadableAuthCookie = (
+  name: string,
+  value: string,
+  maxAgeSeconds: number,
+) => {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
+};
+
+const clearReadableDebugCookies = () => {
+  if (typeof document === "undefined") return;
+  document.cookie =
+    "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "accessTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "refreshTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
 };
 
 // Notify React side to navigate without hard reload
@@ -52,7 +73,7 @@ api.interceptors.request.use(
 
     // Check and refresh token if needed before making the request
     await checkAndRefreshTokenIfNeeded();
-    
+
     const token = localStorage.getItem("accessToken");
 
     if (token) {
@@ -63,7 +84,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // ✅ Global response handler
@@ -71,32 +92,35 @@ let refreshPromise: Promise<string> | null = null;
 
 // ✅ Token refresh utility
 const refreshAccessToken = async (): Promise<string> => {
-  const refreshToken = localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
-  
-  if (!refreshToken) {
-    throw new Error('No refresh token available');
-  }
-
   try {
-    // Use plain axios (no interceptors) to prevent recursive refresh deadlocks
-    const response = await axios.post(`${BASE_URL}/api/auth/refresh-token`, { refreshToken }, {
-      withCredentials: true,
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
+    // Refresh token is now read from httpOnly cookie by the backend.
+    const response = await axios.post(
+      `${BASE_URL}/api/auth/refresh-token`,
+      {},
+      {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
       },
-    });
+    );
     const newAccessToken = response.data?.accessToken || response.data?.token;
-    
+    const newRefreshToken = response.data?.refreshToken;
+
     if (!newAccessToken) {
-      throw new Error('No access token returned from refresh');
+      throw new Error("No access token returned from refresh");
     }
-    
-    localStorage.setItem('accessToken', newAccessToken);
-    console.log('Access token refreshed successfully');
+
+    localStorage.setItem("accessToken", newAccessToken);
+    setReadableAuthCookie("accessToken", newAccessToken, 30 * 60);
+    if (newRefreshToken) {
+      setReadableAuthCookie("refreshToken", newRefreshToken, 7 * 24 * 60 * 60);
+    }
+    console.log("Access token refreshed successfully");
     return newAccessToken;
   } catch (error) {
-    console.error('Token refresh failed:', error);
+    console.error("Token refresh failed:", error);
     throw error;
   }
 };
@@ -104,38 +128,37 @@ const refreshAccessToken = async (): Promise<string> => {
 // ✅ Check if token is expired or will expire soon (within 5 minutes)
 const isTokenExpiredOrExpiringSoon = (token: string): boolean => {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(token.split(".")[1]));
     const currentTime = Math.floor(Date.now() / 1000);
     const expirationTime = payload.exp;
-    const fiveMinutesFromNow = currentTime + (5 * 60); // 5 minutes buffer
-    
+    const fiveMinutesFromNow = currentTime + 5 * 60; // 5 minutes buffer
+
     return expirationTime <= fiveMinutesFromNow;
   } catch (error) {
-    console.error('Error checking token expiration:', error);
+    console.error("Error checking token expiration:", error);
     return true; // Assume expired if we can't parse
   }
 };
 
 // ✅ Proactive token refresh check
 const checkAndRefreshTokenIfNeeded = async (): Promise<void> => {
-  const token = localStorage.getItem('accessToken');
-  const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem("refreshToken");
-  
-  if (!token || !refreshToken) {
+  const token = localStorage.getItem("accessToken");
+
+  if (!token) {
     return;
   }
-  
+
   if (isTokenExpiredOrExpiringSoon(token)) {
     if (!refreshPromise) {
       refreshPromise = refreshAccessToken().finally(() => {
         refreshPromise = null;
       });
     }
-    
+
     try {
       await refreshPromise;
     } catch (error) {
-      console.error('Proactive token refresh failed:', error);
+      console.error("Proactive token refresh failed:", error);
       // Don't clear storage here, let the 401 handler handle it
     }
   }
@@ -146,7 +169,8 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest: any = error.config;
     const status = error.response?.status;
-    const requestUrl = typeof originalRequest?.url === "string" ? originalRequest.url : "";
+    const requestUrl =
+      typeof originalRequest?.url === "string" ? originalRequest.url : "";
 
     // For login failures, let the caller handle the error (shows toast on UI)
     if (status === 401 && requestUrl.includes("/auth/login")) {
@@ -154,10 +178,7 @@ api.interceptors.response.use(
     }
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
-      const refreshToken = localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
-
       if (
-        refreshToken &&
         typeof originalRequest.url === "string" &&
         !originalRequest.url.includes("/auth/refresh-token")
       ) {
@@ -175,45 +196,59 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
-          console.error('Token refresh failed during 401 handling:', refreshError);
+          console.error(
+            "Token refresh failed during 401 handling:",
+            refreshError,
+          );
           clearAuthStorage();
+          clearReadableDebugCookies();
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token or refresh token request failed
         clearAuthStorage();
+        clearReadableDebugCookies();
         return Promise.reject(error);
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // Export token refresh utilities for use in other components
-export { refreshAccessToken, checkAndRefreshTokenIfNeeded, isTokenExpiredOrExpiringSoon };
+export {
+  refreshAccessToken,
+  checkAndRefreshTokenIfNeeded,
+  isTokenExpiredOrExpiringSoon,
+};
 
 const ENDPOINTS = {
   // Auth
   login: (email: string, password: string) =>
     // use bare client so 401 doesn't trigger global refresh/clears
     authApi.post("/auth/login", { email, password }),
-  refreshAccessToken: (refreshToken: string) =>
-    api.post("/auth/refresh-token", { refreshToken }),
+  refreshAccessToken: () => api.post("/auth/refresh-token", {}),
   register: (data: any) => api.post("/auth/register", data),
   logout: () => api.post("/auth/logout"),
-  resetPassword: (email: string) =>
-    api.post("/auth/reset-password", { email }),
+  resetPassword: (email: string) => api.post("/auth/reset-password", { email }),
   changePassword: (data: any) => api.post("/auth/change-password", data),
-  
+
   // Forgot Password
   forgotPassword: (email: string) =>
     api.post("/auth/forgot-password", { email }),
   verifyOTP: (email: string, otp: string) =>
     api.post("/auth/verify-otp", { email, otp }),
-  resetPasswordForgot: (email: string, newPassword: string, confirmPassword: string) =>
-    api.post("/auth/reset-password-forgot", { email, newPassword, confirmPassword }),
- 
+  resetPasswordForgot: (
+    email: string,
+    newPassword: string,
+    confirmPassword: string,
+  ) =>
+    api.post("/auth/reset-password-forgot", {
+      email,
+      newPassword,
+      confirmPassword,
+    }),
 
   // Company
   getCompany: () => api.get("/company"),
@@ -232,14 +267,16 @@ const ENDPOINTS = {
 
   getdepartment: () => api.get("/department"),
   createDepartment: (data: any) => api.post("/department/add", data),
-  updateDepartment: (id: string, data: any) => api.put(`/department/${id}`, data),
+  updateDepartment: (id: string, data: any) =>
+    api.put(`/department/${id}`, data),
   deleteDepartment: (id: string) => api.delete(`/department/${id}`),
 
-  // designation 
+  // designation
 
   getDesignation: () => api.get("/designation"),
   createDesignation: (data: any) => api.post("/designation/add", data),
-  updateDesignation: (id: string, data: any) => api.put(`/designation/${id}`, data),
+  updateDesignation: (id: string, data: any) =>
+    api.put(`/designation/${id}`, data),
   deleteDesignation: (id: string) => api.delete(`/designation/${id}`),
 
   // roles
@@ -253,9 +290,11 @@ const ENDPOINTS = {
 
   // role assignments
   assignRoleToEmployee: (data: any) => api.post("/role/assign", data),
-  removeRoleFromEmployee: (assignmentId: string) => api.delete(`/role/assignments/${assignmentId}`),
+  removeRoleFromEmployee: (assignmentId: string) =>
+    api.delete(`/role/assignments/${assignmentId}`),
   getRoleAssignments: () => api.get("/role/assignments"),
-  getEmployeeRoles: (employee_id: string) => api.get(`/role/assignments/employee/${employee_id}`),
+  getEmployeeRoles: (employee_id: string) =>
+    api.get(`/role/assignments/employee/${employee_id}`),
 
   //range
 
@@ -272,17 +311,17 @@ const ENDPOINTS = {
     api.post("/employee/add", data, {
       ...config,
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
         ...(config as any).headers,
       },
     }),
-  // updateEmployee: (id: string, data: any, config = {}) => 
+  // updateEmployee: (id: string, data: any, config = {}) =>
   //   api.put(`/employee/${id}`, data, config),
   updateEmployee: (id: string, data: any, config = {}) =>
     api.put(`/employee/${id}`, data, {
       ...config,
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
         ...(config as any).headers,
       },
     }),
@@ -293,15 +332,18 @@ const ENDPOINTS = {
   createPulseSurvey: (data: any) => api.post("/pulse-surveys", data),
   getPulseAdminOverview: () => api.get("/pulse-surveys/admin/overview"),
   getPulseAdminSurveys: () => api.get("/pulse-surveys/admin"),
-  getPulseAdminSurvey: (id: string | number) => api.get(`/pulse-surveys/admin/${id}`),
+  getPulseAdminSurvey: (id: string | number) =>
+    api.get(`/pulse-surveys/admin/${id}`),
   getPulseAdminSurveyResponses: (id: string | number) =>
     api.get(`/pulse-surveys/admin/${id}/responses`),
   getMyPulseSurveys: () => api.get("/pulse-surveys/my"),
   getPulseSurvey: (id: string | number) => api.get(`/pulse-surveys/${id}`),
   respondPulseSurvey: (id: string | number, data: any) =>
     api.post(`/pulse-surveys/${id}/respond`, data),
-  getPulseSurveyTemplates: (params?: any) => api.get("/pulse-surveys/templates", { params }),
-  createPulseSurveyTemplate: (data: any) => api.post("/pulse-surveys/templates", data),
+  getPulseSurveyTemplates: (params?: any) =>
+    api.get("/pulse-surveys/templates", { params }),
+  createPulseSurveyTemplate: (data: any) =>
+    api.post("/pulse-surveys/templates", data),
   updatePulseSurveyTemplate: (id: string | number, data: any) =>
     api.put(`/pulse-surveys/templates/${id}`, data),
   deletePulseSurveyTemplate: (id: string | number) =>
@@ -333,12 +375,9 @@ const ENDPOINTS = {
       },
     }),
 
+  getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
 
-  getAttendanceLogs: (params?: any) =>
-    api.get("/attendance/logs", { params }),
-
-  createOverride: (data: any) =>
-    api.post("/attendance/overrides", data),
+  createOverride: (data: any) => api.post("/attendance/overrides", data),
 
   processOverride: (overrideId: string, data: any) =>
     api.put(`/attendance/overrides/${overrideId}/process`, data),
@@ -374,72 +413,80 @@ const ENDPOINTS = {
   saveExpenseDraft: (data: FormData) =>
     api.post("/expenses/draft", data, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     }),
-  deleteExpenseDraft: (draftId?: string | number) => api.delete(draftId ? `/expenses/draft/${draftId}` : "/expenses/draft"),
+  deleteExpenseDraft: (draftId?: string | number) =>
+    api.delete(draftId ? `/expenses/draft/${draftId}` : "/expenses/draft"),
   createExpense: (data: any) => {
     const formData = new FormData();
-    
+
     // Append receipt file if it exists
     if (data.receipt) {
-      formData.append('receipt', data.receipt);
+      formData.append("receipt", data.receipt);
     }
-    
+
     // Append other form fields
-    if (data.category) formData.append('category', data.category);
-    if (data.amount) formData.append('amount', data.amount);
-    if (data.expense_date) formData.append('expense_date', data.expense_date);
-    if (data.description) formData.append('description', data.description);
-    
+    if (data.category) formData.append("category", data.category);
+    if (data.amount) formData.append("amount", data.amount);
+    if (data.expense_date) formData.append("expense_date", data.expense_date);
+    if (data.description) formData.append("description", data.description);
+
     return api.post("/expenses/submit", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
   },
   createExpensesBulk: (formData: FormData) => {
     return api.post("/expenses/submit-bulk", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
   },
   updateExpense: (id: string, data: any) => {
     const formData = new FormData();
 
-    if (data.category !== undefined) formData.append('category', data.category);
-    if (data.amount !== undefined) formData.append('amount', String(data.amount));
-    if (data.expense_date !== undefined) formData.append('expense_date', data.expense_date);
-    if (data.description !== undefined) formData.append('description', data.description);
-    if (data.client_id !== undefined) formData.append('client_id', String(data.client_id ?? ''));
-    if (data.status !== undefined) formData.append('status', data.status);
-    if (data.approval_note !== undefined) formData.append('approval_note', data.approval_note ?? '');
-    if (data.approved_by !== undefined) formData.append('approved_by', data.approved_by ?? '');
-    if (data.remove_receipt !== undefined) formData.append('remove_receipt', String(data.remove_receipt));
+    if (data.category !== undefined) formData.append("category", data.category);
+    if (data.amount !== undefined)
+      formData.append("amount", String(data.amount));
+    if (data.expense_date !== undefined)
+      formData.append("expense_date", data.expense_date);
+    if (data.description !== undefined)
+      formData.append("description", data.description);
+    if (data.client_id !== undefined)
+      formData.append("client_id", String(data.client_id ?? ""));
+    if (data.status !== undefined) formData.append("status", data.status);
+    if (data.approval_note !== undefined)
+      formData.append("approval_note", data.approval_note ?? "");
+    if (data.approved_by !== undefined)
+      formData.append("approved_by", data.approved_by ?? "");
+    if (data.remove_receipt !== undefined)
+      formData.append("remove_receipt", String(data.remove_receipt));
     if (data.receipt) {
-      formData.append('receipt', data.receipt);
+      formData.append("receipt", data.receipt);
     }
 
     return api.put(`/expenses/${id}`, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
   },
   deleteExpense: (id: string) => api.delete(`/expenses/${id}`),
   scanReceipt: (file: File) => {
     const formData = new FormData();
-    formData.append('receipt', file);
+    formData.append("receipt", file);
     return api.post("/expenses/scan-receipt", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
   },
   exportExpenses: (exportData: {
     employeeIds: string[];
-    format: 'csv' | 'json';
+    format: "csv" | "json";
     statusFilter?: string;
     dateFilter?: {
       startDate?: string;
@@ -447,7 +494,7 @@ const ENDPOINTS = {
     };
   }) => {
     return api.post("/expenses/export", exportData, {
-      responseType: exportData.format === 'csv' ? 'blob' : 'json',
+      responseType: exportData.format === "csv" ? "blob" : "json",
     });
   },
 
@@ -455,22 +502,26 @@ const ENDPOINTS = {
 
   getResignation: () => api.get("/resignations"),
   createResignation: (data: any) => api.post("/resignations/create", data),
-  updateResignation: (id: string, data: any) => api.put(`/resignations/${id}`, data),
+  updateResignation: (id: string, data: any) =>
+    api.put(`/resignations/${id}`, data),
 
   //checklist
 
   getChecklists: () => api.get("/checklists"),
   //createChecklist: (data: any) => api.post("/checklist/add", data),
-  updateChecklist: (id: string, data: any) => api.put(`/checklists/${id}`, data),
+  updateChecklist: (id: string, data: any) =>
+    api.put(`/checklists/${id}`, data),
   //deleteChecklist: (id: string) => api.delete(`/checklist/${id}`),
 
   //leave
   applyleave: (data: any) => api.post("/leave/apply", data),
   getLeave: () => api.get("/leave/types"),
   createLeave: (data: any) => api.post("/leavetype/leave-types", data),
-  updateLeave: (id: string, data: any) => api.put(`/leavetype/leave-types/${id}`, data),
+  updateLeave: (id: string, data: any) =>
+    api.put(`/leavetype/leave-types/${id}`, data),
   deleteLeave: (id: string) => api.delete(`/leavetype/leave-types/${id}`),
-  updatestatusLeaveApplication: (id: string, data: any) => api.put(`/leave/${id}/status`, data),
+  updatestatusLeaveApplication: (id: string, data: any) =>
+    api.put(`/leave/${id}/status`, data),
 
   getLeaveBalance: () => api.get("/leave/balance"),
   getleaveapplications: () => api.get("/leave/applications"),
@@ -482,43 +533,48 @@ const ENDPOINTS = {
 
   getFiscalYears: () => api.get("/fiscalyears"),
   createFiscalYear: (data: any) => api.post("/fiscalyears", data),
-  updateFiscalYear: (id: string, data: any) => api.put(`/fiscalyears/${id}`, data),
+  updateFiscalYear: (id: string, data: any) =>
+    api.put(`/fiscalyears/${id}`, data),
   deleteFiscalYear: (id: string) => api.delete(`/fiscalyears/${id}`),
 
   getLeavePolicies: () => api.get("/leavepolicy"),
   createLeavePolicy: (data: any) => api.post("/leavepolicy", data),
-  updateLeavePolicy: (id: string, data: any) => api.put(`/leavepolicy/${id}`, data),
+  updateLeavePolicy: (id: string, data: any) =>
+    api.put(`/leavepolicy/${id}`, data),
   deleteLeavePolicy: (id: string) => api.delete(`/leavepolicy/${id}`),
-  getleaveusers:() =>api.get("/leave/relevant-users"),
+  getleaveusers: () => api.get("/leave/relevant-users"),
 
   //leave permission
   applyLeavePermission: (data: any, config = {}) =>
     api.post("/leave-permission/apply", data, {
       ...config,
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
         ...(config as any).headers,
       },
     }),
-  getLeavePermissionApplications: () => api.get("/leave-permission/applications"),
-  updateLeavePermissionStatus: (id: string, data: any) => api.put(`/leave-permission/${id}/status`, data),
+  getLeavePermissionApplications: () =>
+    api.get("/leave-permission/applications"),
+  updateLeavePermissionStatus: (id: string, data: any) =>
+    api.put(`/leave-permission/${id}/status`, data),
   getLeavePermissionUsers: () => api.get("/leave-permission/relevant-users"),
-
-
 
   //payroll
 
-  createSalaryStructure: (data: any) => api.post("/payroll/salary-structure", data),
+  createSalaryStructure: (data: any) =>
+    api.post("/payroll/salary-structure", data),
   getSalaryStructure: () => api.get("/payroll/salary-structure"),
 
-  updateSalaryStructure: (id: string, data: any) => api.put(`/payroll/structure/${id}`, data),
+  updateSalaryStructure: (id: string, data: any) =>
+    api.put(`/payroll/structure/${id}`, data),
   deleteSalaryStructure: (id: string) => api.delete(`/payroll/structure/${id}`),
 
   getpayslip: () => api.get("/payroll"),
 
   getEmployeePayslips: () => api.get("/payroll/employee/payslips"),
 
-  getPayslipPreview: (employeeId: string, month: string) => api.get(`/payroll/${employeeId}/${month}`),
+  getPayslipPreview: (employeeId: string, month: string) =>
+    api.get(`/payroll/${employeeId}/${month}`),
 
   //reports
 
@@ -537,7 +593,8 @@ const ENDPOINTS = {
   //dashboard
   getAdminDashboardData: () => api.get("/dashboard/admin-dashboard"),
   getEmployeeDashboardData: () => api.get("/dashboard/employee-dashboard"),
-  getEmployeeAnalyticsData: (period?: string) => api.get("/dashboard/employee-analytics", { params: { period } }),
+  getEmployeeAnalyticsData: (period?: string) =>
+    api.get("/dashboard/employee-analytics", { params: { period } }),
   getManagerDashboardData: () => api.get("/dashboard/manager-dashboard"),
   getHRDashboardData: () => api.get("/dashboard/hr-dashboard"),
   getFinanceDashboardData: () => api.get("/dashboard/finance-dashboard"),
@@ -545,9 +602,11 @@ const ENDPOINTS = {
   //notifications
   getNotifications: () => api.get("/notifications"),
   createNotification: (data: any) => api.post("/notifications", data),
-  markNotificationAsRead: (notificationId: string) => api.put(`/notifications/${notificationId}/read`),
+  markNotificationAsRead: (notificationId: string) =>
+    api.put(`/notifications/${notificationId}/read`),
   markAllNotificationsAsRead: () => api.put("/notifications/read-all"),
-  deleteNotification: (notificationId: string) => api.delete(`/notifications/${notificationId}`),
+  deleteNotification: (notificationId: string) =>
+    api.delete(`/notifications/${notificationId}`),
 
   //clients
   getClients: () => api.get("/clients"),
@@ -567,7 +626,8 @@ const ENDPOINTS = {
   getOrganizations: () => api.get("/organizations"),
   getOrganizationById: (id: string) => api.get(`/organizations/${id}`),
   createOrganization: (data: any) => api.post("/organizations", data),
-  updateOrganization: (id: string, data: any) => api.put(`/organizations/${id}`, data),
+  updateOrganization: (id: string, data: any) =>
+    api.put(`/organizations/${id}`, data),
   deleteOrganization: (id: string) => api.delete(`/organizations/${id}`),
 
   // Organization Helper Functions
@@ -577,71 +637,80 @@ const ENDPOINTS = {
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to fetch organizations' };
+      return { error: "Failed to fetch organizations" };
     } catch (error: any) {
-      console.error('Error fetching organizations:', error);
+      console.error("Error fetching organizations:", error);
       return {
-        error: error.response?.data?.message || 'Failed to fetch organizations'
+        error: error.response?.data?.message || "Failed to fetch organizations",
       };
     }
   },
 
-  fetchOrganizationById: async (id: string): Promise<{ data?: any; error?: string }> => {
+  fetchOrganizationById: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.getOrganizationById(id);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Organization not found' };
+      return { error: "Organization not found" };
     } catch (error: any) {
-      console.error('Error fetching organization:', error);
+      console.error("Error fetching organization:", error);
       return {
-        error: error.response?.data?.message || 'Organization not found'
+        error: error.response?.data?.message || "Organization not found",
       };
     }
   },
 
-  addOrganization: async (data: any): Promise<{ data?: any; error?: string }> => {
+  addOrganization: async (
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.createOrganization(data);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to create organization' };
+      return { error: "Failed to create organization" };
     } catch (error: any) {
-      console.error('Error creating organization:', error);
+      console.error("Error creating organization:", error);
       return {
-        error: error.response?.data?.message || 'Failed to create organization'
+        error: error.response?.data?.message || "Failed to create organization",
       };
     }
   },
 
-  editOrganization: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+  editOrganization: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateOrganization(id, data);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to update organization' };
+      return { error: "Failed to update organization" };
     } catch (error: any) {
-      console.error('Error updating organization:', error);
+      console.error("Error updating organization:", error);
       return {
-        error: error.response?.data?.message || 'Failed to update organization'
+        error: error.response?.data?.message || "Failed to update organization",
       };
     }
   },
 
-  removeOrganization: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  removeOrganization: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteOrganization(id);
       if (response.data && response.data.success) {
         return { success: true };
       }
-      return { error: 'Failed to delete organization' };
+      return { error: "Failed to delete organization" };
     } catch (error: any) {
-      console.error('Error deleting organization:', error);
+      console.error("Error deleting organization:", error);
       return {
-        error: error.response?.data?.message || 'Failed to delete organization'
+        error: error.response?.data?.message || "Failed to delete organization",
       };
     }
   },
@@ -650,19 +719,21 @@ const ENDPOINTS = {
 
   getallattendance: () => api.get("/client-attendance/all"),
 
-
   // Custom attendance and payslip functions
-  getAttendance: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
+  getAttendance: async (
+    employeeId: string,
+    month: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await api.get(`/attendance/${employeeId}/${month}`);
       if (response.data && response.data.success) {
         return { data: response.data.attendance };
       }
-      return { error: 'No attendance data available' };
+      return { error: "No attendance data available" };
     } catch (error: any) {
-      console.error('Error fetching attendance:', error);
+      console.error("Error fetching attendance:", error);
       return {
-        error: error.response?.data?.message || 'Failed to fetch attendance'
+        error: error.response?.data?.message || "Failed to fetch attendance",
       };
     }
   },
@@ -681,37 +752,42 @@ const ENDPOINTS = {
         }
       }
 
-      console.log('Raw API response:', response.data);
+      console.log("Raw API response:", response.data);
 
       if (response.data && (response.data.payrolls || response.data)) {
         const payrollsData = response.data.payrolls || response.data;
-        console.log('Found payrolls array:', payrollsData);
+        console.log("Found payrolls array:", payrollsData);
         // Transform API response to match the expected payslip interface
         const transformedData = payrollsData.map((item: any) => ({
           id: item.id.toString(),
-          employeeId: (item.employee_id || item.employeeId || '').toString(),
-          employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
+          employeeId: (item.employee_id || item.employeeId || "").toString(),
+          employeeName:
+            item.employeeName ||
+            `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+            `Employee ${item.employee_id || item.employeeId}`,
           month: item.month,
           payableDays: item.payable_days || 0,
           lopAmount: parseFloat(item.lop_amount) || 0,
           gross: parseFloat(item.gross) || 0,
           deductions: parseFloat(item.deductions) || 0,
           net: parseFloat(item.net) || 0,
-          status: item.status || 'draft',
-          number: `PS/${item.month?.replace('-', '/')}/${item.id?.toString().padStart(3, '0') || '001'}`,
-          generatedOn: item.created_at ? new Date(item.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
+          status: item.status || "draft",
+          number: `PS/${item.month?.replace("-", "/")}/${item.id?.toString().padStart(3, "0") || "001"}`,
+          generatedOn: item.created_at
+            ? new Date(item.created_at).toLocaleDateString("en-GB")
+            : new Date().toLocaleDateString("en-GB"),
           createdAt: item.created_at || new Date().toISOString(),
         }));
-        console.log('Transformed data:', transformedData);
+        console.log("Transformed data:", transformedData);
         return { data: transformedData };
       } else if (response.data) {
         return { data: response.data };
       }
-      return { error: 'No payslip data available' };
+      return { error: "No payslip data available" };
     } catch (error: any) {
-      console.error('Error fetching payslips:', error);
+      console.error("Error fetching payslips:", error);
       return {
-        error: error.response?.data?.message || 'Failed to fetch payslips'
+        error: error.response?.data?.message || "Failed to fetch payslips",
       };
     }
   },
@@ -721,12 +797,12 @@ const ENDPOINTS = {
   updateProfile: (data: FormData) =>
     api.put(`/profile/me`, data, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        "Content-Type": "multipart/form-data",
+      },
     }),
   deleteMyAccount: (confirmation: string) =>
     api.delete(`/profile/me/account`, {
-      data: { confirmation }
+      data: { confirmation },
     }),
 
   //activities
@@ -735,7 +811,8 @@ const ENDPOINTS = {
 
   //documents
   getDocuments: () => api.get("/documents"),
-  downloadDocument: (id: string) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
+  downloadDocument: (id: string) =>
+    api.get(`/documents/${id}/download`, { responseType: "blob" }),
 
   //tickets
   getTickets: () => api.get("/tickets"),
@@ -747,8 +824,10 @@ const ENDPOINTS = {
   // Super Admin
   getSuperAdminStats: () => api.get("/superadmin/stats"),
   getSuperAdminCompanies: () => api.get("/superadmin/companies"),
-  getSuperAdminTickets: (params?: any) => api.get("/superadmin/tickets", { params }),
-  getOrganizationTickets: (orgId: string, params?: any) => api.get(`/superadmin/organizations/${orgId}/tickets`, { params }),
+  getSuperAdminTickets: (params?: any) =>
+    api.get("/superadmin/tickets", { params }),
+  getOrganizationTickets: (orgId: string, params?: any) =>
+    api.get(`/superadmin/organizations/${orgId}/tickets`, { params }),
   getOrganizationStats: () => api.get("/superadmin/organization-stats"),
 
   // Subscription Management
@@ -756,22 +835,28 @@ const ENDPOINTS = {
   getAllSubscriptionPlans: () => api.get("/subscription/plans/all"),
   getCurrentSubscription: () => api.get("/subscription/current"),
   getSubscriptionPayments: () => api.get("/subscription/payments"),
-  startSubscriptionTrial: (data: any) => api.post("/subscription/start-trial", data),
+  startSubscriptionTrial: (data: any) =>
+    api.post("/subscription/start-trial", data),
   upgradeSubscription: (data: any) => api.post("/subscription/upgrade", data),
-  createSubscriptionUpgradeOrder: (data: any) => api.post("/subscription/upgrade/create-order", data),
-  verifySubscriptionUpgradePayment: (data: any) => api.post("/subscription/upgrade/verify-payment", data),
+  createSubscriptionUpgradeOrder: (data: any) =>
+    api.post("/subscription/upgrade/create-order", data),
+  verifySubscriptionUpgradePayment: (data: any) =>
+    api.post("/subscription/upgrade/verify-payment", data),
   createSubscriptionPlan: (data: any) => api.post("/subscription/plans", data),
-  updateSubscriptionPlan: (planId: number, data: any) => api.put(`/subscription/plans/${planId}`, data),
-  deleteSubscriptionPlan: (planId: number) => api.delete(`/subscription/plans/${planId}`),
-  patchSubscriptionPlan: (planId: number, data: any) => api.patch(`/subscription/plans/${planId}`, data),
+  updateSubscriptionPlan: (planId: number, data: any) =>
+    api.put(`/subscription/plans/${planId}`, data),
+  deleteSubscriptionPlan: (planId: number) =>
+    api.delete(`/subscription/plans/${planId}`),
+  patchSubscriptionPlan: (planId: number, data: any) =>
+    api.patch(`/subscription/plans/${planId}`, data),
   getAllSubscriptions: () => api.get("/subscription/all"),
 
-
-//RMS
+  //RMS
 
   getJobRequirements: () => api.get("/job-requirements"),
   createJobRequirement: (data: any) => api.post("/job-requirements", data),
-  updateJobRequirement: (id: string, data: any) => api.put(`/job-requirements/${id}`, data),
+  updateJobRequirement: (id: string, data: any) =>
+    api.put(`/job-requirements/${id}`, data),
   deleteJobRequirement: (id: string) => api.delete(`/job-requirements/${id}`),
   getJobRequirementsStats: () => api.get("/job-requirements/stats"),
 
@@ -779,53 +864,68 @@ const ENDPOINTS = {
   getSettlements: (params?: any) => api.get("/settlement", { params }),
   getSettlementById: (id: number) => api.get(`/settlement/${id}`),
   createSettlement: (data: any) => api.post("/settlement", data),
-  updateSettlement: (id: number, data: any) => api.put(`/settlement/${id}`, data),
+  updateSettlement: (id: number, data: any) =>
+    api.put(`/settlement/${id}`, data),
   calculateSettlement: (id: number) => api.post(`/settlement/${id}/calculate`),
-  approveSettlement: (id: number, data: any) => api.post(`/settlement/${id}/approve`, data),
-  rejectSettlement: (id: number, data: any) => api.post(`/settlement/${id}/reject`, data),
-  getEmployeesForSettlement: (params?: any) => api.get("/settlement/employees", { params }),
-  downloadSettlementReport: (id: number) => api.get(`/settlement/${id}/download`, { responseType: 'blob' }),
+  approveSettlement: (id: number, data: any) =>
+    api.post(`/settlement/${id}/approve`, data),
+  rejectSettlement: (id: number, data: any) =>
+    api.post(`/settlement/${id}/reject`, data),
+  getEmployeesForSettlement: (params?: any) =>
+    api.get("/settlement/employees", { params }),
+  downloadSettlementReport: (id: number) =>
+    api.get(`/settlement/${id}/download`, { responseType: "blob" }),
   sendSettlementEmail: (data: any) => api.post("/settlement/send-email", data),
 
   // Recruitment
-  getCandidates: (params?: any) => api.get("/recruitment/candidates", { params }),
+  getCandidates: (params?: any) =>
+    api.get("/recruitment/candidates", { params }),
   getCandidateById: (id: string) => api.get(`/recruitment/candidates/${id}`),
-  bulkCreateCandidates: (data: any) => api.post("/recruitment/candidates/bulk", data),
+  bulkCreateCandidates: (data: any) =>
+    api.post("/recruitment/candidates/bulk", data),
   createCandidate: (data: any) => api.post("/recruitment/candidates", data),
-  updateCandidate: (id: string, data: any) => api.put(`/recruitment/candidates/${id}`, data),
-  updateCandidateStatus: (id: string, status: string) => api.put(`/recruitment/candidates/${id}/status`, { status }),
+  updateCandidate: (id: string, data: any) =>
+    api.put(`/recruitment/candidates/${id}`, data),
+  updateCandidateStatus: (id: string, status: string) =>
+    api.put(`/recruitment/candidates/${id}/status`, { status }),
   deleteCandidate: (id: string) => api.delete(`/recruitment/candidates/${id}`),
-  createInterview: (candidateId: string, data: any) => api.post(`/recruitment/candidates/${candidateId}/interviews`, data),
-  updateInterview: (interviewId: string, data: any) => api.put(`/recruitment/interviews/${interviewId}`, data),
+  createInterview: (candidateId: string, data: any) =>
+    api.post(`/recruitment/candidates/${candidateId}/interviews`, data),
+  updateInterview: (interviewId: string, data: any) =>
+    api.put(`/recruitment/interviews/${interviewId}`, data),
   getRecruitmentStats: () => api.get("/recruitment/stats"),
 
   // Recruitment helper functions with error handling
-  fetchCandidates: async (params?: any): Promise<{ data?: any; error?: string }> => {
+  fetchCandidates: async (
+    params?: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.getCandidates(params);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to fetch candidates' };
+      return { error: "Failed to fetch candidates" };
     } catch (error: any) {
-      console.error('Error fetching candidates:', error);
+      console.error("Error fetching candidates:", error);
       return {
-        error: error.response?.data?.message || 'Failed to fetch candidates'
+        error: error.response?.data?.message || "Failed to fetch candidates",
       };
     }
   },
 
-  fetchCandidateById: async (id: string): Promise<{ data?: any; error?: string }> => {
+  fetchCandidateById: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.getCandidateById(id);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Candidate not found' };
+      return { error: "Candidate not found" };
     } catch (error: any) {
-      console.error('Error fetching candidate:', error);
+      console.error("Error fetching candidate:", error);
       return {
-        error: error.response?.data?.message || 'Candidate not found'
+        error: error.response?.data?.message || "Candidate not found",
       };
     }
   }, // <--- Added closing bracket here
@@ -859,23 +959,25 @@ const ENDPOINTS = {
         source: data.source,
         applied_date: data.appliedDate,
         status: data.status,
-        notes: data.notes
+        notes: data.notes,
       };
-      
+
       const response = await ENDPOINTS.createCandidate(backendData);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to create candidate' };
+      return { error: "Failed to create candidate" };
     } catch (error: any) {
-      console.error('Error creating candidate:', error);
+      console.error("Error creating candidate:", error);
       return {
-        error: error.response?.data?.message || 'Failed to create candidate'
+        error: error.response?.data?.message || "Failed to create candidate",
       };
     }
   },
 
-  addCandidatesBulk: async (rows: any[]): Promise<{ data?: any; error?: string }> => {
+  addCandidatesBulk: async (
+    rows: any[],
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const backendRows = rows.map((data) => ({
         rowNumber: data.rowNumber,
@@ -904,24 +1006,29 @@ const ENDPOINTS = {
         source: data.source,
         applied_date: data.appliedDate,
         status: data.status,
-        notes: data.notes
+        notes: data.notes,
       }));
 
-      const response = await ENDPOINTS.bulkCreateCandidates({ candidates: backendRows });
+      const response = await ENDPOINTS.bulkCreateCandidates({
+        candidates: backendRows,
+      });
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
 
-      return { error: 'Failed to import candidates' };
+      return { error: "Failed to import candidates" };
     } catch (error: any) {
-      console.error('Error importing candidates:', error);
+      console.error("Error importing candidates:", error);
       return {
-        error: error.response?.data?.message || 'Failed to import candidates'
+        error: error.response?.data?.message || "Failed to import candidates",
       };
     }
   },
 
-  editCandidate: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+  editCandidate: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       // Convert camelCase to snake_case for backend
       const backendData = {
@@ -950,63 +1057,72 @@ const ENDPOINTS = {
         source: data.source,
         applied_date: data.appliedDate,
         status: data.status,
-        notes: data.notes
+        notes: data.notes,
       };
-      
+
       const response = await ENDPOINTS.updateCandidate(id, backendData);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to update candidate' };
+      return { error: "Failed to update candidate" };
     } catch (error: any) {
-      console.error('Error updating candidate:', error);
+      console.error("Error updating candidate:", error);
       return {
-        error: error.response?.data?.message || 'Failed to update candidate'
+        error: error.response?.data?.message || "Failed to update candidate",
       };
     }
   },
 
-  changeCandidateStatus: async (id: string, status: string): Promise<{ data?: any; error?: string }> => {
+  changeCandidateStatus: async (
+    id: string,
+    status: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateCandidateStatus(id, status);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to update candidate status' };
+      return { error: "Failed to update candidate status" };
     } catch (error: any) {
-      console.error('Error updating candidate status:', error);
+      console.error("Error updating candidate status:", error);
       return {
-        error: error.response?.data?.message || 'Failed to update candidate status'
+        error:
+          error.response?.data?.message || "Failed to update candidate status",
       };
     }
   },
 
-  removeCandidate: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  removeCandidate: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteCandidate(id);
       if (response.data && response.data.success) {
         return { success: true };
       }
-      return { error: 'Failed to delete candidate' };
+      return { error: "Failed to delete candidate" };
     } catch (error: any) {
-      console.error('Error deleting candidate:', error);
+      console.error("Error deleting candidate:", error);
       return {
-        error: error.response?.data?.message || 'Failed to delete candidate'
+        error: error.response?.data?.message || "Failed to delete candidate",
       };
     }
   },
 
-  scheduleInterview: async (candidateId: string, data: any): Promise<{ data?: any; error?: string }> => {
+  scheduleInterview: async (
+    candidateId: string,
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.createInterview(candidateId, data);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to schedule interview' };
+      return { error: "Failed to schedule interview" };
     } catch (error: any) {
-      console.error('Error scheduling interview:', error);
+      console.error("Error scheduling interview:", error);
       return {
-        error: error.response?.data?.message || 'Failed to schedule interview'
+        error: error.response?.data?.message || "Failed to schedule interview",
       };
     }
   },
@@ -1017,11 +1133,13 @@ const ENDPOINTS = {
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to fetch recruitment statistics' };
+      return { error: "Failed to fetch recruitment statistics" };
     } catch (error: any) {
-      console.error('Error fetching recruitment stats:', error);
+      console.error("Error fetching recruitment stats:", error);
       return {
-        error: error.response?.data?.message || 'Failed to fetch recruitment statistics'
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch recruitment statistics",
       };
     }
   },
@@ -1033,26 +1151,28 @@ const ENDPOINTS = {
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to fetch users' };
+      return { error: "Failed to fetch users" };
     } catch (error: any) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
       return {
-        error: error.response?.data?.message || 'Failed to fetch users'
+        error: error.response?.data?.message || "Failed to fetch users",
       };
     }
   },
 
-  fetchUserById: async (id: string): Promise<{ data?: any; error?: string }> => {
+  fetchUserById: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.getUserById(id);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'User not found' };
+      return { error: "User not found" };
     } catch (error: any) {
-      console.error('Error fetching user:', error);
+      console.error("Error fetching user:", error);
       return {
-        error: error.response?.data?.message || 'User not found'
+        error: error.response?.data?.message || "User not found",
       };
     }
   },
@@ -1063,75 +1183,85 @@ const ENDPOINTS = {
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to create user' };
+      return { error: "Failed to create user" };
     } catch (error: any) {
-      console.error('Error creating user:', error);
+      console.error("Error creating user:", error);
       return {
-        error: error.response?.data?.message || 'Failed to create user'
+        error: error.response?.data?.message || "Failed to create user",
       };
     }
   },
 
-  editUser: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+  editUser: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateUser(id, data);
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to update user' };
+      return { error: "Failed to update user" };
     } catch (error: any) {
-      console.error('Error updating user:', error);
+      console.error("Error updating user:", error);
       return {
-        error: error.response?.data?.message || 'Failed to update user'
+        error: error.response?.data?.message || "Failed to update user",
       };
     }
   },
 
-  removeUser: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  removeUser: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteUser(id);
       if (response.data && response.data.success) {
         return { success: true };
       }
-      return { error: 'Failed to delete user' };
+      return { error: "Failed to delete user" };
     } catch (error: any) {
-      console.error('Error deleting user:', error);
+      console.error("Error deleting user:", error);
       return {
-        error: error.response?.data?.message || 'Failed to delete user'
+        error: error.response?.data?.message || "Failed to delete user",
       };
     }
   },
 
-  updateUserRole: async (id: string, role: string): Promise<{ data?: any; error?: string }> => {
+  updateUserRole: async (
+    id: string,
+    role: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateUser(id, { role });
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to update user role' };
+      return { error: "Failed to update user role" };
     } catch (error: any) {
-      console.error('Error updating user role:', error);
+      console.error("Error updating user role:", error);
       return {
-        error: error.response?.data?.message || 'Failed to update user role'
+        error: error.response?.data?.message || "Failed to update user role",
       };
     }
   },
 
-  updateUserStatus: async (id: string, status: string): Promise<{ data?: any; error?: string }> => {
+  updateUserStatus: async (
+    id: string,
+    status: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateUser(id, { status });
       if (response.data && response.data.success) {
         return { data: response.data.data };
       }
-      return { error: 'Failed to update user status' };
+      return { error: "Failed to update user status" };
     } catch (error: any) {
-      console.error('Error updating user status:', error);
+      console.error("Error updating user status:", error);
       return {
-        error: error.response?.data?.message || 'Failed to update user status'
+        error: error.response?.data?.message || "Failed to update user status",
       };
     }
   },
-
 };
 
 export default ENDPOINTS;
