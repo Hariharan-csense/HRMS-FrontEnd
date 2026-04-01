@@ -5,7 +5,6 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Save, Trash2, Edit, X } from 'lucide-react';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
@@ -14,19 +13,14 @@ const formatPrice = (price: number): string => {
   return `\u20B9${price.toLocaleString('en-IN')}`;
 };
 
-type BillingCycle = 'monthly' | 'yearly';
-
 interface SubscriptionPlan {
   id: number;
   name: string;
   description: string;
   price: number;
-  price_upto25?: number;
-  price_upto50?: number;
-  price_above50?: number;
+  yearly_price?: number;
   max_users: number;
   trial_days: number;
-  billing_cycle: string;
   is_active: boolean;
   storage_gb?: number;
 }
@@ -38,16 +32,15 @@ const SubscriptionPlansManagement: React.FC = () => {
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
 
   const [planForm, setPlanForm] = useState({
     name: '',
     description: '',
-    price_upto25: '',
-    price_upto50: '',
-    price_above50: '',
+    price: '',
+    yearly_price: '',
     storage_gb: '',
     trial_days: '',
-    billing_cycle: 'monthly' as BillingCycle,
     is_active: true
   });
 
@@ -58,7 +51,15 @@ const SubscriptionPlansManagement: React.FC = () => {
   const fetchPlans = async () => {
     try {
       const response = await ENDPOINTS.getAllSubscriptionPlans();
-      const fetchedPlans = response.data?.data || [];
+      const fetchedPlans = (response.data?.data || []).map((plan: any) => ({
+        ...plan,
+        price: Number(plan.price || 0),
+        yearly_price: plan.yearly_price !== undefined && plan.yearly_price !== null
+          ? Number(plan.yearly_price)
+          : undefined,
+        storage_gb: plan.storage_gb !== undefined && plan.storage_gb !== null ? Number(plan.storage_gb) : undefined,
+        trial_days: Number(plan.trial_days || 0),
+      }));
       setPlans(fetchedPlans);
     } catch (fetchError: any) {
       console.error('Error fetching plans:', fetchError);
@@ -74,12 +75,10 @@ const SubscriptionPlansManagement: React.FC = () => {
     setPlanForm({
       name: '',
       description: '',
-      price_upto25: '',
-      price_upto50: '',
-      price_above50: '',
+      price: '',
+      yearly_price: '',
       storage_gb: '',
       trial_days: '',
-      billing_cycle: 'monthly',
       is_active: true
     });
     setEditingPlan(null);
@@ -87,17 +86,16 @@ const SubscriptionPlansManagement: React.FC = () => {
   };
 
   const handleEditPlan = (plan: SubscriptionPlan) => {
+    setEditorSessionKey((prev) => prev + 1);
     setEditingPlan(plan);
     setIsCreatingPlan(false);
     setPlanForm({
       name: plan.name || '',
       description: plan.description || '',
-      price_upto25: plan.price_upto25?.toString() || '',
-      price_upto50: plan.price_upto50?.toString() || '',
-      price_above50: plan.price_above50?.toString() || '',
+      price: plan.price?.toString() || '',
+      yearly_price: plan.yearly_price?.toString() || '',
       storage_gb: plan.storage_gb?.toString() || '',
       trial_days: plan.trial_days?.toString() || '',
-      billing_cycle: (plan.billing_cycle as BillingCycle) || 'monthly',
       is_active: plan.is_active
     });
   };
@@ -109,14 +107,11 @@ const SubscriptionPlansManagement: React.FC = () => {
       const payload = {
         name: planForm.name,
         description: planForm.description,
-        price: Number(planForm.price_upto25),
-        price_upto25: Number(planForm.price_upto25),
-        price_upto50: Number(planForm.price_upto50),
-        price_above50: Number(planForm.price_above50),
+        price: Number(planForm.price),
+        yearly_price: Number(planForm.yearly_price),
         max_users: 0,
         storage_gb: planForm.storage_gb ? Number(planForm.storage_gb) : undefined,
         trial_days: Number(planForm.trial_days),
-        billing_cycle: planForm.billing_cycle,
         is_active: planForm.is_active
       };
 
@@ -140,8 +135,8 @@ const SubscriptionPlansManagement: React.FC = () => {
   const handleDeletePlan = async (planId: number) => {
     if (!confirm('Are you sure you want to delete this package?')) return;
     try {
-      await ENDPOINTS.deleteSubscriptionPlan(planId);
-      showToast.success('Package deleted');
+      const response = await ENDPOINTS.deleteSubscriptionPlan(planId);
+      showToast.success(response.data?.message || 'Package deleted');
       fetchPlans();
     } catch (deleteError: any) {
       console.error('Error deleting plan:', deleteError);
@@ -172,7 +167,7 @@ const SubscriptionPlansManagement: React.FC = () => {
                 </span>
                 <h1 className="mt-3 text-3xl sm:text-4xl font-bold text-white">Subscription Plans</h1>
                 <p className="mt-2 text-green-100 text-sm sm:text-base">
-                  Create and manage tiered pricing packages with clear billing details.
+                  Create and manage package names, monthly pricing, yearly pricing, storage, and trial days.
                 </p>
               </div>
               <Button
@@ -204,7 +199,7 @@ const SubscriptionPlansManagement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-2xl font-bold text-gray-900">Packages</CardTitle>
-                  <p className="text-sm text-gray-600">Manage the three base packages and their tiered pricing.</p>
+                  <p className="text-sm text-gray-600">Manage package names, monthly pricing, yearly pricing, storage, and trial days.</p>
                 </div>
               </div>
             </CardHeader>
@@ -212,7 +207,12 @@ const SubscriptionPlansManagement: React.FC = () => {
               {(isCreatingPlan || editingPlan) && (
                 <Card className="border border-dashed border-gray-300 bg-white">
                   <CardContent className="p-6">
-                    <form onSubmit={handleSavePlan} className="space-y-6">
+                    <form
+                      key={editingPlan ? `edit-${editingPlan.id}-${editorSessionKey}` : `create-plan-${editorSessionKey}`}
+                      onSubmit={handleSavePlan}
+                      className="space-y-6"
+                      autoComplete="off"
+                    >
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {editingPlan ? `Edit ${editingPlan.name}` : 'Create Package'}
@@ -225,6 +225,8 @@ const SubscriptionPlansManagement: React.FC = () => {
                         <div className="space-y-2">
                           <Label className="text-gray-700 font-medium">Package Name</Label>
                           <Input
+                            name="plan_name"
+                            autoComplete="off"
                             value={planForm.name}
                             onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
                             className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
@@ -232,49 +234,27 @@ const SubscriptionPlansManagement: React.FC = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Billing Cycle</Label>
-                          <Select
-                            value={planForm.billing_cycle}
-                            onValueChange={(value) => setPlanForm({ ...planForm, billing_cycle: value as BillingCycle })}
-                          >
-                            <SelectTrigger className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500">
-                              <SelectValue placeholder="Select billing cycle" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="monthly">Monthly</SelectItem>
-                              <SelectItem value="yearly">Yearly</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price per user / month (Up to 25)</Label>
+                          <Label className="text-gray-700 font-medium">Monthly Price</Label>
                           <Input
                             type="number"
+                            name="monthly_price"
+                            autoComplete="off"
                             min="0"
-                            value={planForm.price_upto25}
-                            onChange={(e) => setPlanForm({ ...planForm, price_upto25: e.target.value })}
+                            value={planForm.price}
+                            onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
                             className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                             required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price per user / month (Up to 50)</Label>
+                          <Label className="text-gray-700 font-medium">Yearly Price</Label>
                           <Input
                             type="number"
+                            name="yearly_price"
+                            autoComplete="off"
                             min="0"
-                            value={planForm.price_upto50}
-                            onChange={(e) => setPlanForm({ ...planForm, price_upto50: e.target.value })}
-                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price per user / month (Above 50)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={planForm.price_above50}
-                            onChange={(e) => setPlanForm({ ...planForm, price_above50: e.target.value })}
+                            value={planForm.yearly_price}
+                            onChange={(e) => setPlanForm({ ...planForm, yearly_price: e.target.value })}
                             className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                             required
                           />
@@ -283,6 +263,8 @@ const SubscriptionPlansManagement: React.FC = () => {
                           <Label className="text-gray-700 font-medium">Storage (GB)</Label>
                           <Input
                             type="number"
+                            name="storage_gb"
+                            autoComplete="off"
                             min="0"
                             value={planForm.storage_gb}
                             onChange={(e) => setPlanForm({ ...planForm, storage_gb: e.target.value })}
@@ -293,6 +275,8 @@ const SubscriptionPlansManagement: React.FC = () => {
                           <Label className="text-gray-700 font-medium">Trial Days</Label>
                           <Input
                             type="number"
+                            name="trial_days"
+                            autoComplete="off"
                             min="0"
                             value={planForm.trial_days}
                             onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })}
@@ -313,6 +297,8 @@ const SubscriptionPlansManagement: React.FC = () => {
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">Package Modules</Label>
                         <Textarea
+                          name="plan_description"
+                          autoComplete="off"
                           value={planForm.description}
                           onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
                           rows={4}
@@ -335,7 +321,7 @@ const SubscriptionPlansManagement: React.FC = () => {
                 <div className="relative before:absolute before:inset-0 before:bg-gradient-to-r before:from-green-500/10 before:to-transparent before:rounded-2xl before:blur-2xl before:-z-10 before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-3/4 before:h-3/4">
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {plans.map((plan) => {
-                      const isPopular = plan.name?.toLowerCase?.().includes('starter');
+                      const isPopular = plan.name?.toLowerCase?.().includes('standard');
 
                       return (
                         <div
@@ -354,37 +340,20 @@ const SubscriptionPlansManagement: React.FC = () => {
                             <div className="flex items-start justify-between">
                               <div>
                                 <h4 className="text-xl font-bold text-gray-900">{plan.name}</h4>
-                                <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">
-                                  {plan.billing_cycle} billing
-                                </p>
                               </div>
                               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${plan.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
                                 {plan.is_active ? 'Active' : 'Inactive'}
                               </span>
                             </div>
 
-                            <div className="mt-6 text-center">
-                              <div className="flex items-baseline justify-center gap-1">
-                                <span className="text-4xl font-bold text-green-700">
-                                  {formatPrice(plan.price_upto25 || 0)}
-                                </span>
-                                <span className="text-green-600 font-semibold text-sm">/user/month</span>
+                            <div className="mt-6 grid grid-cols-2 gap-3 text-center">
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                <p className="text-[10px] uppercase text-gray-500">Monthly</p>
+                                <p className="text-lg font-semibold text-gray-900">{formatPrice(plan.price || 0)}</p>
                               </div>
-                              <p className="text-xs text-gray-500 mt-2">Up to 25 users</p>
-                            </div>
-
-                            <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                <p className="text-[10px] uppercase text-gray-500">Up to 25</p>
-                                <p className="text-sm font-semibold text-gray-900">{formatPrice(plan.price_upto25 || 0)}</p>
-                              </div>
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                <p className="text-[10px] uppercase text-gray-500">Up to 50</p>
-                                <p className="text-sm font-semibold text-gray-900">{formatPrice(plan.price_upto50 || 0)}</p>
-                              </div>
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                <p className="text-[10px] uppercase text-gray-500">Above 50</p>
-                                <p className="text-sm font-semibold text-gray-900">{formatPrice(plan.price_above50 || 0)}</p>
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                <p className="text-[10px] uppercase text-gray-500">Yearly</p>
+                                <p className="text-lg font-semibold text-emerald-700">{formatPrice(plan.yearly_price || 0)}</p>
                               </div>
                             </div>
 

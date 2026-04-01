@@ -29,8 +29,7 @@ export async function handleLogin({ email, password }: LoginParams): Promise<Log
       localStorage.setItem('accessToken', res.data.accessToken);
     }
     if (res.data?.refreshToken) {
-      localStorage.setItem('refreshToken', res.data.refreshToken);
-      localStorage.setItem('rememberMe', 'true');
+      sessionStorage.setItem('refreshToken', res.data.refreshToken);
     }
 
     return {
@@ -60,6 +59,7 @@ export async function handleLogout(): Promise<{ success: boolean; message: strin
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('rememberMe');
     // Clear any other auth-related items

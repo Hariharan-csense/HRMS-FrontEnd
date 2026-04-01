@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // // //Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.19:3000";
+export const BASE_URL = "http://192.168.1.11:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
 // Auth requests that must NOT go through interceptors (avoids side effects on login errors)
 const authApi = axios.create({
@@ -30,6 +30,22 @@ const clearAuthStorage = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("userRole");
   localStorage.removeItem("rememberMe");
+};
+
+const getStoredRefreshToken = () =>
+  localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
+
+const persistRefreshToken = (refreshToken: string) => {
+  const rememberMe = localStorage.getItem("rememberMe") === "true";
+
+  if (rememberMe) {
+    localStorage.setItem("refreshToken", refreshToken);
+    sessionStorage.removeItem("refreshToken");
+    return;
+  }
+
+  sessionStorage.setItem("refreshToken", refreshToken);
+  localStorage.removeItem("refreshToken");
 };
 
 const setReadableAuthCookie = (
@@ -93,10 +109,10 @@ let refreshPromise: Promise<string> | null = null;
 // ✅ Token refresh utility
 const refreshAccessToken = async (): Promise<string> => {
   try {
-    // Refresh token is now read from httpOnly cookie by the backend.
+    const storedRefreshToken = getStoredRefreshToken();
     const response = await axios.post(
       `${BASE_URL}/api/auth/refresh-token`,
-      {},
+      storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
       {
         withCredentials: true,
         headers: {
@@ -115,6 +131,7 @@ const refreshAccessToken = async (): Promise<string> => {
     localStorage.setItem("accessToken", newAccessToken);
     setReadableAuthCookie("accessToken", newAccessToken, 30 * 60);
     if (newRefreshToken) {
+      persistRefreshToken(newRefreshToken);
       setReadableAuthCookie("refreshToken", newRefreshToken, 7 * 24 * 60 * 60);
     }
     console.log("Access token refreshed successfully");

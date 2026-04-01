@@ -11,10 +11,7 @@ interface SubscriptionPlan {
   id: number;
   name: string;
   price: number;
-  price_upto25?: number;
-  price_upto50?: number;
-  price_above50?: number;
-  billing_cycle: string;
+  yearly_price?: number;
   description: string;
   features: string[];
   max_users: number;
@@ -27,37 +24,28 @@ interface SubscriptionPlan {
 }
 
 
-const getStorageForPlan = (planName: string): string => {
-  const name = planName.toLowerCase();
-  
-  if (name.includes('free')) {
-    return '500MB';
-  }
-  
-  if (name.includes('basic') || name.includes('starter')) {
-    return '2GB';
-  }
-  
-  if (name.includes('standard') || name.includes('professional') || name.includes('pro')) {
-    return '5GB';
-  }
-  
-  if (name.includes('advanced') || name.includes('business') || name.includes('premium') || name.includes('enterprise')) {
-    return '10GB';
-  }
-  
-  return '1GB'; // Default storage
-};
 
 const formatPrice = (price: number): string => {
   return `₹${price.toLocaleString('en-IN')}`;
 };
 
-const getTierPrice = (plan: SubscriptionPlan, usersCount: number): number => {
-  if (usersCount <= 25 && plan.price_upto25 !== undefined) return Number(plan.price_upto25);
-  if (usersCount <= 50 && plan.price_upto50 !== undefined) return Number(plan.price_upto50);
-  if (usersCount > 50 && plan.price_above50 !== undefined) return Number(plan.price_above50);
-  return Number(plan.price) || 0;
+const formatCurrency = (price: number): string => {
+  return `\u20B9${price.toLocaleString('en-IN')}`;
+};
+
+const getPricingSummary = (plan: SubscriptionPlan, usersCount: number, billingCycle: 'monthly' | 'yearly') => {
+  const monthlyPerUser = Number(plan.price || 0);
+  const yearlyPerUserMonthly = Number(plan.yearly_price || 0);
+  const effectivePerUser = billingCycle === 'yearly' ? yearlyPerUserMonthly : monthlyPerUser;
+  const totalPrice = effectivePerUser * usersCount * (billingCycle === 'yearly' ? 12 : 1);
+
+  return {
+    monthlyPerUser,
+    yearlyPerUserMonthly,
+    effectivePerUser,
+    savingsPerUser: Number((monthlyPerUser - yearlyPerUserMonthly).toFixed(2)),
+    totalPrice
+  };
 };
 
 const PricingPage = () => {
@@ -81,16 +69,13 @@ const PricingPage = () => {
             id: plan.id,
             name: plan.name.charAt(0).toUpperCase() + plan.name.slice(1), // Capitalize first letter
             price: parseFloat(plan.price),
-            price_upto25: plan.price_upto25,
-            price_upto50: plan.price_upto50,
-            price_above50: plan.price_above50,
-            billing_cycle: plan.billing_cycle,
+            yearly_price: plan.yearly_price,
             description: plan.description,
             features: plan.description.split('\n').filter(Boolean), // Split description into features array
             max_users: plan.max_users,
             storage_gb: plan.storage_gb,
             trial_days: plan.trial_days,
-            is_popular: plan.name.toLowerCase() === 'platinum',
+            is_popular: plan.name.toLowerCase() === 'standard',
             is_active: plan.is_active === 1,
             created_at: plan.created_at,
             updated_at: plan.updated_at
@@ -251,14 +236,9 @@ const PricingPage = () => {
               </div>
             ) : plans && plans.length > 0 ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                {plans.map((plan, index) => {
-                  const isMostPopular = plan.name.toLowerCase() === 'starter';
-                  const basePerUser = getTierPrice(plan, selectedUsers);
-                  const perUserMonthly = basePerUser;
-                  const multiplier = selectedBillingCycle === 'yearly' ? 12 : 1;
-                  const perUserTotal = perUserMonthly * multiplier;
-                  const totalPrice = perUserTotal * selectedUsers;
-                  const storageLabel = plan.storage_gb ? `${plan.storage_gb}GB` : getStorageForPlan(plan.name);
+                {plans.map((plan) => {
+                  const isMostPopular = plan.name.toLowerCase() === 'standard';
+                  const pricing = getPricingSummary(plan, selectedUsers, selectedBillingCycle);
                    
                   return (
                     <div 
@@ -290,12 +270,21 @@ const PricingPage = () => {
                         <div className="text-center mb-6">
                           <div className="flex items-baseline justify-center gap-1">
                             <span className="text-5xl font-bold text-green-700">
-                              {formatPrice(perUserMonthly)}
+                              {formatCurrency(pricing.effectivePerUser)}
                             </span>
-                            <span className="text-green-600 font-semibold text-xl">/user/month</span>
-                          </div>
+                              <span className="text-green-600 font-semibold text-xl">/month</span>
+                            </div>
+                            <span className="text-gray-500 text-sm mt-2 block">
+                            Monthly: {formatCurrency(pricing.monthlyPerUser)}
+                            {selectedBillingCycle === 'yearly' ? ` • Yearly: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month` : ''}
+                            </span>
+                            {selectedBillingCycle === 'yearly' && (
+                              <span className="text-green-600 text-sm block">
+                             
+                              </span>
+                            )}
                           <span className="text-gray-500 text-sm mt-2 block">
-                            Total {selectedBillingCycle}: {formatPrice(totalPrice)} for {selectedUsers} users
+                            Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)} for {selectedUsers} users
                           </span>
                         </div>
 
@@ -386,8 +375,8 @@ const PricingPage = () => {
                 a: "We accept all major credit cards, PayPal, and bank transfers. We use Stripe for secure payment processing." 
               },
               { 
-                q: "Do you offer annual billing discounts?", 
-                a: "Yes! Save up to 20% when you choose annual billing instead of monthly. The discount is automatically applied at checkout." 
+                q: "Do you offer yearly billing?", 
+                a: "Yes. Yearly pricing is configured separately for each package, and the saved yearly rate is shown automatically throughout the app." 
               },
               { 
                 q: "Can I cancel anytime?", 

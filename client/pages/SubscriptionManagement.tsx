@@ -22,13 +22,10 @@ interface SubscriptionPlan {
   name: string;
   description: string;
   price: number;
-  price_upto25?: number;
-  price_upto50?: number;
-  price_above50?: number;
+  yearly_price?: number;
   max_users: number;
   storage_gb?: number;
   trial_days: number;
-  billing_cycle: string;
   is_active: boolean;
 }
 
@@ -83,29 +80,45 @@ const getStorageForPlan = (plan: SubscriptionPlan): string => {
     return '2GB';
   }
   
-  if (name.includes('professional') || name.includes('pro')) {
+  if (name.includes('standard') || name.includes('professional') || name.includes('pro')) {
     return '5GB';
   }
   
-  if (name.includes('business') || name.includes('premium') || name.includes('enterprise')) {
+  if (name.includes('advanced') || name.includes('advance') || name.includes('business') || name.includes('premium') || name.includes('enterprise')) {
     return '10GB';
   }
   
   return '1GB'; // Default storage
 };
 
-const getTierPrice = (
-  record: { price?: number; price_upto25?: number; price_upto50?: number; price_above50?: number },
-  usersCount: number
-): number => {
-  if (usersCount <= 25 && record.price_upto25 !== undefined) return Number(record.price_upto25);
-  if (usersCount <= 50 && record.price_upto50 !== undefined) return Number(record.price_upto50);
-  if (usersCount > 50 && record.price_above50 !== undefined) return Number(record.price_above50);
-  return 0;
+const getPricingSummary = (
+  plan: {
+    price?: number;
+    yearly_price?: number;
+  },
+  usersCount: number,
+  billingCycle: 'monthly' | 'yearly'
+) => {
+  const monthlyPerUser = Number(plan.price || 0);
+  const yearlyPerUserMonthly = Number(plan.yearly_price || 0);
+  const effectivePerUser = billingCycle === 'yearly' ? yearlyPerUserMonthly : monthlyPerUser;
+  const totalPrice = effectivePerUser * usersCount * (billingCycle === 'yearly' ? 12 : 1);
+
+  return {
+    monthlyPerUser,
+    yearlyPerUserMonthly,
+    effectivePerUser,
+    savingsPerUser: Number((monthlyPerUser - yearlyPerUserMonthly).toFixed(2)),
+    totalPrice
+  };
 };
 
 const formatPrice = (price: number): string => {
   return `₹${price.toLocaleString('en-IN')}`;
+};
+
+const formatCurrency = (price: number): string => {
+  return `\u20B9${price.toLocaleString('en-IN')}`;
 };
 
 const SubscriptionManagement: React.FC = () => {
@@ -254,10 +267,10 @@ const SubscriptionManagement: React.FC = () => {
     if (name.includes('basic') || name.includes('starter')) {
       return <Shield className="w-8 h-8 text-blue-500" />;
     }
-    if (name.includes('pro') || name.includes('professional')) {
+    if (name.includes('standard') || name.includes('pro') || name.includes('professional')) {
       return <Zap className="w-8 h-8 text-purple-500" />;
     }
-    if (name.includes('enterprise') || name.includes('premium')) {
+    if (name.includes('advanced') || name.includes('advance') || name.includes('enterprise') || name.includes('premium')) {
       return <Crown className="w-8 h-8 text-amber-500" />;
     }
     return <Star className="w-8 h-8 text-green-500" />;
@@ -273,10 +286,10 @@ const SubscriptionManagement: React.FC = () => {
 
   const getButtonVariant = (planName: string, isUpgrade: boolean = false) => {
     const name = planName.toLowerCase();
-    if (name.includes('enterprise') || name.includes('premium')) {
+    if (name.includes('advanced') || name.includes('advance') || name.includes('enterprise') || name.includes('premium')) {
       return isUpgrade ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white' : 'border-amber-500 text-amber-600 hover:bg-amber-50';
     }
-    if (name.includes('pro') || name.includes('professional')) {
+    if (name.includes('standard') || name.includes('pro') || name.includes('professional')) {
       return isUpgrade ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white' : 'border-purple-500 text-purple-600 hover:bg-purple-50';
     }
     return isUpgrade ? 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white' : 'border-blue-500 text-blue-600 hover:bg-blue-50';
@@ -314,8 +327,6 @@ const SubscriptionManagement: React.FC = () => {
   // Only lock/blur the current plan once the company is on a paid active subscription.
   // During an active trial, keep plans selectable so the user can compare/upgrade freely.
   const hasPaidSubscription = !!currentSubscription && currentSubscription.status === 'active';
-  const billingMultiplier = selectedBillingCycle === 'yearly' ? 12 : 1;
-
   return (
     <Layout>
       <div className="p-6 space-y-6 bg-gradient-to-br from-[#e6fbf4] via-white to-white rounded-3xl">
@@ -369,13 +380,13 @@ const SubscriptionManagement: React.FC = () => {
                     ))}
                 </ul>
               </div>
-              <div>
+              {/* <div>
                 <p className="text-sm text-gray-600">Users</p>
                 <p className="font-semibold flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   {currentSubscription.plan_max_users} Users
                 </p>
-              </div>
+              </div> */}
               <div>
                 <p className="text-sm text-gray-600">Storage</p>
                 <p className="font-semibold flex items-center gap-2">
@@ -524,7 +535,7 @@ const SubscriptionManagement: React.FC = () => {
         {plans && plans.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {plans.map((plan) => {
-              const isMostPopular = plan.name.toLowerCase() === 'starter';
+              const isMostPopular = plan.name.toLowerCase() === 'standard';
               const isCurrentPlan = !!currentSubscription && (
                 currentSubscription.plan_id === plan.id ||
                 currentSubscription.plan_name?.toLowerCase() === plan.name.toLowerCase()
@@ -568,20 +579,26 @@ const SubscriptionManagement: React.FC = () => {
                     
                      {/* Price */}
                       {(() => {
-                        const basePerUser = getTierPrice(plan, selectedUsers);
-                        const perUserMonthly = basePerUser;
-                        const perUserTotal = perUserMonthly * billingMultiplier;
-                        const totalPrice = perUserTotal * selectedUsers;
+                        const pricing = getPricingSummary(plan, selectedUsers, selectedBillingCycle);
                         return (
                           <div className="text-center mb-6">
                             <div className="flex items-baseline justify-center gap-1">
                               <span className={`text-4xl sm:text-5xl font-bold ${getPlanAccentText(plan.name)}`}>
-                                {formatPrice(perUserMonthly)}
+                                {formatCurrency(pricing.effectivePerUser)}
                               </span>
-                              <span className="text-gray-600 text-lg">/user/month</span>
-                            </div>
+                            <span className="text-gray-600 text-lg">/month</span>
+                          </div>
+                          <span className="text-gray-500 text-sm block mt-2">
+                              Monthly: {formatCurrency(pricing.monthlyPerUser)}
+                              {selectedBillingCycle === 'yearly' ? ` • Yearly: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month` : ''}
+                            </span>
+                            {selectedBillingCycle === 'yearly' && (
+                              <span className="text-emerald-600 text-sm block">
+                                Yearly price configured for this package: {formatCurrency(pricing.yearlyPerUserMonthly)} / month
+                              </span>
+                            )}
                             <span className="text-gray-500 text-sm block">
-                              Total {selectedBillingCycle}: {formatPrice(totalPrice)} for {selectedUsers} users
+                              Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)} for {selectedUsers} users
                             </span>
                           </div>
                         );
@@ -800,22 +817,24 @@ const SubscriptionManagement: React.FC = () => {
                 <p className="font-semibold">{selectedPlan.name}</p>
                 <div className="flex items-baseline gap-2">
                   {(() => {
-                    const basePerUser = getTierPrice(selectedPlan, selectedUsers);
-                    const perUserMonthly = basePerUser;
-                    const perUserTotal = perUserMonthly * billingMultiplier;
-                    const totalPrice = perUserTotal * selectedUsers;
+                    const pricing = getPricingSummary(selectedPlan, selectedUsers, selectedBillingCycle);
                     return (
                       <>
-                        <span className="text-2xl font-bold">{formatPrice(perUserMonthly)}</span>
-                        <span className="text-gray-600">/user/month</span>
+                        <span className="text-2xl font-bold">{formatCurrency(pricing.effectivePerUser)}</span>
+                        <span className="text-gray-600">/month</span>
                         <span className="text-sm text-gray-500 ml-auto">
-                          Total {selectedBillingCycle}: {formatPrice(totalPrice)}
+                          Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)}
                         </span>
                       </>
                     );
                   })()}
                 </div>
                 <p className="text-sm text-gray-600">{selectedUsers} users</p>
+                {selectedBillingCycle === 'yearly' && (
+                    <p className="text-sm text-emerald-600">
+                    Yearly price comes directly from the saved package configuration.
+                    </p>
+                  )}
                 <p className="text-sm text-gray-600">{getStorageForPlan(selectedPlan)} storage</p>
               </div>
 

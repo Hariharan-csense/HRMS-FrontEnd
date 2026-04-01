@@ -153,6 +153,11 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
       sessionStorage.removeItem("refreshToken");
       setReadableAuthCookie("accessToken", accessToken, 30 * 60);
       if (responseData.refreshToken) {
+        if (rememberMe) {
+          localStorage.setItem("refreshToken", responseData.refreshToken);
+        } else {
+          sessionStorage.setItem("refreshToken", responseData.refreshToken);
+        }
         setReadableAuthCookie("refreshToken", responseData.refreshToken, 7 * 24 * 60 * 60);
       }
 
