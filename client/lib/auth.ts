@@ -17,7 +17,8 @@ export type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
-  logout: () => Promise<{ success: boolean; message: string }>;
+  autoLogin: () => Promise<{ success: boolean; message?: string }>;
+  logout: (soft?: boolean) => Promise<{ success: boolean; message: string }>;
   isLoading: boolean;
   setUser: (user: User | null) => void;
 };

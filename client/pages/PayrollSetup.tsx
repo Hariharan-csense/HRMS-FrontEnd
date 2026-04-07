@@ -60,6 +60,14 @@ interface Payslip {
   createdAt: string;
 }
 
+interface EmployeeOption {
+  id: string;
+  dbId?: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+}
+
 // Mock Attendance Data for payable days calculation
 const mockAttendanceRecords = [
   // EMP001 - April 2024
@@ -673,12 +681,7 @@ export default function PayrollSetup() {
   const [formData, setFormData] = useState<any>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
   // Updated to include name field for display
-  const [employees, setEmployees] = useState<Array<{
-    id: string;
-    name: string;
-    firstName: string;
-    lastName: string;
-  }>>([]);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
   
 
@@ -779,6 +782,11 @@ export default function PayrollSetup() {
 
   const canViewPayslips = user && user.roles.some((role) =>
     hasSubModuleAccess(role, "payroll", "payslips")
+  );
+
+  const canDeletePayslips = Boolean(
+    user &&
+    hasRole(user, "admin")
   );
 
 
@@ -1032,6 +1040,30 @@ export default function PayrollSetup() {
     });
   }, [payrollProcessing, searchTerm, user]);
 
+  const processableEmployees = useMemo(() => {
+    const seen = new Set<string>();
+
+    return salaryStructures.reduce<EmployeeOption[]>((list, structure) => {
+      const employee = employees.find((emp) => emp.id === structure.employeeId);
+      const employeeId = structure.employeeId?.toString();
+
+      if (!employeeId || seen.has(employeeId)) {
+        return list;
+      }
+
+      seen.add(employeeId);
+      list.push({
+        id: employeeId,
+        dbId: employee?.dbId,
+        name: structure.employeeName || employee?.name || `Employee ${employeeId}`,
+        firstName: employee?.firstName || "",
+        lastName: employee?.lastName || "",
+      });
+
+      return list;
+    }, []);
+  }, [employees, salaryStructures]);
+
   // Check if payroll already exists for selected employee and month
   const isPayrollProcessed = (employeeId: string, month: string) => {
     const selectedEmployee = employees.find((e: any) => e.id?.toString() === employeeId?.toString());
@@ -1075,7 +1107,7 @@ export default function PayrollSetup() {
 
       const selectedEmployeeIds: string[] =
         formData.employeeId === "__all__"
-          ? employees.map((e: any) => e.id?.toString()).filter(Boolean)
+          ? processableEmployees.map((employee) => employee.id?.toString()).filter(Boolean)
           : [formData.employeeId];
 
       if (!selectedEmployeeIds.length) {
@@ -1127,6 +1159,11 @@ export default function PayrollSetup() {
       const result = await payrollApi.getPayslip();
       if (result.data) {
         setPayslips(result.data);
+      }
+
+      const processingResult = await payrollApi.getPayrollProcessing();
+      if (processingResult.data) {
+        setPayrollProcessing(processingResult.data);
       }
 
       // Reset form
@@ -1416,7 +1453,20 @@ export default function PayrollSetup() {
     } else if (activeTab === "processing") {
       setPayrollProcessing((prev) => prev.filter((p) => p.id !== deleteId));
     } else if (activeTab === "payslips") {
-      setPayslips((prev) => prev.filter((p) => p.id !== deleteId));
+      try {
+        if (deleteId && /^\d+$/.test(String(deleteId))) {
+          const result = await payrollApi.deletePayslip(deleteId);
+          if (result.error) {
+            toast.error(result.error);
+            return;
+          }
+        }
+        setPayslips((prev) => prev.filter((p) => p.id !== deleteId));
+        toast.success("Payslip deleted successfully");
+      } catch (error) {
+        console.error('Error deleting payslip:', error);
+        toast.error("Failed to delete payslip");
+      }
     }
     setIsDeleteDialogOpen(false);
   };
@@ -1713,13 +1763,18 @@ export default function PayrollSetup() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__all__">All employees</SelectItem>
-                          {employees.map((emp) => (
+                          {processableEmployees.map((emp) => (
                             <SelectItem key={emp.id} value={emp.id.toString()}>
                               {emp.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-slate-500 mt-2">
+                        {/* {processableEmployees.length
+                          ? ` Selectd Employess ${processableEmployees.length}`
+                          : ""} */}
+                      </p>
                     </div>
                     <div>
                       <Label htmlFor="month-input">Month *</Label>
@@ -1743,12 +1798,13 @@ export default function PayrollSetup() {
                           !formData.employeeId ||
                           !formData.month ||
                           loading ||
+                          (formData.employeeId === "__all__" && processableEmployees.length === 0) ||
                           (formData.employeeId !== "__all__" &&
                             isPayrollProcessed(formData.employeeId, formData.month))
                         }
                       >
                         <Plus className="w-4 h-4" />
-                        {loading ? "Sending..." : "Process Payroll"}
+                        {loading ? "Sending..." : formData.employeeId === "__all__" ? "Process All Payroll" : "Process Payroll"}
                       </Button>
                     </div>
                   </div>
@@ -1977,6 +2033,15 @@ export default function PayrollSetup() {
                           >
                             <Download className="w-4 h-4" />
                             Download PDF
+                          </button>
+                        )}
+                        {canDeletePayslips && (
+                          <button
+                            onClick={() => handleDelete(payslip.id)}
+                            className="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm border border-red-200"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Payslip
                           </button>
                         )}
                       </div>
@@ -2414,9 +2479,11 @@ export default function PayrollSetup() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Item</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {activeTab === "structure" ? "Salary Structure" : activeTab === "processing" ? "Payroll Record" : "Payslip"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure? This action cannot be undone.
+              Are you sure you want to delete this {activeTab === "structure" ? "salary structure" : activeTab === "processing" ? "payroll record" : "payslip"}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

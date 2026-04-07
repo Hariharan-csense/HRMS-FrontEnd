@@ -380,13 +380,13 @@ const SubscriptionManagement: React.FC = () => {
                     ))}
                 </ul>
               </div>
-              {/* <div>
+              <div>
                 <p className="text-sm text-gray-600">Users</p>
                 <p className="font-semibold flex items-center gap-2">
                   <Users className="w-4 h-4" />
-                  {currentSubscription.plan_max_users} Users
+                  {currentSubscription.max_users || currentSubscription.plan_max_users || 0} Users
                 </p>
-              </div> */}
+              </div>
               <div>
                 <p className="text-sm text-gray-600">Storage</p>
                 <p className="font-semibold flex items-center gap-2">
@@ -586,11 +586,11 @@ const SubscriptionManagement: React.FC = () => {
                               <span className={`text-4xl sm:text-5xl font-bold ${getPlanAccentText(plan.name)}`}>
                                 {formatCurrency(pricing.effectivePerUser)}
                               </span>
-                            <span className="text-gray-600 text-lg">/month</span>
+                            <span className="text-gray-600 text-lg">/user/month</span>
                           </div>
                           <span className="text-gray-500 text-sm block mt-2">
-                              Monthly: {formatCurrency(pricing.monthlyPerUser)}
-                              {selectedBillingCycle === 'yearly' ? ` • Yearly: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month` : ''}
+                              Per user monthly: {formatCurrency(pricing.monthlyPerUser)}
+                              {selectedBillingCycle === 'yearly' ? ` • Per user yearly billing: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month` : ''}
                             </span>
                             {selectedBillingCycle === 'yearly' && (
                               <span className="text-emerald-600 text-sm block">
@@ -821,7 +821,7 @@ const SubscriptionManagement: React.FC = () => {
                     return (
                       <>
                         <span className="text-2xl font-bold">{formatCurrency(pricing.effectivePerUser)}</span>
-                        <span className="text-gray-600">/month</span>
+                        <span className="text-gray-600">/user/month</span>
                         <span className="text-sm text-gray-500 ml-auto">
                           Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)}
                         </span>
@@ -829,7 +829,9 @@ const SubscriptionManagement: React.FC = () => {
                     );
                   })()}
                 </div>
-                <p className="text-sm text-gray-600">{selectedUsers} users</p>
+                <p className="text-sm text-gray-600">
+                  {selectedUsers} subscribed users. You can add up to {selectedUsers} employees after payment.
+                </p>
                 {selectedBillingCycle === 'yearly' && (
                     <p className="text-sm text-emerald-600">
                     Yearly price comes directly from the saved package configuration.

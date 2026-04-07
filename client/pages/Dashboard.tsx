@@ -515,6 +515,17 @@ const AdminDashboard = () => {
     ...adminQuickActionCards,
   ].filter((card) => !allowedModules || allowedModules.has(card.module));
 
+  const isTrialSubscription = subscription?.status === "trial";
+  const isTrialExpired = isTrialSubscription && !subscription?.is_trial_active;
+  const isTrialEndingSoon =
+    isTrialSubscription &&
+    !!subscription?.is_trial_active &&
+    Number(subscription?.trial_days_remaining || 0) <= 7;
+  const shouldShowTrialBanner = isTrialExpired || isTrialEndingSoon;
+  const trialBannerText = isTrialExpired
+    ? "Trial ended. Subscribe now."
+    : `Trial ends in ${subscription?.trial_days_remaining || 0} days. Subscribe now.`;
+
   return (
     <div className="mx-auto max-w-[1600px] space-y-8">
       {/* Dashboard Header */}
@@ -531,6 +542,31 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
+      {shouldShowTrialBanner && (
+        <div className="dashboard-content-enter rounded-2xl bg-white px-5 py-4 shadow-sm dark:bg-slate-900">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-black dark:text-white">{trialBannerText}</p>
+                <p className="text-sm text-black dark:text-slate-200">
+                  Continue without interruption by choosing a plan.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/subscription")}
+              className="inline-flex items-center justify-center rounded-xl bg-[#17c491] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0fa372]"
+            >
+              Subscribe Now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="mb-8">

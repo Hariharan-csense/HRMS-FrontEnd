@@ -43,6 +43,25 @@ interface ExpenseApproval {
   approved_at?: string | null;
 }
 
+interface PendingExpenseGroup {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  clientName: string;
+  date: string;
+  expenses: ExpenseApproval[];
+  categories: string[];
+  totalAmount: number;
+  count: number;
+  primaryExpense: ExpenseApproval;
+}
+
+interface ReceiptGalleryState {
+  open: boolean;
+  urls: string[];
+  index: number;
+}
+
 
 
 export default function ExpenseApprovals() {
@@ -50,7 +69,11 @@ export default function ExpenseApprovals() {
   const [expenses, setExpenses] = useState<ExpenseApproval[]>([]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isDecisionOpen, setIsDecisionOpen] = useState(false);
-  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  const [receiptGallery, setReceiptGallery] = useState<ReceiptGalleryState>({
+    open: false,
+    urls: [],
+    index: 0,
+  });
   const [selectedExpense, setSelectedExpense] = useState<ExpenseApproval | null>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
   const [approvalNote, setApprovalNote] = useState("");
@@ -60,52 +83,95 @@ export default function ExpenseApprovals() {
 
   const pendingExpenses = expenses.filter((e) => e.status === "pending");
   const groupedPending = useMemo(() => {
-    const byEmployee = new Map<
-      string,
-      { employeeId: string; employeeName: string; expenses: ExpenseApproval[] }
-    >();
+    const byClientDate = new Map<string, PendingExpenseGroup>();
 
     pendingExpenses.forEach((expense) => {
-      const key = expense.employeeId || expense.employeeName || expense.id;
-      const existing = byEmployee.get(key);
+      const employeeKey = expense.employeeId || expense.employeeName || expense.id;
+      const clientName = expense.clientName || "No client";
+      const date = expense.date || "N/A";
+      const key = `${employeeKey}__${clientName}__${date}`;
+      const existing = byClientDate.get(key);
+
       if (existing) {
         existing.expenses.push(expense);
       } else {
-        byEmployee.set(key, {
+        byClientDate.set(key, {
+          id: key,
           employeeId: expense.employeeId,
           employeeName: expense.employeeName || "Unknown Employee",
+          clientName,
+          date,
           expenses: [expense],
+          categories: [],
+          totalAmount: 0,
+          count: 1,
+          primaryExpense: expense,
         });
       }
     });
 
-    return Array.from(byEmployee.values()).map((group) => {
-      const totalAmount = group.expenses.reduce((sum, e) => sum + e.amount, 0);
-      const categories = Array.from(
-        new Set(group.expenses.map((e) => e.category).filter(Boolean))
-      );
-      const clients = Array.from(
-        new Set(group.expenses.map((e) => e.clientName).filter(Boolean))
-      );
+    return Array.from(byClientDate.values()).map((group) => {
+      const orderedExpenses = [...group.expenses].sort((a, b) => {
+        const aTime = new Date(a.createdAt || a.date).getTime();
+        const bTime = new Date(b.createdAt || b.date).getTime();
+        return bTime - aTime;
+      });
+
       return {
         ...group,
-        totalAmount,
-        categories,
-        clients,
-        count: group.expenses.length,
-        primaryExpense: group.expenses[0],
+        expenses: orderedExpenses,
+        categories: Array.from(new Set(orderedExpenses.map((e) => e.category).filter(Boolean))),
+        totalAmount: orderedExpenses.reduce((sum, e) => sum + e.amount, 0),
+        count: orderedExpenses.length,
+        primaryExpense: orderedExpenses[0],
       };
     });
   }, [pendingExpenses]);
-  const employeeExpenses = useMemo(() => {
-    if (!selectedExpense?.employeeId) return [];
-    return expenses.filter((e) => e.employeeId === selectedExpense.employeeId);
-  }, [expenses, selectedExpense]);
-  const employeeTotal = useMemo(
-    () => employeeExpenses.reduce((sum, e) => sum + e.amount, 0),
-    [employeeExpenses]
+  const selectedGroup = useMemo(
+    () =>
+      selectedExpense
+        ? groupedPending.find((group) => group.expenses.some((expense) => expense.id === selectedExpense.id)) || null
+        : null,
+    [groupedPending, selectedExpense]
   );
-  const isPreviewPdf = receiptPreviewUrl?.toLowerCase().includes(".pdf");
+  const employeePendingExpenses = useMemo(() => selectedGroup?.expenses || [], [selectedGroup]);
+  const employeeTotal = useMemo(
+    () => employeePendingExpenses.reduce((sum, e) => sum + e.amount, 0),
+    [employeePendingExpenses]
+  );
+  const previewUrls = receiptGallery.urls;
+  const currentPreviewUrl = previewUrls[receiptGallery.index] || null;
+  const isPreviewPdf = currentPreviewUrl?.toLowerCase().includes(".pdf");
+  const receiptPreviewItems = useMemo(
+    () =>
+      employeePendingExpenses.reduce<Array<{ url: string; category: string }>>((items, expense) => {
+        if (!expense.receipt_url || items.some((item) => item.url === expense.receipt_url)) {
+          return items;
+        }
+
+        items.push({
+          url: expense.receipt_url,
+          category: expense.category || "Uncategorized",
+        });
+        return items;
+      }, []),
+    [employeePendingExpenses]
+  );
+  const currentPreviewItem =
+    receiptPreviewItems.find((item) => item.url === currentPreviewUrl) || null;
+  const groupReceiptUrls = useMemo(
+    () => Array.from(new Set(employeePendingExpenses.map((expense) => expense.receipt_url).filter(Boolean))) as string[],
+    [employeePendingExpenses]
+  );
+
+  const openReceiptGallery = (urls: string[], index = 0) => {
+    if (!urls.length) return;
+    setReceiptGallery({
+      open: true,
+      urls,
+      index: Math.max(0, Math.min(index, urls.length - 1)),
+    });
+  };
 
   const handleViewDetails = (expense: ExpenseApproval) => {
     setSelectedExpense(expense);
@@ -206,34 +272,49 @@ export default function ExpenseApprovals() {
   const confirmDecision = async () => {
     if (!selectedExpense || !decision) return;
 
+    const targetExpenses =
+      selectedGroup?.expenses?.length
+        ? selectedGroup.expenses
+        : [selectedExpense];
+
     const payload = {
       status: decision === "approved" ? "Approved" : "Rejected",
       approval_note: approvalNote || null,
       approved_by: user?.name || "Finance User", // optional
     };
-    console.log(selectedExpense)
-    try {
-      const result = await expenseApi.updateExpense(selectedExpense.id, payload); // â† use ID, not expense_id
 
-      if (result.data) {
+    try {
+      const results = await Promise.all(
+        targetExpenses.map((expense) => expenseApi.updateExpense(expense.id, payload))
+      );
+      const failedResult = results.find((result) => !result.data);
+
+      if (!failedResult) {
         // Trigger notification for expense approval/rejection
         const notificationService = NotificationTriggerService.getInstance();
+        const totalGroupedAmount = targetExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const categorySummary = selectedGroup?.categories?.length
+          ? selectedGroup.categories.join(", ")
+          : selectedExpense.category;
+        const descriptionSummary = selectedGroup
+          ? `${selectedGroup.clientName} on ${selectedGroup.date}`
+          : selectedExpense.description;
 
         if (decision === "approved") {
           await notificationService.triggerExpenseApproved({
             employeeId: selectedExpense.employeeId,
             employeeName: selectedExpense.employeeName,
-            amount: selectedExpense.amount,
-            expenseType: selectedExpense.category,
-            description: selectedExpense.description,
+            amount: totalGroupedAmount,
+            expenseType: categorySummary,
+            description: descriptionSummary,
           });
         } else {
           await notificationService.triggerExpenseRejected({
             employeeId: selectedExpense.employeeId,
             employeeName: selectedExpense.employeeName,
-            amount: selectedExpense.amount,
-            expenseType: selectedExpense.category,
-            description: selectedExpense.description,
+            amount: totalGroupedAmount,
+            expenseType: categorySummary,
+            description: descriptionSummary,
           });
         }
 
@@ -245,7 +326,11 @@ export default function ExpenseApprovals() {
           setSelectedExpenses([]);
         }
 
-        showToast.success(`Expense ${decision} successfully!`);
+        showToast.success(
+          targetExpenses.length > 1
+            ? `Expenses ${decision} successfully!`
+            : `Expense ${decision} successfully!`
+        );
 
         // Reset dialog
         setIsDecisionOpen(false);
@@ -253,7 +338,7 @@ export default function ExpenseApprovals() {
         setSelectedExpense(null);
         setDecision(null);
       } else {
-        showToast.error(result.error || "Failed to update expense status");
+        showToast.error(failedResult.error || "Failed to update expense status");
       }
     } catch (err) {
       console.error(err);
@@ -373,7 +458,7 @@ export default function ExpenseApprovals() {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {groupedPending.map((group) => (
-                    <div key={group.employeeId || group.employeeName} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
+                    <div key={group.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
                       <div className="flex items-start gap-2 mb-2 sm:mb-3">
                         <Checkbox
                           checked={isGroupSelected(group.expenses.map((e) => e.id))}
@@ -382,18 +467,8 @@ export default function ExpenseApprovals() {
                         />
                         <div className="flex-1">
                           <h3 className="font-semibold text-sm sm:text-base">{group.employeeName}</h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            {group.categories.length === 1
-                              ? group.categories[0]
-                              : `${group.categories.length} categories`}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {group.clients.length === 1
-                              ? group.clients[0]
-                              : group.clients.length > 1
-                                ? `${group.clients.length} clients`
-                                : "No client"}
-                          </p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">{group.clientName}</p>
+                          <p className="text-xs text-muted-foreground">{group.date}</p>
                         </div>
                         <span className="text-sm sm:text-base font-bold text-blue-600 flex-shrink-0">₹{group.totalAmount.toLocaleString()}</span>
                       </div>
@@ -403,8 +478,12 @@ export default function ExpenseApprovals() {
                           <span className="text-right">{group.count}</span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Latest:</span>
-                          <span className="text-right flex-1">{group.primaryExpense?.description || "-"}</span>
+                          <span className="text-muted-foreground flex-shrink-0">Categories:</span>
+                          <span className="text-right flex-1">
+                            {group.categories.length === 1
+                              ? group.categories[0]
+                              : `${group.categories.length} categories`}
+                          </span>
                         </div>
                       </div>
                       <div className="pt-2 sm:pt-3 border-t border-border flex gap-1 sm:gap-2">
@@ -454,7 +533,7 @@ export default function ExpenseApprovals() {
                         </th>
                         <th className="text-left px-4 py-3 font-semibold">Employee</th>
                         <th className="text-left px-4 py-3 font-semibold">Assigned Client</th>
-                        <th className="text-left px-4 py-3 font-semibold">Category</th>
+                        <th className="text-left px-4 py-3 font-semibold">Date / Categories</th>
                         <th className="text-left px-4 py-3 font-semibold">Amount</th>
                         <th className="text-left px-4 py-3 font-semibold">Claims</th>
                         <th className="text-left px-4 py-3 font-semibold">Description</th>
@@ -463,7 +542,7 @@ export default function ExpenseApprovals() {
                     </thead>
                     <tbody>
                       {groupedPending.map((group) => (
-                        <tr key={group.employeeId || group.employeeName} className="border-b border-border hover:bg-muted/50 transition-colors">
+                        <tr key={group.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                           <td className="px-4 py-3">
                             <Checkbox
                               checked={isGroupSelected(group.expenses.map((e) => e.id))}
@@ -471,17 +550,14 @@ export default function ExpenseApprovals() {
                             />
                           </td>
                           <td className="px-4 py-3 font-medium">{group.employeeName}</td>
+                          <td className="px-4 py-3">{group.clientName}</td>
                           <td className="px-4 py-3">
-                            {group.clients.length === 1
-                              ? group.clients[0]
-                              : group.clients.length > 1
-                                ? `${group.clients.length} clients`
-                                : "No client"}
-                          </td>
-                          <td className="px-4 py-3">
-                            {group.categories.length === 1
-                              ? group.categories[0]
-                              : `${group.categories.length} categories`}
+                            <div>{group.date}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {group.categories.length === 1
+                                ? group.categories[0]
+                                : `${group.categories.length} categories`}
+                            </div>
                           </td>
                           <td className="px-4 py-3 font-bold text-blue-600">₹{group.totalAmount.toLocaleString()}</td>
                           <td className="px-4 py-3 text-xs">{group.count} claims</td>
@@ -583,8 +659,8 @@ export default function ExpenseApprovals() {
                     <p className="font-medium">{selectedExpense.employeeName || "Unknown Employee"}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Category</p>
-                    <p className="font-medium">{selectedExpense.category}</p>
+                    <p className="text-sm text-muted-foreground">Client</p>
+                    <p className="font-medium">{selectedGroup?.clientName || selectedExpense.clientName || "No client"}</p>
                   </div>
                 </div>
 
@@ -595,28 +671,30 @@ export default function ExpenseApprovals() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Date</p>
-                    <p className="font-medium">{selectedExpense.date}</p>
+                    <p className="font-medium">{selectedGroup?.date || selectedExpense.date}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm">{selectedExpense.description}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Client Name</p>
+                  <p className="text-sm font-medium">
+                    {selectedGroup?.clientName || selectedExpense.clientName || "No client"}
+                  </p>
                 </div>
 
-                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Employee Total Expenses</p>
+                    <p className="text-sm text-muted-foreground">Pending Total For Client On Date</p>
                     <p className="font-semibold text-blue-700">₹{employeeTotal.toLocaleString()}</p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {employeeExpenses.length} claims by this employee
+                    {employeePendingExpenses.length} pending claims in this client/date group
                   </p>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">All Employee Claims</p>
+                    <p className="text-sm text-muted-foreground">Pending Claims For This Client And Date</p>
                     <Button
                       type="button"
                       variant="outline"
@@ -624,83 +702,53 @@ export default function ExpenseApprovals() {
                       onClick={async () => {
                         try {
                           exportExpensesToExcel(
-                            employeeExpenses,
+                            employeePendingExpenses,
                             `employee-expenses-${selectedExpense?.employeeName || "employee"}-${new Date().toISOString().split("T")[0]}.xlsx`
                           );
                         } catch {
                           showToast.error('Failed to export employee expenses Excel');
                         }
                       }}
-                      disabled={employeeExpenses.length === 0}
+                      disabled={employeePendingExpenses.length === 0}
                     >
                       <FileText className="w-4 h-4 mr-2" />
                       Export All (Excel)
                     </Button>
                   </div>
-                  {employeeExpenses.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No other claims found.</p>
+                  {employeePendingExpenses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No pending claims found.</p>
                   ) : (
                     <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                      {employeeExpenses.map((expense) => (
-                        <div key={expense.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-                          <div>
-                            <p className="font-medium">{expense.category}</p>
-                            <p className="text-xs text-muted-foreground">{expense.date} • {expense.status}</p>
-                          </div>
-                          <p className="font-semibold text-blue-600">₹{expense.amount}</p>
+                      <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">{selectedGroup?.clientName || selectedExpense.clientName || "No client"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedGroup?.date || selectedExpense.date}
+                            {selectedGroup?.categories?.length
+                              ? ` • ${selectedGroup.categories.join(", ")}`
+                              : ""}
+                            {employeePendingExpenses.length > 1
+                              ? ` • ${employeePendingExpenses.length} expenses`
+                              : ` • ${employeePendingExpenses.length} expense`}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Bill / Receipt</p>
-
-                  {employeeExpenses.some((e) => e.receipt_url) ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
-                        {employeeExpenses
-                          .filter((e) => e.receipt_url)
-                          .map((expense) => (
-                            <div key={expense.id} className="border rounded-md p-3 bg-white">
-                              <div className="flex items-center justify-between mb-2">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Expense</p>
-                                  <p className="text-sm font-medium">{expense.category}</p>
-                                </div>
-                                <p className="text-sm font-semibold text-blue-600">₹{expense.amount}</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setReceiptPreviewUrl(expense.receipt_url || null)}
-                                className="inline-flex items-center justify-center w-full px-3 py-2 text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-md"
-                              >
-                                View Document
-                              </button>
-                              {expense.receipt_url?.match(/\.(png|jpg|jpeg|webp)$/i) && (
-                                <div className="mt-2 border rounded-md overflow-hidden">
-                                  <img
-                                    src={expense.receipt_url}
-                                    alt="Expense Receipt"
-                                    className="w-full h-auto max-h-40 object-contain"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = "/placeholder.svg";
-                                      target.alt = "Document preview not available";
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                        <div className="flex items-center gap-2">
+                          {groupReceiptUrls.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openReceiptGallery(groupReceiptUrls, 0)}
+                              className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
+                              title="Preview Bills"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
+                          <p className="font-semibold text-blue-600">₹{employeeTotal.toLocaleString()}</p>
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No document attached</p>
                   )}
                 </div>
-
               </div>
 
               <div className="pt-4 border-t">
@@ -718,10 +766,10 @@ export default function ExpenseApprovals() {
       </Dialog>
 
       <Dialog
-        open={Boolean(receiptPreviewUrl)}
+        open={receiptGallery.open}
         onOpenChange={(open) => {
           if (!open) {
-            setReceiptPreviewUrl(null);
+            setReceiptGallery({ open: false, urls: [], index: 0 });
           }
         }}
       >
@@ -730,17 +778,58 @@ export default function ExpenseApprovals() {
             <DialogTitle className="text-lg font-semibold">Bill Preview</DialogTitle>
           </DialogHeader>
 
-          {receiptPreviewUrl && (
-            <div className="flex h-[70vh] items-center justify-center overflow-hidden rounded-lg border bg-slate-100">
+          {currentPreviewUrl && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {receiptGallery.index + 1} of {previewUrls.length}
+                  </p>
+                  <p className="text-sm font-medium">
+                    Category: {currentPreviewItem?.category || "Uncategorized"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setReceiptGallery((prev) => ({
+                        ...prev,
+                        index: prev.index > 0 ? prev.index - 1 : prev.urls.length - 1,
+                      }))
+                    }
+                    disabled={previewUrls.length <= 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setReceiptGallery((prev) => ({
+                        ...prev,
+                        index: prev.index < prev.urls.length - 1 ? prev.index + 1 : 0,
+                      }))
+                    }
+                    disabled={previewUrls.length <= 1}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+              <div className="flex h-[70vh] items-center justify-center overflow-hidden rounded-lg border bg-slate-100">
               {isPreviewPdf ? (
                 <iframe
-                  src={receiptPreviewUrl}
+                  src={currentPreviewUrl}
                   title="Expense Receipt Preview"
                   className="h-full w-full border-0"
                 />
               ) : (
                 <img
-                  src={receiptPreviewUrl}
+                  src={currentPreviewUrl}
                   alt="Expense Receipt Preview"
                   className="h-full w-full object-contain"
                   onError={(e) => {
@@ -750,11 +839,34 @@ export default function ExpenseApprovals() {
                   }}
                 />
               )}
+              </div>
+              {previewUrls.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {previewUrls.map((url, index) => (
+                    <button
+                      key={`${url}-${index}`}
+                      type="button"
+                      onClick={() => setReceiptGallery((prev) => ({ ...prev, index }))}
+                      className={`h-20 w-24 flex-shrink-0 overflow-hidden rounded-md border ${
+                        index === receiptGallery.index ? "border-blue-500 ring-1 ring-blue-500" : "border-border"
+                      }`}
+                    >
+                      {url.match(/\.(png|jpg|jpeg|webp)$/i) ? (
+                        <img src={url} alt={`Receipt ${index + 1}`} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs text-muted-foreground">
+                          PDF {index + 1}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           <div className="flex justify-end pt-2">
-            <Button variant="outline" onClick={() => setReceiptPreviewUrl(null)}>
+            <Button variant="outline" onClick={() => setReceiptGallery({ open: false, urls: [], index: 0 })}>
               Close
             </Button>
           </div>
@@ -771,7 +883,8 @@ export default function ExpenseApprovals() {
             </AlertDialogTitle>
             {selectedExpense && (
               <AlertDialogDescription className="text-xs sm:text-sm">
-                {selectedExpense.employeeName} - ₹{selectedExpense.amount}
+                {selectedExpense.employeeName} - ₹{employeeTotal.toLocaleString()}
+                {selectedGroup ? ` • ${selectedGroup.clientName} • ${selectedGroup.date}` : ""}
               </AlertDialogDescription>
             )}
           </AlertDialogHeader>

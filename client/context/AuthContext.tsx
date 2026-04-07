@@ -1,34 +1,52 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { AuthContextType, User } from "@/lib/auth";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ENDPOINTS, { BASE_URL, checkAndRefreshTokenIfNeeded } from "../lib/endpoint";
+import { AuthContextType, User } from "@/lib/auth";
+import ENDPOINTS, {
+  BASE_URL,
+  checkAndRefreshTokenIfNeeded,
+  refreshAccessToken,
+} from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
 
-type LoginParams = {
-  email: string;
-  password: string;
-};
-
-type LoginResult = {
-  success: boolean;
-  message: string;
-  data?: any;
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const setReadableAuthCookie = (name: string, value: string, maxAgeSeconds: number) => {
+const SOFT_LOGOUT_PROMPT_KEY = "auth:showWelcomeBack";
+
+const setReadableAuthCookie = (
+  name: string,
+  value: string,
+  maxAgeSeconds: number
+) => {
   if (typeof document === "undefined") return;
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
 };
 
 const clearDebugCookies = () => {
   if (typeof document === "undefined") return;
-  document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
-  document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
-  document.cookie = "accessTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
-  document.cookie = "refreshTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "accessTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+  document.cookie =
+    "refreshTokenDebug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+};
+
+const getStoredRefreshToken = () =>
+  localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
+
+const decodeJwtPayload = (token: string) => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(normalized));
+  } catch (error) {
+    console.error("Failed to decode access token payload", error);
+    return null;
+  }
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -37,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
   const storeLogoutFeedback = (message: string) => {
     sessionStorage.setItem(
       "authToast",
@@ -44,29 +63,157 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  // Load user from localStorage on mount
-  useEffect(() => {
+  const finalizeUserSession = async (
+    baseUser: User,
+    options?: { rememberMe?: boolean }
+  ): Promise<User> => {
+    let resolvedUser = { ...baseUser };
+
     try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      const profileResponse = await ENDPOINTS.getProfile();
+      const profileData = profileResponse.data?.data || profileResponse.data;
+      const fullName = [profileData?.first_name, profileData?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      if (profileData) {
+        resolvedUser = {
+          ...resolvedUser,
+          name: fullName || resolvedUser.name,
+          avatar: profileData.profile_photo
+            ? `${BASE_URL}${profileData.profile_photo}`
+            : resolvedUser.avatar,
+          department:
+            profileData.department_name || resolvedUser.department || null,
+        };
       }
     } catch (error) {
-      console.error("Failed to initialize auth state", error);
-      localStorage.clear();
+      console.log("Profile image loading skipped during login");
+    }
+
+    localStorage.setItem("user", JSON.stringify(resolvedUser));
+    setUser(resolvedUser);
+
+    if (resolvedUser.roles?.length) {
+      localStorage.setItem("userRole", resolvedUser.roles[0]);
+    } else {
+      localStorage.setItem("userRole", "employee");
+    }
+
+    if (options?.rememberMe) {
+      profileManager.saveProfile(resolvedUser, true);
+    }
+
+    sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
+    return resolvedUser;
+  };
+
+  const autoLogin = async (): Promise<{
+    success: boolean;
+    message?: string;
+  }> => {
+    const storedRefreshToken = getStoredRefreshToken();
+    if (!storedRefreshToken) {
+      return { success: false, message: "No saved session found." };
+    }
+
+    setIsLoading(true);
+    try {
+      const newAccessToken = await refreshAccessToken();
+      const decoded = decodeJwtPayload(newAccessToken);
+      const savedProfile = profileManager.getSavedProfile();
+      const storedUser = localStorage.getItem("user");
+      const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
+
+      const normalizedRole = String(
+        decoded?.role || parsedStoredUser?.role || "employee"
+      ).toLowerCase();
+      const normalizedRoles = Array.isArray(decoded?.roles)
+        ? decoded.roles.map((role: string) => String(role).toLowerCase())
+        : [normalizedRole];
+
+      const bootUser: User = {
+        id: String(decoded?.id || parsedStoredUser?.id || ""),
+        name: savedProfile?.name || parsedStoredUser?.name || "User",
+        email:
+          decoded?.email || savedProfile?.email || parsedStoredUser?.email || "",
+        role: normalizedRole,
+        roles: normalizedRoles.length ? normalizedRoles : [normalizedRole],
+        companyName:
+          parsedStoredUser?.companyName ||
+          savedProfile?.companyName ||
+          "Company",
+        department: parsedStoredUser?.department || null,
+        type: decoded?.type || parsedStoredUser?.type,
+        avatar:
+          savedProfile?.avatar ||
+          parsedStoredUser?.avatar ||
+          (decoded?.email
+            ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${decoded.email}`
+            : undefined),
+      };
+
+      await finalizeUserSession(bootUser, {
+        rememberMe: localStorage.getItem("rememberMe") === "true",
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Auto login failed:", error);
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
+      return {
+        success: false,
+        message:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Session expired. Please login again.",
+      };
     } finally {
       setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        const accessToken = localStorage.getItem("accessToken");
+        const shouldShowWelcomeBack =
+          sessionStorage.getItem(SOFT_LOGOUT_PROMPT_KEY) === "true";
+
+        if (storedUser && accessToken) {
+          setUser(JSON.parse(storedUser));
+          return;
+        }
+
+        if (!shouldShowWelcomeBack && getStoredRefreshToken()) {
+          await autoLogin();
+        }
+      } catch (error) {
+        console.error("Failed to initialize auth state", error);
+        localStorage.removeItem("user");
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("userRole");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  // Persist user changes to localStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
     }
   }, [user]);
 
-  // Periodic token refresh check (every 4 minutes)
   useEffect(() => {
     if (!user) return;
 
@@ -74,91 +221,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         await checkAndRefreshTokenIfNeeded();
       } catch (error) {
-        console.error('Periodic token refresh failed:', error);
-        // Don't logout here, let the API interceptors handle it
+        console.error("Periodic token refresh failed:", error);
       }
-    }, 4 * 60 * 1000); // 4 minutes
+    }, 4 * 60 * 1000);
 
     return () => clearInterval(refreshInterval);
   }, [user]);
 
-  // Check token on visibility change (when user returns to the tab)
   useEffect(() => {
     if (!user) return;
 
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         try {
           await checkAndRefreshTokenIfNeeded();
         } catch (error) {
-          console.error('Visibility change token refresh failed:', error);
+          console.error("Visibility change token refresh failed:", error);
         }
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [user]);
 
-  // Listen for forced logout requests from API layer (no page reload)
   useEffect(() => {
     const handleForceLogout = () => {
-      if (typeof window !== "undefined" && window.location.pathname === "/login") {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname === "/login"
+      ) {
         return;
       }
-      logout();
+      logout(false);
     };
 
     window.addEventListener("auth:logout", handleForceLogout);
     return () => window.removeEventListener("auth:logout", handleForceLogout);
   }, []);
 
-  /* =======================
-     LOGIN (REPLACED LOGIC)
-     ======================= */
-const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
-  setIsLoading(true);
-  try {
-    if (!isValidEmail(email)) {
-      return { success: false, message: "Please enter a valid email address." };
-    }
+  const login = async (
+    email: string,
+    password: string,
+    rememberMe: boolean = false
+  ): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true);
+    try {
+      if (!isValidEmail(email)) {
+        return {
+          success: false,
+          message: "Please enter a valid email address.",
+        };
+      }
 
-    const normalizedEmail = normalizeEmail(email);
+      const normalizedEmail = normalizeEmail(email);
+      const response = await ENDPOINTS.login(normalizedEmail, password).catch(
+        (error) => {
+          console.error("API call failed:", error);
+          throw new Error(
+            error.response?.data?.message || "Failed to connect to the server"
+          );
+        }
+      );
 
-    // Make sure to handle the case where the API call fails
-    const response = await ENDPOINTS.login(normalizedEmail, password).catch(error => {
-      // Handle API call failure (network error, server down, etc.)
-      console.error('API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to connect to the server');
-    });
-    
-    // Make sure we have a response and data
-    if (!response) {
-      throw new Error('No response from server');
-    }
-    
-    const responseData = response.data || {};
-    
-    // Check if we have an error message in the response
-    if (responseData.message && !responseData.success) {
-      throw new Error(responseData.message);
-    }
-    
-    // Handle successful login
-    const accessToken = responseData.accessToken || responseData.token;
+      if (!response) {
+        throw new Error("No response from server");
+      }
 
-    if (accessToken) {
+      const responseData = response.data || {};
+      if (responseData.message && !responseData.success) {
+        throw new Error(responseData.message);
+      }
+
+      const accessToken = responseData.accessToken || responseData.token;
+      if (!accessToken) {
+        throw new Error("Invalid server response");
+      }
+
       localStorage.setItem("accessToken", accessToken);
       localStorage.removeItem("refreshToken");
       sessionStorage.removeItem("refreshToken");
       setReadableAuthCookie("accessToken", accessToken, 30 * 60);
+
       if (responseData.refreshToken) {
         if (rememberMe) {
           localStorage.setItem("refreshToken", responseData.refreshToken);
         } else {
           sessionStorage.setItem("refreshToken", responseData.refreshToken);
         }
-        setReadableAuthCookie("refreshToken", responseData.refreshToken, 7 * 24 * 60 * 60);
+        setReadableAuthCookie(
+          "refreshToken",
+          responseData.refreshToken,
+          7 * 24 * 60 * 60
+        );
       }
 
       if (rememberMe) {
@@ -166,111 +322,84 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
       } else {
         localStorage.removeItem("rememberMe");
       }
-      
-      // Extract user data from response
+
       const normalizedRolesRaw = Array.isArray(responseData.user?.roles)
         ? responseData.user.roles
-        : [responseData.user?.role || responseData.role || 'employee'];
-      const normalizedRoles = [...new Set(
-        normalizedRolesRaw
-          .filter(Boolean)
-          .map((r: string) => String(r).toLowerCase())
-      )];
+        : [responseData.user?.role || responseData.role || "employee"];
+      const normalizedRoles = [
+        ...new Set(
+          normalizedRolesRaw
+            .filter(Boolean)
+            .map((role: string) => String(role).toLowerCase())
+        ),
+      ];
 
-      const userData = {
+      const userData: User = {
         id: responseData.user?.id || responseData.id,
-        name: responseData.user?.name || responseData.name || normalizedEmail.split('@')[0],
+        name:
+          responseData.user?.name ||
+          responseData.name ||
+          normalizedEmail.split("@")[0],
         email: responseData.user?.email || normalizedEmail,
-        role: (responseData.user?.role || responseData.role || normalizedRoles[0] || 'employee').toLowerCase(),
-        roles: normalizedRoles.length ? normalizedRoles : ['employee'],
-        companyName: responseData.user?.companyName || responseData.company_name || 'Company',
+        role: (
+          responseData.user?.role ||
+          responseData.role ||
+          normalizedRoles[0] ||
+          "employee"
+        ).toLowerCase(),
+        roles: normalizedRoles.length ? normalizedRoles : ["employee"],
+        companyName:
+          responseData.user?.companyName ||
+          responseData.company_name ||
+          "Company",
         department: responseData.user?.department || responseData.department || null,
         type: responseData.user?.type || responseData.type || undefined,
-        avatar: responseData.user?.avatar || responseData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${normalizedEmail}`
+        avatar:
+          responseData.user?.avatar ||
+          responseData.avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${normalizedEmail}`,
       };
-      
-      // Save user data
-      localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData);
-      
-      // Load profile image after successful login
-      try {
-        const profileResponse = await ENDPOINTS.getProfile();
-        const profileData = profileResponse.data?.data || profileResponse.data;
-        
-        if (profileData?.profile_photo) {
-          const profileImageUrl = `${BASE_URL}${profileData.profile_photo}`;
-          const updatedUserData = {
-            ...userData,
-            avatar: profileImageUrl
-          };
-          
-          // Update user context and localStorage with profile image
-          setUser(updatedUserData);
-          localStorage.setItem("user", JSON.stringify(updatedUserData));
-          
-          // Also update the userData variable for subsequent operations
-          userData.avatar = profileImageUrl;
-        }
-      } catch (error) {
-        // Don't fail login if profile image loading fails
-        console.log('Profile image loading skipped during login');
-      }
-      
-      // Save profile for remember me functionality
-      if (rememberMe) {
-        profileManager.saveProfile(userData, true);
-        console.log('Profile saved for remember me:', userData.email);
-      }
-      
-      // Set the first role as the user's role
-      if (userData.roles && userData.roles.length > 0) {
-        localStorage.setItem("userRole", userData.roles[0]);
-      } else {
-        localStorage.setItem("userRole", 'employee');
-      }
-      
-      // Return success without temporary password check
-      return { 
-        success: true
-      };
+
+      await finalizeUserSession(userData, { rememberMe });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Login error:", error);
+      const status = error.response?.status;
+      const errorMessage =
+        (status === 401 && "Invalid email or password. Please try again.") ||
+        error.response?.data?.message ||
+        error.message ||
+        "Login failed. Please check your credentials.";
+      return { success: false, message: errorMessage };
+    } finally {
+      setIsLoading(false);
     }
-    
-    // If we get here, the response format is unexpected
-    console.error('Unexpected response format:', response);
-    throw new Error('Invalid server response');
-  } catch (error: any) {
-    console.error("Login error:", error);
-    const status = error.response?.status;
-    const errorMessage =
-      (status === 401 && "Invalid email or password. Please try again.") ||
-      error.response?.data?.message ||
-      error.message ||
-      "Login failed. Please check your credentials.";
-    return { success: false, message: errorMessage };
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
+  const logout = async (
+    soft: boolean = true
+  ): Promise<{ success: boolean; message: string }> => {
+    const preserveRefreshToken =
+      soft && localStorage.getItem("rememberMe") === "true";
 
-  /* =======================
-     LOGOUT (REPLACED LOGIC)
-     ======================= */
-  const logout = async (): Promise<{ success: boolean; message: string }> => {
     const clearAuthData = () => {
       localStorage.removeItem("user");
       localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
       localStorage.removeItem("token");
       localStorage.removeItem("userRole");
-      localStorage.removeItem("rememberMe");
       clearDebugCookies();
-      
-      // Clear saved profiles and credentials
-      profileManager.clearAll();
-      
-      // Clear any auth-related keys
+
+      if (preserveRefreshToken) {
+        sessionStorage.setItem(SOFT_LOGOUT_PROMPT_KEY, "true");
+      } else {
+        localStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("refreshToken");
+        localStorage.removeItem("rememberMe");
+        sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
+        profileManager.clearAll();
+      }
+
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith("auth_") || key.startsWith("user_")) {
           localStorage.removeItem(key);
@@ -313,6 +442,7 @@ const login = async (email: string, password: string, rememberMe: boolean = fals
         user,
         isAuthenticated: user !== null,
         login,
+        autoLogin,
         logout,
         isLoading,
         setUser,

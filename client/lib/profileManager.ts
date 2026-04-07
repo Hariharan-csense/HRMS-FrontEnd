@@ -1,6 +1,5 @@
 interface SavedProfile {
   email: string;
-  password?: string; // Encrypted password
   name?: string;
   avatar?: string;
   companyName?: string;
@@ -8,12 +7,9 @@ interface SavedProfile {
   rememberMe: boolean;
 }
 
-import { secureStorage } from './secureStorage';
-
 class ProfileManager {
   private readonly PROFILE_KEY = 'savedProfile';
   private readonly CREDENTIALS_KEY = 'savedCredentials';
-  private readonly PASSWORD_KEY = 'savedPassword';
 
   // Save user profile when remember me is checked
   saveProfile(user: any, rememberMe: boolean): void {
@@ -35,8 +31,8 @@ class ProfileManager {
     }
   }
 
-  // Save credentials (email and password, encrypted)
-  saveCredentials(email: string, password?: string, rememberMe: boolean = false): void {
+  // Save email only for remember-me. Passwords are never stored.
+  saveCredentials(email: string, rememberMe: boolean = false): void {
     if (rememberMe && email) {
       const credentials = {
         email: email,
@@ -45,44 +41,18 @@ class ProfileManager {
       };
       
       localStorage.setItem(this.CREDENTIALS_KEY, JSON.stringify(credentials));
-      
-      // Save password securely if provided
-      if (password) {
-        secureStorage.setItem(this.PASSWORD_KEY, password);
-        console.log('Password saved securely for remember me');
-      }
-      
+
       console.log('Credentials saved for remember me:', { email: email.substring(0, 3) + '***' });
     } else if (!rememberMe) {
       this.clearSavedCredentials();
     }
+
+    this.clearSavedPassword();
   }
 
-  // Get saved password
+  // Password storage is disabled. Clear old legacy data if present.
   getSavedPassword(): string | null {
-    try {
-      const saved = secureStorage.getItem(this.PASSWORD_KEY);
-      if (saved) {
-        // Check if password is still valid (not older than 30 days)
-        const credentials = this.getSavedCredentials();
-        if (credentials && credentials.rememberMe) {
-          const savedAt = new Date(credentials.savedAt);
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          
-          if (savedAt > thirtyDaysAgo) {
-            return saved;
-          } else {
-            // Clear old password
-            this.clearSavedPassword();
-            return null;
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading saved password:', error);
-      this.clearSavedPassword();
-    }
+    this.clearSavedPassword();
     return null;
   }
 
@@ -154,9 +124,9 @@ class ProfileManager {
     console.log('Saved credentials cleared');
   }
 
-  // Clear saved password
+  // Clear legacy password entries from older builds
   clearSavedPassword(): void {
-    secureStorage.removeItem(this.PASSWORD_KEY);
+    localStorage.removeItem('savedPassword');
     console.log('Saved password cleared');
   }
 

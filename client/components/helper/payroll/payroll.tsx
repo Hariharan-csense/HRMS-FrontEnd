@@ -107,6 +107,21 @@ export const payrollApi = {
     }
   },
 
+  deletePayslip: async (id: string): Promise<{ data?: any; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.deletePayslip(id);
+      if (response.data?.success) {
+        return { data: response.data };
+      }
+      return { error: 'Failed to delete payslip' };
+    } catch (error: any) {
+      console.error('Error deleting payslip:', error);
+      return {
+        error: error.response?.data?.message || 'Failed to delete payslip'
+      };
+    }
+  },
+
   getPayrollProcessing: async (): Promise<{ data?: any; error?: string }> => {
     try {
       console.log('Fetching payroll processing data from /payroll endpoint');

@@ -12,8 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Search, Plus, Edit, Eye, Download, Calculator, DollarSign, Calendar, User, FileText, CheckCircle, XCircle, Clock, Mail } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { Search, Plus, Eye, Download, Calculator, DollarSign, FileText, CheckCircle, XCircle, Clock, Mail } from 'lucide-react';
 import ENDPOINTS from '@/lib/endpoint';
 
 interface Settlement {
@@ -56,7 +55,6 @@ interface SettlementDocument {
 }
 
 const HRSettlement: React.FC = () => {
-  const { user } = useAuth();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +65,6 @@ const HRSettlement: React.FC = () => {
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [selectedSettlementComponents, setSelectedSettlementComponents] = useState<SettlementComponent[]>([]);
   const [selectedSettlementDocuments, setSelectedSettlementDocuments] = useState<SettlementDocument[]>([]);
-  const [newStatus, setNewStatus] = useState('');
   const [isCreatingSettlement, setIsCreatingSettlement] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [formData, setFormData] = useState({
@@ -77,6 +74,13 @@ const HRSettlement: React.FC = () => {
     paymentMode: '',
     remarks: ''
   });
+  const [approvalData, setApprovalData] = useState({
+    paymentMode: '',
+    paymentReference: '',
+    settlementDate: '',
+    rejectionReason: ''
+  });
+  const [statusAction, setStatusAction] = useState('');
 
   // Fetch settlements and employees from API
   useEffect(() => {
@@ -109,6 +113,7 @@ const HRSettlement: React.FC = () => {
   });
 
   const getStatusBadge = (status: string) => {
+    const normalizedStatus = status || 'pending';
     const variants: Record<string, { variant: string; icon: React.ReactNode }> = {
       pending: { variant: 'secondary', icon: <Clock className="w-3 h-3" /> },
       processing: { variant: 'default', icon: <Calculator className="w-3 h-3" /> },
@@ -117,11 +122,11 @@ const HRSettlement: React.FC = () => {
       rejected: { variant: 'destructive', icon: <XCircle className="w-3 h-3" /> }
     };
     
-    const config = variants[status] || variants.pending;
+    const config = variants[normalizedStatus] || variants.pending;
     return (
       <Badge variant={config.variant as any} className="flex items-center gap-1">
         {config.icon}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}
       </Badge>
     );
   };
@@ -149,39 +154,6 @@ const HRSettlement: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = async () => {
-    if (!selectedSettlement) return;
-    
-    setIsUpdatingStatus(true);
-    try {
-      await ENDPOINTS.updateSettlement(selectedSettlement.id, {
-        status: newStatus
-      });
-      
-      // Update the settlement in the list
-      setSettlements(prev => 
-        prev.map(s => 
-          s.id === selectedSettlement.id 
-            ? { ...s, status: newStatus as any } 
-            : s
-        )
-      );
-      
-      // Update the selected settlement
-      setSelectedSettlement(prev => 
-        prev ? { ...prev, status: newStatus as any } : null
-      );
-      
-      setNewStatus('');
-      toast.success('Status updated successfully');
-    } catch (error: any) {
-      console.error('Error updating status:', error);
-      toast.error(error.response?.data?.error || 'Failed to update status');
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
   const handleViewSettlement = async (settlement: Settlement) => {
     try {
       const response = await ENDPOINTS.getSettlementById(settlement.id);
@@ -190,7 +162,15 @@ const HRSettlement: React.FC = () => {
       setSelectedSettlement(fullSettlement);
       setSelectedSettlementComponents(components || []);
       setSelectedSettlementDocuments(documents || []);
-      setNewStatus('');
+      setApprovalData({
+        paymentMode: fullSettlement.payment_mode || '',
+        paymentReference: fullSettlement.payment_reference || '',
+        settlementDate: fullSettlement.settlement_date
+          ? new Date(fullSettlement.settlement_date).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        rejectionReason: ''
+      });
+      setStatusAction('');
       setIsViewDialogOpen(true);
     } catch (error: any) {
       console.error('Error fetching settlement details:', error);
@@ -213,7 +193,7 @@ const HRSettlement: React.FC = () => {
             ? { 
                 ...settlement, 
                 ...updatedSettlement,
-                status: updatedSettlement.status || 'calculated'
+                status: updatedSettlement.status || 'processing'
               }
             : settlement
         )
@@ -224,7 +204,7 @@ const HRSettlement: React.FC = () => {
         setSelectedSettlement(prev => ({
           ...prev!,
           ...updatedSettlement,
-          status: updatedSettlement.status || 'calculated'
+          status: updatedSettlement.status || 'processing'
         }));
         
         // Update the components from the details response
@@ -236,6 +216,117 @@ const HRSettlement: React.FC = () => {
     } catch (error: any) {
       console.error('Error calculating settlement:', error);
       toast.error(error.response?.data?.error || 'Failed to calculate settlement');
+    }
+  };
+
+  const handleApproveSettlement = async () => {
+    if (!selectedSettlement) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const response = await ENDPOINTS.approveSettlement(selectedSettlement.id, {
+        paymentMode: approvalData.paymentMode,
+        paymentReference: approvalData.paymentReference,
+        settlementDate: approvalData.settlementDate
+      });
+
+      const updatedSettlement = response.data;
+
+      setSettlements(prev =>
+        prev.map(settlement =>
+          settlement.id === selectedSettlement.id
+            ? { ...settlement, ...updatedSettlement, status: 'completed' }
+            : settlement
+        )
+      );
+      setSelectedSettlement(prev => prev ? { ...prev, ...updatedSettlement, status: 'completed' } : null);
+      toast.success('Settlement approved successfully');
+    } catch (error: any) {
+      console.error('Error approving settlement:', error);
+      toast.error(error.response?.data?.error || 'Failed to approve settlement');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleRejectSettlement = async () => {
+    if (!selectedSettlement) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const response = await ENDPOINTS.rejectSettlement(selectedSettlement.id, {
+        rejectionReason: approvalData.rejectionReason
+      });
+
+      const updatedSettlement = response.data;
+
+      setSettlements(prev =>
+        prev.map(settlement =>
+          settlement.id === selectedSettlement.id
+            ? { ...settlement, ...updatedSettlement, status: 'rejected' }
+            : settlement
+        )
+      );
+      setSelectedSettlement(prev => prev ? { ...prev, ...updatedSettlement, status: 'rejected' } : null);
+      toast.success('Settlement rejected');
+    } catch (error: any) {
+      console.error('Error rejecting settlement:', error);
+      toast.error(error.response?.data?.error || 'Failed to reject settlement');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleStatusAction = async () => {
+    if (!selectedSettlement || !statusAction) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      if (statusAction === 'completed') {
+        await handleApproveSettlement();
+        return;
+      }
+
+      if (statusAction === 'rejected') {
+        await handleRejectSettlement();
+        return;
+      }
+
+      const response = await ENDPOINTS.updateSettlement(selectedSettlement.id, {
+        status: statusAction
+      });
+
+      const updatedSettlement = response.data;
+      setSettlements(prev =>
+        prev.map(settlement =>
+          settlement.id === selectedSettlement.id
+            ? { ...settlement, ...updatedSettlement, status: statusAction as Settlement['status'] }
+            : settlement
+        )
+      );
+      setSelectedSettlement(prev =>
+        prev ? { ...prev, ...updatedSettlement, status: statusAction as Settlement['status'] } : null
+      );
+      toast.success(`Settlement moved to ${statusAction}`);
+    } catch (error: any) {
+      console.error('Error updating settlement status:', error);
+      toast.error(error.response?.data?.error || 'Failed to update settlement status');
+    } finally {
+      setIsUpdatingStatus(false);
+      setStatusAction('');
+    }
+  };
+
+  const getAvailableStatusActions = (currentStatus?: string) => {
+    switch (currentStatus) {
+      case 'pending':
+        return ['processing', 'rejected'];
+      case 'processing':
+        return ['calculated', 'completed', 'rejected'];
+      case 'calculated':
+        return ['processing', 'completed', 'rejected'];
+      default:
+        return [];
     }
   };
 
@@ -326,18 +417,32 @@ const HRSettlement: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="employee">Employee</Label>
-                <Select value={formData.employeeId} onValueChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}>
+                <Select
+                  value={formData.employeeId}
+                  onValueChange={(value) => {
+                    const selectedEmployee = employees.find((employee) => String(employee.id) === value);
+                    setFormData(prev => ({
+                      ...prev,
+                      employeeId: value,
+                      resignationDate: selectedEmployee?.resignation_date || prev.resignationDate,
+                      lastWorkingDay: selectedEmployee?.last_working_day || prev.lastWorkingDay
+                    }));
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
                     {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
+                      <SelectItem key={employee.id} value={String(employee.id)}>
                         {employee.name} - {employee.employee_id}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Approved resignation irundha dates auto fill aagum. Illaina available employees manual-a settlement create panna mudiyum.
+                </p>
               </div>
               <div>
                 <Label htmlFor="resignationDate">Resignation Date</Label>
@@ -392,6 +497,7 @@ const HRSettlement: React.FC = () => {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="processing">Processing</SelectItem>
+            <SelectItem value="calculated">Calculated</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
@@ -480,7 +586,7 @@ const HRSettlement: React.FC = () => {
               </TabsList>
               
               <TabsContent value="details" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label>Employee Name</Label>
                     <p className="font-medium">{selectedSettlement.employee_name}</p>
@@ -511,45 +617,114 @@ const HRSettlement: React.FC = () => {
                       <p className="font-medium">{new Date(selectedSettlement.settlement_date).toLocaleDateString()}</p>
                     </div>
                   )}
-                  {selectedSettlement.payment_mode && (
+                  <div>
+                    <Label>Status</Label>
+                    <div className="mt-1">{getStatusBadge(selectedSettlement.status)}</div>
+                  </div>
+                  {selectedSettlement.status !== 'completed' && selectedSettlement.status !== 'rejected' && (
                     <div>
-                      <Label>Status</Label>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(selectedSettlement.status)}
-                        {selectedSettlement.status !== 'completed' && selectedSettlement.status !== 'rejected' && (
-                          <div className="flex items-center gap-2 ml-4">
-                            <Select 
-                              value={newStatus} 
-                              onValueChange={setNewStatus}
-                            >
-                              <SelectTrigger className="w-[150px] h-8">
-                                <SelectValue placeholder="Change status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="processing">Processing</SelectItem>
-                                <SelectItem value="calculated">Calculated</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button 
-                              size="sm"
-                              onClick={handleStatusUpdate}
-                              disabled={!newStatus || newStatus === selectedSettlement.status || isUpdatingStatus}
-                            >
-                              {isUpdatingStatus ? "Updating..." : "Update"}
-                            </Button>
-                          </div>
-                        )}
+                      <Label>Status Update</Label>
+                      <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                        <Select value={statusAction} onValueChange={setStatusAction}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Choose next status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailableStatusActions(selectedSettlement.status).map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          onClick={handleStatusAction}
+                          disabled={!statusAction || isUpdatingStatus}
+                        >
+                          {isUpdatingStatus ? "Updating..." : "Update Status"}
+                        </Button>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Processing means review in progress, Calculated means amount finalized, Completed means payout done.
+                      </p>
                     </div>
+                  )}
+                  {(selectedSettlement.status === 'processing' || selectedSettlement.status === 'calculated') && (
+                    <>
+                      <div>
+                        <Label>Payment Mode</Label>
+                        <Select
+                          value={approvalData.paymentMode}
+                          onValueChange={(value) => setApprovalData(prev => ({ ...prev, paymentMode: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="cheque">Cheque</SelectItem>
+                            <SelectItem value="upi">UPI</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Bank Transfer: company account-lendhu employee bank-ku.
+                          UPI: direct UPI payout.
+                          Cheque: cheque issue pannumbodhu.
+                          Cash: direct hand payment.
+                        </p>
+                      </div>
+                      <div>
+                        <Label>Settlement Date</Label>
+                        <Input
+                          type="date"
+                          value={approvalData.settlementDate}
+                          onChange={(e) => setApprovalData(prev => ({ ...prev, settlementDate: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Payment Reference</Label>
+                        <Input
+                          value={approvalData.paymentReference}
+                          onChange={(e) => setApprovalData(prev => ({ ...prev, paymentReference: e.target.value }))}
+                          placeholder="UTR / Cheque No / Ref"
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
                 {selectedSettlement.remarks && (
                   <div>
                     <Label>Remarks</Label>
                     <p className="text-sm text-muted-foreground">{selectedSettlement.remarks}</p>
+                  </div>
+                )}
+                {selectedSettlement.status !== 'completed' && selectedSettlement.status !== 'rejected' && (
+                  <div className="space-y-3 border-t pt-4">
+                    <Label>Rejection Reason</Label>
+                    <Textarea
+                      placeholder="Optional rejection reason"
+                      value={approvalData.rejectionReason}
+                      onChange={(e) => setApprovalData(prev => ({ ...prev, rejectionReason: e.target.value }))}
+                    />
+                    <div className="flex flex-wrap gap-2 pb-2">
+                      {(selectedSettlement.status === 'processing' || selectedSettlement.status === 'calculated') && (
+                        <Button
+                          onClick={handleApproveSettlement}
+                          disabled={!approvalData.paymentMode || isUpdatingStatus}
+                        >
+                          {isUpdatingStatus ? "Saving..." : "Approve Settlement"}
+                        </Button>
+                      )}
+                      <Button
+                        variant="destructive"
+                        onClick={handleRejectSettlement}
+                        disabled={isUpdatingStatus}
+                      >
+                        {isUpdatingStatus ? "Saving..." : "Reject Settlement"}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -640,12 +815,35 @@ const HRSettlement: React.FC = () => {
               </TabsContent>
               
               <TabsContent value="documents" className="space-y-4">
-                <Alert>
-                  <FileText className="h-4 w-4" />
-                  <AlertDescription>
-                    Document management feature will be available soon. You'll be able to upload and manage settlement-related documents here.
-                  </AlertDescription>
-                </Alert>
+                {selectedSettlementDocuments.length === 0 ? (
+                  <Alert>
+                    <FileText className="h-4 w-4" />
+                    <AlertDescription>
+                      Document management feature will be available soon. You'll be able to upload and manage settlement-related documents here.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedSettlementDocuments.map((document) => (
+                      <div key={document.id} className="flex items-center justify-between rounded border p-3">
+                        <div>
+                          <p className="font-medium">{document.document_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Added on {new Date(document.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <a
+                          href={document.file_path}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm text-primary underline"
+                        >
+                          View
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           )}

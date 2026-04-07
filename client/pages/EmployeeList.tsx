@@ -225,6 +225,8 @@ export default function EmployeeList() {
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [importingExcel, setImportingExcel] = useState(false);
   const [excelFileName, setExcelFileName] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
 
 
@@ -296,6 +298,23 @@ export default function EmployeeList() {
 
     return finalFiltered;
   }, [employees, searchTerm, filterDept, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / itemsPerPage));
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredEmployees, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDept, filterStatus, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const handleOpenDialog = (employee?: EmployeeWithShiftId) => {
     if (employee && !canEditEmployee) {
       showToast.error("You do not have permission to edit employees");
@@ -1536,7 +1555,10 @@ export default function EmployeeList() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Employees ({filteredEmployees.length})</CardTitle>
             <CardDescription className="text-xs">
-              Showing {filteredEmployees.length} of {employees.length} employees
+              Showing {filteredEmployees.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+              {" "}to{" "}
+              {Math.min(currentPage * itemsPerPage, filteredEmployees.length)}
+              {" "}of {filteredEmployees.length} filtered employees ({employees.length} total)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1564,7 +1586,7 @@ export default function EmployeeList() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEmployees.map((emp) => (
+                      {paginatedEmployees.map((emp) => (
                         <tr
                           key={emp.id}
                           className="border-b border-border hover:bg-muted/30 transition-colors"
@@ -1636,7 +1658,7 @@ export default function EmployeeList() {
 
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2">
-                  {filteredEmployees.map((emp) => (
+                  {paginatedEmployees.map((emp) => (
                     <div
                       key={emp.id}
                       className="border border-border rounded-lg p-3 bg-card hover:shadow-md transition-all duration-200 space-y-2"
@@ -1715,6 +1737,64 @@ export default function EmployeeList() {
                     </div>
                   ))}
                 </div>
+
+                {filteredEmployees.length > 0 && (
+                  <div className="flex flex-col gap-3 border-t border-border pt-4 mt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium whitespace-nowrap">Rows per page</span>
+                        <Select
+                          value={itemsPerPage.toString()}
+                          onValueChange={(value) => {
+                            setItemsPerPage(Number(value));
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[80px] text-xs">
+                            <SelectValue placeholder={itemsPerPage} />
+                          </SelectTrigger>
+                          <SelectContent side="top">
+                            {[5, 10, 20, 30, 50].map((pageSize) => (
+                              <SelectItem key={pageSize} value={pageSize.toString()}>
+                                {pageSize}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Previous
+                        </Button>
+
+                        <div className="text-xs font-medium min-w-[70px] text-center">
+                          Page {currentPage} / {totalPages}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </CardContent>

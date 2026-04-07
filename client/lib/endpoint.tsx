@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // // //Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.11:3000";
+export const BASE_URL = "http://192.168.1.6:3000";
 // export const BASE_URL="https://hrms.procease.co/backend";
 // Auth requests that must NOT go through interceptors (avoids side effects on login errors)
 const authApi = axios.create({
@@ -585,6 +585,7 @@ const ENDPOINTS = {
   updateSalaryStructure: (id: string, data: any) =>
     api.put(`/payroll/structure/${id}`, data),
   deleteSalaryStructure: (id: string) => api.delete(`/payroll/structure/${id}`),
+  deletePayslip: (id: string) => api.delete(`/payroll/payslips/${id}`),
 
   getpayslip: () => api.get("/payroll"),
 
@@ -891,7 +892,7 @@ const ENDPOINTS = {
   getEmployeesForSettlement: (params?: any) =>
     api.get("/settlement/employees", { params }),
   downloadSettlementReport: (id: number) =>
-    api.get(`/settlement/${id}/download`, { responseType: "blob" }),
+    api.get(`/settlement/${id}/download`),
   sendSettlementEmail: (data: any) => api.post("/settlement/send-email", data),
 
   // Recruitment

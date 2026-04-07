@@ -241,14 +241,40 @@ export default function ExpenseClaims() {
       }
 
       const mergedClaims = dedupeExpenseClaims([...existing.claims, ...item.claims]);
+      const mergedCategories = Array.from(
+        new Set(mergedClaims.map((claim) => claim.category).filter(Boolean))
+      );
+      const mergedClientNames = Array.from(
+        new Set(mergedClaims.map((claim) => claim.clientName).filter(Boolean))
+      );
+      const mergedClientIds = Array.from(
+        new Set(mergedClaims.map((claim) => claim.clientId).filter(Boolean))
+      );
+      const mergedTotalAmount = mergedClaims.reduce(
+        (sum, claim) => sum + (Number(claim.amount) || 0),
+        0
+      );
       const existingReceiptCount = existing.claims.filter((claim) => claim.receiptPath || claim.receiptUrl).length;
       const nextReceiptCount = item.claims.filter((claim) => claim.receiptPath || claim.receiptUrl).length;
+      const preferredGroup = nextReceiptCount > existingReceiptCount ? item : existing;
 
       groups.set(
         key,
-        nextReceiptCount > existingReceiptCount
-          ? { ...item, claims: mergedClaims }
-          : { ...existing, claims: mergedClaims }
+        {
+          ...preferredGroup,
+          claims: mergedClaims,
+          totalAmount: mergedTotalAmount,
+          categories: mergedCategories,
+          clientId: mergedClientIds.length === 1 ? mergedClientIds[0] : "",
+          clientName:
+            mergedClientNames.length > 1
+              ? `${mergedClientNames[0]} +${mergedClientNames.length - 1}`
+              : mergedClientNames[0] || "-",
+          description:
+            mergedClaims.length > 1
+              ? `${mergedClaims.length} expense(s) - ${mergedCategories.join(", ")}`
+              : mergedClaims[0]?.description || preferredGroup.description,
+        }
       );
     });
 
