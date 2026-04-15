@@ -27,6 +27,8 @@ const STANDARD_MODULES = [
   "payroll",
   "client_attendance",
   "client_attendance_admin",
+  "my_clients",
+  "my_analytics",
   "expenses",
   "assets",
   "live_tracking",
@@ -123,11 +125,13 @@ export const getAllowedModulesFromSubscription = (
     if (line.includes("recruitment") || line.includes("rms") || line.includes("hr management") || line.includes("onboarding")) modules.add("hr_management");
     if (line.includes("live tracking")) modules.add("live_tracking");
 
-    // Keep both client attendance modules enabled together when the plan includes client attendance.
+    // Keep all client-attendance-related modules enabled together when the plan includes client attendance.
     if (line.includes("client attendance admin")) modules.add("client_attendance_admin");
     if (line.includes("client attendance")) {
       modules.add("client_attendance");
       modules.add("client_attendance_admin");
+      modules.add("my_clients");
+      modules.add("my_analytics");
     }
 
     if (line.includes("ticket")) modules.add("tickets");

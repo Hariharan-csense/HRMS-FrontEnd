@@ -327,19 +327,7 @@ const ContactPage = () => {
       </section>
 
       {/* Chat Support */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-100">
-        <div className="max-w-4xl mx-auto text-center">
-          <MessageSquare className="h-16 w-16 text-green-600 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Need Immediate Help?</h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Start a live chat with our support team for instant assistance
-          </p>
-          <Button size="lg" className="bg-green-600 hover:bg-green-700">
-            Start Live Chat
-            <MessageSquare className="ml-2 h-5 w-5" />
-          </Button>
-        </div>
-      </section>
+     
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-green-600">
@@ -358,13 +346,13 @@ const ContactPage = () => {
             >
               Start Free Trial
             </Button>
-            <Button 
+            {/* <Button 
               size="lg" 
               variant="outline"
               className="border-white text-white hover:bg-white hover:text-green-600"
             >
               Schedule Demo
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>

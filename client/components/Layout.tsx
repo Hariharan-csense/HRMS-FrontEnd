@@ -1,23 +1,133 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import ENDPOINTS from "@/lib/endpoint";
+import attendanceApi from "@/components/helper/attendance/attendance";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
+  const liveWatchIdRef = useRef<number | null>(null);
+  const lastSentAtRef = useRef<number>(0);
+  const [isCheckedIn, setIsCheckedIn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/login");
     }
   }, [isAuthenticated, isLoading, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    let cancelled = false;
+
+    const syncAttendanceStatus = async () => {
+      const localTrackingActive =
+        typeof window !== "undefined" &&
+        localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
+
+      const result = await attendanceApi.getAttendanceStatus();
+      if (cancelled) {
+        return;
+      }
+
+      if (result?.success) {
+        const checkedIn =
+          typeof result.isCheckedIn === "boolean"
+            ? result.isCheckedIn
+            : localTrackingActive;
+        setIsCheckedIn(checkedIn || localTrackingActive);
+        if (checkedIn) {
+          localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
+        } else if (!localTrackingActive) {
+          localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
+        }
+        return;
+      }
+
+      setIsCheckedIn(localTrackingActive);
+    };
+
+    syncAttendanceStatus();
+    const intervalId = window.setInterval(syncAttendanceStatus, 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    const localTrackingActive =
+      typeof window !== "undefined" &&
+      localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
+    const shouldTrack = Boolean(isCheckedIn || localTrackingActive);
+
+    if (!isAuthenticated || !user?.id || user?.type !== "employee" || !shouldTrack) {
+      if (liveWatchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(liveWatchIdRef.current);
+        liveWatchIdRef.current = null;
+      }
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    const sendLiveLocation = (coords: GeolocationCoordinates) => {
+      const now = Date.now();
+      if (now - lastSentAtRef.current < 10000) {
+        return;
+      }
+
+      lastSentAtRef.current = now;
+
+      ENDPOINTS.postLiveLocation({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracy: coords.accuracy,
+        timestamp: new Date().toISOString(),
+        device_info: "browser-live-tracker",
+      }).catch((error) => {
+        console.warn("Global live tracking ping failed", error?.message || error);
+      });
+    };
+
+    liveWatchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        sendLiveLocation(position.coords);
+      },
+      (error) => {
+        console.warn("Global live tracking watch failed", error?.message || error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000,
+      }
+    );
+
+    return () => {
+      if (liveWatchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(liveWatchIdRef.current);
+        liveWatchIdRef.current = null;
+      }
+    };
+  }, [isAuthenticated, user?.id, isCheckedIn]);
 
   if (isLoading) {
     return (

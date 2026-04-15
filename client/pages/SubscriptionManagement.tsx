@@ -10,6 +10,7 @@ import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, Star, Zap
 import { Layout } from '@/components/Layout';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 declare global {
   interface Window {
@@ -123,6 +124,7 @@ const formatCurrency = (price: number): string => {
 
 const SubscriptionManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { checkSubscriptionStatus } = useSubscription();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<CompanySubscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -176,7 +178,10 @@ const SubscriptionManagement: React.FC = () => {
         billing_cycle: selectedBillingCycle
       });
       showToast.success(response.data.message);
-      fetchSubscriptionData();
+      await Promise.all([
+        fetchSubscriptionData(),
+        checkSubscriptionStatus(),
+      ]);
     } catch (error: any) {
       showToast.error(error.response?.data?.message || 'Failed to start trial');
     }
@@ -238,7 +243,10 @@ const SubscriptionManagement: React.FC = () => {
             showToast.success(verifyRes.data?.message || 'Payment successful');
             setShowPaymentModal(false);
             setSelectedPlan(null);
-            fetchSubscriptionData();
+            await Promise.all([
+              fetchSubscriptionData(),
+              checkSubscriptionStatus(),
+            ]);
           } catch (e: any) {
             showToast.error(e.response?.data?.message || 'Payment verification failed');
           }

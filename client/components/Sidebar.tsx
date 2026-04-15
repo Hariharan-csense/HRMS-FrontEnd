@@ -283,8 +283,36 @@ const navigationItems: NavItem[] = [
     label: "Client Attendance",
     icon: <MapPin className="w-5 h-5" />,
     roles: [],
-    moduleName: "client_attendance",
-    path: "/client-attendance",
+    submenu: [
+      {
+        label: "Client Attendance",
+        path: "/client-attendance",
+        roles: [],
+        icon: <div />,
+        moduleName: "client_attendance",
+      },
+      {
+        label: "Client Attendance Admin",
+        path: "/client-attendance-admin",
+        roles: [],
+        icon: <div />,
+        moduleName: "client_attendance_admin",
+      },
+      {
+        label: "Client Assignment",
+        path: "/client-assignment",
+        roles: [],
+        icon: <div />,
+        moduleName: "client_attendance_admin",
+      },
+      {
+        label: "Geo-Fence",
+        path: "/client-geo-fence",
+        roles: [],
+        icon: <div />,
+        moduleName: "client_attendance_admin",
+      },
+    ],
   },
   {
     label: "My Clients",
@@ -300,13 +328,6 @@ const navigationItems: NavItem[] = [
     moduleName: "my_analytics",
     path: "/my-analytics",
   },
-  {
-    label: "Client Attendance Admin",
-    icon: <MessageSquare className="w-5 h-5" />,
-    roles: [],
-    moduleName: "client_attendance_admin",
-    path: "/client-attendance-admin",
-  },  
   {
     label: "Attendance Management",
     icon: <Clock className="w-5 h-5" />,
@@ -880,6 +901,13 @@ export const Sidebar: React.FC = () => {
     // Hide dashboard until roles/modules are configured for the user
     if (item.label === "Dashboard" && !hasConfiguredRoles) return false;
 
+    // Parent items with submenu should be shown when at least one submenu is accessible.
+    // This is important for grouped modules like Client Attendance where the parent itself
+    // is only a container and does not carry a direct module name.
+    if (item.submenu && item.submenu.length > 0) {
+      return item.submenu.some((subItem) => hasItemAccess(subItem as NavItem));
+    }
+
     // Subscription-based visibility (applies to non-superadmin users)
     if (!isSuperAdmin && !isCeo) {
       // Dashboard is always accessible once roles exist
@@ -902,11 +930,6 @@ export const Sidebar: React.FC = () => {
     // While role permissions are loading, hide permission-bound items to avoid showing unauthorized modules.
     if (roleLoading) {
       return item.moduleName === undefined;
-    }
-
-    // Parent items with submenu should be shown when at least one submenu is accessible.
-    if (item.submenu && item.submenu.length > 0) {
-      return item.submenu.some((subItem) => hasItemAccess(subItem as NavItem));
     }
 
     // Submodule-aware visibility: prefer submodule RBAC check when available.

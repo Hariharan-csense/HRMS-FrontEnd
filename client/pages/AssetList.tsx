@@ -32,6 +32,7 @@ import {
   Package,
   AlertCircle,
   Loader2,
+  Download,
 } from "lucide-react";
 import {
   Asset,
@@ -284,6 +285,82 @@ const handleSave = async () => {
     return statusClasses[status];
   };
 
+  const getAssignedEmployeeLabel = (asset: Asset) => {
+    if (asset.assignedEmployeeName) return asset.assignedEmployeeName;
+    if (!asset.assignedEmployee) return "-";
+
+    const employee = employees.find(
+      (emp: any) => String(emp.id || emp._id || "") === asset.assignedEmployee
+    );
+
+    if (!employee) return "Unknown Employee";
+
+    const fullName = `${employee.first_name || employee.name || ""} ${employee.last_name || ""}`.trim();
+    const department = employee.department || employee.dept || employee.department_name || "";
+
+    return fullName + (department ? ` (${department})` : "");
+  };
+
+  const escapeCsvValue = (value: string | number | null | undefined) => {
+    const normalizedValue = String(value ?? "");
+    if (/[",\n]/.test(normalizedValue)) {
+      return `"${normalizedValue.replace(/"/g, '""')}"`;
+    }
+    return normalizedValue;
+  };
+
+  const handleExportCsv = () => {
+    if (filteredAssets.length === 0) {
+      showToast.error("No assets available to export");
+      return;
+    }
+
+    const headers = [
+      "Asset ID",
+      "Asset Name",
+      "Type",
+      "Serial Number",
+      "Assigned To",
+      "Status",
+      "Location",
+      "Issue Date",
+      "Value",
+      "Description",
+    ];
+
+    const rows = filteredAssets.map((asset) => [
+      asset.assetId || "-",
+      asset.name || "-",
+      getAssetTypeLabel(asset.type),
+      asset.serial || "-",
+      getAssignedEmployeeLabel(asset),
+      getStatusLabel(asset.status),
+      asset.location || "-",
+      asset.issueDate || "-",
+      asset.value > 0 ? asset.value : "",
+      asset.description || "",
+    ]);
+
+    const csvContent = [
+      headers.map(escapeCsvValue).join(","),
+      ...rows.map((row) => row.map(escapeCsvValue).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStamp = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.setAttribute("download", `assets-${dateStamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    showToast.success("Assets exported as CSV");
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -411,15 +488,26 @@ const handleSave = async () => {
               </div>
 
               <div className="flex items-end">
-                {canCreateAsset && (
+                <div className="flex w-full gap-2">
                   <Button
-                    onClick={() => handleOpenDialog()}
+                    type="button"
+                    variant="outline"
+                    onClick={handleExportCsv}
                     className="w-full gap-2"
                   >
-                    <Plus className="w-4 h-4" />
-                    Add Asset
+                    <Download className="w-4 h-4" />
+                    Export CSV
                   </Button>
-                )}
+                  {canCreateAsset && (
+                    <Button
+                      onClick={() => handleOpenDialog()}
+                      className="w-full gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Asset
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>

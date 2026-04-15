@@ -82,15 +82,9 @@ export const liveApi = {
       if (trackedEmployees.length > 0) {
         // Primary: attendance/locations endpoint
         try {
-          const attendanceResponse = await fetch("/api/attendance/locations", {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          });
-
-          if (attendanceResponse.ok) {
-            const attendanceData = await attendanceResponse.json();
+          const attendanceResponse = await ENDPOINTS.getLiveLocations();
+          if (attendanceResponse?.data) {
+            const attendanceData = attendanceResponse.data;
             const attendanceLocations = attendanceData.locations || attendanceData.data || [];
             const mapped: AttendanceLocation[] = attendanceLocations.map((att: any) => ({
               employeeId: att.employee_id || att.employeeId,
@@ -167,6 +161,34 @@ export const liveApi = {
       console.error("Error fetching attendance logs:", error);
       return {
         error: error.response?.data?.message || error.message || "Failed to fetch attendance logs",
+      };
+    }
+  },
+
+  getLiveLocationHistory: async (
+    employeeId: string | number,
+    params?: { startDate?: string; endDate?: string; sessionId?: string; limit?: number }
+  ): Promise<{
+    data?: {
+      employee?: any;
+      points: any[];
+      summary?: any;
+    };
+    error?: string;
+  }> => {
+    try {
+      const response = await ENDPOINTS.getLiveLocationHistory(String(employeeId), params);
+      return {
+        data: {
+          employee: response.data?.employee,
+          points: response.data?.points || [],
+          summary: response.data?.summary || {},
+        },
+      };
+    } catch (error: any) {
+      console.error("Error fetching live location history:", error);
+      return {
+        error: error.response?.data?.message || error.message || "Failed to fetch live location history",
       };
     }
   },

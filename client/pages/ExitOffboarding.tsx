@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ const mockChecklists: OffboardingChecklist[] = [
 ];
 
 export default function ExitOffboarding() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [resignations, setResignations] = useState<Resignation[]>([]);
   //const [checklists] = useState<OffboardingChecklist[]>(mockChecklists);
   const [loading, setLoading] = useState(true);
@@ -58,6 +61,15 @@ export default function ExitOffboarding() {
   const [checklistLoading, setChecklistLoading] = useState(true);
   const [checklistError, setChecklistError] = useState<string | null>(null);
   const [checklists, setChecklists] = useState<OffboardingChecklist[]>([]);
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/exit/checklist")) {
+      setActiveTab("checklist");
+      return;
+    }
+
+    setActiveTab("resignations");
+  }, [location.pathname]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
@@ -329,7 +341,7 @@ const toggleChecklistItem = async (
         {/* Tabs */}
         <div className="flex gap-4 border-b border-border">
           <button
-            onClick={() => setActiveTab("resignations")}
+            onClick={() => navigate("/exit/resignations")}
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === "resignations"
                 ? "border-b-2 border-primary text-primary"
@@ -339,7 +351,7 @@ const toggleChecklistItem = async (
             Resignations
           </button>
           <button
-            onClick={() => setActiveTab("checklist")}
+            onClick={() => navigate("/exit/checklist")}
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === "checklist"
                 ? "border-b-2 border-primary text-primary"

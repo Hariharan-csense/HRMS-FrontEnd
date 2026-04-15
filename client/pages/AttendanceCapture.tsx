@@ -41,13 +41,15 @@ interface PendingAttendanceCapture {
   confidence: number;
 }
 
-const SELFIE_CROP_RATIO = 0.72;
 const SELFIE_OUTPUT_SIZE = 1080;
+const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
 
 export default function AttendanceCapture() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewFrameRef = useRef<HTMLDivElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mountedRef = useRef(true);
@@ -178,9 +180,14 @@ export default function AttendanceCapture() {
         } else {
           setTodayRecords([]);
         }
+      } else if (typeof window !== "undefined") {
+        setIsCheckedIn(localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true");
       }
     } catch (error) {
       console.error('Error fetching attendance status:', error);
+      if (typeof window !== "undefined") {
+        setIsCheckedIn(localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true");
+      }
     }
   };
 
@@ -392,28 +399,74 @@ export default function AttendanceCapture() {
 
     const frameWidth = videoRef.current.videoWidth || 1280;
     const frameHeight = videoRef.current.videoHeight || 720;
-    const cropSize = Math.floor(Math.min(frameWidth, frameHeight) * SELFIE_CROP_RATIO);
-    const cropX = Math.floor((frameWidth - cropSize) / 2);
-    const cropY = Math.floor((frameHeight - cropSize) / 2);
-    canvasRef.current.width = SELFIE_OUTPUT_SIZE;
-    canvasRef.current.height = SELFIE_OUTPUT_SIZE;
 
-    context.clearRect(0, 0, SELFIE_OUTPUT_SIZE, SELFIE_OUTPUT_SIZE);
+    let cropX = 0;
+    let cropY = 0;
+    let cropWidth = frameWidth;
+    let cropHeight = frameHeight;
+    let outputWidth = SELFIE_OUTPUT_SIZE;
+    let outputHeight = SELFIE_OUTPUT_SIZE;
+
+    const previewRect = previewFrameRef.current?.getBoundingClientRect();
+
+    if (previewRect && previewRect.width > 0 && previewRect.height > 0) {
+      const videoAspectRatio = frameWidth / frameHeight;
+      const previewAspectRatio = previewRect.width / previewRect.height;
+
+      let renderedVideoWidth = previewRect.width;
+      let renderedVideoHeight = previewRect.height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      // Match how `object-cover` lays out the video inside the preview frame.
+      if (videoAspectRatio > previewAspectRatio) {
+        renderedVideoHeight = previewRect.height;
+        renderedVideoWidth = renderedVideoHeight * videoAspectRatio;
+        offsetX = (renderedVideoWidth - previewRect.width) / 2;
+      } else {
+        renderedVideoWidth = previewRect.width;
+        renderedVideoHeight = renderedVideoWidth / videoAspectRatio;
+        offsetY = (renderedVideoHeight - previewRect.height) / 2;
+      }
+
+      const scaleX = frameWidth / renderedVideoWidth;
+      const scaleY = frameHeight / renderedVideoHeight;
+
+      // Capture the full visible preview area instead of only the face guide,
+      // so background/location context remains visible in the confirmation image.
+      cropX = Math.max(0, Math.floor(offsetX * scaleX));
+      cropY = Math.max(0, Math.floor(offsetY * scaleY));
+      cropWidth = Math.max(1, Math.min(frameWidth - cropX, Math.floor(previewRect.width * scaleX)));
+      cropHeight = Math.max(1, Math.min(frameHeight - cropY, Math.floor(previewRect.height * scaleY)));
+
+      if (previewAspectRatio >= 1) {
+        outputWidth = SELFIE_OUTPUT_SIZE;
+        outputHeight = Math.max(1, Math.round(SELFIE_OUTPUT_SIZE / previewAspectRatio));
+      } else {
+        outputHeight = SELFIE_OUTPUT_SIZE;
+        outputWidth = Math.max(1, Math.round(SELFIE_OUTPUT_SIZE * previewAspectRatio));
+      }
+    }
+
+    canvasRef.current.width = outputWidth;
+    canvasRef.current.height = outputHeight;
+
+    context.clearRect(0, 0, outputWidth, outputHeight);
 
     if (isFrontCamera) {
       context.save();
-      context.translate(SELFIE_OUTPUT_SIZE, 0);
+      context.translate(outputWidth, 0);
       context.scale(-1, 1);
       context.drawImage(
         videoRef.current,
         cropX,
         cropY,
-        cropSize,
-        cropSize,
+        cropWidth,
+        cropHeight,
         0,
         0,
-        SELFIE_OUTPUT_SIZE,
-        SELFIE_OUTPUT_SIZE
+        outputWidth,
+        outputHeight
       );
       context.restore();
     } else {
@@ -421,12 +474,12 @@ export default function AttendanceCapture() {
         videoRef.current,
         cropX,
         cropY,
-        cropSize,
-        cropSize,
+        cropWidth,
+        cropHeight,
         0,
         0,
-        SELFIE_OUTPUT_SIZE,
-        SELFIE_OUTPUT_SIZE
+        outputWidth,
+        outputHeight
       );
     }
 
@@ -515,6 +568,13 @@ export default function AttendanceCapture() {
 
       setTodayRecords((prev) => [record, ...prev]);
       setIsCheckedIn(pendingAttendance.type === "check-in");
+      if (typeof window !== "undefined") {
+        if (pendingAttendance.type === "check-in") {
+          localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
+        } else {
+          localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
+        }
+      }
       setPendingAttendance(null);
       stopWebcam();
       await fetchAttendanceStatus();
@@ -560,7 +620,10 @@ export default function AttendanceCapture() {
                 <CardDescription>Position your face in the center of the camera</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative bg-black rounded-lg overflow-hidden aspect-[4/5] sm:aspect-[4/3] md:aspect-video min-h-[260px] sm:min-h-[320px] md:min-h-[420px]">
+                <div
+                  ref={previewFrameRef}
+                  className="relative bg-black rounded-lg overflow-hidden aspect-[4/5] sm:aspect-[4/3] md:aspect-video min-h-[260px] sm:min-h-[320px] md:min-h-[420px]"
+                >
                   <video
                     ref={videoRef}
                     autoPlay
@@ -569,7 +632,10 @@ export default function AttendanceCapture() {
                     className="w-full h-full object-cover"
                     style={{ transform: isFrontCamera ? "scaleX(-1)" : "none" }}
                   />
-                  <div className="absolute inset-0 m-auto h-[58vw] w-[58vw] max-h-64 max-w-64 rounded-full border-4 border-teal-500 sm:h-60 sm:w-60 md:h-64 md:w-64" />
+                  <div
+                    ref={guideRef}
+                    className="absolute inset-0 m-auto h-[58vw] w-[58vw] max-h-64 max-w-64 rounded-full border-4 border-teal-500 sm:h-60 sm:w-60 md:h-64 md:w-64"
+                  />
                 </div>
 
                 <canvas

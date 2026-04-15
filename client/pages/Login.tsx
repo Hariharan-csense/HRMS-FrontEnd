@@ -113,7 +113,9 @@ export default function Login() {
         (role: string) => role?.toLowerCase() === "superadmin"
       ) || loggedInUser?.role?.toLowerCase() === "superadmin";
 
-    navigate(isSuperAdmin ? "/superadmin-dashboard" : "/dashboard");
+    navigate(isSuperAdmin ? "/superadmin-dashboard" : "/dashboard", {
+      replace: true,
+    });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -217,7 +219,7 @@ export default function Login() {
                     Welcome Back
                   </CardTitle>
                   <CardDescription className="text-slate-500">
-                    Sign in to your ERP account to continue
+                    Sign in to your HRMS account to continue
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">

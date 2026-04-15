@@ -11,6 +11,7 @@ import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
+import { useRole } from "@/context/RoleContext";
 
 const dashboardStyles = `
   @keyframes dashboardEnter {
@@ -419,12 +420,24 @@ const getCommonDashboardModuleCards = (): DashboardModuleCard[] => [
   },
 ];
 
+const filterDashboardModuleCards = (
+  cards: DashboardModuleCard[],
+  allowedModules: Set<string> | null,
+  canPerformModuleAction: (module: string, action: string, subModule?: string) => boolean
+): DashboardModuleCard[] =>
+  cards.filter(
+    (card) =>
+      (!allowedModules || allowedModules.has(card.module)) &&
+      canPerformModuleAction(card.module, "view")
+  );
+
 const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { canPerformModuleAction } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
 
   useEffect(() => {
@@ -496,7 +509,7 @@ const AdminDashboard = () => {
       label: "Client Assignment",
       description: "Manage and assign clients to teams",
       path: "/client-assignment",
-      module: "client_attendance",
+      module: "client_attendance_admin",
       icon: <Building className="w-5 h-5" />,
       colorClass: "from-emerald-50 to-teal-50 border-emerald-200",
     },
@@ -513,7 +526,12 @@ const AdminDashboard = () => {
   const adminModuleCards: DashboardModuleCard[] = [
     ...getCommonDashboardModuleCards(),
     ...adminQuickActionCards,
-  ].filter((card) => !allowedModules || allowedModules.has(card.module));
+  ];
+  const visibleAdminModuleCards = filterDashboardModuleCards(
+    adminModuleCards,
+    allowedModules,
+    canPerformModuleAction
+  );
 
   const isTrialSubscription = subscription?.status === "trial";
   const isTrialExpired = isTrialSubscription && !subscription?.is_trial_active;
@@ -612,7 +630,7 @@ const AdminDashboard = () => {
       {/* Live tracking widget */}
       <AdminRealTimeMap />
 
-      <ModuleCardsSection cards={adminModuleCards} navigate={navigate} />
+      <ModuleCardsSection cards={visibleAdminModuleCards} navigate={navigate} />
 
       {/* Quick Actions */}
       <div className="mb-8">
@@ -1018,6 +1036,7 @@ const AdminDashboard = () => {
 
 const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof useNavigate>; userName?: string }) => {
   const { user } = useAuth();
+  const { canPerformModuleAction } = useRole();
   const isAdmin = hasRole(user, "admin") || hasRole(user, "superadmin");
   const { office, loading: officeLoading, error: officeError } = useOfficeLocation();
   const [dashboardData, setDashboardData] = useState<EmployeeDashboardData | null>(null);
@@ -1065,8 +1084,10 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
 
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
-  const moduleCards: DashboardModuleCard[] = getCommonDashboardModuleCards().filter(
-    (card) => !allowedModules || allowedModules.has(card.module)
+  const moduleCards: DashboardModuleCard[] = filterDashboardModuleCards(
+    getCommonDashboardModuleCards(),
+    allowedModules,
+    canPerformModuleAction
   );
 
   if (loading) {
@@ -1178,6 +1199,7 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
   const [dashboardData, setDashboardData] = useState<ManagerDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { canPerformModuleAction } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
 
@@ -1222,8 +1244,10 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
   const teamAbsentTotal = (dashboardData?.teamAttendance || []).reduce((sum, day) => sum + Number(day.absent || 0), 0);
   const teamHalfTotal = (dashboardData?.teamAttendance || []).reduce((sum, day) => sum + Number(day.half || 0), 0);
 
-  const managerModuleCards: DashboardModuleCard[] = getCommonDashboardModuleCards().filter(
-    (card) => !allowedModules || allowedModules.has(card.module)
+  const managerModuleCards: DashboardModuleCard[] = filterDashboardModuleCards(
+    getCommonDashboardModuleCards(),
+    allowedModules,
+    canPerformModuleAction
   );
 
   return (
@@ -1332,6 +1356,7 @@ const HRDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { canPerformModuleAction } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
 
   useEffect(() => {
@@ -1363,8 +1388,10 @@ const HRDashboard = () => {
     return <div className="text-red-500">Error: {error}</div>;
   }
 
-  const hrModuleCards: DashboardModuleCard[] = getCommonDashboardModuleCards().filter(
-    (card) => !allowedModules || allowedModules.has(card.module)
+  const hrModuleCards: DashboardModuleCard[] = filterDashboardModuleCards(
+    getCommonDashboardModuleCards(),
+    allowedModules,
+    canPerformModuleAction
   );
 
   return (
@@ -1437,6 +1464,7 @@ const FinanceDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { canPerformModuleAction } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
 
   useEffect(() => {
@@ -1468,8 +1496,10 @@ const FinanceDashboard = () => {
     return <div className="text-red-500">Error: {error}</div>;
   }
 
-  const financeModuleCards: DashboardModuleCard[] = getCommonDashboardModuleCards().filter(
-    (card) => !allowedModules || allowedModules.has(card.module)
+  const financeModuleCards: DashboardModuleCard[] = filterDashboardModuleCards(
+    getCommonDashboardModuleCards(),
+    allowedModules,
+    canPerformModuleAction
   );
 
   return (

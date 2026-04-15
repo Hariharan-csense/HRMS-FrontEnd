@@ -136,14 +136,14 @@ const AboutPage = () => {
               Get Started Today
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button 
+            {/* <Button 
               size="lg" 
               variant="outline"
               className="border-white text-white hover:bg-white hover:text-green-600 transform hover:scale-105 transition-all duration-200"
               onClick={() => navigate("/contact")}
             >
               Learn More
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>
@@ -442,15 +442,15 @@ const AboutPage = () => {
             </Card>
           </div>
 
-          <div className="mt-16 text-center bg-gray-900 text-white p-12 rounded-xl">
+          {/* <div className="mt-16 text-center bg-gray-900 text-white p-12 rounded-xl">
             <p className="text-xl mb-4">We don't replace HR teams.</p>
             <p className="text-2xl font-bold">We strengthen them.</p>
-          </div>
+          </div> */}
         </div>
       </section>
 
       {/* Final Tagline Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-green-600 to-emerald-600">
+      {/* <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-green-600 to-emerald-600">
         <div className="max-w-4xl mx-auto text-center">
           <div className="mb-8">
             <img src={logo} alt="Procease HRMS Logo" className="h-20 w-20 mx-auto" />
@@ -474,7 +474,7 @@ const AboutPage = () => {
             </Button>
           </div>
         </div>
-      </section>
+      </section> */}
 
       <Footer />
     </div>

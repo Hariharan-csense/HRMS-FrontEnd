@@ -49,12 +49,14 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [userRoles, setUserRoles] = useState<RoleData[]>([]);
   const [loading, setLoading] = useState(true);
+  const normalizeRoleIdentifier = (value: unknown) =>
+    String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
 
   const hasAnyUserRole = (...wantedRoles: string[]) => {
-    const wanted = new Set(wantedRoles.map((r) => r.toLowerCase()));
+    const wanted = new Set(wantedRoles.map((r) => normalizeRoleIdentifier(r)));
     const roles = Array.isArray(user?.roles) ? user.roles : [];
     const primaryRole = user?.role ? [user.role] : [];
-    const allRoles = [...roles, ...primaryRole].map((r) => String(r || "").toLowerCase());
+    const allRoles = [...roles, ...primaryRole].map((r) => normalizeRoleIdentifier(r));
     return allRoles.some((r) => wanted.has(r));
   };
 
@@ -66,11 +68,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     const roleSet = new Set<string>();
     if (Array.isArray(user?.roles)) {
       user.roles.forEach((roleName) => {
-        const normalized = String(roleName || "").trim().toLowerCase();
+        const normalized = normalizeRoleIdentifier(roleName);
         if (normalized) roleSet.add(normalized);
       });
     }
-    const primaryRole = String(user?.role || "").trim().toLowerCase();
+    const primaryRole = normalizeRoleIdentifier(user?.role);
     if (primaryRole) roleSet.add(primaryRole);
     return [...roleSet];
   };
@@ -116,24 +118,24 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   const hasRole = (role: string): boolean => {
     if (!user) return false;
-    const wanted = String(role || "").trim().toLowerCase();
+    const wanted = normalizeRoleIdentifier(role);
     const allRoles = [
       ...(Array.isArray(user.roles) ? user.roles : []),
       user.role,
     ]
-      .map((r) => String(r || "").trim().toLowerCase())
+      .map((r) => normalizeRoleIdentifier(r))
       .filter(Boolean);
     return allRoles.includes(wanted);
   };
 
   const hasAnyRole = (roles: string[]): boolean => {
     if (!user || !roles?.length) return false;
-    const wanted = new Set(roles.map((r) => String(r || "").trim().toLowerCase()));
+    const wanted = new Set(roles.map((r) => normalizeRoleIdentifier(r)));
     const allRoles = [
       ...(Array.isArray(user.roles) ? user.roles : []),
       user.role,
     ]
-      .map((r) => String(r || "").trim().toLowerCase())
+      .map((r) => normalizeRoleIdentifier(r))
       .filter(Boolean);
     return allRoles.some((r) => wanted.has(r));
   };
@@ -224,7 +226,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     return userRoles.some(role => {
       // Check if user has this role assigned (case-insensitive match)
       const userHasRole = normalizedUserRoleNames.some(userRole => 
-        userRole === role.name.toLowerCase()
+        userRole === normalizeRoleIdentifier(role.name)
       );
       
       if (!userHasRole) {
@@ -273,7 +275,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     return userRoles.some(role => {
       // Check if user has this role assigned (case-insensitive match)
       const userHasRole = normalizedUserRoleNames.some(userRole => 
-        userRole === role.name.toLowerCase()
+        userRole === normalizeRoleIdentifier(role.name)
       );
       
       if (!userHasRole) {

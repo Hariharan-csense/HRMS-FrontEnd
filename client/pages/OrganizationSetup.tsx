@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Search, Building2, AlertCircle, Upload, X, Hash } from "lucide-react";
 import { companyApi, Company } from "@/components/helper/company/company";
@@ -17,14 +18,7 @@ import { designationApi, Designation } from "@/components/helper/designation/des
 import { sequenceApi, Sequence } from "@/components/helper/range/range";
 import { employeeApi, Employee } from "@/components/helper/employee/employee";
 import { showToast } from "@/utils/toast";
-import { BASE_URL } from "@/lib/endpoint";
-
-const toAbsoluteUrl = (value?: string | null): string | undefined => {
-  if (!value) return undefined;
-  if (value.startsWith("data:") || value.startsWith("blob:")) return value;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  return `${BASE_URL}${value.startsWith("/login") ? value : `/${value}`}`;
-};
+import { resolveFileUrl } from "@/lib/endpoint";
 
 // Mock Data
 const mockCompany: Company = {
@@ -37,6 +31,8 @@ const mockCompany: Company = {
   address: "123 Tech Park, Bangalore, India",
   payrollCycle: "Monthly",
   timezone: "IST",
+  esslEnabled: false,
+  esslApiKeyConfigured: false,
   createdAt: "2024-01-01",
 };
 
@@ -631,7 +627,7 @@ export default function OrganizationSetup() {
                     <div className="flex items-center gap-4">
                       {company?.logo && (
                         <img
-                          src={toAbsoluteUrl(company.logo)}
+                          src={resolveFileUrl(company.logo)}
                           alt="Company Logo"
                           className="w-16 h-16 rounded-lg border-2 border-white shadow-md object-cover"
                           onError={(e) => {
@@ -1320,6 +1316,9 @@ export default function OrganizationSetup() {
             <DialogTitle>
               {editingId ? "Edit" : "Add New"} {activeTab === "company" ? "Company" : activeTab === "branches" ? "Branch" : activeTab === "departments" ? "Department" : activeTab === "designations" ? "Designation" : "Sequence"}
             </DialogTitle>
+            <DialogDescription>
+              Update the selected {activeTab === "company" ? "company" : activeTab === "branches" ? "branch" : activeTab === "departments" ? "department" : activeTab === "designations" ? "designation" : "sequence"} details and save your changes.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -1395,6 +1394,54 @@ export default function OrganizationSetup() {
                     </Select>
                   </div>
                 </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Enable ESSL Integration</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Toggle this on to accept biometric punch data for this company.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={Boolean(formData.esslEnabled)}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, esslEnabled: checked })
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>ESSL API Key</Label>
+                      <Input
+                        value={formData.esslApiKey || ""}
+                        onChange={(e) =>
+                          setFormData({ ...formData, esslApiKey: e.target.value })
+                        }
+                        className="mt-2"
+                        placeholder="Enter company-specific ESSL secret"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Vendor software will send this key with each punch request.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Company Code</Label>
+                      <Input
+                        value={company?.companyId || ""}
+                        className="mt-2"
+                        disabled
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Use this value as `company_code` in machine or middleware config.
+                      </p>
+                    </div>
+                  </div>
+                  {company?.esslApiKeyConfigured && !formData.esslApiKey ? (
+                    <p className="text-xs text-emerald-700">
+                      ESSL API key already configured for this company. Leave blank to keep the existing key.
+                    </p>
+                  ) : null}
+                </div>
                 <div>
                   <Label>Company Logo</Label>
                   <div className="mt-2">
@@ -1402,7 +1449,7 @@ export default function OrganizationSetup() {
                       <div className="flex items-center gap-2 mb-2">
                         <img
                           src={
-                            toAbsoluteUrl(formData.logo || company?.logo)
+                            resolveFileUrl(formData.logo || company?.logo)
                           }
                           alt="Company Logo"
                           className="w-12 h-12 rounded border object-cover"

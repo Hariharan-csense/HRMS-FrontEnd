@@ -12,6 +12,9 @@ export interface Company {
   timezone: string;
   logo?: string;
   logoFile?: File;
+  esslEnabled?: boolean;
+  esslApiKey?: string;
+  esslApiKeyConfigured?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -36,6 +39,8 @@ export const companyApi = {
             payrollCycle: companyData.payroll_cycle,
             timezone: companyData.timezone,
             logo: companyData.logo_url,
+            esslEnabled: Boolean(companyData.essl_enabled),
+            esslApiKeyConfigured: Boolean(companyData.essl_api_key_configured),
             createdAt: companyData.created_at,
             updatedAt: companyData.updated_at
           }
@@ -62,6 +67,8 @@ export const companyApi = {
       if (payload.timezone !== undefined) formData.append('timezone', payload.timezone);
       if (payload.payrollCycle !== undefined) formData.append('payrollCycle', payload.payrollCycle);
       if (payload.address !== undefined) formData.append('address', payload.address);
+      if (payload.esslApiKey !== undefined) formData.append('esslApiKey', payload.esslApiKey);
+      if (payload.esslEnabled !== undefined) formData.append('esslEnabled', String(payload.esslEnabled));
 
       // Company logo must be uploaded as multipart file field: "logo"
       if (payload.logoFile instanceof File) {
@@ -85,6 +92,8 @@ export const companyApi = {
             payrollCycle: companyData.payroll_cycle,
             timezone: companyData.timezone,
             logo: companyData.logo_url,
+            esslEnabled: Boolean(companyData.essl_enabled),
+            esslApiKeyConfigured: Boolean(companyData.essl_api_key_configured),
             createdAt: companyData.created_at,
             updatedAt: companyData.updated_at
           }

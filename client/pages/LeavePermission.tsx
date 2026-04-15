@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { hasRole } from "@/lib/auth";
 import { useRole } from "@/context/RoleContext";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +35,12 @@ export default function LeavePermission() {
   const [timeError, setTimeError] = useState<string>('');
   const [reportingManagerError, setReportingManagerError] = useState<string>('');
   const [managers, setManagers] = useState<any[]>([]);
+  const currentUserId = String(user?.id ?? "");
+  const canCreatePermission = canPerformModuleAction("leave", "create", "permission");
+  const canManagePermission =
+    canPerformModuleAction("leave", "approve", "permission") ||
+    canPerformModuleAction("leave", "reject", "permission") ||
+    canPerformModuleAction("leave", "update", "permission");
 
   // Load leave permissions
   const loadPermissions = async () => {
@@ -50,7 +55,6 @@ export default function LeavePermission() {
       
       if (result.data) {
         setPermissions(result.data);
-        toast.success(`Loaded ${result.data.length} permission requests`);
       }
     } catch (error: any) {
       console.error("Load Permissions Error:", error);
@@ -196,6 +200,11 @@ export default function LeavePermission() {
 
   // Filter permissions based on user role and search
   const filteredPermissions = permissions.filter((permission) => {
+    const isOwnRequest = String(permission.employee_id ?? "") === currentUserId;
+    if (!canManagePermission && !isOwnRequest) {
+      return false;
+    }
+
     const matchesSearch = 
       permission.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       permission.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -351,23 +360,19 @@ export default function LeavePermission() {
     );
   };
 
-  const canApproveReject = () => {
-    return (
-      canPerformModuleAction("leave", "approve", "permission") ||
-      canPerformModuleAction("leave", "reject", "permission") ||
-      canPerformModuleAction("leave", "update", "permission")
-    );
-  };
-
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Leave Permission</h1>
-            <p className="text-muted-foreground">Manage leave permission requests</p>
+            <p className="text-muted-foreground">
+              {canManagePermission
+                ? "Manage leave permission requests"
+                : "View and request your leave permissions"}
+            </p>
           </div>
-          {hasRole(user, "employee") && (
+          {canCreatePermission && (
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Request Permission
@@ -382,14 +387,14 @@ export default function LeavePermission() {
               Permission Requests
             </CardTitle>
             <CardDescription>
-              {hasRole(user, "employee") 
-                ? "View and manage your leave permission requests"
-                : "Review and manage leave permission requests from employees"
+              {canManagePermission
+                ? "Review and manage leave permission requests from employees"
+                : "View your leave permission requests"
               }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {canApproveReject() && (
+            {canManagePermission && (
               <div className="flex items-center space-x-2 mb-4">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <Input
@@ -420,7 +425,7 @@ export default function LeavePermission() {
                         <p className="text-sm text-muted-foreground">ID: {permission.permission_id}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {canApproveReject() && permission.status === 'pending' && (
+                        {canManagePermission && permission.status === 'pending' && (
                           <Button
                             size="sm"
                             onClick={() => openStatusDialog(permission)}

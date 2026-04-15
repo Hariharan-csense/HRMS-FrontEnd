@@ -14,7 +14,7 @@ import { profileHelper, ProfileData, PasswordData } from "@/components/helper/pr
 import { handleChangePassword as handleChangePasswordHelper } from "@/components/helper/login/login";
 import { activityHelper, ActivityData } from "@/components/helper/activity/activity";
 import { documentHelper, DocumentData } from "@/components/helper/document/document";
-import { BASE_URL } from "@/lib/endpoint";
+import { resolveFileUrl } from "@/lib/endpoint";
 import { isValidPhone } from "@/lib/validation";
 
 export default function UserProfile() {
@@ -51,16 +51,7 @@ export default function UserProfile() {
   });
 
   const resolveProfilePhotoUrl = (photoPath?: string | null) => {
-    if (!photoPath) return "";
-    if (photoPath.startsWith("http://") || photoPath.startsWith("https://") || photoPath.startsWith("data:")) {
-      return photoPath;
-    }
-    try {
-      return new URL(photoPath, BASE_URL).toString();
-    } catch {
-      const normalizedPath = photoPath.startsWith("/login") ? photoPath : `/${photoPath}`;
-      return `${BASE_URL}${normalizedPath}`;
-    }
+    return resolveFileUrl(photoPath) || "";
   };
 
   // Update avatarPreview when user context changes

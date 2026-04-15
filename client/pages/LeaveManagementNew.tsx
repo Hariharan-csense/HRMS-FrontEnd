@@ -230,7 +230,7 @@ const findCurrentUserAndSetManagers = async () => {
           departmentName: dept?.name || 'Unknown',
         };
       });
-  } else if (currentUser.role === 'employee') {
+  } else if (inferUserRole(currentUser) === 'employee') {
     // Employees see: same-dept managers/leads + all HR
     managers = employees
       .filter(emp => {

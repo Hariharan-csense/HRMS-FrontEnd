@@ -6,6 +6,7 @@ import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi, { Branch } from "@/components/helper/branch/branch";
 import { MapPin, Users, Navigation2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/googleMaps";
 
 type LatLngLiteral = { lat: number; lng: number };
 const FALLBACK_RADIUS = 200;
@@ -65,9 +66,7 @@ const buildIcon = (emp: TrackedEmployee) => {
 };
 
 export default function AdminRealTimeMap() {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-  });
+  const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
 
   const { user } = useAuth();
 

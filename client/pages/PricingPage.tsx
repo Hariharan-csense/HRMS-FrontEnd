@@ -412,7 +412,7 @@ const PricingPage = () => {
               <MessageSquareText className="h-4 w-4 mr-2" />
               Contact Support
             </Button>
-          </div>
+          </div> 
         </div>
       </section>
 
@@ -438,7 +438,7 @@ const PricingPage = () => {
               <Zap className="h-5 w-5 mr-2" />
               Start 14-Day Free Trial
             </Button>
-            <Button 
+            {/* <Button 
               size="lg" 
               variant="outline" 
               className="border-2 border-white text-white hover:bg-white/10 hover:text-white px-8 py-6 text-base font-medium rounded-lg transition-all duration-300"
@@ -446,7 +446,7 @@ const PricingPage = () => {
             >
               <MessageSquareText className="h-5 w-5 mr-2" />
               Talk to Sales
-            </Button>
+            </Button> */}
           </div>
           <p className="text-green-100 text-sm mt-6">
             No credit card required • Cancel anytime • 24/7 Support

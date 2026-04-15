@@ -3,6 +3,7 @@ import { GoogleMap, Marker, Circle, useJsApiLoader } from "@react-google-maps/ap
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, ShieldCheck, AlertCircle } from "lucide-react";
 import ENDPOINTS from "@/lib/endpoint";
+import { GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/googleMaps";
 import { useLiveLocationPing } from "@/hooks/useLiveLocationPing";
 
 type LatLngLiteral = { lat: number; lng: number; accuracy?: number };
@@ -45,9 +46,7 @@ export default function AttendanceMap({
   radiusMeters = DEFAULT_RADIUS,
   enableAutoCheck = false,
 }: AttendanceMapProps) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-  });
+  const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
 
   const [employeeLocation, setEmployeeLocation] = useState<LatLngLiteral | null>(null);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);

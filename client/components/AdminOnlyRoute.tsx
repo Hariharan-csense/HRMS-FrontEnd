@@ -38,7 +38,7 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     if (location.pathname.startsWith("/client-attendance-admin")) return "client_attendance_admin";
     if (location.pathname.startsWith("/sales-attendance-report")) return "client_attendance_admin";
     if (location.pathname.startsWith("/client-geo-fence")) return "client_attendance_admin";
-    if (location.pathname.startsWith("/client-assignment")) return "client_attendance";
+    if (location.pathname.startsWith("/client-assignment")) return "client_attendance_admin";
     if (location.pathname.startsWith("/subscription")) return "role_access";
     return null;
   })();

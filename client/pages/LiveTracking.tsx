@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { GoogleMap, LoadScript, Marker, InfoWindow, Polyline, Circle, OverlayView } from "@react-google-maps/api";
+import { GoogleMap, Marker, InfoWindow, Polyline, Circle, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,17 +21,16 @@ import {
   Square,
   UserCheck,
   Map,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Employee } from "@/lib/employees";
-import { OfficeLocation } from "@/lib/locationUtils";
+import { OfficeLocation, reverseGeocode } from "@/lib/locationUtils";
 import { toast } from "sonner";
 import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi from "@/components/helper/branch/branch";
 import { useRole } from "@/context/RoleContext";
-
-// Frontend-only key (HTTP referrer restricted). Do NOT use the server key here.
-const FRONTEND_GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/googleMaps";
 
 const toFiniteNumber = (value: unknown): number | null => {
   const num = typeof value === "string" ? Number(value) : (value as number);
@@ -41,7 +40,185 @@ const toFiniteNumber = (value: unknown): number | null => {
 const isValidLatLng = (lat: number | null, lng: number | null): lat is number =>
   lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleString("en-IN");
+};
+
+const escapeCsvValue = (value: unknown) => {
+  const normalized = value == null ? "" : String(value);
+  const escaped = normalized.replace(/"/g, "\"\"");
+  return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+};
+
+const haversineDistanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return "0m";
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs === 0) return `${mins}m`;
+  if (mins === 0) return `${hrs}h`;
+  return `${hrs}h ${mins}m`;
+};
+
+const matchesEmployeeId = (left: unknown, right: unknown) => {
+  if (left == null || right == null) return false;
+  return String(left) === String(right);
+};
+
+const parseStoredLocation = (raw?: unknown) => {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return raw as Record<string, unknown>;
+};
+
+const formatCoordinateLabel = (latitude?: unknown, longitude?: unknown) => {
+  const lat = toFiniteNumber(latitude);
+  const lng = toFiniteNumber(longitude);
+  if (!isValidLatLng(lat, lng)) return "Unknown location";
+  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+};
+
+const extractLocationName = (address?: unknown) => {
+  const fullAddress = String(address || "").trim();
+  if (!fullAddress) return "Unknown location";
+  return fullAddress.split(",")[0]?.trim() || fullAddress;
+};
+
+const looksLikeCoordinateLabel = (value?: unknown) => {
+  const text = String(value || "").trim();
+  return /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(text);
+};
+
+const formatCoordinates = (latitude?: unknown, longitude?: unknown) => {
+  const lat = toFiniteNumber(latitude);
+  const lng = toFiniteNumber(longitude);
+  if (!isValidLatLng(lat, lng)) return "";
+  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+};
+
+const hasOpenAttendanceSession = (attendance: any) => {
+  if (!attendance) return false;
+  const checkIn = attendance.check_in || attendance.checkIn;
+  const checkOut = attendance.check_out || attendance.checkOut;
+  return Boolean(checkIn) && !checkOut;
+};
+
+const buildStaySegments = (
+  points: RouteHistoryPoint[],
+  minimumDurationMinutes = 10,
+  mergeRadiusMeters = 75
+) => {
+  if (!points.length) return [];
+
+  const segments: Array<{
+    startTime: string | null;
+    endTime: string | null;
+    durationMinutes: number;
+    latitude: number;
+    longitude: number;
+    address: string;
+    pointCount: number;
+  }> = [];
+
+  let currentSegment = {
+    points: [points[0]],
+    anchor: points[0],
+  };
+
+  const flushSegment = () => {
+    const segmentPoints = currentSegment.points;
+    const firstPoint = segmentPoints[0];
+    const lastPoint = segmentPoints[segmentPoints.length - 1];
+    const startedAt = firstPoint?.location_timestamp
+      ? new Date(firstPoint.location_timestamp)
+      : null;
+    const endedAt = lastPoint?.location_timestamp
+      ? new Date(lastPoint.location_timestamp)
+      : null;
+
+    if (!startedAt || !endedAt) {
+      return;
+    }
+
+    const durationMinutes = Math.max(
+      0,
+      Math.round((endedAt.getTime() - startedAt.getTime()) / 60000)
+    );
+
+    if (durationMinutes < minimumDurationMinutes) {
+      return;
+    }
+
+    const avgLatitude =
+      segmentPoints.reduce((sum, point) => sum + Number(point.latitude || 0), 0) /
+      segmentPoints.length;
+    const avgLongitude =
+      segmentPoints.reduce((sum, point) => sum + Number(point.longitude || 0), 0) /
+      segmentPoints.length;
+
+    segments.push({
+      startTime: firstPoint.location_timestamp || null,
+      endTime: lastPoint.location_timestamp || null,
+      durationMinutes,
+      latitude: avgLatitude,
+      longitude: avgLongitude,
+      address:
+        segmentPoints
+          .map((point) => String(point.address || "").trim())
+          .find(Boolean) || formatCoordinateLabel(avgLatitude, avgLongitude),
+      pointCount: segmentPoints.length,
+    });
+  };
+
+  for (let index = 1; index < points.length; index += 1) {
+    const point = points[index];
+    const distanceFromAnchor = haversineDistanceMeters(
+      Number(currentSegment.anchor.latitude),
+      Number(currentSegment.anchor.longitude),
+      Number(point.latitude),
+      Number(point.longitude)
+    );
+
+    if (distanceFromAnchor <= mergeRadiusMeters) {
+      currentSegment.points.push(point);
+      continue;
+    }
+
+    flushSegment();
+    currentSegment = {
+      points: [point],
+      anchor: point,
+    };
+  }
+
+  flushSegment();
+  return segments;
+};
+
 interface TrackedEmployee extends Employee {
+  dbEmployeeId?: string | number;
   currentLocation?: {
     latitude: number;
     longitude: number;
@@ -54,6 +231,26 @@ interface TrackedEmployee extends Employee {
   isLiveTrackingEnabled?: boolean;
   employmentType: "full-time" | "part-time" | "contract" | "intern";
 }
+
+type RouteHistoryPoint = {
+  id?: string | number;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  address?: string | null;
+  location_timestamp?: string | null;
+};
+
+type RouteHistorySummary = {
+  pointCount?: number;
+  totalDistanceMeters?: number;
+  tripDurationMinutes?: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  startAddress?: string | null;
+  endAddress?: string | null;
+  attendance?: any;
+};
 
 // Helper to create employee marker icon with initials badge
 const createEmployeeMarkerIcon = (firstName: string | undefined, lastName: string | undefined, isCheckedIn: boolean) => {
@@ -81,6 +278,7 @@ const createEmployeeMarkerIcon = (firstName: string | undefined, lastName: strin
 
 export default function LiveTracking() {
   const { hasModuleAccess } = useRole();
+  const { isLoaded: isMapLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
   const [searchTerm, setSearchTerm] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showAll, setShowAll] = useState(true);
@@ -93,6 +291,9 @@ export default function LiveTracking() {
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
   const [travelPaths, setTravelPaths] = useState<Record<string, Array<{ lat: number; lng: number }>>>({});
+  const [selectedRoutePoints, setSelectedRoutePoints] = useState<RouteHistoryPoint[]>([]);
+  const [selectedRouteSummary, setSelectedRouteSummary] = useState<RouteHistorySummary | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
   const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
   const [mapLoadError, setMapLoadError] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -100,6 +301,24 @@ export default function LiveTracking() {
   });
 
   const canViewTracking = hasModuleAccess('live_tracking') || hasModuleAccess('attendance');
+  const shouldUseFallbackMap =
+    !GOOGLE_MAPS_API_KEY ||
+    mapLoadError === "GOOGLE_MAP_BLOCKED" ||
+    Boolean(loadError);
+
+  useEffect(() => {
+    if (!GOOGLE_MAPS_API_KEY) {
+      setMapLoadError("GOOGLE_MAP_BLOCKED");
+      return;
+    }
+
+    if (loadError) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("google_maps_blocked", "1");
+      }
+      setMapLoadError("GOOGLE_MAP_BLOCKED");
+    }
+  }, [loadError]);
 
   const handleCheckIn = async () => {
     if (!navigator.geolocation) {
@@ -159,7 +378,7 @@ export default function LiveTracking() {
         setLoading(true);
         const [employeesResponse, attendanceResponse] = await Promise.all([
           liveApi.getEmployees(),
-          liveApi.getAttendanceLogs()
+          liveApi.getAttendanceLogs({ limit: 500 })
         ]);
 
         if (employeesResponse.error) {
@@ -240,7 +459,7 @@ export default function LiveTracking() {
       try {
         const [employeesResponse, attendanceResponse] = await Promise.all([
           liveApi.getEmployees(),
-          liveApi.getAttendanceLogs()
+          liveApi.getAttendanceLogs({ limit: 500 })
         ]);
 
         if (!employeesResponse.error) {
@@ -266,10 +485,22 @@ export default function LiveTracking() {
     if (employees.length > 0) {
       return employees.map((emp): TrackedEmployee => {
         const latestAttendance = attendanceLogs
-          .filter(log => log.employee_id === emp.id || log.employeeId === emp.id)
+          .filter((log) => matchesEmployeeId(log.employee_id, emp.id) || matchesEmployeeId(log.employeeId, emp.id))
           .sort((a, b) => new Date(b.check_in || b.checkIn).getTime() - new Date(a.check_in || a.checkIn).getTime())[0];
 
-        const isCheckedIn = latestAttendance && latestAttendance.check_in && !latestAttendance.check_out;
+        const hasRecentLivePing = Boolean((emp as any).locationTimestamp || (emp as any).timestamp);
+        const employeeMarkedActive =
+          String((emp as any).trackingStatus || "").toLowerCase() === "active" ||
+          Boolean((emp as any).isTracking);
+        const isCheckedIn =
+          hasOpenAttendanceSession(latestAttendance) || (employeeMarkedActive && hasRecentLivePing);
+        const parsedCheckInLocation = parseStoredLocation(latestAttendance?.check_in_location);
+        const fallbackAddress =
+          String((parsedCheckInLocation as any)?.address || "").trim() ||
+          formatCoordinateLabel(
+            (parsedCheckInLocation as any)?.latitude,
+            (parsedCheckInLocation as any)?.longitude
+          );
         
         let currentLocation = undefined;
         const empLat = toFiniteNumber((emp as any).latitude);
@@ -280,14 +511,15 @@ export default function LiveTracking() {
             latitude: empLat,
             longitude: empLng,
             accuracy: empAccuracy ?? 10,
-            address: emp.address || "Unknown location",
+            address:
+              String(emp.address || "").trim() ||
+              fallbackAddress ||
+              formatCoordinateLabel(empLat, empLng),
             timestamp: emp.locationTimestamp || new Date().toISOString(),
           };
         } else if (latestAttendance?.check_in_location) {
           try {
-            const locationData = typeof latestAttendance.check_in_location === 'string' 
-              ? JSON.parse(latestAttendance.check_in_location) 
-              : latestAttendance.check_in_location;
+            const locationData = parseStoredLocation(latestAttendance.check_in_location);
             const checkInLat = toFiniteNumber(locationData?.latitude);
             const checkInLng = toFiniteNumber(locationData?.longitude);
             const checkInAccuracy = toFiniteNumber(locationData?.accuracy);
@@ -296,7 +528,9 @@ export default function LiveTracking() {
                 latitude: checkInLat,
                 longitude: checkInLng,
                 accuracy: checkInAccuracy ?? 10,
-                address: locationData.address || "Unknown location",
+                address:
+                  String(locationData?.address || "").trim() ||
+                  formatCoordinateLabel(checkInLat, checkInLng),
                 timestamp: latestAttendance.check_in,
               };
             }
@@ -307,6 +541,7 @@ export default function LiveTracking() {
 
         return {
           ...emp,
+          dbEmployeeId: emp.id,
           id: emp.employee_id || emp.id,
           firstName: emp.first_name || emp.firstName,
           lastName: emp.last_name || emp.lastName,
@@ -343,6 +578,32 @@ export default function LiveTracking() {
       })
       .sort((a, b) => b.trackingStatus.localeCompare(a.trackingStatus));
   }, [trackedEmployees, searchTerm, showAll, canViewTracking]);
+
+  const exportRows = useMemo(() => {
+    return filteredEmployees.map((emp) => {
+      const attendanceEmployeeId = emp.dbEmployeeId ?? emp.id;
+      const latestAttendance = attendanceLogs
+        .filter((log) =>
+          matchesEmployeeId(log.employee_id, attendanceEmployeeId) ||
+          matchesEmployeeId(log.employeeId, attendanceEmployeeId)
+        )
+        .sort((a, b) => new Date(b.check_in || b.checkIn).getTime() - new Date(a.check_in || a.checkIn).getTime())[0];
+
+      return {
+        employeeId: emp.id,
+        name: `${emp.firstName || ""} ${emp.lastName || ""}`.trim(),
+        department: emp.department || "",
+        phone: emp.phone || "",
+        trackingStatus: emp.trackingStatus,
+        location: emp.currentLocation?.address || emp.location || "",
+        latitude: emp.currentLocation?.latitude ?? "",
+        longitude: emp.currentLocation?.longitude ?? "",
+        checkInTime: formatDateTime(latestAttendance?.check_in || latestAttendance?.checkIn),
+        checkOutTime: formatDateTime(latestAttendance?.check_out || latestAttendance?.checkOut),
+        lastLocationUpdate: formatDateTime(emp.currentLocation?.timestamp),
+      };
+    });
+  }, [filteredEmployees, attendanceLogs]);
 
   const mapCenter = useMemo(() => {
     if (!canViewTracking) return { lat: 13.0827, lng: 80.2707 };
@@ -434,7 +695,7 @@ export default function LiveTracking() {
     try {
       const [employeesResponse, attendanceResponse] = await Promise.all([
         liveApi.getEmployees(),
-        liveApi.getAttendanceLogs()
+        liveApi.getAttendanceLogs({ limit: 500 })
       ]);
 
       if (!employeesResponse.error) {
@@ -457,6 +718,274 @@ export default function LiveTracking() {
   const handleViewDetails = (empId: string) => {
     if (!canViewTracking) return;
     setSelectedEmployee(selectedEmployee === empId ? null : empId);
+  };
+
+  useEffect(() => {
+    if (!canViewTracking || !selectedEmployee) {
+      setSelectedRoutePoints([]);
+      setSelectedRouteSummary(null);
+      return;
+    }
+
+    const selectedEmp = trackedEmployees.find((emp) => String(emp.id) === String(selectedEmployee));
+    const employeeDbId = selectedEmp?.dbEmployeeId ?? selectedEmp?.id;
+
+    if (!employeeDbId) {
+      setSelectedRoutePoints([]);
+      setSelectedRouteSummary(null);
+      return;
+    }
+
+    const latestAttendance = attendanceLogs
+      .filter((log) => String(log.employee_id ?? log.employeeId) === String(employeeDbId))
+      .sort((a, b) => new Date(b.check_in || b.checkIn).getTime() - new Date(a.check_in || a.checkIn).getTime())[0];
+
+    const params: Record<string, any> = { limit: 1000 };
+    if (latestAttendance?.check_in) {
+      params.startDate = new Date(latestAttendance.check_in).toISOString();
+    }
+    if (latestAttendance?.check_out) {
+      params.endDate = new Date(latestAttendance.check_out).toISOString();
+    }
+
+    let cancelled = false;
+
+    const fetchRouteHistory = async () => {
+      setRouteLoading(true);
+      const result = await liveApi.getLiveLocationHistory(employeeDbId, params);
+      if (cancelled) return;
+
+      if (result.error) {
+        toast.error("Failed to load route history", { description: result.error });
+        setSelectedRoutePoints([]);
+        setSelectedRouteSummary(null);
+      } else {
+        const routePoints = (result.data?.points || [])
+          .map((point) => ({
+            ...point,
+            latitude: Number(point.latitude),
+            longitude: Number(point.longitude),
+          }))
+          .filter((point) => isValidLatLng(point.latitude, point.longitude));
+
+        let computedDistance = 0;
+        for (let i = 1; i < routePoints.length; i += 1) {
+          computedDistance += haversineDistanceMeters(
+            routePoints[i - 1].latitude,
+            routePoints[i - 1].longitude,
+            routePoints[i].latitude,
+            routePoints[i].longitude
+          );
+        }
+
+        const parsedCheckInLocation = parseStoredLocation(latestAttendance?.check_in_location);
+        const parsedCheckOutLocation = parseStoredLocation(latestAttendance?.check_out_location);
+        const firstRoutePoint = routePoints[0];
+        const lastRoutePoint = routePoints[routePoints.length - 1];
+        const fallbackStartAddress =
+          String(firstRoutePoint?.address || "").trim() ||
+          String((parsedCheckInLocation as any)?.address || "").trim() ||
+          selectedEmp?.currentLocation?.address ||
+          formatCoordinateLabel(
+            firstRoutePoint?.latitude ?? (parsedCheckInLocation as any)?.latitude,
+            firstRoutePoint?.longitude ?? (parsedCheckInLocation as any)?.longitude
+          );
+        const fallbackEndAddress =
+          String(lastRoutePoint?.address || "").trim() ||
+          String((parsedCheckOutLocation as any)?.address || "").trim() ||
+          String((parsedCheckInLocation as any)?.address || "").trim() ||
+          selectedEmp?.currentLocation?.address ||
+          formatCoordinateLabel(
+            lastRoutePoint?.latitude ??
+              (parsedCheckOutLocation as any)?.latitude ??
+              (parsedCheckInLocation as any)?.latitude,
+            lastRoutePoint?.longitude ??
+              (parsedCheckOutLocation as any)?.longitude ??
+              (parsedCheckInLocation as any)?.longitude
+          );
+
+        let resolvedEndAddress = result.data?.summary?.endAddress || fallbackEndAddress;
+        if (
+          looksLikeCoordinateLabel(resolvedEndAddress) &&
+          lastRoutePoint &&
+          !String(lastRoutePoint.address || "").trim()
+        ) {
+          try {
+            const reverseGeocoded = await reverseGeocode(
+              Number(lastRoutePoint.latitude),
+              Number(lastRoutePoint.longitude)
+            );
+            if (reverseGeocoded) {
+              resolvedEndAddress = reverseGeocoded;
+            }
+          } catch (error) {
+            console.warn("Failed to reverse geocode current travel location", error);
+          }
+        }
+
+        setSelectedRoutePoints(routePoints);
+        setSelectedRouteSummary({
+          ...(result.data?.summary || {}),
+          totalDistanceMeters:
+            result.data?.summary?.totalDistanceMeters != null
+              ? result.data.summary.totalDistanceMeters
+              : computedDistance,
+          startAddress: result.data?.summary?.startAddress || fallbackStartAddress,
+          endAddress: resolvedEndAddress,
+        });
+      }
+
+      setRouteLoading(false);
+    };
+
+    fetchRouteHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEmployee, trackedEmployees, attendanceLogs, canViewTracking]);
+
+  const handleExportCsv = () => {
+    if (selectedEmployee && selectedRoutePoints.length > 0) {
+      const selectedEmp = trackedEmployees.find(
+        (emp) => String(emp.id) === String(selectedEmployee)
+      );
+      const staySegments = buildStaySegments(selectedRoutePoints);
+      const detailedHeaders = [
+        "Row Type",
+        "Employee ID",
+        "Employee Name",
+        "Department",
+        "Status",
+        "Location Name",
+        "Address",
+        "Latitude",
+        "Longitude",
+        "Start Time",
+        "End Time",
+        "Duration Minutes",
+        "Accuracy",
+        "Point Count",
+      ];
+
+      const routeRows = selectedRoutePoints.map((point) => [
+        "Route Point",
+        selectedEmp?.id || selectedEmployee,
+        `${selectedEmp?.firstName || ""} ${selectedEmp?.lastName || ""}`.trim(),
+        selectedEmp?.department || "",
+        selectedEmp?.trackingStatus || "",
+        extractLocationName(
+          String(point.address || "").trim() ||
+            formatCoordinateLabel(point.latitude, point.longitude)
+        ),
+        String(point.address || "").trim() ||
+          formatCoordinateLabel(point.latitude, point.longitude),
+        point.latitude,
+        point.longitude,
+        formatDateTime(point.location_timestamp),
+        "",
+        "",
+        point.accuracy ?? "",
+        1,
+      ]);
+
+      const stayRows = staySegments.map((segment) => [
+        "Stayed 10+ Minutes",
+        selectedEmp?.id || selectedEmployee,
+        `${selectedEmp?.firstName || ""} ${selectedEmp?.lastName || ""}`.trim(),
+        selectedEmp?.department || "",
+        selectedEmp?.trackingStatus || "",
+        extractLocationName(segment.address),
+        segment.address,
+        segment.latitude,
+        segment.longitude,
+        formatDateTime(segment.startTime),
+        formatDateTime(segment.endTime),
+        segment.durationMinutes,
+        "",
+        segment.pointCount,
+      ]);
+
+      const csvContent = [
+        detailedHeaders.join(","),
+        ...routeRows.map((row) => row.map(escapeCsvValue).join(",")),
+        ...(stayRows.length
+          ? ["", detailedHeaders.join(","), ...stayRows.map((row) => row.map(escapeCsvValue).join(","))]
+          : []),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateLabel = new Date().toISOString().slice(0, 10);
+      const employeeLabel = String(selectedEmp?.id || selectedEmployee).replace(/[^\w-]+/g, "-");
+
+      link.href = url;
+      link.setAttribute("download", `live-tracking-${employeeLabel}-${dateLabel}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Selected employee travel history exported");
+      return;
+    }
+
+    if (!exportRows.length) {
+      toast.error("No live tracking records available to export");
+      return;
+    }
+
+    const headers = [
+      "Employee ID",
+      "Name",
+      "Department",
+      "Phone",
+      "Tracking Status",
+      "Location Name",
+      "Location",
+      "Latitude",
+      "Longitude",
+      "Check In Time",
+      "Check Out Time",
+      "Last Location Update",
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...exportRows.map((row) =>
+        [
+          row.employeeId,
+          row.name,
+          row.department,
+          row.phone,
+          row.trackingStatus,
+          extractLocationName(row.location),
+          row.location,
+          row.latitude,
+          row.longitude,
+          row.checkInTime,
+          row.checkOutTime,
+          row.lastLocationUpdate,
+        ]
+          .map(escapeCsvValue)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateLabel = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.setAttribute("download", `live-tracking-${dateLabel}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast.success("Live tracking CSV exported");
   };
 
   const mapOptions = useMemo(() => {
@@ -578,6 +1107,10 @@ export default function LiveTracking() {
                 <RefreshCw className="w-4 h-4" />
                 Refresh Locations
               </Button>
+              <Button onClick={handleExportCsv} variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Export CSV
+              </Button>
               <Button
                 onClick={() => setAutoRefresh(!autoRefresh)}
                 variant={autoRefresh ? "default" : "outline"}
@@ -674,12 +1207,14 @@ export default function LiveTracking() {
                 <AlertCircle className="w-4 h-4" />
                 <AlertDescription>No employees match your search criteria</AlertDescription>
               </Alert>
-            ) : mapLoadError ? (
+            ) : shouldUseFallbackMap ? (
               <div className="space-y-4">
                 <Alert>
                   <AlertCircle className="w-4 h-4" />
                   <AlertDescription>
-                    Google Maps is blocked for this API key. Showing OpenStreetMap fallback.
+                    {!GOOGLE_MAPS_API_KEY
+                      ? "Google Maps API key missing. Showing OpenStreetMap fallback."
+                      : "Google Maps is blocked for this API key. Showing OpenStreetMap fallback."}
                   </AlertDescription>
                 </Alert>
                 <iframe
@@ -703,17 +1238,11 @@ export default function LiveTracking() {
                     ))}
                 </div>
               </div>
+            ) : !isMapLoaded ? (
+              <div className="flex items-center justify-center h-[500px] text-sm text-muted-foreground">
+                Loading map...
+              </div>
             ) : (
-              <LoadScript
-                googleMapsApiKey={FRONTEND_GOOGLE_MAPS_API_KEY}
-                onError={() => {
-                  if (typeof window !== "undefined") {
-                    localStorage.setItem("google_maps_blocked", "1");
-                  }
-                  setMapLoadError("GOOGLE_MAP_BLOCKED");
-                  toast.error("Google Maps blocked. Switched to fallback map.");
-                }}
-              >
                 <GoogleMap
                   mapContainerStyle={{ height: "500px", width: "100%" }}
                   center={mapCenter}
@@ -797,6 +1326,21 @@ export default function LiveTracking() {
                       />
                     );
                   })}
+
+                  {selectedRoutePoints.length >= 2 && (
+                    <Polyline
+                      path={selectedRoutePoints.map((point) => ({
+                        lat: point.latitude,
+                        lng: point.longitude,
+                      }))}
+                      options={{
+                        strokeColor: "#2563eb",
+                        strokeOpacity: 0.95,
+                        strokeWeight: 4,
+                        geodesic: true,
+                      }}
+                    />
+                  )}
 
                   {filteredEmployees.map((emp) => {
                     if (!emp.currentLocation) return null;
@@ -891,7 +1435,6 @@ export default function LiveTracking() {
                     );
                   })}
                 </GoogleMap>
-              </LoadScript>
             )}
           </CardContent>
         </Card>
@@ -907,6 +1450,78 @@ export default function LiveTracking() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {selectedEmployee && (
+              <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                {routeLoading ? (
+                  <div className="text-sm text-slate-600">Loading selected employee route...</div>
+                ) : selectedRouteSummary ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <div>
+                        <div className="text-xs text-slate-500">Trip Distance</div>
+                        <div className="text-lg font-semibold text-slate-900">
+                          {((selectedRouteSummary.totalDistanceMeters || 0) / 1000).toFixed(2)} km
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500">Trip Duration</div>
+                        <div className="text-lg font-semibold text-slate-900">
+                          {formatDuration(selectedRouteSummary.tripDurationMinutes)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500">Route Points</div>
+                        <div className="text-lg font-semibold text-slate-900">
+                          {selectedRouteSummary.pointCount || selectedRoutePoints.length}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500">Time Window</div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {formatDateTime(selectedRouteSummary.startedAt)}
+                          {selectedRouteSummary.endedAt ? ` - ${formatDateTime(selectedRouteSummary.endedAt)}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Check-In Location</div>
+                      <div className="text-sm font-medium text-slate-900">
+                        {selectedRouteSummary.startAddress ||
+                          selectedRouteSummary.endAddress ||
+                          "Unknown location"}
+                      </div>
+                      {selectedRoutePoints[0] && (
+                        <div className="text-xs text-slate-500 mt-1">
+                          {formatCoordinates(
+                            selectedRoutePoints[0].latitude,
+                            selectedRoutePoints[0].longitude
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Current / Latest Travel Location</div>
+                      <div className="text-sm font-medium text-slate-900">
+                        {selectedRouteSummary.endAddress ||
+                          selectedRouteSummary.startAddress ||
+                          "Unknown location"}
+                      </div>
+                      {selectedRoutePoints[selectedRoutePoints.length - 1] && (
+                        <div className="text-xs text-slate-500 mt-1">
+                          {formatCoordinates(
+                            selectedRoutePoints[selectedRoutePoints.length - 1].latitude,
+                            selectedRoutePoints[selectedRoutePoints.length - 1].longitude
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600">No route history available for the selected employee.</div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredEmployees.map((emp) => (
                 <div
@@ -983,6 +1598,22 @@ export default function LiveTracking() {
                         <div className="text-sm">
                           <span className="font-medium">Last Check Time:</span> {emp.lastCheckTime}
                         </div>
+                      )}
+                      {selectedEmployee === emp.id && selectedRouteSummary && (
+                        <>
+                          <div className="text-sm">
+                            <span className="font-medium">Trip Distance:</span>{" "}
+                            {((selectedRouteSummary.totalDistanceMeters || 0) / 1000).toFixed(2)} km
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Trip Duration:</span>{" "}
+                            {formatDuration(selectedRouteSummary.tripDurationMinutes)}
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium">Route Points:</span>{" "}
+                            {selectedRouteSummary.pointCount || selectedRoutePoints.length}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}

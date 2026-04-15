@@ -2,8 +2,41 @@
 import axios from "axios";
 
 // // //Export the base URL for use in other components
-export const BASE_URL = "http://192.168.1.6:3000";
-// export const BASE_URL="https://hrms.procease.co/backend";
+// export const BASE_URL = "http://192.168.1.11:3000/backend";
+export const BASE_URL="https://hrms.procease.co/backend";
+
+export const resolveFileUrl = (path?: string | null): string | undefined => {
+  if (!path) return undefined;
+  if (
+    path.startsWith("http://") ||
+    path.startsWith("https://") ||
+    path.startsWith("data:") ||
+    path.startsWith("blob:")
+  ) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (normalizedPath.startsWith("/uploads/")) {
+    try {
+      return `${new URL(BASE_URL).origin}${normalizedPath}`;
+    } catch {
+      const normalizedBaseUrl = BASE_URL
+        .replace(/\/backend\/?$/, "")
+        .replace(/\/+$/, "");
+      return `${normalizedBaseUrl}${normalizedPath}`;
+    }
+  }
+
+  try {
+    return new URL(path, BASE_URL).toString();
+  } catch {
+    const normalizedBaseUrl = BASE_URL.replace(/\/+$/, "");
+    return `${normalizedBaseUrl}${normalizedPath}`;
+  }
+};
+
 // Auth requests that must NOT go through interceptors (avoids side effects on login errors)
 const authApi = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -16,7 +49,7 @@ const authApi = axios.create({
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
-  withCredentials: true,
+  withCredentials: true,  
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -405,6 +438,7 @@ const ENDPOINTS = {
   getOverrides: (params?: any) => api.get("/attendance/overrides", { params }),
 
   // Live location streaming (frontend pings current position)
+  getLiveLocations: () => api.get("/attendance/locations"),
   postLiveLocation: (data: {
     latitude: number;
     longitude: number;
@@ -413,6 +447,8 @@ const ENDPOINTS = {
     timestamp?: string;
     device_info?: string;
   }) => api.post("/attendance/locations", data),
+  getLiveLocationHistory: (employeeId: string, params?: any) =>
+    api.get(`/attendance/locations/${employeeId}/history`, { params }),
 
   //asset
 

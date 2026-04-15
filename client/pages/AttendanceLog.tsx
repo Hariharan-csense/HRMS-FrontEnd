@@ -408,6 +408,9 @@ const getAlternateImageUrl = (imageUrl?: string | null) => {
 const attendanceImageFallback =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E";
 
+const attendanceImageCanvas =
+  "linear-gradient(45deg, #f8fafc 25%, transparent 25%), linear-gradient(-45deg, #f8fafc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f8fafc 75%), linear-gradient(-45deg, transparent 75%, #f8fafc 75%)";
+
 export default function AttendanceLog() {
   const { user } = useAuth();
   const { hasModuleAccess, canPerformModuleAction } = useRole();
@@ -1254,7 +1257,7 @@ const fetchAttendanceLogs = async () => {
           Click on an employee to view their attendance calendar
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 sm:px-6">
         {employeesLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -1270,7 +1273,7 @@ const fetchAttendanceLogs = async () => {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
             {effectiveEmployees.map((employee) => {
               // Ensure employee has required properties
               if (!employee || !employee.id) {
@@ -1282,23 +1285,23 @@ const fetchAttendanceLogs = async () => {
                 <div
                   key={employee.id}
                   onClick={() => handleEmployeeClick(employee)}
-                  className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="w-full min-w-0 overflow-hidden rounded-lg border p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-blue-100 flex items-center justify-center">
                       <span className="text-blue-600 font-semibold">
                         {`${employee.first_name?.[0] || ''}${employee.last_name?.[0] || ''}`.toUpperCase() || 'E'}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">
+                      <h3 className="font-medium text-gray-900 break-words">
                         {`${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown Employee'}
                       </h3>
-                      <p className="text-sm text-gray-500 truncate">
+                      <p className="text-sm text-gray-500 break-all">
                         {getEmployeeCode(employee)}
                       </p>
                       {employee.designation && (
-                        <p className="text-xs text-gray-400 truncate">
+                        <p className="text-xs text-gray-400 break-words whitespace-normal">
                           {employee.designation}
                         </p>
                       )}
@@ -1315,7 +1318,7 @@ const fetchAttendanceLogs = async () => {
   );
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="w-full max-w-full overflow-x-hidden space-y-6">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">
             Attendance Log
@@ -1818,7 +1821,14 @@ const fetchAttendanceLogs = async () => {
                                   <div>
                                     <h5 className="text-xs font-medium text-gray-600 mb-2">Check-in Photo</h5>
                                     {record.imageIn ? (
-                                      <div className="relative group aspect-square w-full overflow-hidden rounded border border-gray-200 bg-slate-100">
+                                      <div
+                                        className="relative group aspect-square w-full overflow-hidden rounded border border-gray-200 bg-slate-100"
+                                        style={{
+                                          backgroundImage: attendanceImageCanvas,
+                                          backgroundSize: "20px 20px",
+                                          backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+                                        }}
+                                      >
                                         <img
                                           src={record.imageIn}
                                           alt="Check-in"
@@ -1836,6 +1846,9 @@ const fetchAttendanceLogs = async () => {
                                           }}
                                         />
                                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
+                                        <div className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-1 text-[10px] text-white">
+                                          Photo available
+                                        </div>
                                       </div>
                                     ) : (
                                       <div className="aspect-square w-full bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
@@ -1851,7 +1864,14 @@ const fetchAttendanceLogs = async () => {
                                   <div>
                                     <h5 className="text-xs font-medium text-gray-600 mb-2">Check-out Photo</h5>
                                     {record.imageOut ? (
-                                      <div className="relative group aspect-square w-full overflow-hidden rounded border border-gray-200 bg-slate-100">
+                                      <div
+                                        className="relative group aspect-square w-full overflow-hidden rounded border border-gray-200 bg-slate-100"
+                                        style={{
+                                          backgroundImage: attendanceImageCanvas,
+                                          backgroundSize: "20px 20px",
+                                          backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+                                        }}
+                                      >
                                         <img
                                           src={record.imageOut}
                                           alt="Check-out"
@@ -1869,6 +1889,9 @@ const fetchAttendanceLogs = async () => {
                                           }}
                                         />
                                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
+                                        <div className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-1 text-[10px] text-white">
+                                          Photo available
+                                        </div>
                                       </div>
                                     ) : (
                                       <div className="aspect-square w-full bg-gray-100 rounded border border-gray-200 flex items-center justify-center">

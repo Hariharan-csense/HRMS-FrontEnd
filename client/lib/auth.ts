@@ -75,6 +75,15 @@ export const hasRole = (user: User | null, role: string): boolean => {
     .map(normalize)
     .filter(Boolean);
 
+  if (wanted === "employee") {
+    const privilegedRoles = new Set(["admin", "manager", "hr", "ceo", "superadmin", "finance"]);
+    const isEmployeeType = normalize(user.type) === "employee";
+    const hasPrivilegedRole = assignedRoles.some((assignedRole) => privilegedRoles.has(assignedRole));
+    if (isEmployeeType && !hasPrivilegedRole) {
+      return true;
+    }
+  }
+
   return assignedRoles.includes(wanted);
 };
 

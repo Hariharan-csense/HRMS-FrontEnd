@@ -39,6 +39,16 @@ import jsPDF from "jspdf";
 export default function ReportsAnalytics() {
   const location = useLocation();
 
+  const getReportType = (pathname: string): "attendance" | "leave" | "payroll" | "finance" | "analytics" => {
+    if (pathname.startsWith("/reports/finance")) return "finance";
+    if (pathname.startsWith("/reports/payroll")) return "payroll";
+    if (pathname.startsWith("/reports/leave")) return "leave";
+    if (pathname.startsWith("/reports/attendance")) return "attendance";
+    return "analytics";
+  };
+
+  const reportType = getReportType(location.pathname);
+
   // State for report data
   const [attendanceData, setAttendanceData] = useState([]); // monthly trend
   const [attendanceRows, setAttendanceRows] = useState([]); // detailed rows for export
@@ -104,7 +114,7 @@ export default function ReportsAnalytics() {
   interface Employee {
     id: string;
     name: string;
-    department: string;
+    department?: string;
   }
 
   // State for summary data
@@ -115,33 +125,87 @@ export default function ReportsAnalytics() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Fetch employees and departments for filters
+  const normalizeValue = (value: any) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase();
+
+  const getEmployeeFilterValue = (item: any) =>
+    String(
+      item?.employeeCode ??
+      item?.employee_id ??
+      item?.employeeId ??
+      item?.code ??
+      item?.id ??
+      ""
+    ).trim();
+
+  const getEmployeeDisplayName = (item: any) => {
+    const name =
+      item?.employeeName ??
+      item?.employee_name ??
+      item?.name ??
+      `${String(item?.first_name ?? "").trim()} ${String(item?.last_name ?? "").trim()}`.trim();
+
+    const employeeCode = getEmployeeFilterValue(item);
+    if (!name && employeeCode) return employeeCode;
+    if (!employeeCode) return String(name || "").trim();
+    return `${String(name || "").trim()} (${employeeCode})`;
+  };
+
+  const getDepartmentFilterValue = (item: any) =>
+    String(
+      item?.department ??
+      item?.department_name ??
+      item?.departmentName ??
+      item?.dept_name ??
+      ""
+    ).trim();
+
   useEffect(() => {
-    const fetchFilterOptions = async () => {
-      try {
-        // Replace with actual API calls to fetch employees and departments
-        const mockEmployees = [
-          { id: 'all', name: 'All Employees' },
-          { id: '1', name: 'John Doe', department: 'Sales' },
-          { id: '2', name: 'Jane Smith', department: 'Marketing' },
-          { id: '3', name: 'Bob Johnson', department: 'Engineering' },
-        ];
-        
-        const uniqueDepartments = [...new Set(mockEmployees.map(e => e.department))];
-        const departmentOptions = ['all', ...uniqueDepartments].map(dept => ({
-          id: dept.toLowerCase(),
-          name: dept === 'all' ? 'All Departments' : dept
-        }));
-        
-        setEmployees(mockEmployees);
-        setDepartments(departmentOptions);
-      } catch (err) {
-        console.error('Error fetching filter options:', err);
+    if (reportType !== "attendance") {
+      setEmployees([]);
+      setDepartments([]);
+      return;
+    }
+
+    const employeeMap = new Map<string, Employee>();
+    const departmentMap = new Map<string, { id: string; name: string }>();
+
+    attendanceRows.forEach((item: any) => {
+      const employeeId = getEmployeeFilterValue(item);
+      const employeeName = getEmployeeDisplayName(item);
+      const departmentName = getDepartmentFilterValue(item);
+
+      if (employeeId && !employeeMap.has(employeeId)) {
+        employeeMap.set(employeeId, {
+          id: employeeId,
+          name: employeeName,
+          department: departmentName,
+        });
       }
-    };
-    
-    fetchFilterOptions();
-  }, []);
+
+      if (departmentName) {
+        const normalizedDepartment = normalizeValue(departmentName);
+        if (!departmentMap.has(normalizedDepartment)) {
+          departmentMap.set(normalizedDepartment, {
+            id: normalizedDepartment,
+            name: departmentName,
+          });
+        }
+      }
+    });
+
+    setEmployees([
+      { id: "all", name: "All Employees" },
+      ...Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    ]);
+
+    setDepartments([
+      { id: "all", name: "All Departments" },
+      ...Array.from(departmentMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    ]);
+  }, [attendanceRows, reportType]);
   
   // Apply filters to attendance rows (export + table)
   useEffect(() => {
@@ -169,13 +233,13 @@ export default function ReportsAnalytics() {
 
     // Employee filter
     if (filters.employee && filters.employee !== 'all') {
-      filtered = filtered.filter((item: any) => item.employeeCode === filters.employee);
+      filtered = filtered.filter((item: any) => getEmployeeFilterValue(item) === filters.employee);
     }
 
     // Department filter
     if (filters.department && filters.department !== 'all') {
       filtered = filtered.filter(
-        (item: any) => (item.department || '').toLowerCase() === filters.department.toLowerCase()
+        (item: any) => normalizeValue(getDepartmentFilterValue(item)) === normalizeValue(filters.department)
       );
     }
 
@@ -236,9 +300,17 @@ const exportToCSV = () => {
     };
     
     // Get data based on report type
+    const hasActiveAttendanceFilters = Boolean(
+      filters.month ||
+      filters.day ||
+      filters.employee !== "all" ||
+      filters.department !== "all" ||
+      filters.status !== "all"
+    );
+
     switch(reportType) {
       case 'attendance':
-        dataToExport = filteredAttendanceRows.length > 0 ? filteredAttendanceRows : attendanceRows;
+        dataToExport = hasActiveAttendanceFilters ? filteredAttendanceRows : attendanceRows;
         break;
       case 'leave':
         dataToExport = leaveData;
@@ -439,17 +511,6 @@ const exportToCSV = () => {
     setLoading(false);
   }
 };
-
-  // Determine report type from URL - synchronous, no state needed
-  const getReportType = (pathname: string): "attendance" | "leave" | "payroll" | "finance" | "analytics" => {
-    if (pathname.startsWith("/reports/finance")) return "finance";
-    if (pathname.startsWith("/reports/payroll")) return "payroll";
-    if (pathname.startsWith("/reports/leave")) return "leave";
-    if (pathname.startsWith("/reports/attendance")) return "attendance";
-    return "analytics";
-  };
-
-  const reportType = getReportType(location.pathname);
 
   // Fetch report data based on report type
   useEffect(() => {
@@ -697,7 +758,7 @@ const exportToCSV = () => {
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {departments.map((dept) => (
+                  {departments.map((dept: any) => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
                     </SelectItem>
@@ -717,7 +778,7 @@ const exportToCSV = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {employees
-                    .map((emp) => (
+                    .map((emp: any) => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name}
                       </SelectItem>

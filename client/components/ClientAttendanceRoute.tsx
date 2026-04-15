@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRole } from '@/context/RoleContext';
 import { Layout } from '@/components/Layout';
 
 interface ClientAttendanceRouteProps {
@@ -8,8 +9,9 @@ interface ClientAttendanceRouteProps {
 
 const ClientAttendanceRoute: React.FC<ClientAttendanceRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
+  const { canPerformModuleAction, loading: roleLoading } = useRole();
 
-  if (isLoading) {
+  if (isLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -30,17 +32,15 @@ const ClientAttendanceRoute: React.FC<ClientAttendanceRouteProps> = ({ children 
     );
   }
 
-  // Check if user is in Sales department
-  const isSalesUser = user.roles?.some(role => role?.toLowerCase() === "sales") || 
-                     user.department?.toLowerCase() === "sales";
+  const hasClientAttendanceAccess = canPerformModuleAction("client_attendance", "view");
 
-  if (!isSalesUser) {
+  if (!hasClientAttendanceAccess) {
     return (
       <Layout>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-            <p className="text-muted-foreground">Client Attendance is only available for Sales department users.</p>
+            <p className="text-muted-foreground">You do not have permission to access Client Attendance.</p>
           </div>
         </div>
       </Layout>

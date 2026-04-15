@@ -5,6 +5,7 @@ import ENDPOINTS, {
   BASE_URL,
   checkAndRefreshTokenIfNeeded,
   refreshAccessToken,
+  resolveFileUrl,
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
@@ -49,6 +50,14 @@ const decodeJwtPayload = (token: string) => {
   }
 };
 
+const normalizeUserAvatar = (user: User | null): User | null => {
+  if (!user) return user;
+  return {
+    ...user,
+    avatar: resolveFileUrl(user.avatar) || user.avatar,
+  };
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -82,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           ...resolvedUser,
           name: fullName || resolvedUser.name,
           avatar: profileData.profile_photo
-            ? `${BASE_URL}${profileData.profile_photo}`
+            ? resolveFileUrl(profileData.profile_photo)
             : resolvedUser.avatar,
           department:
             profileData.department_name || resolvedUser.department || null,
@@ -188,7 +197,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           sessionStorage.getItem(SOFT_LOGOUT_PROMPT_KEY) === "true";
 
         if (storedUser && accessToken) {
-          setUser(JSON.parse(storedUser));
+          const normalizedStoredUser = normalizeUserAvatar(JSON.parse(storedUser));
+          setUser(normalizedStoredUser);
+          localStorage.setItem("user", JSON.stringify(normalizedStoredUser));
           return;
         }
 
@@ -210,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("user", JSON.stringify(normalizeUserAvatar(user)));
     }
   }, [user]);
 
@@ -355,12 +366,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         department: responseData.user?.department || responseData.department || null,
         type: responseData.user?.type || responseData.type || undefined,
         avatar:
-          responseData.user?.avatar ||
-          responseData.avatar ||
+          resolveFileUrl(responseData.user?.avatar || responseData.avatar) ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${normalizedEmail}`,
       };
 
-      await finalizeUserSession(userData, { rememberMe });
+      await finalizeUserSession(normalizeUserAvatar(userData) as User, { rememberMe });
 
       return { success: true };
     } catch (error: any) {
@@ -430,7 +440,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       clearAuthData();
       storeLogoutFeedback(message);
       setUser(null);
-      navigate("/login");
+      navigate("/login", { replace: true });
     }
 
     return { success: true, message };

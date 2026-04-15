@@ -23,8 +23,12 @@ import {
 import { clientApi, Client } from "@/components/helper/client/client";
 import { clientAttendanceApi, type ClientAttendance, CheckInData, CheckOutData, getCurrentLocation, getAddressFromCoordinates } from "@/components/helper/clientAttendance/clientAttendance";
 import { showToast } from "@/utils/toast";
+import { useAuth } from "@/context/AuthContext";
+
+const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
 
 export default function ClientAttendance() {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [todayAttendance, setTodayAttendance] = useState<ClientAttendance[]>([]);
   const [activeCheckIn, setActiveCheckIn] = useState<ClientAttendance | null>(null);
@@ -40,8 +44,9 @@ export default function ClientAttendance() {
 
   // Load data on component mount
   useEffect(() => {
+    if (!user?.id) return;
     loadData();
-  }, []);
+  }, [user?.id]);
 
   const loadData = async () => {
     setLoading(true);
@@ -53,10 +58,11 @@ export default function ClientAttendance() {
       ]);
 
       if (clientsResult.data) {
-        // Filter clients assigned to current user
-        const myClients = clientsResult.data.filter(client => 
-          client.assigned_to && client.assigned_to !== null
-        );
+        const currentEmployeeId = Number(user?.id);
+        const myClients = clientsResult.data.filter((client) => {
+          const assignedEmployeeId = Number(client.assigned_to);
+          return Number.isFinite(currentEmployeeId) && assignedEmployeeId === currentEmployeeId;
+        });
         setClients(myClients);
       }
       
@@ -66,8 +72,14 @@ export default function ClientAttendance() {
       
       if (activeResult.data) {
         setActiveCheckIn(activeResult.data);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
+        }
       } else {
         setActiveCheckIn(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
+        }
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -129,6 +141,9 @@ export default function ClientAttendance() {
       const result = await clientAttendanceApi.checkIn(checkInData);
       
       if (result.success) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
+        }
         await loadData();
         setIsCheckInDialogOpen(false);
         setSelectedClient(null);
@@ -184,6 +199,9 @@ export default function ClientAttendance() {
       const result = await clientAttendanceApi.checkOut(activeCheckIn.id, checkOutData);
       
       if (result.success) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
+        }
         await loadData();
         setActiveCheckIn(null);
         setIsCheckOutDialogOpen(false);

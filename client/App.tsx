@@ -1,11 +1,12 @@
 import "./global.css";
 
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate,HashRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { RoleProvider, useRole } from "@/context/RoleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
@@ -173,9 +174,47 @@ const PulseSurveysRoot = () => {
   );
 };
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  return null;
+};
+
+const BlockDashboardBackNavigation = () => {
+  const { pathname } = useLocation();
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    const shouldBlockBackNavigation =
+      isAuthenticated &&
+      (pathname === "/dashboard" || pathname === "/superadmin-dashboard");
+
+    if (!shouldBlockBackNavigation) return;
+
+    const guardState = { dashboardBackGuard: true };
+    window.history.replaceState(guardState, "", window.location.href);
+    window.history.pushState(guardState, "", window.location.href);
+
+    const handlePopState = () => {
+      window.location.replace("about:blank");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [isAuthenticated, pathname]);
+
+  return null;
+};
+
 function AppRoutes() {
   return (
     <AutoLoginHandler>
+      <ScrollToTop />
+      <BlockDashboardBackNavigation />
       <Routes>
       {/* Public Routes */}
       {/* <Route
