@@ -9,6 +9,15 @@ type AttendanceLocation = {
   address?: string | null;
   timestamp?: string | null;
   deviceInfo?: string | null;
+  trackingStatus?: string | null;
+  minutesSinceUpdate?: number | null;
+};
+
+const hasOpenAttendanceSession = (attendance: any) => {
+  if (!attendance) return false;
+  const checkIn = attendance.check_in || attendance.checkIn;
+  const checkOut = attendance.check_out || attendance.checkOut;
+  return Boolean(checkIn) && !checkOut;
 };
 
 const parseCheckInLocation = (raw?: any): AttendanceLocation | null => {
@@ -57,22 +66,58 @@ export const liveApi = {
       const trackedEmployees = employees.filter((emp) => emp.location_tracking_enabled === 1);
       console.log(`Total employees: ${employees.length}, Tracked employees: ${trackedEmployees.length}`);
 
+      let latestAttendanceByEmployee = new Map<string, any>();
+      try {
+        const logsResponse = await ENDPOINTS.getAttendanceLogs({ limit: 1000 });
+        const logs = logsResponse?.data?.logs || logsResponse?.data?.data || logsResponse?.data || [];
+
+        latestAttendanceByEmployee = [...logs]
+          .sort(
+            (a: any, b: any) =>
+              new Date(b.check_in || b.checkIn || 0).getTime() -
+              new Date(a.check_in || a.checkIn || 0).getTime()
+          )
+          .reduce((map: Map<string, any>, log: any) => {
+            const employeeId = String(log.employee_id || log.employeeId || "");
+            if (employeeId && !map.has(employeeId)) {
+              map.set(employeeId, log);
+            }
+            return map;
+          }, new Map<string, any>());
+      } catch (logsError) {
+        console.warn("Failed to fetch attendance logs for live tracking status:", logsError);
+      }
+
       const attachLocations = (attendanceLocations: AttendanceLocation[]) => {
         const employeesWithLocation = trackedEmployees.map((employee) => {
+          const latestAttendance = latestAttendanceByEmployee.get(String(employee.id));
+          const hasOpenSession = hasOpenAttendanceSession(latestAttendance);
           const attendanceRecord = attendanceLocations.find(
             (att) => (att as any).employee_id === employee.id || att.employeeId === employee.id
           );
+          const liveLatitude = hasOpenSession ? attendanceRecord?.latitude || null : null;
+          const liveLongitude = hasOpenSession ? attendanceRecord?.longitude || null : null;
+          const liveTimestamp = hasOpenSession
+            ? attendanceRecord?.timestamp || (attendanceRecord as any)?.location_timestamp || null
+            : null;
 
           return {
             ...employee,
-            latitude: attendanceRecord?.latitude || null,
-            longitude: attendanceRecord?.longitude || null,
-            accuracy: attendanceRecord?.accuracy || null,
-            address: attendanceRecord?.address || null,
-            locationTimestamp: attendanceRecord?.timestamp || (attendanceRecord as any)?.location_timestamp || null,
-            isTracking: attendanceRecord ? true : false,
-            trackingStatus: attendanceRecord ? "active" : "offline",
+            latitude: liveLatitude,
+            longitude: liveLongitude,
+            accuracy: hasOpenSession ? attendanceRecord?.accuracy || null : null,
+            address: hasOpenSession ? attendanceRecord?.address || null : null,
+            locationTimestamp: liveTimestamp,
+            isTracking: Boolean(hasOpenSession && attendanceRecord),
+            trackingStatus:
+              hasOpenSession && attendanceRecord
+                ? attendanceRecord?.trackingStatus || "active"
+                : "offline",
             deviceInfo: attendanceRecord?.deviceInfo || (attendanceRecord as any)?.device_info || null,
+            minutesSinceUpdate:
+              hasOpenSession
+                ? attendanceRecord?.minutesSinceUpdate || (attendanceRecord as any)?.minutes_since_update || null
+                : null,
           };
         });
         console.log("Employees with location data:", employeesWithLocation.length);
@@ -94,6 +139,8 @@ export const liveApi = {
               address: att.address || null,
               timestamp: att.timestamp || att.location_timestamp || null,
               deviceInfo: att.device_info || null,
+              trackingStatus: att.tracking_status || null,
+              minutesSinceUpdate: Number(att.minutes_since_update) || null,
             }));
             const withLoc = attachLocations(mapped);
             return { data: withLoc };
@@ -104,9 +151,7 @@ export const liveApi = {
 
         // Fallback: derive from attendance logs (open check-ins)
         try {
-          const logsResponse = await ENDPOINTS.getAttendanceLogs({ limit: 100 });
-          const logs = logsResponse?.data?.logs || logsResponse?.data?.data || logsResponse?.data || [];
-          const openLogs = (logs as any[]).filter((log) => !log.check_out);
+          const openLogs = [...latestAttendanceByEmployee.values()].filter((log) => !log.check_out && !log.checkOut);
           const mapped: AttendanceLocation[] = openLogs
             .map((log) => {
               const loc = parseCheckInLocation(log.check_in_location);
@@ -167,7 +212,14 @@ export const liveApi = {
 
   getLiveLocationHistory: async (
     employeeId: string | number,
-    params?: { startDate?: string; endDate?: string; sessionId?: string; limit?: number }
+    params?: {
+      startDate?: string;
+      endDate?: string;
+      sessionId?: string;
+      limit?: number;
+      stayRadiusMeters?: number;
+      minimumStayMinutes?: number;
+    }
   ): Promise<{
     data?: {
       employee?: any;

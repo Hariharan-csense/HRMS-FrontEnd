@@ -129,7 +129,7 @@ import {
   HelpCircle,
   BarChart3,
   Activity,
- 
+
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -191,6 +191,22 @@ const navigationItems: NavItem[] = [
   //     },
   //   ],
   // },
+  // {
+  //   label: "Employee Management",
+  //   icon: <Users className="w-5 h-5" />,
+  //   roles: [],
+  //   moduleName: "employees",
+  //   submenu: [
+  //     {
+  //       label: "Employee List",
+  //       path: "/employees",
+  //       roles: [],
+  //       icon: <div />,
+  //       moduleName: "employees",
+  //     },
+
+  //   ],
+  // },
   {
     label: "Organization Setup",
     icon: <Building2 className="w-5 h-5" />,
@@ -241,7 +257,7 @@ const navigationItems: NavItem[] = [
     roles: ["admin", "ceo"],
     moduleName: "role_access",
   },
-  
+
   {
     label: "RMS & Recruitment",
     icon: <Users className="w-5 h-5" />,
@@ -276,7 +292,7 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "hr_management",
       },
-    
+
     ],
   },
   {
@@ -371,10 +387,18 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "live_tracking",
       },
+      {
+        label: "ESSL Setup",
+        path: "/attendance/setup",
+        roles: [],
+        icon: <div />,
+        moduleName: "attendance",
+        subModuleName: "setup",
+      },
     ],
   },
 
-{
+  {
     label: "Employee Management",
     icon: <Users className="w-5 h-5" />,
     roles: [],
@@ -387,10 +411,9 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "employees",
       },
+
     ],
   },
-
-
 
   {
     label: "Leave Management",
@@ -527,7 +550,7 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "exit",
       },
-        {
+      {
         label: "F&F Settlement",
         path: "/exit/settlement",
         roles: [],
@@ -540,7 +563,7 @@ const navigationItems: NavItem[] = [
     label: "Pulse Surveys",
     icon: <Activity className="w-5 h-5" />,
     roles: [],
-    moduleName: "pulse_surveys",  
+    moduleName: "pulse_surveys",
     submenu: [
       {
         label: "Overview",
@@ -593,7 +616,7 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
- 
+
   // {
   //   label: "Subscription",
   //   icon: <CreditCard className="w-5 h-5" />,
@@ -656,7 +679,7 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "reports",
       },
-         {
+      {
         label: "Employee Reports",
         path: "/employees/reports",
         roles: ["admin", "hr"],
@@ -665,9 +688,9 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
- 
 
-      
+
+
   {
     label: "Subscription",
     icon: <CreditCard className="w-5 h-5" />,
@@ -724,7 +747,7 @@ export const Sidebar: React.FC = () => {
   // Auto-expand menu items based on current route.
   useEffect(() => {
     const activeItems: string[] = [];
-    
+
     navigationItems.forEach((item) => {
       if (item.submenu && item.submenu.length > 0) {
         const hasActiveSubmenu = item.submenu.some((subitem) =>
@@ -735,7 +758,7 @@ export const Sidebar: React.FC = () => {
         }
       }
     });
-    
+
     setExpandedItems(prev => [...new Set([...prev, ...activeItems])]);
   }, [location.pathname]);
 
@@ -832,6 +855,7 @@ export const Sidebar: React.FC = () => {
         if (path.includes("/attendance/capture")) return "capture";
         if (path.includes("/attendance/log")) return "log";
         if (path.includes("/attendance/override")) return "override";
+        if (path.includes("/attendance/setup")) return "setup";
         return undefined;
       case "leave":
         if (path.includes("/leave/apply")) return "apply";
@@ -935,7 +959,18 @@ export const Sidebar: React.FC = () => {
     // Submodule-aware visibility: prefer submodule RBAC check when available.
     const inferredSubmodule = inferSubmoduleFromPath(item);
     if (item.moduleName && inferredSubmodule) {
-      return canPerformModuleAction(item.moduleName, "view", inferredSubmodule);
+      const hasAccess = canPerformModuleAction(item.moduleName, "view", inferredSubmodule);
+      if (process.env.NODE_ENV === "development" && item.label === "ESSL Setup") {
+        console.log("ESSL Setup Permission Check:", {
+          label: item.label,
+          moduleName: item.moduleName,
+          subModuleName: item.subModuleName,
+          inferredSubmodule,
+          hasAccess,
+          path: item.path
+        });
+      }
+      return hasAccess;
     }
 
     // If we get here and have a module name, check view permission
@@ -997,7 +1032,19 @@ export const Sidebar: React.FC = () => {
     const hasSubmenu = item.submenu && item.submenu.length > 0;
 
     let filteredSubmenu = hasSubmenu
-      ? item.submenu.filter((sub) => hasItemAccess(sub as NavItem))
+      ? item.submenu.filter((sub) => {
+        const hasAccess = hasItemAccess(sub as NavItem);
+        if (process.env.NODE_ENV === "development" && sub.label === "ESSL Setup") {
+          console.log("ESSL Setup Submenu Filter:", {
+            label: sub.label,
+            hasAccess,
+            moduleName: sub.moduleName,
+            subModuleName: sub.subModuleName,
+            path: sub.path
+          });
+        }
+        return hasAccess;
+      })
       : [];
 
     if (item.label === "Pulse Surveys" && isEmployeeUser) {
@@ -1014,9 +1061,9 @@ export const Sidebar: React.FC = () => {
 
     const isAnySubmenuActive = Boolean(
       hasSubmenu &&
-        filteredSubmenu.some((subitem) =>
-          Boolean(subitem.path && location.pathname.startsWith(subitem.path))
-        )
+      filteredSubmenu.some((subitem) =>
+        Boolean(subitem.path && location.pathname.startsWith(subitem.path))
+      )
     );
 
     const isActive = isItemActive || isAnySubmenuActive;

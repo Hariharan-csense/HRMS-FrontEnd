@@ -34,6 +34,7 @@ import EmployeeList from "./pages/EmployeeList";
 import AttendanceLog from "./pages/AttendanceLog";
 import AttendanceCapture from "./pages/AttendanceCapture";
 import AttendanceOverride from "./pages/AttendanceOverride";
+import AttendanceSetup from "./pages/AttendanceSetup";
 //import LiveLocationDashboard from "./pages/LiveLocationDashboard";
 import LeaveManagement from "./pages/LeaveManagementNew";
 import LeaveApprovals from "./pages/LeaveApprovals";
@@ -216,684 +217,693 @@ function AppRoutes() {
       <ScrollToTop />
       <BlockDashboardBackNavigation />
       <Routes>
-      {/* Public Routes */}
-      {/* <Route
+        {/* Public Routes */}
+        {/* <Route
         path="/login"
         element={<PublicRoute element={<LandingPage />} />}
       /> */}
-      <Route
-        path="/"
-        element={<PublicRoute element={<LandingPage />} />}
-      />
-      <Route
-        path="/features"
-        element={<PublicRoute element={<FeaturesPage />} />}
-      />
-      <Route
-        path="/about"
-        element={<PublicRoute element={<AboutPage />} />}
-      />
-      <Route
-        path="/contact"
-        element={<PublicRoute element={<ContactPage />} />}
-      />
-      <Route
-        path="/pricing"
-        element={<PublicRoute element={<PricingPage />} />}
-      />
-      <Route
-        path="/privacy-policy"
-        element={<PublicRoute element={<PrivacyPolicy />} />}
-      />
-      <Route
-        path="/terms-conditions"
-        element={<PublicRoute element={<TermsConditions />} />}
-      />
-      <Route
-        path="/refund-cancellation"
-        element={<PublicRoute element={<RefundCancellation />} />}
-      />
-      <Route
-        path="/login"
-        element={<PublicRoute element={<Login />} />}
-      />
-      <Route
-        path="/forgot-password"
-        element={<PublicRoute element={<ForgotPassword />} />}
-      />
-      <Route
-        path="/signup"
-        element={<PublicRoute element={<Signup />} />}
-      />
+        <Route
+          path="/"
+          element={<PublicRoute element={<LandingPage />} />}
+        />
+        <Route
+          path="/features"
+          element={<PublicRoute element={<FeaturesPage />} />}
+        />
+        <Route
+          path="/about"
+          element={<PublicRoute element={<AboutPage />} />}
+        />
+        <Route
+          path="/contact"
+          element={<PublicRoute element={<ContactPage />} />}
+        />
+        <Route
+          path="/pricing"
+          element={<PublicRoute element={<PricingPage />} />}
+        />
+        <Route
+          path="/privacy-policy"
+          element={<PublicRoute element={<PrivacyPolicy />} />}
+        />
+        <Route
+          path="/terms-conditions"
+          element={<PublicRoute element={<TermsConditions />} />}
+        />
+        <Route
+          path="/refund-cancellation"
+          element={<PublicRoute element={<RefundCancellation />} />}
+        />
+        <Route
+          path="/login"
+          element={<PublicRoute element={<Login />} />}
+        />
+        <Route
+          path="/forgot-password"
+          element={<PublicRoute element={<ForgotPassword />} />}
+        />
+        <Route
+          path="/signup"
+          element={<PublicRoute element={<Signup />} />}
+        />
 
-      {/* Protected Routes */}
-      <Route
-        path="/dashboard"
-        element={<ProtectedRoute element={<Dashboard />} />}
-      />
+        {/* Protected Routes */}
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute element={<Dashboard />} />}
+        />
 
-      {/* Organization Setup - Module-based access */}
-      <Route
-        path="/organization/company"
-        element={
-          <RoleBasedRoute requiredModule="organization" requiredAction="view">
-            <OrganizationSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/organization/branches"
-        element={
-          <RoleBasedRoute requiredModule="organization" requiredAction="view">
-            <OrganizationSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/organization/departments"
-        element={
-          <RoleBasedRoute requiredModule="organization" requiredAction="view">
-            <OrganizationSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/organization/designations"
-        element={
-          <RoleBasedRoute requiredModule="organization" requiredAction="view">
-            <OrganizationSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/organization/roles"
-        element={
-          <RoleBasedRoute requiredModule="role_access" requiredAction="view">
-            <OrganizationSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/organization/role-management"
-        element={
-          <RoleBasedRoute requiredModule="role_access" requiredAction="view">
-            <RoleManagement />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Organization Setup - Module-based access */}
+        <Route
+          path="/organization/company"
+          element={
+            <RoleBasedRoute requiredModule="organization" requiredAction="view">
+              <OrganizationSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/organization/branches"
+          element={
+            <RoleBasedRoute requiredModule="organization" requiredAction="view">
+              <OrganizationSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/organization/departments"
+          element={
+            <RoleBasedRoute requiredModule="organization" requiredAction="view">
+              <OrganizationSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/organization/designations"
+          element={
+            <RoleBasedRoute requiredModule="organization" requiredAction="view">
+              <OrganizationSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/organization/roles"
+          element={
+            <RoleBasedRoute requiredModule="role_access" requiredAction="view">
+              <OrganizationSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/organization/role-management"
+          element={
+            <RoleBasedRoute requiredModule="role_access" requiredAction="view">
+              <RoleManagement />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Employee Management - Module-based access */}
-      <Route
-        path="/employees"
-        element={
-          <RoleBasedRoute requiredModule="employees" requiredAction="view">
-            <EmployeeList />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/employees/register"
-        element={
-          <RoleBasedRoute requiredModule="employees" requiredAction="create">
-            <RegisterUser />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Employee Management - Module-based access */}
+        <Route
+          path="/employees"
+          element={
+            <RoleBasedRoute requiredModule="employees" requiredAction="view">
+              <EmployeeList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/employees/register"
+          element={
+            <RoleBasedRoute requiredModule="employees" requiredAction="create">
+              <RegisterUser />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Employee Reports - Module-based access */}
-      <Route
-        path="/employees/reports"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <EmployeeReports />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Employee Reports - Module-based access */}
+        <Route
+          path="/employees/reports"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <EmployeeReports />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Attendance - Module-based access */}
-      <Route
-        path="/attendance/capture"
-        element={
-          <RoleBasedRoute requiredModule="attendance" requiredAction="create">
-            <AttendanceCapture />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/attendance/log"
-        element={
-          <RoleBasedRoute requiredModule="attendance" requiredAction="view">
-            <AttendanceLog />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/attendance/override"
-        element={
-          <RoleBasedRoute requiredModule="attendance" requiredAction="edit">
-            <AttendanceOverride />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Attendance - Module-based access */}
+        <Route
+          path="/attendance/capture"
+          element={
+            <RoleBasedRoute requiredModule="attendance" requiredAction="create">
+              <AttendanceCapture />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/attendance/log"
+          element={
+            <RoleBasedRoute requiredModule="attendance" requiredAction="view">
+              <AttendanceLog />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/attendance/override"
+          element={
+            <RoleBasedRoute requiredModule="attendance" requiredAction="edit">
+              <AttendanceOverride />
+            </RoleBasedRoute>
+          }
+        />
 
-      <Route
-        path="/attendance/shift"
-        element={
-          <RoleBasedRoute requiredModule="attendance" requiredAction="edit">
-            <ShiftManagement />
-          </RoleBasedRoute>
-        }
-      />
+        <Route
+          path="/attendance/shift"
+          element={
+            <RoleBasedRoute requiredModule="attendance" requiredAction="edit">
+              <ShiftManagement />
+            </RoleBasedRoute>
+          }
+        />
 
-      <Route
-        path="/attendance/live-tracking"
-        element={
-          <RoleBasedRoute requiredModule="live_tracking" requiredAction="view">
-            <LiveTracking />
-          </RoleBasedRoute>
-        }
-      />
+        <Route
+          path="/attendance/live-tracking"
+          element={
+            <RoleBasedRoute requiredModule="live_tracking" requiredAction="view">
+              <LiveTracking />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Leave Management - Module-based access */}
-      <Route
-        path="/leave/apply"
-        element={
-          <RoleBasedRoute requiredModule="leave" requiredAction="create">
-            <LeaveManagement />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/leave/balance"
-        element={
-          <RoleBasedRoute requiredModule="leave" requiredAction="view">
-            <LeaveManagement />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/leave/approvals"
-        element={
-          <RoleBasedRoute requiredModule="leave" requiredAction="approve">
-            <LeaveApprovals />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/leave/config"
-        element={
-          <RoleBasedRoute requiredModule="leave" requiredAction="edit">
-            <LeaveConfiguration />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/leave/permission"
-        element={
-          <RoleBasedRoute requiredModule="leave" requiredAction="view">
-            <LeavePermission />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/export/data"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <ExportData />
-          </RoleBasedRoute>
-        }
-      />
+        <Route
+          path="/attendance/setup"
+          element={
+            <RoleBasedRoute requiredModule="attendance" requiredAction="edit">
+              <AttendanceSetup />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Payroll - Module-based access */}
-      <Route
-        path="/payroll/structure"
-        element={
-          <RoleBasedRoute requiredModule="payroll" requiredAction="view">
-            <PayrollSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/payroll/process"
-        element={
-          <RoleBasedRoute requiredModule="payroll" requiredAction="view">
-            <PayrollSetup />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/payroll/payslips"
-        element={
-          <RoleBasedRoute requiredModule="payroll" requiredAction="view">
-            <PayrollSetup />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Leave Management - Module-based access */}
+        <Route
+          path="/leave/apply"
+          element={
+            <RoleBasedRoute requiredModule="leave" requiredAction="create">
+              <LeaveManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leave/balance"
+          element={
+            <RoleBasedRoute requiredModule="leave" requiredAction="view">
+              <LeaveManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leave/approvals"
+          element={
+            <RoleBasedRoute requiredModule="leave" requiredAction="approve">
+              <LeaveApprovals />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leave/config"
+          element={
+            <RoleBasedRoute requiredModule="leave" requiredAction="edit">
+              <LeaveConfiguration />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leave/permission"
+          element={
+            <RoleBasedRoute requiredModule="leave" requiredAction="view">
+              <LeavePermission />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/export/data"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <ExportData />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Expenses - Module-based access */}
-      <Route
-        path="/expenses/claims"
-        element={
-          <RoleBasedRoute requiredModule="expenses" requiredAction="view">
-            <ExpenseClaims />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/expenses/approvals"
-        element={
-          <RoleBasedRoute requiredModule="expenses" requiredAction="approve">
-            <ExpenseApprovals />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Payroll - Module-based access */}
+        <Route
+          path="/payroll/structure"
+          element={
+            <RoleBasedRoute requiredModule="payroll" requiredAction="view">
+              <PayrollSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/payroll/process"
+          element={
+            <RoleBasedRoute requiredModule="payroll" requiredAction="view">
+              <PayrollSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/payroll/payslips"
+          element={
+            <RoleBasedRoute requiredModule="payroll" requiredAction="view">
+              <PayrollSetup />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Assets - Module-based access */}
-      <Route
-        path="/assets/list"
-        element={
-          <RoleBasedRoute requiredModule="assets" requiredAction="view">
-            <AssetList />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/assets/my-assets"
-        element={
-          <RoleBasedRoute requiredModule="assets" requiredAction="view">
-            <MyAssets />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Expenses - Module-based access */}
+        <Route
+          path="/expenses/claims"
+          element={
+            <RoleBasedRoute requiredModule="expenses" requiredAction="view">
+              <ExpenseClaims />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/approvals"
+          element={
+            <RoleBasedRoute requiredModule="expenses" requiredAction="approve">
+              <ExpenseApprovals />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Exit & Offboarding - Module-based access */}
-      <Route
-        path="/exit/resignations"
-        element={
-          <RoleBasedRoute requiredModule="exit" requiredAction="view">
-            <ExitOffboarding />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/exit/checklist"
-        element={
-          <RoleBasedRoute requiredModule="exit" requiredAction="view">
-            <ExitOffboarding />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/exit/settlement"
-        element={
-          <HROnlyRoute>
-            <HRSettlement />
-          </HROnlyRoute>
-        }
-      />
-      {/* Reports - Module-based access */}
-      <Route
-        path="/reports/attendance"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <ReportsAnalytics />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/reports/leave"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <ReportsAnalytics />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/reports/payroll"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <ReportsAnalytics />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/reports/finance"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <ReportsAnalytics />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="/reports/analytics"
-        element={
-          <RoleBasedRoute requiredModule="reports" requiredAction="view">
-            <ReportsAnalytics />
-          </RoleBasedRoute>
-        }
-      />
+        {/* Assets - Module-based access */}
+        <Route
+          path="/assets/list"
+          element={
+            <RoleBasedRoute requiredModule="assets" requiredAction="view">
+              <AssetList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/my-assets"
+          element={
+            <RoleBasedRoute requiredModule="assets" requiredAction="view">
+              <MyAssets />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* User Profile */}
-      <Route
-        path="/profile"
-        element={<ProtectedRoute element={<UserProfile />} />}
-      />
+        {/* Exit & Offboarding - Module-based access */}
+        <Route
+          path="/exit/resignations"
+          element={
+            <RoleBasedRoute requiredModule="exit" requiredAction="view">
+              <ExitOffboarding />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/exit/checklist"
+          element={
+            <RoleBasedRoute requiredModule="exit" requiredAction="view">
+              <ExitOffboarding />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/exit/settlement"
+          element={
+            <HROnlyRoute>
+              <HRSettlement />
+            </HROnlyRoute>
+          }
+        />
+        {/* Reports - Module-based access */}
+        <Route
+          path="/reports/attendance"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/reports/leave"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/reports/payroll"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/reports/finance"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/reports/analytics"
+          element={
+            <RoleBasedRoute requiredModule="reports" requiredAction="view">
+              <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
 
-      {/* Client Assignment - Admin only */}
-      <Route
-        path="/client-assignment"
-        element={
-          <AdminOnlyRoute>
-            <ClientAssignment />
-          </AdminOnlyRoute>
-        }
-      />
+        {/* User Profile */}
+        <Route
+          path="/profile"
+          element={<ProtectedRoute element={<UserProfile />} />}
+        />
 
-      {/* My Client Assignment - Employees */}
-      <Route
-        path="/my-clients"
-        element={<ProtectedRoute element={<MyClientAssignment />} />}
-      />
+        {/* Client Assignment - Admin only */}
+        <Route
+          path="/client-assignment"
+          element={
+            <AdminOnlyRoute>
+              <ClientAssignment />
+            </AdminOnlyRoute>
+          }
+        />
 
-      {/* Employee Analytics */}
-      <Route
-        path="/my-analytics"
-        element={<ProtectedRoute element={<EmployeeAnalytics />} />}
-      />
+        {/* My Client Assignment - Employees */}
+        <Route
+          path="/my-clients"
+          element={<ProtectedRoute element={<MyClientAssignment />} />}
+        />
 
-      {/* HR Management - HR only */}
-      <Route
-        path="/hr/requirements"
-        element={
-          <HROnlyRoute>
-            <HRRequirements />
-          </HROnlyRoute>
-        }
-      />
-      <Route
-        path="/hr/recruitment"
-        element={
-          <HROnlyRoute>
-            <HRRecruitment />
-          </HROnlyRoute>
-        }
-      />
-      <Route
-        path="/hr/offer-letters"
-        element={
-          <HROnlyRoute>
-            <HROfferLetters />
-          </HROnlyRoute>
-        }
-      />
-      <Route
-        path="/hr/onboarding"
-        element={
-          <HROnlyRoute>
-            <HROnboarding />
-          </HROnlyRoute>
-        }
-      />
+        {/* Employee Analytics */}
+        <Route
+          path="/my-analytics"
+          element={<ProtectedRoute element={<EmployeeAnalytics />} />}
+        />
+
+        {/* HR Management - HR only */}
+        <Route
+          path="/hr/requirements"
+          element={
+            <HROnlyRoute>
+              <HRRequirements />
+            </HROnlyRoute>
+          }
+        />
+        <Route
+          path="/hr/recruitment"
+          element={
+            <HROnlyRoute>
+              <HRRecruitment />
+            </HROnlyRoute>
+          }
+        />
+        <Route
+          path="/hr/offer-letters"
+          element={
+            <HROnlyRoute>
+              <HROfferLetters />
+            </HROnlyRoute>
+          }
+        />
+        <Route
+          path="/hr/onboarding"
+          element={
+            <HROnlyRoute>
+              <HROnboarding />
+            </HROnlyRoute>
+          }
+        />
 
 
-      {/* Client Attendance - Module-based access for Sales with fallback */}
-      <Route
-        path="/client-attendance"
-        element={
-          <ClientAttendanceRoute>
-            <ClientAttendance />
-          </ClientAttendanceRoute>
-        }
-      />
+        {/* Client Attendance - Module-based access for Sales with fallback */}
+        <Route
+          path="/client-attendance"
+          element={
+            <ClientAttendanceRoute>
+              <ClientAttendance />
+            </ClientAttendanceRoute>
+          }
+        />
 
-      {/* Client Attendance Admin - Admin only */}
-      <Route
-        path="/client-attendance-admin"
-        element={
-          <AdminOnlyRoute>
-            <ClientAttendanceAdmin />
-          </AdminOnlyRoute>
-        }
-      />
+        {/* Client Attendance Admin - Admin only */}
+        <Route
+          path="/client-attendance-admin"
+          element={
+            <AdminOnlyRoute>
+              <ClientAttendanceAdmin />
+            </AdminOnlyRoute>
+          }
+        />
 
-      {/* Sales Attendance Report - Admin only */}
-      <Route
-        path="/sales-attendance-report"
-        element={
-          <AdminOnlyRoute>
-            <SalesAttendanceReport />
-          </AdminOnlyRoute>
-        }
-      />
+        {/* Sales Attendance Report - Admin only */}
+        <Route
+          path="/sales-attendance-report"
+          element={
+            <AdminOnlyRoute>
+              <SalesAttendanceReport />
+            </AdminOnlyRoute>
+          }
+        />
 
-      {/* Client Geo-Fence - Admin only */}
-      <Route
-        path="/client-geo-fence"
-        element={
-          <AdminOnlyRoute>
-            <ClientGeoFence />
-          </AdminOnlyRoute>
-        }
-      />
+        {/* Client Geo-Fence - Admin only */}
+        <Route
+          path="/client-geo-fence"
+          element={
+            <AdminOnlyRoute>
+              <ClientGeoFence />
+            </AdminOnlyRoute>
+          }
+        />
 
-      {/* Ticket Management - Admin only */}
-      <Route
-        path="/tickets"
-        element={
-          <AdminOnlyRoute>
-            <TicketManagement />
-          </AdminOnlyRoute>
-        }
-      />
+        {/* Ticket Management - Admin only */}
+        <Route
+          path="/tickets"
+          element={
+            <AdminOnlyRoute>
+              <TicketManagement />
+            </AdminOnlyRoute>
+          }
+        />
 
-      {/* Subscription Management - Admin only */}
-      <Route
-        path="/subscription"
-        element={
-          <AdminOnlyRoute>
-            <SubscriptionManagement />
-          </AdminOnlyRoute>
-        }
-      />
+        {/* Subscription Management - Admin only */}
+        <Route
+          path="/subscription"
+          element={
+            <AdminOnlyRoute>
+              <SubscriptionManagement />
+            </AdminOnlyRoute>
+          }
+        />
 
-      {/* Subscription Plans Management - SuperAdmin only */}
-      <Route
-        path="/subscription-plans"
-        element={
-          <SuperAdminOnlyRoute>
-            <SubscriptionPlansManagement />
-          </SuperAdminOnlyRoute>
-        }
-      />
+        {/* Subscription Plans Management - SuperAdmin only */}
+        <Route
+          path="/subscription-plans"
+          element={
+            <SuperAdminOnlyRoute>
+              <SubscriptionPlansManagement />
+            </SuperAdminOnlyRoute>
+          }
+        />
 
-      {/* Organizations Management - SuperAdmin only */}
-      <Route
-        path="/organizations"
-        element={
-          <SuperAdminOnlyRoute>
-            <Organizations />
-          </SuperAdminOnlyRoute>
-        }
-      />
-      <Route
-        path="/organizations/:id"
-        element={
-          <SuperAdminOnlyRoute>
-            <Organizations />
-          </SuperAdminOnlyRoute>
-        }
-      />
+        {/* Organizations Management - SuperAdmin only */}
+        <Route
+          path="/organizations"
+          element={
+            <SuperAdminOnlyRoute>
+              <Organizations />
+            </SuperAdminOnlyRoute>
+          }
+        />
+        <Route
+          path="/organizations/:id"
+          element={
+            <SuperAdminOnlyRoute>
+              <Organizations />
+            </SuperAdminOnlyRoute>
+          }
+        />
 
-      {/* Users Management - SuperAdmin only */}
-      <Route
-        path="/users"
-        element={
-          <SuperAdminOnlyRoute>
-            <Users />
-          </SuperAdminOnlyRoute>
-        }
-      />
+        {/* Users Management - SuperAdmin only */}
+        <Route
+          path="/users"
+          element={
+            <SuperAdminOnlyRoute>
+              <Users />
+            </SuperAdminOnlyRoute>
+          }
+        />
 
-      {/* Super Admin Dashboard - Development access */}
-      <Route
-        path="/superadmin-dashboard"
-        element={<ProtectedRoute element={<SuperAdminDashboard />} />}
-      />
+        {/* Super Admin Dashboard - Development access */}
+        <Route
+          path="/superadmin-dashboard"
+          element={<ProtectedRoute element={<SuperAdminDashboard />} />}
+        />
 
-      {/* Debug: Role Access */}
-      <Route
-        path="/debug/roles"
-        element={<ProtectedRoute element={<RoleAccessDebug />} />}
-      />
-      <Route
-        path="/debug/role-test"
-        element={<ProtectedRoute element={<RoleTest />} />}
-      />
+        {/* Debug: Role Access */}
+        <Route
+          path="/debug/roles"
+          element={<ProtectedRoute element={<RoleAccessDebug />} />}
+        />
+        <Route
+          path="/debug/role-test"
+          element={<ProtectedRoute element={<RoleTest />} />}
+        />
 
-      {/* Pulse Survey Module */}
-      <Route
-        path="/pulse-surveys"
-        element={<ProtectedRoute element={<PulseSurveysRoot />} />}
-      />
-      <Route
-        path="/pulse-surveys/dashboard"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <PulseSurveysOverview />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/create"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="create"
-              >
-                <CreatePulseSurvey />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/results"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <PulseSurveyResultsList />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/results/:surveyId"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <PulseSurveyResultsDetail />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/my-surveys"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <MyPulseSurveys />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/respond/:surveyId"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <RespondPulseSurvey />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/feedback"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute requiredModule="pulse_surveys" requiredAction="view">
-                <EmployeeFeedback />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/feedback-inbox"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <AdminFeedbackInbox />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
-      <Route
-        path="/pulse-surveys/templates"
-        element={
-          <ProtectedRoute
-            element={
-              <RoleBasedRoute
-                requiredModule="pulse_surveys"
-                requiredAction="view"
-              >
-                <PulseSurveyTemplates />
-              </RoleBasedRoute>
-            }
-          />
-        }
-      />
+        {/* Pulse Survey Module */}
+        <Route
+          path="/pulse-surveys"
+          element={<ProtectedRoute element={<PulseSurveysRoot />} />}
+        />
+        <Route
+          path="/pulse-surveys/dashboard"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <PulseSurveysOverview />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/create"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="create"
+                >
+                  <CreatePulseSurvey />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/results"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <PulseSurveyResultsList />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/results/:surveyId"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <PulseSurveyResultsDetail />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/my-surveys"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <MyPulseSurveys />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/respond/:surveyId"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <RespondPulseSurvey />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/feedback"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute requiredModule="pulse_surveys" requiredAction="view">
+                  <EmployeeFeedback />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/feedback-inbox"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <AdminFeedbackInbox />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/templates"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <PulseSurveyTemplates />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
 
-        
-      {/* Root redirect - removed since we now have landing page at root */}
 
-      {/* Catch-all 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* Root redirect - removed since we now have landing page at root */}
+
+        {/* Catch-all 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </AutoLoginHandler>
   );
 }

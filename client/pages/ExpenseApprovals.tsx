@@ -80,8 +80,17 @@ export default function ExpenseApprovals() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
+  const [decisionExpenseIds, setDecisionExpenseIds] = useState<string[]>([]);
 
   const pendingExpenses = expenses.filter((e) => e.status === "pending");
+  const selectedPendingExpenses = useMemo(
+    () => pendingExpenses.filter((expense) => selectedExpenses.includes(expense.id)),
+    [pendingExpenses, selectedExpenses]
+  );
+  const selectedPendingTotal = useMemo(
+    () => selectedPendingExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [selectedPendingExpenses]
+  );
   const groupedPending = useMemo(() => {
     const byClientDate = new Map<string, PendingExpenseGroup>();
 
@@ -180,13 +189,27 @@ export default function ExpenseApprovals() {
 
   const handleApproveClick = (expense: ExpenseApproval) => {
     setSelectedExpense(expense);
+    setDecisionExpenseIds([]);
     setDecision("approved");
     setIsDecisionOpen(true);
   };
 
   const handleRejectClick = (expense: ExpenseApproval) => {
     setSelectedExpense(expense);
+    setDecisionExpenseIds([]);
     setDecision("rejected");
+    setIsDecisionOpen(true);
+  };
+
+  const handleBulkDecisionClick = (nextDecision: "approved" | "rejected") => {
+    if (selectedPendingExpenses.length === 0) {
+      showToast.error("Please select at least one expense");
+      return;
+    }
+
+    setSelectedExpense(null);
+    setDecisionExpenseIds(selectedPendingExpenses.map((expense) => expense.id));
+    setDecision(nextDecision);
     setIsDecisionOpen(true);
   };
 
@@ -270,12 +293,21 @@ export default function ExpenseApprovals() {
     }));
 
   const confirmDecision = async () => {
-    if (!selectedExpense || !decision) return;
+    if (!decision) return;
 
     const targetExpenses =
-      selectedGroup?.expenses?.length
+      decisionExpenseIds.length > 0
+        ? pendingExpenses.filter((expense) => decisionExpenseIds.includes(expense.id))
+        : selectedGroup?.expenses?.length
         ? selectedGroup.expenses
-        : [selectedExpense];
+        : selectedExpense
+        ? [selectedExpense]
+        : [];
+
+    if (targetExpenses.length === 0) {
+      showToast.error("No expenses selected for this action");
+      return;
+    }
 
     const payload = {
       status: decision === "approved" ? "Approved" : "Rejected",
@@ -290,41 +322,70 @@ export default function ExpenseApprovals() {
       const failedResult = results.find((result) => !result.data);
 
       if (!failedResult) {
-        // Trigger notification for expense approval/rejection
+        const updatedStatus = decision === "approved" ? "approved" : "rejected";
+        const targetExpenseIds = targetExpenses.map((expense) => expense.id);
+        const approvedBy = user?.name || "Finance User";
+
+        setExpenses((prev) =>
+          prev.map((expense) =>
+            targetExpenseIds.includes(expense.id)
+              ? {
+                  ...expense,
+                  status: updatedStatus,
+                  approvedBy,
+                  approvalNote: approvalNote || expense.approvalNote,
+                  approved_at: new Date().toISOString(),
+                }
+              : expense
+          )
+        );
+        setSelectedExpenses((prev) => prev.filter((expenseId) => !targetExpenseIds.includes(expenseId)));
+
         const notificationService = NotificationTriggerService.getInstance();
         const totalGroupedAmount = targetExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const categorySummary = selectedGroup?.categories?.length
+        const categorySummary = decisionExpenseIds.length > 0
+          ? Array.from(new Set(targetExpenses.map((expense) => expense.category).filter(Boolean))).join(", ")
+          : selectedGroup?.categories?.length
           ? selectedGroup.categories.join(", ")
-          : selectedExpense.category;
-        const descriptionSummary = selectedGroup
+          : selectedExpense?.category || "Expense";
+        const descriptionSummary = decisionExpenseIds.length > 0
+          ? `${targetExpenses.length} selected expense claims`
+          : selectedGroup
           ? `${selectedGroup.clientName} on ${selectedGroup.date}`
-          : selectedExpense.description;
+          : selectedExpense?.description || "Expense claim";
 
-        if (decision === "approved") {
-          await notificationService.triggerExpenseApproved({
-            employeeId: selectedExpense.employeeId,
-            employeeName: selectedExpense.employeeName,
-            amount: totalGroupedAmount,
-            expenseType: categorySummary,
-            description: descriptionSummary,
-          });
-        } else {
-          await notificationService.triggerExpenseRejected({
-            employeeId: selectedExpense.employeeId,
-            employeeName: selectedExpense.employeeName,
-            amount: totalGroupedAmount,
-            expenseType: categorySummary,
-            description: descriptionSummary,
-          });
+        try {
+          if (decision === "approved") {
+            await notificationService.triggerExpenseApproved({
+              employeeId: selectedExpense?.employeeId || targetExpenses[0]?.employeeId,
+              employeeName: selectedExpense?.employeeName || `Multiple employees (${targetExpenses.length})`,
+              amount: totalGroupedAmount,
+              expenseType: categorySummary,
+              description: descriptionSummary,
+            });
+          } else {
+            await notificationService.triggerExpenseRejected({
+              employeeId: selectedExpense?.employeeId || targetExpenses[0]?.employeeId,
+              employeeName: selectedExpense?.employeeName || `Multiple employees (${targetExpenses.length})`,
+              amount: totalGroupedAmount,
+              expenseType: categorySummary,
+              description: descriptionSummary,
+            });
+          }
+        } catch (notificationError) {
+          console.error("Expense notification failed:", notificationError);
         }
 
-        // Refetch updated expenses (full list so pending + history stay in sync)
-        const fetchResult = await expenseApi.getExpense();
-        console.log("Refetched expenses after update:", fetchResult);
-        if (fetchResult.data) {
-          setExpenses(normalizeExpenses(fetchResult.data));
-          setSelectedExpenses([]);
-        }
+        expenseApi
+          .getExpense()
+          .then((fetchResult) => {
+            if (fetchResult.data) {
+              setExpenses(normalizeExpenses(fetchResult.data as ExpenseApproval[]));
+            }
+          })
+          .catch((refreshError) => {
+            console.error("Failed to refresh expense approvals after update:", refreshError);
+          });
 
         showToast.success(
           targetExpenses.length > 1
@@ -336,6 +397,7 @@ export default function ExpenseApprovals() {
         setIsDecisionOpen(false);
         setApprovalNote("");
         setSelectedExpense(null);
+        setDecisionExpenseIds([]);
         setDecision(null);
       } else {
         showToast.error(failedResult.error || "Failed to update expense status");
@@ -425,6 +487,25 @@ export default function ExpenseApprovals() {
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleBulkDecisionClick("approved")}
+                  disabled={selectedExpenses.length === 0}
+                  className="text-xs bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Approve Selected ({selectedExpenses.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleBulkDecisionClick("rejected")}
+                  disabled={selectedExpenses.length === 0}
+                  className="text-xs"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Reject Selected ({selectedExpenses.length})
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -875,18 +956,33 @@ export default function ExpenseApprovals() {
 
 
       {/* Approval Decision Dialog */}
-      <AlertDialog open={isDecisionOpen} onOpenChange={setIsDecisionOpen}>
+      <AlertDialog
+        open={isDecisionOpen}
+        onOpenChange={(open) => {
+          setIsDecisionOpen(open);
+          if (!open) {
+            setDecision(null);
+            setDecisionExpenseIds([]);
+            setApprovalNote("");
+            setSelectedExpense(null);
+          }
+        }}
+      >
         <AlertDialogContent className="w-full max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg sm:text-xl">
               {decision === "approved" ? "Approve Expense" : "Reject Expense"}
             </AlertDialogTitle>
-            {selectedExpense && (
+            {decisionExpenseIds.length > 0 ? (
+              <AlertDialogDescription className="text-xs sm:text-sm">
+                {selectedPendingExpenses.length} selected expenses • ₹{selectedPendingTotal.toLocaleString()}
+              </AlertDialogDescription>
+            ) : selectedExpense ? (
               <AlertDialogDescription className="text-xs sm:text-sm">
                 {selectedExpense.employeeName} - ₹{employeeTotal.toLocaleString()}
                 {selectedGroup ? ` • ${selectedGroup.clientName} • ${selectedGroup.date}` : ""}
               </AlertDialogDescription>
-            )}
+            ) : null}
           </AlertDialogHeader>
 
           <div className="space-y-3 sm:space-y-4">

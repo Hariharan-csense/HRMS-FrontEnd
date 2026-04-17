@@ -44,6 +44,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/attendance/capture")) return "capture";
         if (path.includes("/attendance/log")) return "log";
         if (path.includes("/attendance/override")) return "override";
+        if (path.includes("/attendance/setup")) return "setup";
         return undefined;
       case "leave":
         if (path.includes("/leave/apply")) return "apply";

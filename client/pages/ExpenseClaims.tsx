@@ -85,6 +85,28 @@ interface GroupedExpenseClaim {
   draftClientId?: string;
 }
 
+const ALLOWED_EXPENSE_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/svg+xml",
+];
+
+const isValidExpenseImageFile = (file: File) => {
+  const fileName = String(file.name || "").toLowerCase();
+  const mimeType = String(file.type || "").toLowerCase();
+
+  if (fileName.endsWith(".pdf") || mimeType === "application/pdf") {
+    return false;
+  }
+
+  return (
+    ALLOWED_EXPENSE_IMAGE_TYPES.includes(mimeType) ||
+    /\.(jpg|jpeg|png|webp|svg)$/i.test(fileName)
+  );
+};
+
 export default function ExpenseClaims() {
   const { user } = useAuth();
   const { canPerformModuleAction } = useRole();
@@ -672,6 +694,14 @@ export default function ExpenseClaims() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!isValidExpenseImageFile(file)) {
+        const message = "Only image files are allowed. PDF files cannot be uploaded for expense claims.";
+        setError(message);
+        showToast.error(message);
+        e.target.value = "";
+        return;
+      }
+
       // First scan the receipt for OCR data
       setScanning(true);
       setError(null);
@@ -2119,10 +2149,10 @@ export default function ExpenseClaims() {
                         <span className="text-xs sm:text-sm text-muted-foreground text-center">
                           {scanning ? "Scanning..." : editReceipt?.path ? "Replace receipt" : "Click to upload & scan"}
                         </span>
-                        <span className="text-xs text-muted-foreground">PDF, PNG, JPG, JPEG, WebP, SVG up to 10MB</span>
+                        <span className="text-xs text-muted-foreground">PNG, JPG, JPEG, WebP, SVG up to 10MB</span>
                       </div>
                     </div>
-                    <input type="file" className="hidden" onChange={handleFileUpload} accept=".pdf,.png,.jpg,.jpeg,.webp,.svg" disabled={scanning} />
+                    <input type="file" className="hidden" onChange={handleFileUpload} accept=".png,.jpg,.jpeg,.webp,.svg,image/*" disabled={scanning} />
                   </label>
                 </div>
               ) : (
@@ -2234,10 +2264,17 @@ export default function ExpenseClaims() {
                             <input
                               id={`receipt-${index}`}
                               type="file"
-                              accept=".pdf,.png,.jpg,.jpeg,.webp,.svg"
+                              accept=".png,.jpg,.jpeg,.webp,.svg,image/*"
                               className="hidden"
                               onChange={(e) => {
                                 const file = e.target.files?.[0] || null;
+                                if (file && !isValidExpenseImageFile(file)) {
+                                  const message = "Only image files are allowed. PDF files cannot be uploaded for expense claims.";
+                                  setError(message);
+                                  showToast.error(message);
+                                  e.target.value = "";
+                                  return;
+                                }
                                 updateRow(index, { receiptFile: file, receiptPath: null });
                               }}
                             />

@@ -31,8 +31,6 @@ const mockCompany: Company = {
   address: "123 Tech Park, Bangalore, India",
   payrollCycle: "Monthly",
   timezone: "IST",
-  esslEnabled: false,
-  esslApiKeyConfigured: false,
   createdAt: "2024-01-01",
 };
 
@@ -483,7 +481,7 @@ export default function OrganizationSetup() {
 
   const confirmDelete = async () => {
     if (!deleteId) return;
-    
+
     setDeleting(true);
     try {
       if (activeTab === "branches") {
@@ -648,8 +646,8 @@ export default function OrganizationSetup() {
                         <p className="text-gray-600 mt-1">{company?.legalName}</p>
                       </div>
                     </div>
-                    <Button 
-                      onClick={() => handleOpenDialog(company)} 
+                    <Button
+                      onClick={() => handleOpenDialog(company)}
                       className="bg-[#17c491] hover:bg-[#17c491]/90 text-white shadow-md transition-all duration-200 hover:shadow-lg"
                     >
                       <Edit className="w-4 h-4 mr-2" />
@@ -764,107 +762,32 @@ export default function OrganizationSetup() {
               {/* Data Card */}
               <Card className="shadow-sm border-0 bg-white">
                 <CardContent className="pt-6">
-                {error.branches && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error.branches}</p>
-                  </div>
-                )}
-                {loading.branches ? (
-                  <div className="flex justify-center items-center py-8">
-                    <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-                    <span className="ml-2 text-sm text-muted-foreground">Loading branches...</span>
-                  </div>
-                ) : (
-                  <>
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
-                  {filteredBranches.map((branch) => (
-                    <div key={branch.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                              <Building2 className="w-4 h-4 text-[#17c491]" />
-                            </div>
-                            <h3 className="font-bold text-base text-gray-900">{branch.name}</h3>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => handleOpenDialog(branch)}
-                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(branch.id)}
-                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between p-3 bg-white rounded-lg border border-gray-100">
-                          <span className="text-sm font-medium text-gray-500">Address</span>
-                          <span className="font-medium text-gray-900 text-right ml-2">{branch.address}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                            <span className="text-sm font-medium text-gray-500">Coordinates</span>
-                            <span className="font-mono text-xs font-bold text-[#17c491]">{branch.coordinates}</span>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                            <span className="text-sm font-medium text-gray-500">Radius</span>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                              {branch.radius} m
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                  {error.branches && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-600">{error.branches}</p>
                     </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block">
-                  <div className="overflow-x-auto rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Branch Name</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Address</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Coordinates</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Radius</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredBranches.map((branch, index) => (
-                          <tr key={branch.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                                  <Building2 className="w-4 h-4 text-[#17c491]" />
+                  )}
+                  {loading.branches ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+                      <span className="ml-2 text-sm text-muted-foreground">Loading branches...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="md:hidden space-y-3">
+                        {filteredBranches.map((branch) => (
+                          <div key={branch.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                    <Building2 className="w-4 h-4 text-[#17c491]" />
+                                  </div>
+                                  <h3 className="font-bold text-base text-gray-900">{branch.name}</h3>
                                 </div>
-                                <span className="font-semibold text-gray-900">{branch.name}</span>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 text-gray-900 max-w-xs truncate" title={branch.address}>
-                              {branch.address}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
-                                {branch.coordinates}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                                {branch.radius} m
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-2">
+                              <div className="flex gap-2 flex-shrink-0">
                                 <button
                                   onClick={() => handleOpenDialog(branch)}
                                   className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
@@ -878,17 +801,92 @@ export default function OrganizationSetup() {
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
-                            </td>
-                          </tr>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between p-3 bg-white rounded-lg border border-gray-100">
+                                <span className="text-sm font-medium text-gray-500">Address</span>
+                                <span className="font-medium text-gray-900 text-right ml-2">{branch.address}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                                  <span className="text-sm font-medium text-gray-500">Coordinates</span>
+                                  <span className="font-mono text-xs font-bold text-[#17c491]">{branch.coordinates}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                                  <span className="text-sm font-medium text-gray-500">Radius</span>
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                                    {branch.radius} m
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                </>
-                )}
-              </CardContent>
-            </Card>
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block">
+                        <div className="overflow-x-auto rounded-xl border border-gray-200">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Branch Name</th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Address</th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Coordinates</th>
+                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">Radius</th>
+                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredBranches.map((branch, index) => (
+                                <tr key={branch.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                        <Building2 className="w-4 h-4 text-[#17c491]" />
+                                      </div>
+                                      <span className="font-semibold text-gray-900">{branch.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-gray-900 max-w-xs truncate" title={branch.address}>
+                                    {branch.address}
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
+                                      {branch.coordinates}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                                      {branch.radius} m
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        onClick={() => handleOpenDialog(branch)}
+                                        className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(branch.id)}
+                                        className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -921,91 +919,32 @@ export default function OrganizationSetup() {
               {/* Data Card */}
               <Card className="shadow-sm border-0 bg-white">
                 <CardContent className="pt-6">
-                {error.departments && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error.departments}</p>
-                  </div>
-                )}
-                {loading.departments ? (
-                  <div className="flex justify-center items-center py-8">
-                    <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-                    <span className="ml-2 text-sm text-muted-foreground">Loading departments...</span>
-                  </div>
-                ) : (
-                  <>
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
-                  {filteredDepartments.map((dept) => (
-                    <div key={dept.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                              <Building2 className="w-4 h-4 text-[#17c491]" />
-                            </div>
-                            <h3 className="font-bold text-base text-gray-900">{dept.name}</h3>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => handleOpenDialog(dept)}
-                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(dept.id)}
-                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                          <span className="text-sm font-medium text-gray-500">Cost Center</span>
-                          <span className="font-bold text-[#17c491]">{dept.costCenter}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                          <span className="text-sm font-medium text-gray-500">Department Head</span>
-                          <span className="font-bold text-gray-900">{dept.head}</span>
-                        </div>
-                      </div>
+                  {error.departments && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-600">{error.departments}</p>
                     </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block">
-                  <div className="overflow-x-auto rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Name</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Cost Center</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Head</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredDepartments.map((dept, index) => (
-                          <tr key={dept.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                                  <Building2 className="w-4 h-4 text-[#17c491]" />
+                  )}
+                  {loading.departments ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+                      <span className="ml-2 text-sm text-muted-foreground">Loading departments...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="md:hidden space-y-3">
+                        {filteredDepartments.map((dept) => (
+                          <div key={dept.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                    <Building2 className="w-4 h-4 text-[#17c491]" />
+                                  </div>
+                                  <h3 className="font-bold text-base text-gray-900">{dept.name}</h3>
                                 </div>
-                                <span className="font-semibold text-gray-900">{dept.name}</span>
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
-                                {dept.costCenter}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 font-medium text-gray-900">{dept.head}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-2">
+                              <div className="flex gap-2 flex-shrink-0">
                                 <button
                                   onClick={() => handleOpenDialog(dept)}
                                   className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
@@ -1019,17 +958,76 @@ export default function OrganizationSetup() {
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
-                            </td>
-                          </tr>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                                <span className="text-sm font-medium text-gray-500">Cost Center</span>
+                                <span className="font-bold text-[#17c491]">{dept.costCenter}</span>
+                              </div>
+                              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+                                <span className="text-sm font-medium text-gray-500">Department Head</span>
+                                <span className="font-bold text-gray-900">{dept.head}</span>
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                </>
-                )}
-              </CardContent>
-            </Card>
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block">
+                        <div className="overflow-x-auto rounded-xl border border-gray-200">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Name</th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Cost Center</th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Head</th>
+                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredDepartments.map((dept, index) => (
+                                <tr key={dept.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                        <Building2 className="w-4 h-4 text-[#17c491]" />
+                                      </div>
+                                      <span className="font-semibold text-gray-900">{dept.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
+                                      {dept.costCenter}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 font-medium text-gray-900">{dept.head}</td>
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button
+                                        onClick={() => handleOpenDialog(dept)}
+                                        className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(dept.id)}
+                                        className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -1062,85 +1060,85 @@ export default function OrganizationSetup() {
               {/* Data Card */}
               <Card className="shadow-sm border-0 bg-white">
                 <CardContent className="pt-6">
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
-                  {filteredDesignations.map((des) => (
-                    <div key={des.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                              <Hash className="w-4 h-4 text-[#17c491]" />
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {filteredDesignations.map((des) => (
+                      <div key={des.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                <Hash className="w-4 h-4 text-[#17c491]" />
+                              </div>
+                              <h3 className="font-bold text-base text-gray-900">{des.name}</h3>
                             </div>
-                            <h3 className="font-bold text-base text-gray-900">{des.name}</h3>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleOpenDialog(des)}
+                              className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(des.id)}
+                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => handleOpenDialog(des)}
-                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(des.id)}
-                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="space-y-3">
                         </div>
                       </div>
-                      <div className="space-y-3">
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block">
-                  <div className="overflow-x-auto rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Designation Name</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredDesignations.map((des, index) => (
-                          <tr key={des.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                                  <Hash className="w-4 h-4 text-[#17c491]" />
-                                </div>
-                                <span className="font-semibold text-gray-900">{des.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => handleOpenDialog(des)}
-                                  className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(des.id)}
-                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block">
+                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Designation Name</th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDesignations.map((des, index) => (
+                            <tr key={des.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                    <Hash className="w-4 h-4 text-[#17c491]" />
+                                  </div>
+                                  <span className="font-semibold text-gray-900">{des.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleOpenDialog(des)}
+                                    className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(des.id)}
+                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -1174,136 +1172,136 @@ export default function OrganizationSetup() {
               {/* Data Card */}
               <Card className="shadow-sm border-0 bg-white">
                 <CardContent className="pt-6">
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
-                  {filteredSequences.map((seq) => (
-                    <div key={seq.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                              <Hash className="w-4 h-4 text-[#17c491]" />
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {filteredSequences.map((seq) => (
+                      <div key={seq.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                <Hash className="w-4 h-4 text-[#17c491]" />
+                              </div>
+                              <h3 className="font-bold text-base text-gray-900 capitalize">{seq.module}</h3>
                             </div>
-                            <h3 className="font-bold text-base text-gray-900 capitalize">{seq.module}</h3>
+                            <p className="text-xs text-gray-500 font-mono">Prefix: <span className="font-bold text-[#17c491]">{seq.prefix}</span></p>
                           </div>
-                          <p className="text-xs text-gray-500 font-mono">Prefix: <span className="font-bold text-[#17c491]">{seq.prefix}</span></p>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleOpenDialog(seq)}
+                              className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(seq.id.toString())}
+                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => handleOpenDialog(seq)}
-                            className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(seq.id.toString())}
-                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="space-y-3 bg-white rounded-lg p-3 border border-gray-100">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
+                              <p className="text-xs text-gray-500">Start</p>
+                              <p className="font-bold text-[#17c491]">{seq.start_number}</p>
+                            </div>
+                            <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
+                              <p className="text-xs text-gray-500">Current</p>
+                              <p className="font-bold text-[#17c491]">{seq.current_number}</p>
+                            </div>
+                            <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
+                              <p className="text-xs text-gray-500">Length</p>
+                              <p className="font-bold text-[#17c491]">{seq.number_length}</p>
+                            </div>
+                          </div>
+                          <div className="border-t pt-3">
+                            <p className="text-xs text-gray-500 mb-2">Sample Format:</p>
+                            <div className="bg-[#17c491] text-white p-2 rounded font-mono text-sm text-center">
+                              {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-3 bg-white rounded-lg p-3 border border-gray-100">
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
-                            <p className="text-xs text-gray-500">Start</p>
-                            <p className="font-bold text-[#17c491]">{seq.start_number}</p>
-                          </div>
-                          <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
-                            <p className="text-xs text-gray-500">Current</p>
-                            <p className="font-bold text-[#17c491]">{seq.current_number}</p>
-                          </div>
-                          <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
-                            <p className="text-xs text-gray-500">Length</p>
-                            <p className="font-bold text-[#17c491]">{seq.number_length}</p>
-                          </div>
-                        </div>
-                        <div className="border-t pt-3">
-                          <p className="text-xs text-gray-500 mb-2">Sample Format:</p>
-                          <div className="bg-[#17c491] text-white p-2 rounded font-mono text-sm text-center">
-                            {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block">
-                  <div className="overflow-x-auto rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Module</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Prefix</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Start</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Current</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Length</th>
-                          <th className="text-left px-6 py-4 font-bold text-[#17c491]">Sample Format</th>
-                          <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredSequences.map((seq, index) => (
-                          <tr key={seq.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                                  <Hash className="w-4 h-4 text-[#17c491]" />
-                                </div>
-                                <span className="font-semibold text-gray-900 capitalize">{seq.module}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
-                                {seq.prefix}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/20 text-[#17c491]">
-                                {seq.start_number}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
-                                {seq.current_number}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
-                                {seq.number_length}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="bg-[#17c491] text-white px-3 py-1 rounded font-mono text-sm text-center">
-                                {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => handleOpenDialog(seq)}
-                                  className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(seq.id.toString())}
-                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block">
+                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Module</th>
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Prefix</th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Start</th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Current</th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Length</th>
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Sample Format</th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSequences.map((seq, index) => (
+                            <tr key={seq.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-[#17c491]/10 rounded-lg">
+                                    <Hash className="w-4 h-4 text-[#17c491]" />
+                                  </div>
+                                  <span className="font-semibold text-gray-900 capitalize">{seq.module}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
+                                  {seq.prefix}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/20 text-[#17c491]">
+                                  {seq.start_number}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
+                                  {seq.current_number}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
+                                  {seq.number_length}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="bg-[#17c491] text-white px-3 py-1 rounded font-mono text-sm text-center">
+                                  {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleOpenDialog(seq)}
+                                    className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(seq.id.toString())}
+                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>
@@ -1393,54 +1391,6 @@ export default function OrganizationSetup() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <Label className="text-sm font-medium">Enable ESSL Integration</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Toggle this on to accept biometric punch data for this company.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={Boolean(formData.esslEnabled)}
-                      onCheckedChange={(checked) =>
-                        setFormData({ ...formData, esslEnabled: checked })
-                      }
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>ESSL API Key</Label>
-                      <Input
-                        value={formData.esslApiKey || ""}
-                        onChange={(e) =>
-                          setFormData({ ...formData, esslApiKey: e.target.value })
-                        }
-                        className="mt-2"
-                        placeholder="Enter company-specific ESSL secret"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Vendor software will send this key with each punch request.
-                      </p>
-                    </div>
-                    <div>
-                      <Label>Company Code</Label>
-                      <Input
-                        value={company?.companyId || ""}
-                        className="mt-2"
-                        disabled
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Use this value as `company_code` in machine or middleware config.
-                      </p>
-                    </div>
-                  </div>
-                  {company?.esslApiKeyConfigured && !formData.esslApiKey ? (
-                    <p className="text-xs text-emerald-700">
-                      ESSL API key already configured for this company. Leave blank to keep the existing key.
-                    </p>
-                  ) : null}
                 </div>
                 <div>
                   <Label>Company Logo</Label>

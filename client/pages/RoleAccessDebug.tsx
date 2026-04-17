@@ -52,7 +52,7 @@ const FALLBACK_CATALOG: RbacModuleCatalog[] = [
   { key: "client_attendance_admin", label: "Client Attendance Admin", submodules: [] },
   { key: "my_clients", label: "My Clients", submodules: [] },
   { key: "my_analytics", label: "My Analytics", submodules: [] },
-  { key: "attendance", label: "Attendance", submodules: [{ key: "capture", label: "Check-In/Out" }, { key: "log", label: "Attendance Log" }, { key: "override", label: "Override" }, { key: "shift", label: "Shift Management" }] },
+  { key: "attendance", label: "Attendance", submodules: [{ key: "capture", label: "Check-In/Out" }, { key: "log", label: "Attendance Log" }, { key: "override", label: "Override" }, { key: "shift", label: "Shift Management" }, { key: "setup", label: "ESSL Setup" }] },
   { key: "shift_management", label: "Shift Management", submodules: [] },
   { key: "live_tracking", label: "Live Tracking", submodules: [] },
   { key: "leave", label: "Leave", submodules: [{ key: "apply", label: "Apply Leave" }, { key: "balance", label: "Leave Balance" }, { key: "approvals", label: "Leave Approvals" }, { key: "config", label: "Leave Config" }, { key: "leave_types", label: "Leave Types" }, { key: "applications", label: "Applications" }, { key: "permission", label: "Permission" }, { key: "configuration", label: "Configuration" }] },
@@ -348,13 +348,13 @@ export default function RoleAccessDebug() {
       const next = { ...prev };
       catalog.forEach((module) => {
         const moduleEntry = next[module.key] || { permissions: emptyPermissionSet(), submodules: {} };
-        
+
         // Toggle all actions for the module
         actions.forEach((action) => {
           moduleEntry.permissions[action] = value ? 1 : 0;
           if (action === "update") moduleEntry.permissions.edit = value ? 1 : 0;
         });
-        
+
         // Toggle all actions for all submodules
         module.submodules.forEach((submodule) => {
           moduleEntry.submodules[submodule.key] = moduleEntry.submodules[submodule.key] || {
@@ -365,7 +365,7 @@ export default function RoleAccessDebug() {
             if (action === "update") moduleEntry.submodules[submodule.key].permissions.edit = value ? 1 : 0;
           });
         });
-        
+
         next[module.key] = moduleEntry;
       });
       return next;
@@ -376,16 +376,16 @@ export default function RoleAccessDebug() {
     return catalog.every((module) => {
       const moduleEntry = formModules[module.key];
       if (!moduleEntry) return false;
-      
+
       // Check if all actions are selected for the module
       const allModuleActionsSelected = actions.every((action) => moduleEntry.permissions[action] === 1);
-      
+
       // Check if all actions are selected for all submodules
       const allSubmoduleActionsSelected = module.submodules.every((submodule) => {
         const submoduleEntry = moduleEntry.submodules[submodule.key];
         return submoduleEntry && actions.every((action) => submoduleEntry.permissions[action] === 1);
       });
-      
+
       return allModuleActionsSelected && allSubmoduleActionsSelected;
     });
   };
@@ -414,12 +414,12 @@ export default function RoleAccessDebug() {
           <Crown className="w-4 h-4 text-amber-500" />
           Role Name
         </Label>
-        <Input 
-          id="role_name" 
-          className="h-12 bg-white border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl shadow-sm transition-all duration-200" 
-          value={formName} 
-          onChange={(e) => setFormName(e.target.value)} 
-          placeholder="e.g. HR Manager" 
+        <Input
+          id="role_name"
+          className="h-12 bg-white border-2 border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl shadow-sm transition-all duration-200"
+          value={formName}
+          onChange={(e) => setFormName(e.target.value)}
+          placeholder="e.g. HR Manager"
         />
       </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
@@ -473,8 +473,8 @@ export default function RoleAccessDebug() {
                   {actions.map((action) => (
                     <td key={action} className="p-2 sm:p-4 text-center">
                       <div className="flex justify-center">
-                        <Switch 
-                          checked={formModules[module.key]?.permissions?.[action] === 1} 
+                        <Switch
+                          checked={formModules[module.key]?.permissions?.[action] === 1}
                           onCheckedChange={(checked) => togglePermission(module.key, action, checked)}
                           className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-emerald-500 data-[state=checked]:to-teal-500 scale-75 sm:scale-100"
                         />
@@ -483,8 +483,8 @@ export default function RoleAccessDebug() {
                   ))}
                 </tr>
                 {module.submodules.map((submodule, subIndex) => (
-                  <tr 
-                    key={`${module.key}-${submodule.key}`} 
+                  <tr
+                    key={`${module.key}-${submodule.key}`}
                     className={`border-t border-slate-100 ${subIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-gradient-to-r hover:from-emerald-50/30 hover:to-teal-50/30 transition-all duration-200`}
                   >
                     <td className="p-2 sm:p-4 pl-6 sm:pl-12 text-slate-600 flex items-center gap-1 sm:gap-2">
@@ -511,9 +511,9 @@ export default function RoleAccessDebug() {
         </table>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
-        <Button 
-          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-4 py-2 sm:px-6 sm:py-3 rounded-xl text-sm sm:text-base w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed" 
-          onClick={saveForm} 
+        <Button
+          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-4 py-2 sm:px-6 sm:py-3 rounded-xl text-sm sm:text-base w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+          onClick={saveForm}
           disabled={!formName.trim() || loading}
         >
           {loading ? (
@@ -528,8 +528,8 @@ export default function RoleAccessDebug() {
             </>
           )}
         </Button>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={cancelForm}
           className="border-2 border-slate-300 hover:bg-slate-50 font-medium px-4 py-2 sm:px-6 sm:py-3 rounded-xl transition-all duration-200 w-full sm:w-auto"
         >
@@ -548,23 +548,23 @@ export default function RoleAccessDebug() {
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 backdrop-blur-3xl"></div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-          
+
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-wrap items-center justify-between gap-4 lg:gap-6">
-                <div className="text-center lg:text-left">
-                  <div className="flex items-center justify-center lg:justify-start gap-2 lg:gap-3">
-                    <div className="p-2 lg:p-3 bg-white/20 backdrop-blur-sm rounded-xl lg:rounded-2xl border border-white/30">
-                      <ShieldCheck className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-2xl lg:text-3xl xl:text-4xl font-black tracking-tight text-white flex items-center justify-center lg:justify-start gap-2 lg:gap-3">
-                        Role Access Debug
-                        <Sparkles className="w-4 h-4 lg:w-6 lg:h-6 text-yellow-300 animate-pulse" />
-                      </h1>
-                      <p className="text-white/90 text-xs sm:text-sm lg:text-base mt-1 lg:mt-2 font-medium text-center lg:text-left">Configure module and submodule permissions with advanced matrix controls</p>
-                    </div>
+              <div className="text-center lg:text-left">
+                <div className="flex items-center justify-center lg:justify-start gap-2 lg:gap-3">
+                  <div className="p-2 lg:p-3 bg-white/20 backdrop-blur-sm rounded-xl lg:rounded-2xl border border-white/30">
+                    <ShieldCheck className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl xl:text-4xl font-black tracking-tight text-white flex items-center justify-center lg:justify-start gap-2 lg:gap-3">
+                      Role Access Debug
+                      <Sparkles className="w-4 h-4 lg:w-6 lg:h-6 text-yellow-300 animate-pulse" />
+                    </h1>
+                    <p className="text-white/90 text-xs sm:text-sm lg:text-base mt-1 lg:mt-2 font-medium text-center lg:text-left">Configure module and submodule permissions with advanced matrix controls</p>
                   </div>
                 </div>
+              </div>
               <div className="flex flex-wrap justify-center gap-2 lg:gap-3">
                 <div className="bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl px-3 py-2 lg:px-4 lg:py-2">
                   <div className="flex items-center gap-1 lg:gap-2 text-white">
@@ -604,10 +604,10 @@ export default function RoleAccessDebug() {
             <CardDescription className="text-slate-600 font-medium">Manage role-based access control with {actions.join(", ")} actions.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:flex-wrap gap-2 lg:gap-3 pt-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={bootstrap} 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={bootstrap}
               disabled={loading}
               className="w-full sm:w-auto border-2 border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 font-medium px-3 py-2 lg:px-6 lg:py-3 rounded-xl transition-all duration-200 text-sm lg:text-base"
             >
@@ -615,9 +615,9 @@ export default function RoleAccessDebug() {
               <span className="hidden sm:inline">Refresh Data</span>
               <span className="sm:hidden">Refresh</span>
             </Button>
-            <Button 
-              size="sm" 
-              className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-3 py-2 lg:px-6 lg:py-3 rounded-xl text-sm lg:text-base" 
+            <Button
+              size="sm"
+              className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-200 px-3 py-2 lg:px-6 lg:py-3 rounded-xl text-sm lg:text-base"
               onClick={beginCreate}
             >
               <Plus className="w-3 h-3 lg:w-5 lg:h-5 mr-1 lg:mr-2" />
@@ -669,36 +669,36 @@ export default function RoleAccessDebug() {
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-0">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => copyRole(role)}
-                        className="border-2 border-slate-300 hover:bg-slate-50 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm"
-                      >
-                        <Copy className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span className="hidden xs:inline">Copy</span>
-                        <span className="xs:hidden">📋</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => beginEdit(role)}
-                        className="border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm"
-                      >
-                        <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span className="hidden xs:inline">Edit</span>
-                        <span className="xs:hidden">✏️</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-2 border-red-300 hover:bg-red-50 text-red-600 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm" 
-                        onClick={() => deleteRole(role.id)}
-                      >
-                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span className="hidden xs:inline">Delete</span>
-                        <span className="xs:hidden">🗑️</span>
-                      </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyRole(role)}
+                      className="border-2 border-slate-300 hover:bg-slate-50 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm"
+                    >
+                      <Copy className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden xs:inline">Copy</span>
+                      <span className="xs:hidden">📋</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => beginEdit(role)}
+                      className="border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm"
+                    >
+                      <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden xs:inline">Edit</span>
+                      <span className="xs:hidden">✏️</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-2 border-red-300 hover:bg-red-50 text-red-600 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm"
+                      onClick={() => deleteRole(role.id)}
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden xs:inline">Delete</span>
+                      <span className="xs:hidden">🗑️</span>
+                    </Button>
                   </div>
                 </div>
                 {isEditorOpen && editorPlacement === "inline" && !addingNewRole && editingRoleId === role.id && (
@@ -758,8 +758,8 @@ export default function RoleAccessDebug() {
                                 ))}
                               </tr>
                               {module.submodules.map((submodule, subIndex) => (
-                                <tr 
-                                  key={`${role.id}-${module.key}-${submodule.key}`} 
+                                <tr
+                                  key={`${role.id}-${module.key}-${submodule.key}`}
                                   className={`border-t border-slate-100 ${subIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'} hover:bg-gradient-to-r hover:from-emerald-50/30 hover:to-teal-50/30 transition-all duration-200`}
                                 >
                                   <td className="p-4 pl-12 text-slate-600 flex items-center gap-2">
