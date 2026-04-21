@@ -18,7 +18,7 @@ type TrackedEmployee = {
   name?: string;
   latitude?: number | null;
   longitude?: number | null;
-  trackingStatus?: "active" | "offline";
+  trackingStatus?: "active" | "idle" | "offline";
   locationTimestamp?: string | null;
   accuracy?: number | null;
 };

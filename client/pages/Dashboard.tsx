@@ -445,7 +445,7 @@ const AdminDashboard = () => {
       try {
         setLoading(true);
         const result = await getAdminDashboardData();
-        
+
         if (result.error) {
           setError(result.error);
         } else {
@@ -474,7 +474,7 @@ const AdminDashboard = () => {
   if (!dashboardData) {
     return <div>No data available</div>;
   }
-  
+
   console.log('Dashboard Data:', dashboardData); // Debug log
 
   // Destructure the data with defaults
@@ -803,7 +803,7 @@ const AdminDashboard = () => {
       <div className="space-y-5">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5] dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5] dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
               <CardTitle className="flex items-center gap-2 text-[#0d5f49] dark:text-emerald-300">
                 <TrendingUp className="h-5 w-5 text-[#17c491]" />
                 Leave Utilization
@@ -821,14 +821,49 @@ const AdminDashboard = () => {
                   </div>
                 ))}
                 {(!leaveData || leaveData.length === 0) && (
-                  <p className="py-4 text-center text-sm text-[#2f6f5f] dark:text-emerald-200/80">No leave utilization data</p>
+                  <>
+                    {/* Dummy Leave Data - Replace with real data when available */}
+                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="font-medium text-slate-700 dark:text-slate-100">Casual Leave</span>
+                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        12
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="font-medium text-slate-700 dark:text-slate-100">Sick Leave</span>
+                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        8
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="font-medium text-slate-700 dark:text-slate-100">Earned Leave</span>
+                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        15
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="font-medium text-slate-700 dark:text-slate-100">Maternity Leave</span>
+                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        180
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="font-medium text-slate-700 dark:text-slate-100">Paternity Leave</span>
+                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                        15
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs text-center text-gray-400 italic">
+                      * Sample data - Real data will appear when available
+                    </div>
+                  </>
                 )}
               </div>
             </CardContent>
           </Card>
 
           <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
               <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
                 <Clock className="h-5 w-5 text-[#17c491]" />
                 Recent Activities
@@ -856,7 +891,7 @@ const AdminDashboard = () => {
           </Card>
 
           <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
               <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
                 <Users className="h-5 w-5 text-[#17c491]" />
                 Recent Joinings
@@ -888,7 +923,7 @@ const AdminDashboard = () => {
           </Card>
 
           <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
               <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
                 <Calendar className="h-5 w-5 text-[#17c491]" />
                 Upcoming Birthdays
@@ -914,7 +949,7 @@ const AdminDashboard = () => {
           </Card>
 
           <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-          <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
+            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
               <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
                 <Calendar className="h-5 w-5 text-[#17c491]" />
                 Upcoming Holidays
@@ -1051,7 +1086,7 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
           getEmployeeDashboardData(),
           leaveTypeApi.getLeaveBalances(),
         ]);
-        
+
         if (dashboardResult.error) {
           setError(dashboardResult.error);
         } else {
@@ -1208,7 +1243,7 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
       try {
         setLoading(true);
         const result = await getManagerDashboardData();
-        
+
         if (result.error) {
           setError(result.error);
         } else {
@@ -1364,7 +1399,7 @@ const HRDashboard = () => {
       try {
         setLoading(true);
         const result = await getHRDashboardData();
-        
+
         if (result.error) {
           setError(result.error);
         } else {
@@ -1472,7 +1507,7 @@ const FinanceDashboard = () => {
       try {
         setLoading(true);
         const result = await getFinanceDashboardData();
-        
+
         if (result.error) {
           setError(result.error);
         } else {

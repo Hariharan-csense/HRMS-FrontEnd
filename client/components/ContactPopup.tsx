@@ -20,8 +20,24 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
     organization: "",
     message: ""
   });
+  const [errors, setErrors] = useState({
+    phone: ""
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  const validatePhone = (phone: string): string => {
+    if (!phone.trim()) {
+      return "Phone number is required";
+    }
+    if (phone.length !== 10) {
+      return "Phone number must be exactly 10 digits";
+    }
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      return "Phone number must start with 6, 7, 8, or 9 and contain only digits";
+    }
+    return "";
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -29,14 +45,21 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
       ...prev,
       [name]: value
     }));
+
+    // Real-time phone validation
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      setFormData(prev => ({ ...prev, phone: digitsOnly }));
+      setErrors(prev => ({ ...prev, phone: validatePhone(digitsOnly) }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Validate form data
-    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.message.trim()) {
       showToast.error("Please fill in all required fields");
       setIsSubmitting(false);
       return;
@@ -46,8 +69,10 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
       setIsSubmitting(false);
       return;
     }
-    if (!isOptionalPhoneValid(formData.phone)) {
-      showToast.error("Phone number must be 10 digits and start with 6, 7, 8, or 9");
+    const phoneError = validatePhone(formData.phone);
+    if (phoneError) {
+      showToast.error(phoneError);
+      setErrors(prev => ({ ...prev, phone: phoneError }));
       setIsSubmitting(false);
       return;
     }
@@ -120,21 +145,21 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop with fade animation */}
-      <div 
+      <div
         className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-all duration-300"
         style={{
           opacity: isOpen ? 1 : 0,
         }}
         onClick={onClose}
       />
-      
+
       {/* Popup card with scale and slide animation */}
-      <div 
+      <div
         className="relative bg-white rounded-lg shadow-xl max-w-md w-full transform transition-all duration-500 ease-out"
         style={{
           opacity: isAnimating ? 1 : 0,
-          transform: isAnimating 
-            ? 'scale(1) translateY(0) translateX(0)' 
+          transform: isAnimating
+            ? 'scale(1) translateY(0) translateX(0)'
             : 'scale(0.7) translateY(20px) translateX(0)',
         }}
       >
@@ -187,7 +212,9 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-sm font-medium text-gray-700">Phone Number</Label>
+            <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+              Phone Number <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="phone"
               name="phone"
@@ -196,9 +223,17 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
               maxLength={10}
               value={formData.phone}
               onChange={handleInputChange}
-              placeholder="+91 9042894918"
-              className="border-gray-200 focus:border-green-500 focus:ring-green-500 transition-all duration-200"
+              placeholder="9042894918"
+              required
+              className={`transition-all duration-200 ${errors.phone
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-200 focus:border-green-500 focus:ring-green-500"
+                }`}
             />
+            {errors.phone && (
+              <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
+            )}
+            <p className="text-xs text-gray-500">10 digits, starts with 6-9</p>
           </div>
 
           <div className="space-y-2">
@@ -228,8 +263,8 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
             />
           </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200"
             disabled={isSubmitting}
           >

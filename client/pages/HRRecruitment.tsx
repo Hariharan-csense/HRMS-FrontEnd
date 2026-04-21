@@ -37,14 +37,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Users, 
+import {
+  Users,
   Plus,
   AlertCircle,
   Loader2,
   Upload,
   Pencil,
-  Trash2
+  Trash2,
+  Download,
+  FileSpreadsheet,
+  FileUp,
+  Search
 } from 'lucide-react';
 import ENDPOINTS from '@/lib/endpoint';
 import { isValidEmail, isValidPhone, normalizeEmail } from '@/lib/validation';
@@ -380,6 +384,7 @@ const HRRecruitment: React.FC = () => {
   const [excelFileName, setExcelFileName] = useState('');
   const lastCompletedRequestKeyRef = useRef<string | null>(null);
   const activeRequestKeyRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState(createEmptyCandidateForm);
 
@@ -522,7 +527,7 @@ const HRRecruitment: React.FC = () => {
       setError('Phone number must be 10 digits and start with 6, 7, 8, or 9');
       return;
     }
-    
+
     try {
       setSubmitting(true);
       const result = await ENDPOINTS.editCandidate(selectedCandidate.id, {
@@ -764,11 +769,86 @@ const HRRecruitment: React.FC = () => {
     }
   };
 
+  // Export all candidates to Excel
+  const handleExportToExcel = () => {
+    if (candidates.length === 0) {
+      showToast.error('No candidates to export');
+      return;
+    }
+
+    const exportData = candidates.map(candidate => ({
+      'Date of Creation': candidate.appliedDate || '',
+      'Client Name': candidate.clientName || '',
+      'Position': candidate.position || '',
+      'Job Location': candidate.jobLocation || '',
+      'Candidate Name': candidate.name || '',
+      'Age': candidate.age || '',
+      'Gender': candidate.gender || '',
+      'Native': candidate.nativePlace || '',
+      'Mobile No': candidate.phone || '',
+      'Mail Address': candidate.email || '',
+      'Highest Qualification': candidate.highestQualification || '',
+      'Total Exp': candidate.experience || '',
+      'Relevant Exp': candidate.relevantExperience || '',
+      'Current Employer': candidate.currentEmployer || '',
+      'Current Designation': candidate.currentDesignation || '',
+      'Current Location': candidate.currentLocation || '',
+      'CTC': candidate.ctc || '',
+      'ECTC': candidate.ectc || '',
+      'Notice Period': candidate.noticePeriod || '',
+      'Interview Remarks / Notes': candidate.notes || '',
+      'Status': candidate.status || '',
+      'Skills': candidate.skills || '',
+      'Source': candidate.source || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+    XLSX.writeFile(wb, `Candidates_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast.success(`Exported ${candidates.length} candidates to Excel`);
+  };
+
+  // Download empty template with headers only
+  const handleDownloadTemplate = () => {
+    const templateData = [{
+      'Date of Creation': '',
+      'Client Name': '',
+      'Position': '',
+      'Job Location': '',
+      'Candidate Name': '',
+      'Age': '',
+      'Gender': '',
+      'Native': '',
+      'Mobile No': '',
+      'Mail Address': '',
+      'Highest Qualification': '',
+      'Total Exp': '',
+      'Relevant Exp': '',
+      'Current Employer': '',
+      'Current Designation': '',
+      'Current Location': '',
+      'CTC': '',
+      'ECTC': '',
+      'Notice Period': '',
+      'Interview Remarks / Notes': '',
+      'Status': 'applied',
+      'Skills': '',
+      'Source': ''
+    }];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidate Template');
+    XLSX.writeFile(wb, 'Candidate_Import_Template.xlsx');
+    showToast.success('Template downloaded successfully');
+  };
+
   const filteredCandidates = candidates.filter(candidate => {
     const matchesSearch = (candidate.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (candidate.clientName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (candidate.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                         (candidate.position?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (candidate.clientName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (candidate.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (candidate.position?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -780,41 +860,6 @@ const HRRecruitment: React.FC = () => {
           <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold break-words">Recruitment Management</h1>
             <p className="text-gray-600 text-sm sm:text-base mt-1">Manage job applications and recruitment process</p>
-          </div>
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <div className="w-full sm:w-auto">
-              <Label
-                htmlFor="candidate-excel-upload-page"
-                className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition sm:w-auto ${
-                  importingExcel
-                    ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                    : 'cursor-pointer border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
-                }`}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {importingExcel ? 'Importing...' : 'Upload Excel'}
-              </Label>
-              <input
-                id="candidate-excel-upload-page"
-                type="file"
-                accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={(event) => handleCandidateExcelUpload(event, 'page')}
-                disabled={importingExcel}
-                className="hidden"
-              />
-            </div>
-            <Button
-              onClick={() => {
-                setFormData(createEmptyCandidateForm());
-                setExcelFileName('');
-                setError(null);
-                setIsDialogOpen(true);
-              }}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Candidate
-            </Button>
           </div>
         </div>
 
@@ -845,24 +890,76 @@ const HRRecruitment: React.FC = () => {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Action Buttons */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-col gap-4">
-              <div className="flex-1">
-                <Label htmlFor="search">Search Candidates</Label>
-                <Input
-                  id="search"
-                  placeholder="Search by candidate, client, email, or position..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="status">Status Filter</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => {
+                  setFormData(createEmptyCandidateForm());
+                  setExcelFileName('');
+                  setError(null);
+                  setIsDialogOpen(true);
+                }}
+                className="gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Candidate
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportToExcel}
+                className="gap-2"
+                disabled={candidates.length === 0}
+              >
+                <Download className="w-4 h-4" />
+                Export Excel
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDownloadTemplate}
+                className="gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Template
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-2"
+              >
+                <FileUp className="w-4 h-4" />
+                Import
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(event) => handleCandidateExcelUpload(event, 'page')}
+                disabled={importingExcel}
+                className="hidden"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="text-xl font-semibold text-gray-900">Candidates</CardTitle>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search candidates..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 w-full sm:w-64"
+                  />
+                </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
@@ -876,12 +973,6 @@ const HRRecruitment: React.FC = () => {
                 </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-900">Candidates</CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
             {loading ? (
@@ -897,215 +988,215 @@ const HRRecruitment: React.FC = () => {
               </div>
             ) : (
               <>
-            {/* Mobile Card Layout */}
-            <div className="sm:hidden space-y-4">
-              {filteredCandidates.map((candidate) => (
-                <Card key={candidate.id} className="border border-gray-200">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-base">{candidate.name}</h3>
-                        <p className="text-sm text-gray-500">{candidate.clientName}</p>
-                        <p className="text-sm text-gray-600 mt-1">{candidate.position}</p>
-                        <p className="text-xs text-gray-500">{candidate.email}</p>
-                      </div>
-                      <Badge className={`${getStatusColor(candidate.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
-                        {candidate.status}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Job Location</span>
-                        <span className="text-sm text-gray-900">{candidate.jobLocation || '-'}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Total Exp</span>
-                        <span className="text-sm text-gray-900">{candidate.experience}</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Applied</span>
-                        <span className="text-sm text-gray-900">{candidate.appliedDate}</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">ECTC</span>
-                        <span className="text-sm text-gray-900">{candidate.ectc || '-'}</span>
-                      </div>
-                      
-                      <div className="flex justify-end space-x-2 pt-2 border-t">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            openEditDialog(candidate);
-                          }}
-                          className="h-8 px-3"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            handleDelete(candidate);
-                          }}
-                          className="h-8 px-3 text-red-600 hover:text-red-700"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Desktop Table Layout */}
-            <div className="hidden sm:block overflow-x-auto">
-              <Table className="min-w-[2200px]">
-                <TableHeader>
-                  <TableRow className="border-b border-gray-200">
-                    <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Creation</TableHead>
-                    <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</TableHead>
-                    <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</TableHead>
-                    <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Location</TableHead>
-                    <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</TableHead>
-                    <TableHead className="min-w-[80px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</TableHead>
-                    <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Native</TableHead>
-                    <TableHead className="min-w-[130px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile No</TableHead>
-                    <TableHead className="min-w-[180px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mail Address</TableHead>
-                    <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Highest Qualification</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Exp</TableHead>
-                    <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relevant Exp</TableHead>
-                    <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Employer</TableHead>
-                    <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Designation</TableHead>
-                    <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Location</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTC</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ECTC</TableHead>
-                    <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notice Period</TableHead>
-                    <TableHead className="min-w-[180px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interview Remarks / Notes</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="bg-white divide-y divide-gray-200">
+                {/* Mobile Card Layout */}
+                <div className="sm:hidden space-y-4">
                   {filteredCandidates.map((candidate) => (
-                    <TableRow key={candidate.id} className="hover:bg-gray-50 transition-colors">
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.appliedDate}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.clientName || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.position || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.jobLocation || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div>
-                          <div className="font-semibold text-gray-900 text-sm">{candidate.name}</div>
-                          <div className="text-xs sm:text-sm text-gray-500 mt-1">{candidate.email}</div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              openEditDialog(candidate);
-                            }}
-                            className="mt-2 h-7 w-7 p-0 text-blue-700 hover:text-blue-800"
-                            aria-label={`Edit ${candidate.name}`}
-                            title="Edit candidate"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              handleDelete(candidate);
-                            }}
-                            className="mt-2 ml-1 h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                            aria-label={`Delete ${candidate.name}`}
-                            title="Delete candidate"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                    <Card key={candidate.id} className="border border-gray-200">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 text-base">{candidate.name}</h3>
+                            <p className="text-sm text-gray-500">{candidate.clientName}</p>
+                            <p className="text-sm text-gray-600 mt-1">{candidate.position}</p>
+                            <p className="text-xs text-gray-500">{candidate.email}</p>
+                          </div>
+                          <Badge className={`${getStatusColor(candidate.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
+                            {candidate.status}
+                          </Badge>
                         </div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.age || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.gender || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.nativePlace || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.phone || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.email || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.highestQualification || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.experience || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.relevantExperience || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.currentEmployer || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.currentDesignation || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.currentLocation || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.ctc || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.ectc || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="text-sm text-gray-900">{candidate.noticePeriod || '-'}</div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <div className="max-w-[240px] truncate text-sm text-gray-900" title={candidate.notes || '-'}>
-                          {candidate.notes || '-'}
+
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Job Location</span>
+                            <span className="text-sm text-gray-900">{candidate.jobLocation || '-'}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Total Exp</span>
+                            <span className="text-sm text-gray-900">{candidate.experience}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Applied</span>
+                            <span className="text-sm text-gray-900">{candidate.appliedDate}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">ECTC</span>
+                            <span className="text-sm text-gray-900">{candidate.ectc || '-'}</span>
+                          </div>
+
+                          <div className="flex justify-end space-x-2 pt-2 border-t">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                openEditDialog(candidate);
+                              }}
+                              className="h-8 px-3"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                handleDelete(candidate);
+                              }}
+                              className="h-8 px-3 text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <Badge className={`${getStatusColor(candidate.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
-                          {candidate.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
+                      </CardContent>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-            </>
+                </div>
+
+                {/* Desktop Table Layout */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <Table className="min-w-[2200px]">
+                    <TableHeader>
+                      <TableRow className="border-b border-gray-200">
+                        <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Creation</TableHead>
+                        <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</TableHead>
+                        <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</TableHead>
+                        <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Location</TableHead>
+                        <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</TableHead>
+                        <TableHead className="min-w-[80px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</TableHead>
+                        <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</TableHead>
+                        <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Native</TableHead>
+                        <TableHead className="min-w-[130px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile No</TableHead>
+                        <TableHead className="min-w-[180px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mail Address</TableHead>
+                        <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Highest Qualification</TableHead>
+                        <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Exp</TableHead>
+                        <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relevant Exp</TableHead>
+                        <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Employer</TableHead>
+                        <TableHead className="min-w-[160px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Designation</TableHead>
+                        <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Location</TableHead>
+                        <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTC</TableHead>
+                        <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ECTC</TableHead>
+                        <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notice Period</TableHead>
+                        <TableHead className="min-w-[180px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interview Remarks / Notes</TableHead>
+                        <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="bg-white divide-y divide-gray-200">
+                      {filteredCandidates.map((candidate) => (
+                        <TableRow key={candidate.id} className="hover:bg-gray-50 transition-colors">
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.appliedDate}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.clientName || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.position || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.jobLocation || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div>
+                              <div className="font-semibold text-gray-900 text-sm">{candidate.name}</div>
+                              <div className="text-xs sm:text-sm text-gray-500 mt-1">{candidate.email}</div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  openEditDialog(candidate);
+                                }}
+                                className="mt-2 h-7 w-7 p-0 text-blue-700 hover:text-blue-800"
+                                aria-label={`Edit ${candidate.name}`}
+                                title="Edit candidate"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleDelete(candidate);
+                                }}
+                                className="mt-2 ml-1 h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                                aria-label={`Delete ${candidate.name}`}
+                                title="Delete candidate"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.age || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.gender || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.nativePlace || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.phone || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.email || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.highestQualification || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.experience || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.relevantExperience || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.currentEmployer || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.currentDesignation || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.currentLocation || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.ctc || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.ectc || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="text-sm text-gray-900">{candidate.noticePeriod || '-'}</div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <div className="max-w-[240px] truncate text-sm text-gray-900" title={candidate.notes || '-'}>
+                              {candidate.notes || '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
+                            <Badge className={`${getStatusColor(candidate.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
+                              {candidate.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -1120,19 +1211,18 @@ const HRRecruitment: React.FC = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-900">Upload Candidate Excel</p>
-                   
+
                     {excelFileName && (
                       <p className="mt-1 text-xs text-blue-700">Imported file: {excelFileName}</p>
                     )}
                   </div>
                   <div className="w-full sm:w-auto">
-                      <Label
+                    <Label
                       htmlFor="candidate-excel-upload"
-                      className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition sm:w-auto ${
-                        importingExcel
-                          ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                          : 'cursor-pointer border-blue-200 bg-white text-blue-700 hover:bg-blue-100'
-                      }`}
+                      className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition sm:w-auto ${importingExcel
+                        ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                        : 'cursor-pointer border-blue-200 bg-white text-blue-700 hover:bg-blue-100'
+                        }`}
                     >
                       <Upload className="mr-2 h-4 w-4" />
                       {importingExcel ? 'Importing...' : 'Upload Excel'}
@@ -1666,19 +1756,19 @@ const HRRecruitment: React.FC = () => {
                   Delete Candidate
                 </Button>
                 <div className="flex space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Updating Candidate...
-                    </>
-                  ) : (
-                    'Update Candidate'
-                  )}
-                </Button>
+                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Updating Candidate...
+                      </>
+                    ) : (
+                      'Update Candidate'
+                    )}
+                  </Button>
                 </div>
               </div>
             </form>

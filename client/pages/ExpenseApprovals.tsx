@@ -7,7 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Check, X, Eye, Download, FileText } from "lucide-react";
+import { Check, X, Eye, Download, FileText, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import expenseApi from "@/components/helper/expense/expense";
 import { useAuth } from "@/context/AuthContext";
@@ -65,6 +65,7 @@ interface ReceiptGalleryState {
 
 
 export default function ExpenseApprovals() {
+  const MIN_DECISION_LOADING_MS = 700;
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<ExpenseApproval[]>([]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -81,6 +82,9 @@ export default function ExpenseApprovals() {
   const [loading, setLoading] = useState(false);
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
   const [decisionExpenseIds, setDecisionExpenseIds] = useState<string[]>([]);
+  const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+  const [processingExpenseIds, setProcessingExpenseIds] = useState<string[]>([]);
+  const [processingDecision, setProcessingDecision] = useState<"approved" | "rejected" | null>(null);
 
   const pendingExpenses = expenses.filter((e) => e.status === "pending");
   const selectedPendingExpenses = useMemo(
@@ -172,6 +176,30 @@ export default function ExpenseApprovals() {
     () => Array.from(new Set(employeePendingExpenses.map((expense) => expense.receipt_url).filter(Boolean))) as string[],
     [employeePendingExpenses]
   );
+  const activeDecisionExpenseIds = useMemo(() => {
+    if (processingExpenseIds.length > 0) {
+      return processingExpenseIds;
+    }
+
+    if (decisionExpenseIds.length > 0) {
+      return decisionExpenseIds;
+    }
+
+    if (selectedGroup?.expenses?.length) {
+      return selectedGroup.expenses.map((expense) => expense.id);
+    }
+
+    if (selectedExpense?.id) {
+      return [selectedExpense.id];
+    }
+
+    return [];
+  }, [decisionExpenseIds, processingExpenseIds, selectedExpense, selectedGroup]);
+  const isGroupProcessing = (group: PendingExpenseGroup) =>
+    isSubmittingDecision &&
+    group.expenses.some((expense) => activeDecisionExpenseIds.includes(expense.id));
+  const currentDecision = processingDecision || decision;
+  const activeDecisionLabel = currentDecision === "approved" ? "Approving expense..." : "Rejecting expense...";
 
   const openReceiptGallery = (urls: string[], index = 0) => {
     if (!urls.length) return;
@@ -187,18 +215,10 @@ export default function ExpenseApprovals() {
     setIsDetailsOpen(true);
   };
 
-  const handleApproveClick = (expense: ExpenseApproval) => {
-    setSelectedExpense(expense);
-    setDecisionExpenseIds([]);
-    setDecision("approved");
-    setIsDecisionOpen(true);
-  };
-
-  const handleRejectClick = (expense: ExpenseApproval) => {
-    setSelectedExpense(expense);
-    setDecisionExpenseIds([]);
-    setDecision("rejected");
-    setIsDecisionOpen(true);
+  const resolveTargetExpenses = (expense: ExpenseApproval) => {
+    const matchedGroup =
+      groupedPending.find((group) => group.expenses.some((item) => item.id === expense.id)) || null;
+    return matchedGroup?.expenses?.length ? matchedGroup.expenses : [expense];
   };
 
   const handleBulkDecisionClick = (nextDecision: "approved" | "rejected") => {
@@ -227,7 +247,7 @@ export default function ExpenseApprovals() {
       showToast.error('Please select at least one expense to export');
       return;
     }
-    
+
     try {
       exportExpensesToExcel(
         expensesToExport,
@@ -243,7 +263,7 @@ export default function ExpenseApprovals() {
       showToast.error('No pending expenses to export');
       return;
     }
-    
+
     try {
       exportExpensesToExcel(
         pendingExpenses,
@@ -255,8 +275,8 @@ export default function ExpenseApprovals() {
   };
 
   const handleSelectExpense = (expenseId: string) => {
-    setSelectedExpenses(prev => 
-      prev.includes(expenseId) 
+    setSelectedExpenses(prev =>
+      prev.includes(expenseId)
         ? prev.filter(id => id !== expenseId)
         : [...prev, expenseId]
     );
@@ -292,28 +312,26 @@ export default function ExpenseApprovals() {
       employeeName: e.employeeName || "Unknown Employee",
     }));
 
-  const confirmDecision = async () => {
-    if (!decision) return;
-
-    const targetExpenses =
-      decisionExpenseIds.length > 0
-        ? pendingExpenses.filter((expense) => decisionExpenseIds.includes(expense.id))
-        : selectedGroup?.expenses?.length
-        ? selectedGroup.expenses
-        : selectedExpense
-        ? [selectedExpense]
-        : [];
-
+  const submitDecision = async (
+    targetExpenses: ExpenseApproval[],
+    nextDecision: "approved" | "rejected",
+    note?: string | null
+  ) => {
     if (targetExpenses.length === 0) {
       showToast.error("No expenses selected for this action");
       return;
     }
 
     const payload = {
-      status: decision === "approved" ? "Approved" : "Rejected",
-      approval_note: approvalNote || null,
+      status: nextDecision === "approved" ? "Approved" : "Rejected",
+      approval_note: note || null,
       approved_by: user?.name || "Finance User", // optional
     };
+
+    const startedAt = Date.now();
+    setIsSubmittingDecision(true);
+    setProcessingExpenseIds(targetExpenses.map((expense) => expense.id));
+    setProcessingDecision(nextDecision);
 
     try {
       const results = await Promise.all(
@@ -322,7 +340,7 @@ export default function ExpenseApprovals() {
       const failedResult = results.find((result) => !result.data);
 
       if (!failedResult) {
-        const updatedStatus = decision === "approved" ? "approved" : "rejected";
+        const updatedStatus = nextDecision === "approved" ? "approved" : "rejected";
         const targetExpenseIds = targetExpenses.map((expense) => expense.id);
         const approvedBy = user?.name || "Finance User";
 
@@ -330,12 +348,12 @@ export default function ExpenseApprovals() {
           prev.map((expense) =>
             targetExpenseIds.includes(expense.id)
               ? {
-                  ...expense,
-                  status: updatedStatus,
-                  approvedBy,
-                  approvalNote: approvalNote || expense.approvalNote,
-                  approved_at: new Date().toISOString(),
-                }
+                ...expense,
+                status: updatedStatus,
+                approvedBy,
+                approvalNote: note || expense.approvalNote,
+                approved_at: new Date().toISOString(),
+              }
               : expense
           )
         );
@@ -346,27 +364,27 @@ export default function ExpenseApprovals() {
         const categorySummary = decisionExpenseIds.length > 0
           ? Array.from(new Set(targetExpenses.map((expense) => expense.category).filter(Boolean))).join(", ")
           : selectedGroup?.categories?.length
-          ? selectedGroup.categories.join(", ")
-          : selectedExpense?.category || "Expense";
+            ? selectedGroup.categories.join(", ")
+            : selectedExpense?.category || "Expense";
         const descriptionSummary = decisionExpenseIds.length > 0
           ? `${targetExpenses.length} selected expense claims`
-          : selectedGroup
-          ? `${selectedGroup.clientName} on ${selectedGroup.date}`
-          : selectedExpense?.description || "Expense claim";
+          : targetExpenses.length > 1
+            ? `${targetExpenses[0]?.clientName || "No client"} on ${targetExpenses[0]?.date || "N/A"}`
+            : targetExpenses[0]?.description || "Expense claim";
 
         try {
-          if (decision === "approved") {
+          if (nextDecision === "approved") {
             await notificationService.triggerExpenseApproved({
-              employeeId: selectedExpense?.employeeId || targetExpenses[0]?.employeeId,
-              employeeName: selectedExpense?.employeeName || `Multiple employees (${targetExpenses.length})`,
+              employeeId: targetExpenses[0]?.employeeId,
+              employeeName: targetExpenses[0]?.employeeName || `Multiple employees (${targetExpenses.length})`,
               amount: totalGroupedAmount,
               expenseType: categorySummary,
               description: descriptionSummary,
             });
           } else {
             await notificationService.triggerExpenseRejected({
-              employeeId: selectedExpense?.employeeId || targetExpenses[0]?.employeeId,
-              employeeName: selectedExpense?.employeeName || `Multiple employees (${targetExpenses.length})`,
+              employeeId: targetExpenses[0]?.employeeId,
+              employeeName: targetExpenses[0]?.employeeName || `Multiple employees (${targetExpenses.length})`,
               amount: totalGroupedAmount,
               expenseType: categorySummary,
               description: descriptionSummary,
@@ -389,11 +407,10 @@ export default function ExpenseApprovals() {
 
         showToast.success(
           targetExpenses.length > 1
-            ? `Expenses ${decision} successfully!`
-            : `Expense ${decision} successfully!`
+            ? `Expenses ${nextDecision} successfully!`
+            : `Expense ${nextDecision} successfully!`
         );
 
-        // Reset dialog
         setIsDecisionOpen(false);
         setApprovalNote("");
         setSelectedExpense(null);
@@ -405,7 +422,42 @@ export default function ExpenseApprovals() {
     } catch (err) {
       console.error(err);
       showToast.error("Something went wrong while updating expense.");
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_DECISION_LOADING_MS) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_DECISION_LOADING_MS - elapsed));
+      }
+      setProcessingExpenseIds([]);
+      setProcessingDecision(null);
+      setIsSubmittingDecision(false);
     }
+  };
+
+  const handleApproveClick = async (expense: ExpenseApproval) => {
+    if (isSubmittingDecision) return;
+    const targetExpenses = resolveTargetExpenses(expense);
+    await submitDecision(targetExpenses, "approved", null);
+  };
+
+  const handleRejectClick = async (expense: ExpenseApproval) => {
+    if (isSubmittingDecision) return;
+    const targetExpenses = resolveTargetExpenses(expense);
+    await submitDecision(targetExpenses, "rejected", null);
+  };
+
+  const confirmDecision = async () => {
+    if (!decision || isSubmittingDecision) return;
+
+    const targetExpenses =
+      decisionExpenseIds.length > 0
+        ? pendingExpenses.filter((expense) => decisionExpenseIds.includes(expense.id))
+        : selectedGroup?.expenses?.length
+          ? selectedGroup.expenses
+          : selectedExpense
+            ? [selectedExpense]
+            : [];
+
+    await submitDecision(targetExpenses, decision, approvalNote || null);
   };
 
 
@@ -446,6 +498,13 @@ export default function ExpenseApprovals() {
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6">
+        {isSubmittingDecision && (
+          <div className="sticky top-4 z-40 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 shadow-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{activeDecisionLabel} Please wait.</span>
+          </div>
+        )}
+
         {/* Header */}
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Expense Approvals</h1>
@@ -490,21 +549,33 @@ export default function ExpenseApprovals() {
                 <Button
                   size="sm"
                   onClick={() => handleBulkDecisionClick("approved")}
-                  disabled={selectedExpenses.length === 0}
+                  disabled={selectedExpenses.length === 0 || isSubmittingDecision}
                   className="text-xs bg-green-600 hover:bg-green-700"
                 >
-                  <Check className="w-4 h-4 mr-1" />
-                  Approve Selected ({selectedExpenses.length})
+                  {isSubmittingDecision && currentDecision === "approved" ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4 mr-1" />
+                  )}
+                  {isSubmittingDecision && currentDecision === "approved"
+                    ? "Approving..."
+                    : `Approve Selected (${selectedExpenses.length})`}
                 </Button>
                 <Button
                   size="sm"
                   variant="destructive"
                   onClick={() => handleBulkDecisionClick("rejected")}
-                  disabled={selectedExpenses.length === 0}
+                  disabled={selectedExpenses.length === 0 || isSubmittingDecision}
                   className="text-xs"
                 >
-                  <X className="w-4 h-4 mr-1" />
-                  Reject Selected ({selectedExpenses.length})
+                  {isSubmittingDecision && currentDecision === "rejected" ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <X className="w-4 h-4 mr-1" />
+                  )}
+                  {isSubmittingDecision && currentDecision === "rejected"
+                    ? "Rejecting..."
+                    : `Reject Selected (${selectedExpenses.length})`}
                 </Button>
                 <Button
                   variant="outline"
@@ -570,6 +641,7 @@ export default function ExpenseApprovals() {
                       <div className="pt-2 sm:pt-3 border-t border-border flex gap-1 sm:gap-2">
                         <button
                           onClick={() => handleViewDetails(group.primaryExpense)}
+                          disabled={isSubmittingDecision}
                           className="flex-1 p-1 sm:p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
                           title="View Details"
                         >
@@ -577,20 +649,31 @@ export default function ExpenseApprovals() {
                         </button>
                         <button
                           onClick={() => handleApproveClick(group.primaryExpense)}
+                          disabled={isSubmittingDecision}
                           className="flex-1 p-1 sm:p-2 hover:bg-green-100 text-green-600 rounded-lg transition-colors"
                           title="Approve"
                         >
-                          <Check className="w-4 h-4 mx-auto" />
+                          {isGroupProcessing(group) && currentDecision === "approved" ? (
+                            <Loader2 className="w-4 h-4 mx-auto animate-spin" />
+                          ) : (
+                            <Check className="w-4 h-4 mx-auto" />
+                          )}
                         </button>
                         <button
                           onClick={() => handleRejectClick(group.primaryExpense)}
+                          disabled={isSubmittingDecision}
                           className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
                           title="Reject"
                         >
-                          <X className="w-4 h-4 mx-auto" />
+                          {isGroupProcessing(group) && currentDecision === "rejected" ? (
+                            <Loader2 className="w-4 h-4 mx-auto animate-spin" />
+                          ) : (
+                            <X className="w-4 h-4 mx-auto" />
+                          )}
                         </button>
                         <button
                           onClick={() => handleExportSingle(group.primaryExpense)}
+                          disabled={isSubmittingDecision}
                           className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
                           title="Export PDF"
                         >
@@ -647,6 +730,7 @@ export default function ExpenseApprovals() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleViewDetails(group.primaryExpense)}
+                                disabled={isSubmittingDecision}
                                 className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
                                 title="View Details"
                               >
@@ -654,20 +738,31 @@ export default function ExpenseApprovals() {
                               </button>
                               <button
                                 onClick={() => handleApproveClick(group.primaryExpense)}
+                                disabled={isSubmittingDecision}
                                 className="p-2 hover:bg-green-100 text-green-600 rounded-lg transition-colors"
                                 title="Approve"
                               >
-                                <Check className="w-4 h-4" />
+                                {isGroupProcessing(group) && currentDecision === "approved" ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Check className="w-4 h-4" />
+                                )}
                               </button>
                               <button
                                 onClick={() => handleRejectClick(group.primaryExpense)}
+                                disabled={isSubmittingDecision}
                                 className="p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
                                 title="Reject"
                               >
-                                <X className="w-4 h-4" />
+                                {isGroupProcessing(group) && currentDecision === "rejected" ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <X className="w-4 h-4" />
+                                )}
                               </button>
                               <button
                                 onClick={() => handleExportSingle(group.primaryExpense)}
+                                disabled={isSubmittingDecision}
                                 className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
                                 title="Export PDF"
                               >
@@ -677,7 +772,7 @@ export default function ExpenseApprovals() {
                           </td>
                         </tr>
                       ))}
-                    
+
                     </tbody>
                   </table>
                 </div>
@@ -707,8 +802,8 @@ export default function ExpenseApprovals() {
                     <div className="flex flex-col items-end gap-1">
                       <span
                         className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium whitespace-nowrap ${expense.status === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
                           }`}
                       >
                         {expense.status}
@@ -763,7 +858,7 @@ export default function ExpenseApprovals() {
                   </p>
                 </div>
 
-                  <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">Pending Total For Client On Date</p>
                     <p className="font-semibold text-blue-700">₹{employeeTotal.toLocaleString()}</p>
@@ -843,7 +938,7 @@ export default function ExpenseApprovals() {
               </div>
             </div>
           )}
-      </DialogContent>
+        </DialogContent>
       </Dialog>
 
       <Dialog
@@ -899,27 +994,46 @@ export default function ExpenseApprovals() {
                   >
                     Next
                   </Button>
+                  {currentPreviewUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = currentPreviewUrl;
+                        link.download = `receipt-${receiptGallery.index + 1}${isPreviewPdf ? ".pdf" : ".jpg"}`;
+                        link.target = "_blank";
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="flex h-[70vh] items-center justify-center overflow-hidden rounded-lg border bg-slate-100">
-              {isPreviewPdf ? (
-                <iframe
-                  src={currentPreviewUrl}
-                  title="Expense Receipt Preview"
-                  className="h-full w-full border-0"
-                />
-              ) : (
-                <img
-                  src={currentPreviewUrl}
-                  alt="Expense Receipt Preview"
-                  className="h-full w-full object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/placeholder.svg";
-                    target.alt = "Document preview not available";
-                  }}
-                />
-              )}
+                {isPreviewPdf ? (
+                  <iframe
+                    src={currentPreviewUrl}
+                    title="Expense Receipt Preview"
+                    className="h-full w-full border-0"
+                  />
+                ) : (
+                  <img
+                    src={currentPreviewUrl}
+                    alt="Expense Receipt Preview"
+                    className="h-full w-full object-contain"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "/placeholder.svg";
+                      target.alt = "Document preview not available";
+                    }}
+                  />
+                )}
               </div>
               {previewUrls.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
@@ -928,9 +1042,8 @@ export default function ExpenseApprovals() {
                       key={`${url}-${index}`}
                       type="button"
                       onClick={() => setReceiptGallery((prev) => ({ ...prev, index }))}
-                      className={`h-20 w-24 flex-shrink-0 overflow-hidden rounded-md border ${
-                        index === receiptGallery.index ? "border-blue-500 ring-1 ring-blue-500" : "border-border"
-                      }`}
+                      className={`h-20 w-24 flex-shrink-0 overflow-hidden rounded-md border ${index === receiptGallery.index ? "border-blue-500 ring-1 ring-blue-500" : "border-border"
+                        }`}
                     >
                       {url.match(/\.(png|jpg|jpeg|webp)$/i) ? (
                         <img src={url} alt={`Receipt ${index + 1}`} className="h-full w-full object-cover" />
@@ -959,6 +1072,9 @@ export default function ExpenseApprovals() {
       <AlertDialog
         open={isDecisionOpen}
         onOpenChange={(open) => {
+          if (isSubmittingDecision) {
+            return;
+          }
           setIsDecisionOpen(open);
           if (!open) {
             setDecision(null);
@@ -986,6 +1102,14 @@ export default function ExpenseApprovals() {
           </AlertDialogHeader>
 
           <div className="space-y-3 sm:space-y-4">
+            {isSubmittingDecision && (
+              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs sm:text-sm text-blue-700">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {decision === "approved"
+                  ? "Approval in progress. Please wait..."
+                  : "Rejection in progress. Please wait..."}
+              </div>
+            )}
             <div>
               <Label className="text-xs sm:text-sm">Approval Note (Optional)</Label>
               <Textarea
@@ -993,20 +1117,29 @@ export default function ExpenseApprovals() {
                 onChange={(e) => setApprovalNote(e.target.value)}
                 placeholder="Add any notes for the employee..."
                 className="mt-1.5 sm:mt-2 text-xs sm:text-sm min-h-20 sm:min-h-24"
+                disabled={isSubmittingDecision}
               />
             </div>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 pt-3 sm:pt-4 border-t">
-            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm" disabled={isSubmittingDecision}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDecision}
+              disabled={isSubmittingDecision}
               className={`w-full sm:w-auto text-xs sm:text-sm ${decision === "approved"
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700"
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-red-600 hover:bg-red-700"
                 }`}
             >
-              {decision === "approved" ? "Approve" : "Reject"}
+              {isSubmittingDecision ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {decision === "approved" ? "Approving..." : "Rejecting..."}
+                </>
+              ) : (
+                decision === "approved" ? "Approve" : "Reject"
+              )}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
@@ -1014,18 +1147,18 @@ export default function ExpenseApprovals() {
     </Layout>
   );
 }
-  const exportExpensesToExcel = (items: ExpenseApproval[], fileName: string) => {
-    const rows = items.map((expense) => ({
-      "Employee": expense.employeeName,
-      "Assigned Client": expense.clientName || "",
-      "Category": expense.category,
-      "Amount": expense.amount,
-      "Date": expense.date,
-      "Description": expense.description,
-    }));
+const exportExpensesToExcel = (items: ExpenseApproval[], fileName: string) => {
+  const rows = items.map((expense) => ({
+    "Employee": expense.employeeName,
+    "Assigned Client": expense.clientName || "",
+    "Category": expense.category,
+    "Amount": expense.amount,
+    "Date": expense.date,
+    "Description": expense.description,
+  }));
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
-    XLSX.writeFile(workbook, fileName);
-  };
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
+  XLSX.writeFile(workbook, fileName);
+};

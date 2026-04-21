@@ -434,6 +434,31 @@ const getTrackingTone = (state?: string | null) => {
   }
 };
 
+const normalizeLiveState = (
+  state?: string | null,
+  minutesSinceUpdate?: number | null,
+  hasCurrentLocation?: boolean,
+) => {
+  const normalized = String(state || "").trim().toLowerCase();
+
+  if (["active", "online", "live", "tracking"].includes(normalized)) {
+    return "active" as const;
+  }
+
+  if (["idle", "inactive", "stale"].includes(normalized)) {
+    return "idle" as const;
+  }
+
+  if (hasCurrentLocation) {
+    if (typeof minutesSinceUpdate === "number" && Number.isFinite(minutesSinceUpdate)) {
+      return minutesSinceUpdate <= 5 ? "active" as const : "idle" as const;
+    }
+    return "active" as const;
+  }
+
+  return "offline" as const;
+};
+
 // Helper to create employee marker icon with initials badge and animation
 const createEmployeeMarkerIcon = (firstName: string | undefined, lastName: string | undefined, isCheckedIn: boolean) => {
   const statusColor = isCheckedIn ? "#10b981" : "#ef4444";
@@ -747,9 +772,9 @@ export default function LiveTracking() {
 
         let currentLocation:
           | (TrackedEmployee["currentLocation"] & {
-              speed?: number;
-              batteryLevel?: number;
-            })
+            speed?: number;
+            batteryLevel?: number;
+          })
           | undefined;
         const empLat = toFiniteNumber((emp as any).latitude);
         const empLng = toFiniteNumber((emp as any).longitude);
@@ -793,15 +818,24 @@ export default function LiveTracking() {
 
         const lastKnownLocation = latestAttendance?.check_out
           ? getPrimaryLocationLabel(
-              (parsedCheckOutLocation as any)?.address,
-              (parsedCheckOutLocation as any)?.latitude,
-              (parsedCheckOutLocation as any)?.longitude
-            )
+            (parsedCheckOutLocation as any)?.address,
+            (parsedCheckOutLocation as any)?.latitude,
+            (parsedCheckOutLocation as any)?.longitude
+          )
           : getPrimaryLocationLabel(
-              currentLocation?.address || fallbackAddress,
-              currentLocation?.latitude ?? (parsedCheckInLocation as any)?.latitude,
-              currentLocation?.longitude ?? (parsedCheckInLocation as any)?.longitude
-            );
+            currentLocation?.address || fallbackAddress,
+            currentLocation?.latitude ?? (parsedCheckInLocation as any)?.latitude,
+            currentLocation?.longitude ?? (parsedCheckInLocation as any)?.longitude
+          );
+
+        const normalizedMinutesSinceUpdate = toFiniteNumber((emp as any).minutesSinceUpdate);
+        const trackingState = isCheckedIn
+          ? normalizeLiveState(
+            String((emp as any).trackingStatus || ""),
+            normalizedMinutesSinceUpdate,
+            Boolean(currentLocation),
+          )
+          : "offline";
 
         return {
           ...emp,
@@ -817,10 +851,8 @@ export default function LiveTracking() {
           isLiveTrackingEnabled: (emp as any).location_tracking_enabled === 1 || (emp as any).isLiveTrackingEnabled,
           currentLocation,
           trackingStatus: isCheckedIn ? "checked-in" : "checked-out",
-          trackingState: (isCheckedIn
-            ? String((emp as any).trackingStatus || "active").toLowerCase()
-            : "offline") as "active" | "idle" | "offline",
-          minutesSinceUpdate: toFiniteNumber((emp as any).minutesSinceUpdate),
+          trackingState,
+          minutesSinceUpdate: normalizedMinutesSinceUpdate,
           lastCheckTime: latestAttendance?.check_in ? new Date(latestAttendance.check_in).toLocaleTimeString("en-IN") : undefined,
           employmentType: (emp as any).employmentType || "full-time" as const,
           vehicleInfo: (emp as any).vehicle_info,
@@ -1296,14 +1328,14 @@ export default function LiveTracking() {
         setSelectedRouteSummary((previous) =>
           previous
             ? {
-                ...previous,
-                minimumStayMinutes:
-                  previous.minimumStayMinutes || LIVE_TRACKING_MIN_STAY_MINUTES,
-                stayRadiusMeters:
-                  previous.stayRadiusMeters || LIVE_TRACKING_STAY_RADIUS_METERS,
-                stops: normalizedStops,
-                stopCount: previous.stopCount || normalizedStops.length,
-              }
+              ...previous,
+              minimumStayMinutes:
+                previous.minimumStayMinutes || LIVE_TRACKING_MIN_STAY_MINUTES,
+              stayRadiusMeters:
+                previous.stayRadiusMeters || LIVE_TRACKING_STAY_RADIUS_METERS,
+              stops: normalizedStops,
+              stopCount: previous.stopCount || normalizedStops.length,
+            }
             : previous
         );
       }
@@ -2156,8 +2188,8 @@ export default function LiveTracking() {
                           setHoverStayMarkers(null);
                         }}
                       >
-                        {(selectedMarker === `emp-${emp.id}` || hoveredMarker === `emp-${emp.id}`) && (
-                          <InfoWindow onCloseClick={() => { setSelectedMarker(null); setHoveredMarker(null); }}>
+                        {selectedMarker === `emp-${emp.id}` && (
+                          <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
                             <div className="map-info-window space-y-3 text-sm min-w-[320px] max-w-[360px]">
                               {/* Header - Employee Info */}
                               <div className="border-b pb-3 flex items-center gap-3">

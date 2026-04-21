@@ -34,6 +34,13 @@ interface ExpenseRow {
   description: string;
   receiptFile?: File | null;
   receiptPath?: string | null;
+  isScanning?: boolean;
+  scanData?: {
+    amount?: string;
+    date?: string;
+    vendor?: string;
+    category?: string;
+  } | null;
 }
 
 interface ExpenseClaim {
@@ -93,17 +100,18 @@ const ALLOWED_EXPENSE_IMAGE_TYPES = [
   "image/svg+xml",
 ];
 
-const isValidExpenseImageFile = (file: File) => {
+const ALLOWED_EXPENSE_FILE_TYPES = [
+  ...ALLOWED_EXPENSE_IMAGE_TYPES,
+  "application/pdf",
+];
+
+const isValidExpenseFile = (file: File) => {
   const fileName = String(file.name || "").toLowerCase();
   const mimeType = String(file.type || "").toLowerCase();
 
-  if (fileName.endsWith(".pdf") || mimeType === "application/pdf") {
-    return false;
-  }
-
   return (
-    ALLOWED_EXPENSE_IMAGE_TYPES.includes(mimeType) ||
-    /\.(jpg|jpeg|png|webp|svg)$/i.test(fileName)
+    ALLOWED_EXPENSE_FILE_TYPES.includes(mimeType) ||
+    /\.(jpg|jpeg|png|webp|svg|pdf)$/i.test(fileName)
   );
 };
 
@@ -141,6 +149,8 @@ export default function ExpenseClaims() {
       description: "",
       receiptFile: null,
       receiptPath: null,
+      isScanning: false,
+      scanData: null,
     },
   ]);
   const [isGroupedEdit, setIsGroupedEdit] = useState(false);
@@ -159,6 +169,7 @@ export default function ExpenseClaims() {
   const [draftClearing, setDraftClearing] = useState(false);
   const [editReceipt, setEditReceipt] = useState<ExistingReceipt | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
+  const [receiptPickerMode, setReceiptPickerMode] = useState<Record<number, "upload" | "scan">>({});
 
   const makeEmptyRow = (): ExpenseRow => ({
     category: "",
@@ -166,6 +177,8 @@ export default function ExpenseClaims() {
     description: "",
     receiptFile: null,
     receiptPath: null,
+    isScanning: false,
+    scanData: null,
   });
 
   const formatCategoryLabel = (value?: string | null) => {
@@ -320,11 +333,11 @@ export default function ExpenseClaims() {
       draft.client_id !== null && draft.client_id !== undefined
         ? String(draft.client_id)
         : (() => {
-            const rowClient = rows.find((row) => row.client_id !== null && row.client_id !== undefined);
-            return rowClient?.client_id !== undefined && rowClient?.client_id !== null
-              ? String(rowClient.client_id)
-              : "";
-          })();
+          const rowClient = rows.find((row) => row.client_id !== null && row.client_id !== undefined);
+          return rowClient?.client_id !== undefined && rowClient?.client_id !== null
+            ? String(rowClient.client_id)
+            : "";
+        })();
 
     return {
       id: `draft-${draft.id}`,
@@ -382,8 +395,8 @@ export default function ExpenseClaims() {
 
       const draftClaims = Array.isArray(draftResult.data)
         ? draftResult.data
-            .map((draft) => buildDraftClaim(draft, clientsResult.data || []))
-            .filter((draft): draft is ExpenseClaim => Boolean(draft))
+          .map((draft) => buildDraftClaim(draft, clientsResult.data || []))
+          .filter((draft): draft is ExpenseClaim => Boolean(draft))
         : [];
 
       setExpenses([...draftClaims, ...normalizedExpenses]);
@@ -436,7 +449,7 @@ export default function ExpenseClaims() {
   // Group expenses by employee and date
   const groupExpenses = (expenses: ExpenseClaim[]): GroupedExpenseClaim[] => {
     const grouped = new Map<string, ExpenseClaim[]>();
-    
+
     expenses.forEach(expense => {
       // Skip drafts from grouping - they should remain separate
       if (expense.isDraft) {
@@ -444,7 +457,7 @@ export default function ExpenseClaims() {
         grouped.set(key, [expense]);
         return;
       }
-      
+
       // Group by employee, expense date, and submission batch timestamp.
       // This keeps separate submissions on the same day from collapsing into one edit group.
       const submissionKey = expense.createdAt || expense.id;
@@ -461,7 +474,7 @@ export default function ExpenseClaims() {
       const categories = Array.from(new Set(claims.map(c => c.category)));
       const clientNames = Array.from(new Set(claims.map(c => c.clientName).filter(Boolean)));
       const clientIds = Array.from(new Set(claims.map(c => c.clientId).filter(Boolean)));
-      
+
       // Determine status - if any claim is pending, show as pending, otherwise use first claim's status
       let status: ExpenseClaim["status"] = firstClaim.status;
       if (claims.some(c => c.status === "pending")) {
@@ -481,7 +494,7 @@ export default function ExpenseClaims() {
         categories,
         totalAmount,
         date: firstClaim.date,
-        description: claims.length > 1 
+        description: claims.length > 1
           ? `${claims.length} expense(s) - ${categories.join(", ")}`
           : firstClaim.description,
         status,
@@ -506,7 +519,7 @@ export default function ExpenseClaims() {
   const filteredExpenses = useMemo(() => {
     console.log("Filtering expenses. Current expenses:", expenses);
     console.log("Search term:", searchTerm, "Filter status:", filterStatus, "Filter month:", filterMonth, "From:", filterFromDate, "To:", filterToDate);
-    
+
     let filtered = [...expenses]; // Create a copy of the expenses array
 
     // First scope records by role.
@@ -515,12 +528,12 @@ export default function ExpenseClaims() {
       const formattedEmployeeId = getEmployeeIdForUser(userId);
       console.log("Filtering for user ID:", userId, "Formatted employee ID:", formattedEmployeeId);
       console.log("Available employee IDs in expenses:", expenses.map(e => e.employeeId));
-      
+
       filtered = filtered.filter((exp) => {
         // Check both formats: numeric ID (37) and formatted ID (EMP037)
-        return exp.employeeId === userId || 
-               exp.employeeId === formattedEmployeeId ||
-               exp.employeeId === parseInt(userId)?.toString();
+        return exp.employeeId === userId ||
+          exp.employeeId === formattedEmployeeId ||
+          exp.employeeId === parseInt(userId)?.toString();
       });
     }
 
@@ -546,14 +559,14 @@ export default function ExpenseClaims() {
     });
 
     console.log("Filtered expenses result:", filtered);
-    
+
     // Group the filtered expenses
     return groupExpenses(filtered);
   }, [expenses, searchTerm, filterStatus, filterMonth, filterFromDate, filterToDate, user]);
 
   const handleOpenDialog = (expense?: ExpenseClaim | GroupedExpenseClaim) => {
     setError(null); // Clear any previous errors
-    
+
     // Check if it's a grouped expense
     const isGrouped = expense && 'claims' in expense;
     const targetExpense = isGrouped ? expense.claims[0] : expense;
@@ -562,7 +575,7 @@ export default function ExpenseClaims() {
       showToast.error("Approved expenses cannot be edited");
       return;
     }
-    
+
     if (targetExpense?.isDraft) {
       setIsGroupedEdit(false);
       setGroupedEditingClaims([]);
@@ -582,12 +595,14 @@ export default function ExpenseClaims() {
       setExpenseRows(
         targetExpense.draftRows?.length
           ? targetExpense.draftRows.map((row) => ({
-              category: (row.category as ExpenseCategory) || "",
-              amount: row.amount?.toString?.() ?? String(row.amount ?? ""),
-              description: row.description || "",
-              receiptFile: null,
-              receiptPath: row.receipt_path || null,
-            }))
+            category: (row.category as ExpenseCategory) || "",
+            amount: row.amount?.toString?.() ?? String(row.amount ?? ""),
+            description: row.description || "",
+            receiptFile: null,
+            receiptPath: row.receipt_path || null,
+            isScanning: false,
+            scanData: null,
+          }))
           : [makeEmptyRow()]
       );
       setBillFile(null);
@@ -604,7 +619,7 @@ export default function ExpenseClaims() {
       }
     } else if (targetExpense) {
       setEditingDraftId(null);
-      
+
       // If it's a grouped expense, set up all claims for editing
       if (isGrouped && expense.claims.length > 1) {
         setIsGroupedEdit(true);
@@ -614,23 +629,25 @@ export default function ExpenseClaims() {
           const originalCategory = claim.category as string;
           const normalizedCategory = originalCategory?.toLowerCase().trim();
           const validCategory = (["travel", "food", "accommodation", "others"].includes(normalizedCategory) ? normalizedCategory as ExpenseCategory : "");
-          
+
           console.log(`Claim ${index + 1}:`, {
             originalCategory,
             normalizedCategory,
             validCategory,
             claim: claim
           });
-          
+
           return {
             category: validCategory,
             amount: claim.amount?.toString() || "",
             description: claim.description || "",
             receiptFile: null,
             receiptPath: claim.receiptPath || null,
+            isScanning: false,
+            scanData: null,
           };
         });
-        
+
         setExpenseRows(groupedExpenseRows);
         setExpenseDate(targetExpense.date);
         const groupedClientIds = Array.from(new Set(expense.claims.map((claim) => claim.clientId).filter(Boolean)));
@@ -681,6 +698,8 @@ export default function ExpenseClaims() {
           description: "",
           receiptFile: null,
           receiptPath: null,
+          isScanning: false,
+          scanData: null,
         },
       ]);
       setBillFile(null);
@@ -694,8 +713,8 @@ export default function ExpenseClaims() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!isValidExpenseImageFile(file)) {
-        const message = "Only image files are allowed. PDF files cannot be uploaded for expense claims.";
+      if (!isValidExpenseFile(file)) {
+        const message = "Only image files (PNG, JPG, JPEG, WebP, SVG) and PDF files are allowed.";
         setError(message);
         showToast.error(message);
         e.target.value = "";
@@ -705,14 +724,14 @@ export default function ExpenseClaims() {
       // First scan the receipt for OCR data
       setScanning(true);
       setError(null);
-      
+
       try {
         const scanResult = await expenseApi.scanReceipt(file);
-        
+
         if (scanResult.data && scanResult.data.success) {
           const ocrData = scanResult.data.data;
           setScanData(ocrData);
-          
+
           // Auto-fill form with scanned data
           setFormData(prev => ({
             ...prev,
@@ -721,7 +740,7 @@ export default function ExpenseClaims() {
             category: ocrData.category || prev.category,
             description: ocrData.vendor || prev.description
           }));
-          
+
           console.log('OCR Data:', ocrData);
         } else {
           setError(scanResult.error || 'Failed to scan receipt');
@@ -732,7 +751,7 @@ export default function ExpenseClaims() {
       } finally {
         setScanning(false);
       }
-      
+
       // Then proceed with file upload for storage
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -766,6 +785,104 @@ export default function ExpenseClaims() {
   const updateRow = (index: number, patch: Partial<ExpenseRow>) => {
     setExpenseRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
     setError(null);
+  };
+
+  const normalizeScannedCategory = (category?: string | null): ExpenseCategory | "" => {
+    const normalized = String(category || "").trim().toLowerCase();
+    if (normalized.includes("travel")) return "travel";
+    if (normalized.includes("food")) return "food";
+    if (normalized.includes("accommodation") || normalized.includes("accomodation")) return "accommodation";
+    if (normalized.includes("other")) return "others";
+    return "";
+  };
+
+  const handleRowReceiptSelection = (index: number, file: File | null) => {
+    if (file && !isValidExpenseFile(file)) {
+      const message = "Only image files (PNG, JPG, JPEG, WebP, SVG) and PDF files are allowed.";
+      setError(message);
+      showToast.error(message);
+      return false;
+    }
+
+    updateRow(index, {
+      receiptFile: file,
+      receiptPath: null,
+      scanData: null,
+      isScanning: false,
+    });
+    return true;
+  };
+
+  const handleRowReceiptScan = async (index: number, overrideFile?: File | null) => {
+    const row = expenseRows[index];
+    const file = overrideFile || row?.receiptFile;
+
+    if (!file) {
+      const message = "First upload a receipt for this expense row, then use Auto Scan.";
+      setError(message);
+      showToast.error(message);
+      return;
+    }
+
+    updateRow(index, { isScanning: true });
+
+    try {
+      const scanResult = await expenseApi.scanReceipt(file);
+
+      if (!(scanResult.data && scanResult.data.success)) {
+        throw new Error(scanResult.error || "Failed to scan receipt");
+      }
+
+      const ocrData = scanResult.data.data || {};
+      const normalizedCategory = normalizeScannedCategory(ocrData.category);
+
+      setExpenseRows((prev) =>
+        prev.map((currentRow, currentIndex) => {
+          if (currentIndex !== index) return currentRow;
+
+          return {
+            ...currentRow,
+            amount: ocrData.amount ? String(ocrData.amount) : currentRow.amount,
+            description: ocrData.vendor || currentRow.description,
+            category: normalizedCategory || currentRow.category,
+            scanData: ocrData,
+            isScanning: false,
+          };
+        })
+      );
+
+      if (ocrData.date) {
+        setExpenseDate((prev) => prev || String(ocrData.date).substring(0, 10));
+      }
+
+      showToast.success(`Expense ${index + 1} receipt scanned successfully`);
+    } catch (scanError) {
+      console.error("Row receipt scan error:", scanError);
+      const message =
+        scanError instanceof Error
+          ? scanError.message
+          : "Failed to scan receipt. You can still fill details manually.";
+      setError(message);
+      showToast.error(message);
+      updateRow(index, { isScanning: false });
+    }
+  };
+
+  const processRowReceiptFile = async (
+    index: number,
+    file: File | null,
+    mode: "upload" | "scan" = "upload"
+  ) => {
+    const success = handleRowReceiptSelection(index, file);
+    if (!success || !file) {
+      return false;
+    }
+
+    if (mode === "scan") {
+      await handleRowReceiptScan(index, file);
+    }
+
+    return true;
   };
 
   const addRow = () => {
@@ -1018,7 +1135,7 @@ export default function ExpenseClaims() {
         if (editingDraftId) {
           try {
             await expenseApi.clearDraft(editingDraftId);
-          } catch {}
+          } catch { }
         }
 
         // Trigger a single notification (summary)
@@ -1080,8 +1197,8 @@ export default function ExpenseClaims() {
         throw new Error(updateResult.error);
       }
 
-        await refreshExpenses();
-       
+      await refreshExpenses();
+
       setError(null); // Clear any previous errors on success
       setIsDialogOpen(false);
       setFormData({});
@@ -1171,7 +1288,7 @@ export default function ExpenseClaims() {
     if (actionExpenseId && approvalAction) {
       try {
         setLoading(true);
-        
+
         const newStatus = approvalAction === "approve" ? "approved" : "rejected";
         const payload = {
           status: newStatus.charAt(0).toUpperCase() + newStatus.slice(1),
@@ -1184,7 +1301,7 @@ export default function ExpenseClaims() {
         if (result.error) {
           throw new Error(result.error);
         }
-        
+
         // Refetch expenses to get updated data
         await refreshExpenses();
 
@@ -1342,7 +1459,7 @@ export default function ExpenseClaims() {
   const handleExport = async () => {
     try {
       setExporting(true);
-      
+
       const exportData = {
         employeeIds: selectAllEmployees ? ['all'] : selectedEmployees,
         format: exportFormat,
@@ -1351,7 +1468,7 @@ export default function ExpenseClaims() {
       };
 
       const response = await expenseApi.exportExpenses(exportData);
-      
+
       if (response.error) {
         throw new Error(response.error);
       }
@@ -1414,7 +1531,7 @@ export default function ExpenseClaims() {
 
 
 
-  
+
   const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
 
   return (
@@ -1544,7 +1661,7 @@ export default function ExpenseClaims() {
                     >
                       Clear
                     </Button>
-                    <Button 
+                    <Button
                       onClick={openExportDialog}
                       className="flex-1 h-8 sm:h-10 text-xs sm:text-sm gap-2"
                       variant="outline"
@@ -1653,145 +1770,53 @@ export default function ExpenseClaims() {
               <>
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
-              {filteredExpenses.map((expense) => (
-                <div key={expense.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                  <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                    <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{expense.employeeName}</h3>
-                    <span className={`text-xs px-1.5 py-0.5 rounded border whitespace-nowrap ${getStatusColor(expense.status)}`}>
-                      {expense.status}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-4">
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Date:</span>
-                      <span className="font-medium text-right">{expense.date}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Client:</span>
-                      <span className="font-medium text-right">{expense.clientName || "-"}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Category:</span>
-                      <span className="font-medium text-right">{expense.categories.join(", ")}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Amount:</span>
-                      <span className="font-semibold text-right">₹{(expense.totalAmount || 0).toLocaleString()}</span>
-                    </div>
-                    {expense.claims.length > 1 && (
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground flex-shrink-0">Items:</span>
-                        <span className="font-medium text-right">{expense.claims.length} expenses</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="pt-2 sm:pt-3 border-t border-border">
-                    {hasRole(user, "finance") ? (
-                      <div className="flex gap-1 sm:gap-2 flex-wrap">
-                        {expense.status === "pending" && (
-                          <>
-                            <button
-                              onClick={() => handleApprovalAction(expense.id, "approve")}
-                              className="flex-1 p-1 sm:p-2 hover:bg-green-100 text-green-600 rounded-lg text-xs font-medium"
-                              title="Approve"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleApprovalAction(expense.id, "reject")}
-                              className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium"
-                              title="Reject"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        {(expense.status === "approved" || expense.status === "rejected") && (
-                          <span className="text-xs text-muted-foreground flex-1">
-                            {expense.status === "approved" ? "Approved" : "Rejected"}
-                          </span>
-                        )}
-                      </div>
-                    ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
-                      <div className="flex gap-1 sm:gap-2">
-                        {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
-                          <button
-                            onClick={() => handleViewReceipt(expense)}
-                            className="flex-1 p-1 sm:p-2 hover:bg-slate-100 text-slate-700 rounded-lg"
-                            title="View Bill"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        )}
-                        {canEditClaim(expense) && (
-                          <button
-                            onClick={() => handleOpenDialog(expense)}
-                            className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                        )}
-                        {canDeleteClaim(expense) && (
-                          <button
-                            onClick={() => handleDelete(expense)}
-                            className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg"
-                            title={expense.isDraft ? "Delete Draft" : "Delete"}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-semibold">Employee</th>
-                    <th className="text-left px-4 py-3 font-semibold">Date</th>
-                    <th className="text-left px-4 py-3 font-semibold">Client</th>
-                    <th className="text-left px-4 py-3 font-semibold">Category</th>
-                    <th className="text-left px-4 py-3 font-semibold">Amount</th>
-                    <th className="text-left px-4 py-3 font-semibold">Status</th>
-                    <th className="text-left px-4 py-3 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
                   {filteredExpenses.map((expense) => (
-                    <tr key={expense.id} className="border-b border-border hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">{expense.employeeName}</td>
-                      <td className="px-4 py-3">{expense.date}</td>
-                      <td className="px-4 py-3">{expense.clientName || "-"}</td>
-                      <td className="px-4 py-3">{expense.categories.join(", ")}</td>
-                      <td className="px-4 py-3 font-medium">₹{(expense.totalAmount || 0).toLocaleString()}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(expense.status)}`}>
+                    <div key={expense.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
+                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                        <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{expense.employeeName}</h3>
+                        <span className={`text-xs px-1.5 py-0.5 rounded border whitespace-nowrap ${getStatusColor(expense.status)}`}>
                           {expense.status}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-4">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground flex-shrink-0">Date:</span>
+                          <span className="font-medium text-right">{expense.date}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground flex-shrink-0">Client:</span>
+                          <span className="font-medium text-right">{expense.clientName || "-"}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground flex-shrink-0">Category:</span>
+                          <span className="font-medium text-right">{expense.categories.join(", ")}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground flex-shrink-0">Amount:</span>
+                          <span className="font-semibold text-right">₹{(expense.totalAmount || 0).toLocaleString()}</span>
+                        </div>
+                        {expense.claims.length > 1 && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground flex-shrink-0">Items:</span>
+                            <span className="font-medium text-right">{expense.claims.length} expenses</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="pt-2 sm:pt-3 border-t border-border">
                         {hasRole(user, "finance") ? (
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 sm:gap-2 flex-wrap">
                             {expense.status === "pending" && (
                               <>
                                 <button
                                   onClick={() => handleApprovalAction(expense.id, "approve")}
-                                  className="p-2 hover:bg-green-100 text-green-600 rounded-lg text-xs font-medium"
+                                  className="flex-1 p-1 sm:p-2 hover:bg-green-100 text-green-600 rounded-lg text-xs font-medium"
                                   title="Approve"
                                 >
                                   Approve
                                 </button>
                                 <button
                                   onClick={() => handleApprovalAction(expense.id, "reject")}
-                                  className="p-2 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium"
+                                  className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium"
                                   title="Reject"
                                 >
                                   Reject
@@ -1799,17 +1824,17 @@ export default function ExpenseClaims() {
                               </>
                             )}
                             {(expense.status === "approved" || expense.status === "rejected") && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground flex-1">
                                 {expense.status === "approved" ? "Approved" : "Rejected"}
                               </span>
                             )}
                           </div>
                         ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 sm:gap-2">
                             {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
                               <button
                                 onClick={() => handleViewReceipt(expense)}
-                                className="p-2 hover:bg-slate-100 text-slate-700 rounded-lg"
+                                className="flex-1 p-1 sm:p-2 hover:bg-slate-100 text-slate-700 rounded-lg"
                                 title="View Bill"
                               >
                                 <Eye className="w-4 h-4" />
@@ -1818,7 +1843,7 @@ export default function ExpenseClaims() {
                             {canEditClaim(expense) && (
                               <button
                                 onClick={() => handleOpenDialog(expense)}
-                                className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
+                                className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
                                 title="Edit"
                               >
                                 <Edit className="w-4 h-4" />
@@ -1827,7 +1852,7 @@ export default function ExpenseClaims() {
                             {canDeleteClaim(expense) && (
                               <button
                                 onClick={() => handleDelete(expense)}
-                                className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
+                                className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg"
                                 title={expense.isDraft ? "Delete Draft" : "Delete"}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1837,13 +1862,105 @@ export default function ExpenseClaims() {
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-            </>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left px-4 py-3 font-semibold">Employee</th>
+                        <th className="text-left px-4 py-3 font-semibold">Date</th>
+                        <th className="text-left px-4 py-3 font-semibold">Client</th>
+                        <th className="text-left px-4 py-3 font-semibold">Category</th>
+                        <th className="text-left px-4 py-3 font-semibold">Amount</th>
+                        <th className="text-left px-4 py-3 font-semibold">Status</th>
+                        <th className="text-left px-4 py-3 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredExpenses.map((expense) => (
+                        <tr key={expense.id} className="border-b border-border hover:bg-muted/50">
+                          <td className="px-4 py-3 font-medium">{expense.employeeName}</td>
+                          <td className="px-4 py-3">{expense.date}</td>
+                          <td className="px-4 py-3">{expense.clientName || "-"}</td>
+                          <td className="px-4 py-3">{expense.categories.join(", ")}</td>
+                          <td className="px-4 py-3 font-medium">₹{(expense.totalAmount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(expense.status)}`}>
+                              {expense.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {hasRole(user, "finance") ? (
+                              <div className="flex gap-2">
+                                {expense.status === "pending" && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApprovalAction(expense.id, "approve")}
+                                      className="p-2 hover:bg-green-100 text-green-600 rounded-lg text-xs font-medium"
+                                      title="Approve"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleApprovalAction(expense.id, "reject")}
+                                      className="p-2 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium"
+                                      title="Reject"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                                {(expense.status === "approved" || expense.status === "rejected") && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {expense.status === "approved" ? "Approved" : "Rejected"}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
+                              <div className="flex gap-2">
+                                {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
+                                  <button
+                                    onClick={() => handleViewReceipt(expense)}
+                                    className="p-2 hover:bg-slate-100 text-slate-700 rounded-lg"
+                                    title="View Bill"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {canEditClaim(expense) && (
+                                  <button
+                                    onClick={() => handleOpenDialog(expense)}
+                                    className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
+                                    title="Edit"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {canDeleteClaim(expense) && (
+                                  <button
+                                    onClick={() => handleDelete(expense)}
+                                    className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
+                                    title={expense.isDraft ? "Delete Draft" : "Delete"}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -1854,9 +1971,9 @@ export default function ExpenseClaims() {
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
               {isGroupedEdit ? `Edit ${expenseRows.length} Expense Claims` :
-               editingId ? "Edit Claim" : 
-                formData.status === "draft" ? "Edit Draft Expense Claims" :
-                "Submit Expense Claims"}
+                editingId ? "Edit Claim" :
+                  formData.status === "draft" ? "Edit Draft Expense Claims" :
+                    "Submit Expense Claims"}
             </DialogTitle>
           </DialogHeader>
 
@@ -1912,16 +2029,16 @@ export default function ExpenseClaims() {
 
                   {!editingId || isGroupedEdit ? (
                     <div>
-                    <Label className="text-xs sm:text-sm">Date</Label>
-                    <Input
-                      type="date"
-                      value={expenseDate}
-                      onChange={(e) => {
-                        setExpenseDate(e.target.value);
-                        setError(null);
-                      }}
-                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                    />
+                      <Label className="text-xs sm:text-sm">Date</Label>
+                      <Input
+                        type="date"
+                        value={expenseDate}
+                        onChange={(e) => {
+                          setExpenseDate(e.target.value);
+                          setError(null);
+                        }}
+                        className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                      />
                     </div>
                   ) : null}
                 </>
@@ -1930,62 +2047,62 @@ export default function ExpenseClaims() {
 
             {(editingId && expenseRows.length <= 1) ? (
               <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
-              <div>
-                <Label className="text-xs sm:text-sm">Category</Label>
-                <Input
-                  value={formData.category || ""}
-                  onChange={(e) => {
-                    setFormData({ ...formData, category: e.target.value });
-                    setError(null); // Clear error when user starts typing
-                  }}
-                  placeholder="e.g., Travel, Meals, Supplies"
-                  className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                />
-                <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1">
-                  Travel, Meals, Supplies, or Other
-                </p>
-              </div>
-              <div>
-                <Label className="text-xs sm:text-sm">Amount</Label>
-                <Input
-                  type="number"
-                  value={formData.amount || ""}
-                  onChange={(e) => {
-                    setFormData({ ...formData, amount: parseFloat(e.target.value) });
-                    setError(null); // Clear error when user starts typing
-                  }}
-                  className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-xs sm:text-sm">Date</Label>
-                <Input
-                  type="date"
-                  value={formData.date || ""}
-                  onChange={(e) => {
-                    setFormData({ ...formData, date: e.target.value });
-                    setError(null); // Clear error when user starts typing
-                  }}
-                  className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
-                />
-              </div>
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                  <div>
+                    <Label className="text-xs sm:text-sm">Category</Label>
+                    <Input
+                      value={formData.category || ""}
+                      onChange={(e) => {
+                        setFormData({ ...formData, category: e.target.value });
+                        setError(null); // Clear error when user starts typing
+                      }}
+                      placeholder="e.g., Travel, Meals, Supplies"
+                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                      Travel, Meals, Supplies, or Other
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs sm:text-sm">Amount</Label>
+                    <Input
+                      type="number"
+                      value={formData.amount || ""}
+                      onChange={(e) => {
+                        setFormData({ ...formData, amount: parseFloat(e.target.value) });
+                        setError(null); // Clear error when user starts typing
+                      }}
+                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs sm:text-sm">Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.date || ""}
+                      onChange={(e) => {
+                        setFormData({ ...formData, date: e.target.value });
+                        setError(null); // Clear error when user starts typing
+                      }}
+                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <Label className="text-xs sm:text-sm">Description</Label>
-              <Textarea
-                value={formData.description || ""}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-1.5 sm:mt-2 text-xs sm:text-sm min-h-20 sm:min-h-24"
-              />
-            </div>
+                <div>
+                  <Label className="text-xs sm:text-sm">Description</Label>
+                  <Textarea
+                    value={formData.description || ""}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="mt-1.5 sm:mt-2 text-xs sm:text-sm min-h-20 sm:min-h-24"
+                  />
+                </div>
 
-            {/* <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3">
+                {/* <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3">
               <Label className="block mb-1.5 sm:mb-2 text-xs sm:text-sm">Bill / Receipt</Label> */}
 
-              {/* Scanning Status */}
-              {/* {scanning && (
+                {/* Scanning Status */}
+                {/* {scanning && (
                 <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
@@ -1994,8 +2111,8 @@ export default function ExpenseClaims() {
                 </div>
               )} */}
 
-              {/* Scan Results */}
-              {/* {scanData && !scanning && (
+                {/* Scan Results */}
+                {/* {scanData && !scanning && (
                 <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Camera className="w-4 h-4 text-green-600" />
@@ -2010,7 +2127,7 @@ export default function ExpenseClaims() {
                 </div>
               )} */}
 
-              {/* {!billFile ? (
+                {/* {!billFile ? (
                 <div className="space-y-2">
                   <div>
                     <Label htmlFor="fileType" className="text-xs sm:text-sm">File Type / Category</Label>
@@ -2068,132 +2185,132 @@ export default function ExpenseClaims() {
                   </button>
                 </div>
               )} */}
-            {/* </div> */}
+                {/* </div> */}
 
-            <div className="border-t pt-3 mt-2">
-              <Label className="block mb-2 text-xs sm:text-sm">Bill / Receipt</Label>
+                <div className="border-t pt-3 mt-2">
+                  <Label className="block mb-2 text-xs sm:text-sm">Bill / Receipt</Label>
 
-              {scanning && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                    <span className="text-sm text-blue-800">Scanning receipt...</span>
-                  </div>
+                  {scanning && (
+                    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                        <span className="text-sm text-blue-800">Scanning receipt...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {scanData && !scanning && billFile && (
+                    <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Camera className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">Receipt scanned successfully</span>
+                      </div>
+                      <div className="text-xs text-green-700 space-y-1">
+                        {scanData.amount && <div>Amount: Rs.{scanData.amount}</div>}
+                        {scanData.date && <div>Date: {scanData.date}</div>}
+                        {scanData.vendor && <div>Vendor: {scanData.vendor}</div>}
+                        {scanData.category && <div>Category: {scanData.category}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {!billFile && editReceipt?.path && (
+                    <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">Current attachment</p>
+                        <p className="text-xs text-muted-foreground truncate">{editReceipt.path.split("/").pop()}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() =>
+                            openPreviewFromUrl(
+                              editReceipt.url || resolveReceiptUrl(editReceipt.path),
+                              editReceipt.path?.split("/").pop() || "Receipt"
+                            )
+                          }
+                        >
+                          View
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="h-8 px-3 text-xs text-destructive" onClick={handleRemoveExistingReceipt}>
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!billFile ? (
+                    <div className="space-y-2">
+                      <div>
+                        <Label htmlFor="fileType" className="text-xs sm:text-sm">File Type / Category</Label>
+                        <Select value={billFileType} onValueChange={setBillFileType}>
+                          <SelectTrigger id="fileType" className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                            <SelectValue placeholder="Select file type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Invoice">Invoice</SelectItem>
+                            <SelectItem value="Receipt">Receipt</SelectItem>
+                            <SelectItem value="Bill">Bill</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <label className="relative block">
+                        <div className="flex items-center justify-center w-full px-2 py-3 sm:px-4 sm:py-6 border-2 border-dashed border-border rounded-lg hover:bg-muted cursor-pointer transition-colors">
+                          <div className="flex flex-col items-center gap-1 sm:gap-2">
+                            <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                            <span className="text-xs sm:text-sm text-muted-foreground text-center">
+                              {scanning ? "Scanning..." : editReceipt?.path ? "Replace receipt" : "Click to upload & scan"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">PNG, JPG, JPEG, WebP, SVG, PDF up to 10MB</span>
+                          </div>
+                        </div>
+                        <input type="file" className="hidden" onChange={handleFileUpload} accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,image/*,application/pdf" disabled={scanning} />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/50">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Upload className="w-4 h-4 text-primary flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{billFile.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {billFile.type || "Attachment"} • {(billFile.size / 1024).toFixed(2)} KB
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => billFile.file && openPreview(billFile.file)}>
+                          Preview
+                        </Button>
+                        <button onClick={handleRemoveFile} className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors flex-shrink-0 ml-2">
+                          <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {scanData && !scanning && billFile && (
-                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Camera className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">Receipt scanned successfully</span>
-                  </div>
-                  <div className="text-xs text-green-700 space-y-1">
-                    {scanData.amount && <div>Amount: Rs.{scanData.amount}</div>}
-                    {scanData.date && <div>Date: {scanData.date}</div>}
-                    {scanData.vendor && <div>Vendor: {scanData.vendor}</div>}
-                    {scanData.category && <div>Category: {scanData.category}</div>}
-                  </div>
-                </div>
-              )}
-
-              {!billFile && editReceipt?.path && (
-                <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">Current attachment</p>
-                    <p className="text-xs text-muted-foreground truncate">{editReceipt.path.split("/").pop()}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-3 text-xs"
-                      onClick={() =>
-                        openPreviewFromUrl(
-                          editReceipt.url || resolveReceiptUrl(editReceipt.path),
-                          editReceipt.path?.split("/").pop() || "Receipt"
-                        )
-                      }
-                    >
-                      View
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" className="h-8 px-3 text-xs text-destructive" onClick={handleRemoveExistingReceipt}>
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {!billFile ? (
-                <div className="space-y-2">
+                {hasRole(user, "finance") && (
                   <div>
-                    <Label htmlFor="fileType" className="text-xs sm:text-sm">File Type / Category</Label>
-                    <Select value={billFileType} onValueChange={setBillFileType}>
-                      <SelectTrigger id="fileType" className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
-                        <SelectValue placeholder="Select file type" />
+                    <Label className="text-xs sm:text-sm">Status</Label>
+                    <Select value={formData.status || "pending"} onValueChange={(val: any) => setFormData({ ...formData, status: val })}>
+                      <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Invoice">Invoice</SelectItem>
-                        <SelectItem value="Receipt">Receipt</SelectItem>
-                        <SelectItem value="Bill">Bill</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="reimbursed">Reimbursed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <label className="relative block">
-                    <div className="flex items-center justify-center w-full px-2 py-3 sm:px-4 sm:py-6 border-2 border-dashed border-border rounded-lg hover:bg-muted cursor-pointer transition-colors">
-                      <div className="flex flex-col items-center gap-1 sm:gap-2">
-                        <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-                        <span className="text-xs sm:text-sm text-muted-foreground text-center">
-                          {scanning ? "Scanning..." : editReceipt?.path ? "Replace receipt" : "Click to upload & scan"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">PNG, JPG, JPEG, WebP, SVG up to 10MB</span>
-                      </div>
-                    </div>
-                    <input type="file" className="hidden" onChange={handleFileUpload} accept=".png,.jpg,.jpeg,.webp,.svg,image/*" disabled={scanning} />
-                  </label>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/50">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Upload className="w-4 h-4 text-primary flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{billFile.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {billFile.type || "Attachment"} • {(billFile.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => billFile.file && openPreview(billFile.file)}>
-                      Preview
-                    </Button>
-                    <button onClick={handleRemoveFile} className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors flex-shrink-0 ml-2">
-                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {hasRole(user, "finance") && (
-              <div>
-                <Label className="text-xs sm:text-sm">Status</Label>
-                <Select value={formData.status || "pending"} onValueChange={(val: any) => setFormData({ ...formData, status: val })}>
-                  <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="reimbursed">Reimbursed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                )}
               </>
             ) : (
               <>
@@ -2266,32 +2383,76 @@ export default function ExpenseClaims() {
                               type="file"
                               accept=".png,.jpg,.jpeg,.webp,.svg,image/*"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0] || null;
-                                if (file && !isValidExpenseImageFile(file)) {
-                                  const message = "Only image files are allowed. PDF files cannot be uploaded for expense claims.";
-                                  setError(message);
-                                  showToast.error(message);
+                                const mode = receiptPickerMode[index] || "upload";
+                                const success = await processRowReceiptFile(index, file, mode);
+                                setReceiptPickerMode((prev) => {
+                                  const next = { ...prev };
+                                  delete next[index];
+                                  return next;
+                                });
+                                if (!success) {
                                   e.target.value = "";
-                                  return;
                                 }
-                                updateRow(index, { receiptFile: file, receiptPath: null });
+                                e.target.value = "";
                               }}
                             />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-10 px-3 text-xs sm:text-sm"
-                              onClick={() => {
-                                const input = document.getElementById(`receipt-${index}`) as HTMLInputElement | null;
-                                input?.click();
-                              }}
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Choose File
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-10 px-3 text-xs sm:text-sm"
+                                onClick={() => {
+                                  setReceiptPickerMode((prev) => ({ ...prev, [index]: "upload" }));
+                                  const input = document.getElementById(`receipt-${index}`) as HTMLInputElement | null;
+                                  input?.click();
+                                }}
+                              >
+                                <Upload className="w-4 h-4 mr-2" />
+                                Upload File
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-10 px-3 text-xs sm:text-sm"
+                                disabled={row.isScanning}
+                                onClick={() => {
+                                  if (row.receiptFile) {
+                                    void handleRowReceiptScan(index);
+                                    return;
+                                  }
+
+                                  setReceiptPickerMode((prev) => ({ ...prev, [index]: "scan" }));
+                                  const input = document.getElementById(`receipt-${index}`) as HTMLInputElement | null;
+                                  input?.click();
+                                }}
+                              >
+                                {row.isScanning ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Camera className="w-4 h-4 mr-2" />
+                                )}
+                                {row.isScanning ? "Scanning..." : "Auto Scan"}
+                              </Button>
+                            </div>
                           </div>
+                          {row.scanData && (
+                            <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-3">
+                              <div className="mb-1 flex items-center gap-2">
+                                <Camera className="h-4 w-4 text-green-600" />
+                                <span className="text-xs font-medium text-green-800">Scan Result</span>
+                              </div>
+                              <div className="space-y-1 text-xs text-green-700">
+                                {row.scanData.amount && <div>Amount: Rs.{row.scanData.amount}</div>}
+                                {row.scanData.date && <div>Date: {row.scanData.date}</div>}
+                                {row.scanData.vendor && <div>Vendor: {row.scanData.vendor}</div>}
+                                {row.scanData.category && <div>Category: {row.scanData.category}</div>}
+                              </div>
+                            </div>
+                          )}
                           {row.receiptFile && (
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <p className="text-xs text-muted-foreground truncate flex-1">{row.receiptFile.name}</p>
@@ -2310,7 +2471,7 @@ export default function ExpenseClaims() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 px-2 text-xs text-destructive"
-                                  onClick={() => updateRow(index, { receiptFile: null, receiptPath: null })}
+                                  onClick={() => updateRow(index, { receiptFile: null, receiptPath: null, scanData: null, isScanning: false })}
                                 >
                                   Remove
                                 </Button>
@@ -2340,7 +2501,7 @@ export default function ExpenseClaims() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 px-2 text-xs text-destructive"
-                                  onClick={() => updateRow(index, { receiptPath: null })}
+                                  onClick={() => updateRow(index, { receiptPath: null, scanData: null, isScanning: false })}
                                 >
                                   Remove
                                 </Button>
@@ -2511,17 +2672,17 @@ export default function ExpenseClaims() {
       </Dialog>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent className="w-full max-w-sm p-4 sm:p-6">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-lg">
-                {isDraftDeleteId(deleteId) ? "Delete Draft" : "Delete Claim"}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs sm:text-sm">
-                {isDraftDeleteId(deleteId)
-                  ? "Are you sure you want to remove this saved draft?"
-                  : "Are you sure? This action cannot be undone."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
+        <AlertDialogContent className="w-full max-w-sm p-4 sm:p-6">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg">
+              {isDraftDeleteId(deleteId) ? "Delete Draft" : "Delete Claim"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs sm:text-sm">
+              {isDraftDeleteId(deleteId)
+                ? "Are you sure you want to remove this saved draft?"
+                : "Are you sure? This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
             <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
             <AlertDialogAction
@@ -2565,11 +2726,10 @@ export default function ExpenseClaims() {
             </Button>
             <Button
               onClick={confirmApprovalAction}
-              className={`w-full sm:w-auto text-xs sm:text-sm ${
-                approvalAction === "approve"
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700"
-              }`}
+              className={`w-full sm:w-auto text-xs sm:text-sm ${approvalAction === "approve"
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-red-600 hover:bg-red-700"
+                }`}
             >
               {approvalAction === "approve" ? "Approve" : "Reject"}
             </Button>
@@ -2637,7 +2797,7 @@ export default function ExpenseClaims() {
                   </Label>
                 </div>
               </div>
-              
+
               <div className="max-h-40 overflow-y-auto border rounded-lg p-2">
                 {uniqueEmployees.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">No employees found</p>
@@ -2650,8 +2810,8 @@ export default function ExpenseClaims() {
                           checked={selectedEmployees.includes(employee.id) || selectAllEmployees}
                           onCheckedChange={(checked) => handleEmployeeSelection(employee.id, checked as boolean)}
                         />
-                        <Label 
-                          htmlFor={`employee-${employee.id}`} 
+                        <Label
+                          htmlFor={`employee-${employee.id}`}
                           className="text-xs sm:text-sm cursor-pointer flex-1"
                         >
                           {employee.name}
@@ -2707,9 +2867,9 @@ export default function ExpenseClaims() {
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-6 pt-4 border-t">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsExportDialogOpen(false)} 
+            <Button
+              variant="outline"
+              onClick={() => setIsExportDialogOpen(false)}
               className="w-full sm:w-auto text-xs sm:text-sm"
               disabled={exporting}
             >

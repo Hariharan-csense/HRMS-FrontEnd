@@ -41,6 +41,7 @@ import { Search, AlertTriangle, Clock, User, FileText, Loader2 } from "lucide-re
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"; // உங்க path correct ஆ இருக்கணும்
 import { useRole } from "@/context/RoleContext";
+import { useAuth } from "@/context/AuthContext";
 
 interface OverrideRecord {
   requested_by: ReactNode;
@@ -69,6 +70,7 @@ interface OverrideRecord {
 
 export default function AttendanceOverride() {
   const { canPerformModuleAction, hasAnyRole } = useRole();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [overrides, setOverrides] = useState<OverrideRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,8 +89,43 @@ export default function AttendanceOverride() {
     requestedCheckOut: "",
   });
 
+  const defaultEmployeeId = useMemo(() => {
+    const employeeIdFromSearch = searchParams.get("employeeId");
+    if (employeeIdFromSearch?.trim()) {
+      return employeeIdFromSearch.trim();
+    }
+
+    const authUser = user as (typeof user & {
+      employee_id?: string;
+      employeeId?: string;
+    }) | null;
+
+    if (authUser?.employee_id?.trim()) {
+      return authUser.employee_id.trim();
+    }
+
+    if (authUser?.employeeId?.trim()) {
+      return authUser.employeeId.trim();
+    }
+
+    try {
+      const storedUserRaw = localStorage.getItem("user");
+      const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+      const storedEmployeeId =
+        storedUser?.employee_id || storedUser?.employeeId || storedUser?.id;
+
+      if (String(storedEmployeeId || "").trim()) {
+        return String(storedEmployeeId).trim();
+      }
+    } catch (error) {
+      console.error("Failed to resolve default employee ID", error);
+    }
+
+    return String(user?.id || "").trim();
+  }, [searchParams, user]);
+
   useEffect(() => {
-    const employeeId = searchParams.get("employeeId") || "";
+    const employeeId = searchParams.get("employeeId") || defaultEmployeeId || "";
     const date = searchParams.get("date") || "";
 
     if (employeeId || date) {
@@ -98,7 +135,7 @@ export default function AttendanceOverride() {
         date,
       }));
     }
-  }, [searchParams]);
+  }, [defaultEmployeeId, searchParams]);
 
   // Fetch override history from backend
 const fetchOverrides = async () => {
@@ -163,7 +200,7 @@ const handleCreateOverride = async () => {
       toast.success("Override request created successfully!");
       setIsCreatingOverride(false);
       setOverrideForm({
-        employeeId: "",
+        employeeId: defaultEmployeeId,
         date: "",
         originalStatus: "absent",
         overriddenStatus: "present",

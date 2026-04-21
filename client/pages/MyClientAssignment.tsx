@@ -35,10 +35,8 @@ export default function MyClientAssignment() {
           // Admin can see all clients
           myClients = result.data;
         } else {
-          // Employee can only see clients assigned to them
-          myClients = result.data.filter(client => 
-            client.assigned_to === user?.id
-          );
+          // Employee result is already filtered by backend.
+          myClients = result.data;
         }
         
         setClients(myClients);
@@ -63,6 +61,12 @@ export default function MyClientAssignment() {
   };
 
   const getEmployeeName = (client: Client) => {
+    if (Array.isArray(client.assigned_employees) && client.assigned_employees.length) {
+      return client.assigned_employees
+        .map((employee) => `${employee.first_name} ${employee.last_name}`)
+        .join(", ");
+    }
+
     if (client.first_name && client.last_name) {
       return `${client.first_name} ${client.last_name}`;
     }

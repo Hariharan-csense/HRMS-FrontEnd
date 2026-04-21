@@ -34,12 +34,12 @@ interface RoleDebugInfo {
 
 const DEFAULT_ACTIONS: RbacAction[] = ["view", "create", "update", "delete", "approve", "reject"];
 const ACTION_SHORT_LABEL: Record<RbacAction, string> = {
-  view: "V",
-  create: "C",
-  update: "U",
-  delete: "D",
-  approve: "A",
-  reject: "R",
+  view: "",
+  create: "",
+  update: "",
+  delete: "",
+  approve: "",
+  reject: "",
 };
 
 const FALLBACK_CATALOG: RbacModuleCatalog[] = [

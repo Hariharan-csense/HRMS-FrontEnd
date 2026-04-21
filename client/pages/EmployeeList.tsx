@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
 import { useRole } from "@/context/RoleContext";
@@ -52,7 +52,10 @@ import {
   FileText,
   X,
   Loader2,
-  MapPin
+  MapPin,
+  Download,
+  FileSpreadsheet,
+  FileUp
 } from "lucide-react";
 import {
   Employee,
@@ -228,6 +231,7 @@ export default function EmployeeList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
 
@@ -1154,10 +1158,106 @@ export default function EmployeeList() {
     }
   };
 
+  // Export all employees to Excel with all CSV fields
+  const handleExportToExcel = () => {
+    if (employees.length === 0) {
+      showToast.error('No employees to export');
+      return;
+    }
 
+    const exportData = employees.map(emp => ({
+      'employee_id': emp.employeeId || '',
+      'first_name': emp.firstName || '',
+      'last_name': emp.lastName || '',
+      'email': emp.email || '',
+      'mobile': emp.phone || '',
+      'office_email': (emp as any).officeEmail || '',
+      'office_phone': (emp as any).officePhone || '',
+      'dob': emp.dateOfBirth || '',
+      'gender': emp.gender || '',
+      'blood_group': emp.bloodGroup || '',
+      'marital_status': emp.maritalStatus || '',
+      'emergency_contact_name': emp.emergencyContact || '',
+      'emergency_contact_phone': emp.emergencyPhone || '',
+      'department': emp.department || '',
+      'designation': emp.designation || '',
+      'shift': emp.shift || '',
+      'doj': emp.dateOfJoining || '',
+      'employment_type': emp.employmentType || '',
+      'status': emp.status || '',
+      'role': emp.role || '',
+      'location': emp.location || '',
+      'salary': String((emp as any).salary || ''),
+      'aadhaar': emp.aadhaar || '',
+      'pan': emp.pan || '',
+      'uan': emp.uan || '',
+      'esic': emp.esic || '',
+      'account_holder_name': emp.bankAccountHolder || '',
+      'bank_name': emp.bankName || '',
+      'account_number': emp.accountNumber || '',
+      'ifsc_code': emp.ifscCode || '',
+      'enable_live_tracking': String((emp as any).location_tracking_enabled || 0)
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+    XLSX.writeFile(wb, `Employees_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast.success(`Exported ${employees.length} employees to Excel`);
+  };
+
+  // Download empty template with all CSV fields
+  const handleDownloadTemplate = () => {
+    const templateData = [{
+      'employee_id': '',
+      'first_name': '',
+      'last_name': '',
+      'email': '',
+      'mobile': '',
+      'office_email': '',
+      'office_phone': '',
+      'dob': 'YYYY-MM-DD',
+      'gender': 'Male/Female',
+      'blood_group': '',
+      'marital_status': 'Single/Married',
+      'emergency_contact_name': '',
+      'emergency_contact_phone': '',
+      'department': '',
+      'designation': '',
+      'shift': '',
+      'doj': 'YYYY-MM-DD',
+      'employment_type': 'full-time/part-time/contract/intern',
+      'status': 'active/inactive',
+      'role': 'employee/hr/manager/admin',
+      'location': '',
+      'salary': '',
+      'aadhaar': '12 digits',
+      'pan': 'ABCDE1234F',
+      'uan': '',
+      'esic': '',
+      'account_holder_name': '',
+      'bank_name': '',
+      'account_number': '',
+      'ifsc_code': 'HDFC0001234',
+      'enable_live_tracking': '0 or 1'
+    }];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Employee Template');
+    XLSX.writeFile(wb, 'Employee_Import_Template.xlsx');
+    showToast.success('Template downloaded successfully');
+  };
+
+  // Import handler that uses the existing handleEmployeeExcelUpload
+  const handleImportExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
+    handleEmployeeExcelUpload(event);
+  };
 
   const fetchAndTransformEmployees = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const result = await employeeApi.getEmployees();
 
       // The API helper returns { data: employeesArray } directly
@@ -1515,38 +1615,73 @@ export default function EmployeeList() {
 
               <div className="col-span-1 flex items-end">
                 {canCreateEmployee && (
-                  <div className="w-full flex flex-col gap-2">
-                    <Label
-                      htmlFor="employee-excel-upload"
-                      className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition ${
-                        importingExcel
-                          ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                          : "cursor-pointer border-[#17c491]/30 bg-white text-[#12956f] hover:bg-[#17c491]/5"
-                      }`}
-                    >
-                      {importingExcel ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="mr-2 h-4 w-4" />
-                      )}
-                      {importingExcel ? "Importing..." : "Upload Excel"}
-                    </Label>
-                    <input
-                      id="employee-excel-upload"
-                      type="file"
-                      accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                      onChange={handleEmployeeExcelUpload}
-                      disabled={importingExcel}
-                      className="hidden"
-                    />
-                    <Button onClick={() => handleOpenDialog()} className="w-full gap-2 text-sm">
-                      <Plus className="w-3 h-3" />
-                      Add Employee
-                    </Button>
-                  </div>
+                  <Button onClick={() => handleOpenDialog()} className="w-full gap-2 text-sm">
+                    <Plus className="w-3 h-3" />
+                    Add Employee
+                  </Button>
                 )}
               </div>
             </div>
+
+            {/* Excel Actions Row - Below Search Filters */}
+            {canCreateEmployee && (
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                <Label
+                  htmlFor="employee-excel-upload"
+                  className={`inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition ${importingExcel
+                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                    : "cursor-pointer border-[#17c491]/30 bg-white text-[#12956f] hover:bg-[#17c491]/5"
+                    }`}
+                >
+                  {importingExcel ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {importingExcel ? "Importing..." : "Upload Excel"}
+                </Label>
+                <input
+                  id="employee-excel-upload"
+                  type="file"
+                  accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={handleEmployeeExcelUpload}
+                  disabled={importingExcel}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleExportToExcel}
+                  className="gap-2 text-sm"
+                  disabled={employees.length === 0}
+                >
+                  <Download className="w-4 h-4" />
+                  Export Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadTemplate}
+                  className="gap-2 text-sm"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Template
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2 text-sm"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Import
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportExcel}
+                  className="hidden"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

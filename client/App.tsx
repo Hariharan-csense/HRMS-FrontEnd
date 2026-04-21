@@ -534,6 +534,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/exit/no-due"
+          element={
+            <RoleBasedRoute requiredModule="exit" requiredAction="view">
+              <ExitOffboarding />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
           path="/exit/settlement"
           element={
             <HROnlyRoute>

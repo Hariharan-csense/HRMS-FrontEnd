@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import logo from "../assets/logo.png";
@@ -251,7 +251,7 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
-    label: "Role & Module Access Debug",
+    label: "Roles & Permissions",
     icon: <Settings className="w-5 h-5" />,
     path: "/debug/roles",
     roles: ["admin", "ceo"],
@@ -296,19 +296,19 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
-    label: "Client Attendance",
+    label: "Field Attendance",
     icon: <MapPin className="w-5 h-5" />,
     roles: [],
     submenu: [
       {
-        label: "Client Attendance",
+        label: "Field Attendance",
         path: "/client-attendance",
         roles: [],
         icon: <div />,
         moduleName: "client_attendance",
       },
       {
-        label: "Client Attendance Admin",
+        label: "Field Attendance Admin",
         path: "/client-attendance-admin",
         roles: [],
         icon: <div />,
@@ -551,6 +551,13 @@ const navigationItems: NavItem[] = [
         moduleName: "exit",
       },
       {
+        label: "No Due Form",
+        path: "/exit/no-due",
+        roles: [],
+        icon: <div />,
+        moduleName: "exit",
+      },
+      {
         label: "F&F Settlement",
         path: "/exit/settlement",
         roles: [],
@@ -560,7 +567,7 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
-    label: "Pulse Surveys",
+    label: "Employee Surveys",
     icon: <Activity className="w-5 h-5" />,
     roles: [],
     moduleName: "pulse_surveys",
@@ -744,7 +751,7 @@ export const Sidebar: React.FC = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
 
-  // Auto-expand menu items based on current route.
+  // Auto-expand menu items based on current route - only add new items, never remove to prevent flicker
   useEffect(() => {
     const activeItems: string[] = [];
 
@@ -759,38 +766,50 @@ export const Sidebar: React.FC = () => {
       }
     });
 
-    setExpandedItems(prev => [...new Set([...prev, ...activeItems])]);
+    // Only update state if there are new items to add (prevents unnecessary re-renders)
+    setExpandedItems(prev => {
+      const newItems = activeItems.filter(item => !prev.includes(item));
+      if (newItems.length === 0) return prev; // No change needed
+      return [...prev, ...newItems];
+    });
+
+    // Restore page scroll position after navigation
+    const savedScrollPos = window.sessionStorage.getItem('PAGE_SCROLL_POSITION');
+    if (savedScrollPos) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedScrollPos, 10));
+        window.sessionStorage.removeItem('PAGE_SCROLL_POSITION');
+      }, 50);
+    }
   }, [location.pathname]);
 
-  // Wire scroll persistence listener once per mount.
+  // Debounced scroll persistence to prevent excessive updates
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const navElement = navRef.current;
     if (!navElement) return;
 
     const handleScroll = () => {
-      window.sessionStorage.setItem(
-        SIDEBAR_SCROLL_KEY,
-        String(navElement.scrollTop)
-      );
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      scrollTimeoutRef.current = setTimeout(() => {
+        window.sessionStorage.setItem(
+          SIDEBAR_SCROLL_KEY,
+          String(navElement.scrollTop)
+        );
+      }, 150); // Debounce scroll saves
     };
 
     navElement.addEventListener("scroll", handleScroll, { passive: true });
-    return () => navElement.removeEventListener("scroll", handleScroll);
+    return () => {
+      navElement.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, []);
-
-  // Restore scroll after route/expansion updates so it doesn't jump to top.
-  useLayoutEffect(() => {
-    const navElement = navRef.current;
-    if (!navElement) return;
-
-    const savedScrollTop = window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
-    if (savedScrollTop === null) return;
-
-    const nextScrollTop = Number(savedScrollTop);
-    if (Number.isNaN(nextScrollTop)) return;
-
-    navElement.scrollTop = nextScrollTop;
-  }, [location.pathname, expandedItems]);
 
   if (!user) return null;
 
@@ -807,6 +826,10 @@ export const Sidebar: React.FC = () => {
         String(navRef.current.scrollTop)
       );
     }
+    // Save main content scroll position
+    const mainContent = document.querySelector('main') || window;
+    const scrollPos = window.scrollY || window.pageYOffset || 0;
+    window.sessionStorage.setItem('PAGE_SCROLL_POSITION', String(scrollPos));
     setIsMobileOpen(false);
   };
 
@@ -874,6 +897,7 @@ export const Sidebar: React.FC = () => {
       case "exit":
         if (path.includes("/exit/resignations")) return "resignations";
         if (path.includes("/exit/checklist")) return "checklist";
+        if (path.includes("/exit/no-due")) return "no-due";
         if (path.includes("/exit/settlement")) return "settlement";
         return undefined;
       case "pulse_surveys":

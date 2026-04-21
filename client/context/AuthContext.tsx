@@ -90,6 +90,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         resolvedUser = {
           ...resolvedUser,
           name: fullName || resolvedUser.name,
+          employee_id:
+            profileData.employee_id ||
+            profileData.employeeId ||
+            resolvedUser.employee_id ||
+            resolvedUser.employeeId,
+          employeeId:
+            profileData.employee_id ||
+            profileData.employeeId ||
+            resolvedUser.employeeId ||
+            resolvedUser.employee_id,
           avatar: profileData.profile_photo
             ? resolveFileUrl(profileData.profile_photo)
             : resolvedUser.avatar,
@@ -147,6 +157,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         name: savedProfile?.name || parsedStoredUser?.name || "User",
         email:
           decoded?.email || savedProfile?.email || parsedStoredUser?.email || "",
+        employee_id:
+          parsedStoredUser?.employee_id ||
+          parsedStoredUser?.employeeId ||
+          savedProfile?.employee_id ||
+          savedProfile?.employeeId,
+        employeeId:
+          parsedStoredUser?.employee_id ||
+          parsedStoredUser?.employeeId ||
+          savedProfile?.employee_id ||
+          savedProfile?.employeeId,
         role: normalizedRole,
         roles: normalizedRoles.length ? normalizedRoles : [normalizedRole],
         companyName:

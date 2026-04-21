@@ -114,6 +114,24 @@ export default function ClientGeoFence() {
     return { status: 'enabled', color: 'green', icon: CheckCircle, text: 'Geo-Fence Active' };
   };
 
+  const getAssignedEmployeeLabel = (client: Client) => {
+    if (Array.isArray(client.assigned_employees) && client.assigned_employees.length) {
+      return client.assigned_employees
+        .map((employee) => `${employee.first_name} ${employee.last_name}`)
+        .join(", ");
+    }
+
+    if (client.first_name && client.last_name) {
+      return `${client.first_name} ${client.last_name}`;
+    }
+
+    if (client.assigned_to) {
+      return `Employee ID: ${client.assigned_to}`;
+    }
+
+    return null;
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -195,9 +213,9 @@ export default function ClientGeoFence() {
                       </div>
                     )}
 
-                    {client.assigned_to && (
+                    {getAssignedEmployeeLabel(client) && (
                       <div className="text-sm">
-                        <span className="font-medium">Assigned to:</span> {client.first_name && client.last_name ? `${client.first_name} ${client.last_name}` : `Employee ID: ${client.assigned_to}`}
+                        <span className="font-medium">Assigned to:</span> {getAssignedEmployeeLabel(client)}
                       </div>
                     )}
 

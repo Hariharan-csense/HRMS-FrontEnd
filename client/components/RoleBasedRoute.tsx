@@ -68,6 +68,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       case "exit":
         if (path.includes("/exit/resignations")) return "resignations";
         if (path.includes("/exit/checklist")) return "checklist";
+        if (path.includes("/exit/no-due")) return "no-due";
         if (path.includes("/exit/settlement")) return "settlement";
         return undefined;
       case "employees":

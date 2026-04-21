@@ -9,7 +9,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader, ChevronLeft, Eye, Phone, EyeOff, Check, X, Shield, Users, Building, Mail, Lock, User } from "lucide-react";
 import { registerUser } from "@/components/helper/register";
 import { isOptionalPhoneValid, isValidEmail, normalizeEmail } from "@/lib/validation";
-import { showToast } from "@/utils/toast";
 import logo from "../assets/logo.png";
 
 const signupStyles = `
@@ -179,7 +178,7 @@ export default function Signup() {
     name: "",
     email: "",
     password: "",
-    phone:"",
+    phone: "",
     confirmPassword: "",
     companyName: "",
     role: "admin",
@@ -187,6 +186,7 @@ export default function Signup() {
     termsAccepted: false,
   });
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string }>({});
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [pageEntered, setPageEntered] = useState(false);
@@ -208,22 +208,32 @@ export default function Signup() {
   ) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
       ...(name === "role"
         ? {
-            department:
-              value === "admin"
-                ? "Management"
-                : prev.department === "Management"
-                  ? "Engineering"
-                  : prev.department,
-          }
+          department:
+            value === "admin"
+              ? "Management"
+              : prev.department === "Management"
+                ? "Engineering"
+                : prev.department,
+        }
         : null),
     }));
     setError("");
+
+    // Phone validation with field error only
+    if (name === "phone") {
+      const phoneValue = value.trim();
+      if (phoneValue && !isOptionalPhoneValid(phoneValue)) {
+        setFieldErrors({ phone: "Phone number must be 10 digits starting with 6, 7, 8, or 9" });
+      } else {
+        setFieldErrors({});
+      }
+    }
   };
 
   const passwordStrength = useMemo(
@@ -290,7 +300,7 @@ export default function Signup() {
     }
 
     setIsLoading(true);
-    
+
     try {
       // Prepare user data for registration
       const userData = {
@@ -307,7 +317,7 @@ export default function Signup() {
 
       // Call the registration API
       const result = await registerUser(userData);
-      
+
       if (!result.success) {
         throw new Error(result.error || "Registration failed");
       }
@@ -355,7 +365,6 @@ export default function Signup() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create account";
       setError(message);
-      showToast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -378,7 +387,7 @@ export default function Signup() {
             />
             <h1 className="text-4xl font-bold mb-4">Welcome to HRMS</h1>
             <p className="text-xl text-teal-100 mb-8">Transform your workforce management</p>
-            
+
             <div className="space-y-6 text-left max-w-md mx-auto">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-teal-500 rounded-lg flex items-center justify-center">
@@ -389,7 +398,7 @@ export default function Signup() {
                   <p className="text-teal-200 text-sm">Streamline employee onboarding and management</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-teal-500 rounded-lg flex items-center justify-center">
                   <Building className="w-6 h-6 text-white" />
@@ -399,7 +408,7 @@ export default function Signup() {
                   <p className="text-teal-200 text-sm">Monitor attendance and productivity seamlessly</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-teal-500 rounded-lg flex items-center justify-center">
                   <Shield className="w-6 h-6 text-white" />
@@ -464,7 +473,7 @@ export default function Signup() {
               </p>
             </div>
 
-          {/* Registration Card */}
+            {/* Registration Card */}
             <Card className="border-0 shadow-lg signup-card">
               <CardContent className="pt-6">
                 {error && (
@@ -552,12 +561,12 @@ export default function Signup() {
                       </div>
                     </div>
 
-                    {/* Role Selection */}
+                    {/* Phone Number */}
                     <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.5s" }}>
-                      <Label htmlFor="role" className="text-slate-900 font-medium">
+                      <Label htmlFor="phone" className="text-slate-900 font-medium">
                         Phone Number
                       </Label>
-                       <div className="relative">
+                      <div className="relative">
                         <Phone className="input-icon w-4 h-4 text-slate-400" />
                         <Input
                           id="phone"
@@ -569,14 +578,20 @@ export default function Signup() {
                           value={formData.phone}
                           onChange={handleInputChange}
                           disabled={isLoading}
-                          className="bg-slate-50 border-slate-200 input-with-icon"
+                          className={`bg-slate-50 input-with-icon ${fieldErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-slate-200'}`}
                           autoComplete="phone"
                         />
                       </div>
+                      {fieldErrors.phone && (
+                        <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          {fieldErrors.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-               
+
 
                   {/* Password Fields Row */}
                   <div className="grid grid-cols-2 gap-4">
@@ -799,7 +814,7 @@ export default function Signup() {
                 <span>•</span>
                 <a href="/terms-conditions" className="hover:text-teal-600 transition-colors">Terms and Conditions
                 </a>
-               
+
                 <span>•</span>
                 <a href="/contact" className="hover:text-teal-600 transition-colors">Support</a>
               </div>

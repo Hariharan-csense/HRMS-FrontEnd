@@ -306,7 +306,7 @@ const expenseApi = {
   updateExpense: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
     try {
       // Make sure you're hitting the correct endpoint, e.g., `/expenses/:id`
-      const response = await ENDPOINTS.updateExpense(id, data); 
+      const response = await ENDPOINTS.updateExpense(id, data);
       return { data: response.data };
     } catch (error: any) {
       console.error("Error updating expense:", error);

@@ -472,7 +472,7 @@ export default function AttendanceLog() {
     return `EMP${String(Number.isFinite(numericId) ? numericId : 0).padStart(3, "0")}`;
   };
 
-  
+
   const openOverrideCard = (record: AttendanceLogRecord) => {
     if (!canEditAttendanceLog) {
       toast.error("You don't have permission to edit attendance logs");
@@ -556,319 +556,319 @@ export default function AttendanceLog() {
   };
 
   // Fetch employees list
-const fetchEmployees = async () => {
-  setEmployeesLoading(true);
-  try {
-    const result = await employeeApi.getEmployees();
-    setEmployees(result.data || []);
-  } catch (error) {
-    console.error("Error fetching employees:", error);
-    toast.error("Failed to load employees");
-    setEmployees([]);
-  } finally {
-    setEmployeesLoading(false);
-  }
-};
+  const fetchEmployees = async () => {
+    setEmployeesLoading(true);
+    try {
+      const result = await employeeApi.getEmployees();
+      setEmployees(result.data || []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast.error("Failed to load employees");
+      setEmployees([]);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
 
   // Handle employee click to show calendar
-const handleEmployeeClick = (employee: any) => {
-  setSelectedEmployee({
-    id: employee.id.toString(),
-    name: `${employee.first_name} ${employee.last_name || ''}`.trim(),
-    employeeId: getEmployeeCode(employee)
-  });
-  setViewMode('calendar');
-};
+  const handleEmployeeClick = (employee: any) => {
+    setSelectedEmployee({
+      id: employee.id.toString(),
+      name: `${employee.first_name} ${employee.last_name || ''}`.trim(),
+      employeeId: getEmployeeCode(employee)
+    });
+    setViewMode('calendar');
+  };
 
   // Handle back to employee list
-const handleBackToEmployeeList = () => {
-  setViewMode('employee-list');
-  setSelectedEmployee(null);
-};
+  const handleBackToEmployeeList = () => {
+    setViewMode('employee-list');
+    setSelectedEmployee(null);
+  };
 
-// Fetch holidays
-const fetchHolidays = async () => {
-  setHolidaysLoading(true);
-  try {
-    const result = await holidayApi.getHolidays();
-    if (result.data) {
-      console.log("Raw holidays from API:", result.data);
-      console.log("Holiday date formats:", result.data.map(h => ({ name: h.name, originalDate: h.date, dateType: typeof h.date })));
-      setHolidays(result.data);
-      console.log("Fetched holidays:", result.data);
-    } else {
-      console.warn("No holidays data received");
+  // Fetch holidays
+  const fetchHolidays = async () => {
+    setHolidaysLoading(true);
+    try {
+      const result = await holidayApi.getHolidays();
+      if (result.data) {
+        console.log("Raw holidays from API:", result.data);
+        console.log("Holiday date formats:", result.data.map(h => ({ name: h.name, originalDate: h.date, dateType: typeof h.date })));
+        setHolidays(result.data);
+        console.log("Fetched holidays:", result.data);
+      } else {
+        console.warn("No holidays data received");
+        setHolidays([]);
+      }
+    } catch (error) {
+      console.error("Error fetching holidays:", error);
+      toast.error("Failed to load holidays");
       setHolidays([]);
+    } finally {
+      setHolidaysLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching holidays:", error);
-    toast.error("Failed to load holidays");
-    setHolidays([]);
-  } finally {
-    setHolidaysLoading(false);
-  }
-};
+  };
 
-// Fetch shifts
-const fetchShifts = async () => {
-  setShiftsLoading(true);
-  try {
-    const result = await shiftApi.getShifts();
-    if (result.data) {
-      console.log("Fetched shifts:", result.data);
-      setShifts(result.data);
-    } else {
-      console.warn("No shifts data received");
+  // Fetch shifts
+  const fetchShifts = async () => {
+    setShiftsLoading(true);
+    try {
+      const result = await shiftApi.getShifts();
+      if (result.data) {
+        console.log("Fetched shifts:", result.data);
+        setShifts(result.data);
+      } else {
+        console.warn("No shifts data received");
+        setShifts([]);
+      }
+    } catch (error) {
+      console.error("Error fetching shifts:", error);
+      toast.error("Failed to load shifts");
       setShifts([]);
+    } finally {
+      setShiftsLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching shifts:", error);
-    toast.error("Failed to load shifts");
-    setShifts([]);
-  } finally {
-    setShiftsLoading(false);
-  }
-};
-  
-    // Fetch attendance logs for the current month
-const fetchAttendanceLogs = async () => {
-  setLoading(true);
-  setError(null);
+  };
 
-  try {
-    // Fetch for the selected month
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth() + 1;
+  // Fetch attendance logs for the current month
+  const fetchAttendanceLogs = async () => {
+    setLoading(true);
+    setError(null);
 
-    // Fetch for the entire month to ensure we get all records
-    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${String(month).padStart(2, "0")}-${lastDay}`;
+    try {
+      // Fetch for the selected month
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth() + 1;
 
-    console.log("Selected month:", currentMonth.toLocaleDateString());
-    console.log("Fetching for:", startDate, "to", endDate);
+      // Fetch for the entire month to ensure we get all records
+      const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const endDate = `${year}-${String(month).padStart(2, "0")}-${lastDay}`;
 
-    // Send user information to backend for proper role-based filtering
-    const userInfo = {
-      userId: user?.id,
-      userRole: (user as any)?.role,
-      userRoles: (user as any)?.roles,
-      userType: (user as any)?.type,
-      userName: user?.name,
-      companyId: (user as any)?.company_id,
-      departmentId: (user as any)?.department_id
-    };
-    
-    console.log("Sending user info to backend:", userInfo);
+      console.log("Selected month:", currentMonth.toLocaleDateString());
+      console.log("Fetching for:", startDate, "to", endDate);
 
-    const pageSize = 100;
-    const firstPage = await attendanceApi.getAttendanceLogs({
-      startDate,
-      endDate,
-      page: 1,
-      limit: pageSize,
-      ...userInfo // Send user info for backend filtering
-    });
+      // Send user information to backend for proper role-based filtering
+      const userInfo = {
+        userId: user?.id,
+        userRole: (user as any)?.role,
+        userRoles: (user as any)?.roles,
+        userType: (user as any)?.type,
+        userName: user?.name,
+        companyId: (user as any)?.company_id,
+        departmentId: (user as any)?.department_id
+      };
 
-    console.log("API First Page Result:", firstPage);
-    console.log("API First Page data:", firstPage.data);
+      console.log("Sending user info to backend:", userInfo);
 
-    // Use the data directly from the API response
-    let attendanceData: any[] = Array.isArray(firstPage.data) ? [...firstPage.data] : [];
-    const totalCount = Number(firstPage.total || attendanceData.length || 0);
-    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const pageSize = 100;
+      const firstPage = await attendanceApi.getAttendanceLogs({
+        startDate,
+        endDate,
+        page: 1,
+        limit: pageSize,
+        ...userInfo // Send user info for backend filtering
+      });
 
-    if (totalPages > 1) {
-      const pageRequests: Promise<any>[] = [];
-      for (let page = 2; page <= totalPages; page++) {
-        pageRequests.push(
-          attendanceApi.getAttendanceLogs({
-            startDate,
-            endDate,
-            page,
-            limit: pageSize,
-            ...userInfo
-          })
-        );
+      console.log("API First Page Result:", firstPage);
+      console.log("API First Page data:", firstPage.data);
+
+      // Use the data directly from the API response
+      let attendanceData: any[] = Array.isArray(firstPage.data) ? [...firstPage.data] : [];
+      const totalCount = Number(firstPage.total || attendanceData.length || 0);
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+      if (totalPages > 1) {
+        const pageRequests: Promise<any>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          pageRequests.push(
+            attendanceApi.getAttendanceLogs({
+              startDate,
+              endDate,
+              page,
+              limit: pageSize,
+              ...userInfo
+            })
+          );
+        }
+
+        const pageResponses = await Promise.all(pageRequests);
+        pageResponses.forEach((pageResult: any, index: number) => {
+          if (Array.isArray(pageResult?.data)) {
+            attendanceData = attendanceData.concat(pageResult.data);
+          } else {
+            console.warn(`Attendance page ${index + 2} has no array data`, pageResult);
+          }
+        });
       }
 
-      const pageResponses = await Promise.all(pageRequests);
-      pageResponses.forEach((pageResult: any, index: number) => {
-        if (Array.isArray(pageResult?.data)) {
-          attendanceData = attendanceData.concat(pageResult.data);
-        } else {
-          console.warn(`Attendance page ${index + 2} has no array data`, pageResult);
-        }
-      });
-    }
+      console.log("Fetched total pages:", totalPages, "Total records:", attendanceData.length);
 
-    console.log("Fetched total pages:", totalPages, "Total records:", attendanceData.length);
+      console.log("Final attendanceData:", attendanceData);
+      console.log("attendanceData length:", attendanceData.length);
 
-    console.log("Final attendanceData:", attendanceData);
-    console.log("attendanceData length:", attendanceData.length);
+      if (attendanceData.length > 0) {
+        // Map backend response → frontend interface
+        const mappedLogs: AttendanceLogRecord[] = attendanceData.map((item: any) => {
+          const parseGeoLocation = (rawLocation: any): AttendanceGeoLocation => {
+            const fallback: AttendanceGeoLocation = {
+              latitude: 0,
+              longitude: 0,
+              accuracy: 0,
+              address: "N/A",
+            };
 
-    if (attendanceData.length > 0) {
-      // Map backend response → frontend interface
-      const mappedLogs: AttendanceLogRecord[] = attendanceData.map((item: any) => {
-        const parseGeoLocation = (rawLocation: any): AttendanceGeoLocation => {
-          const fallback: AttendanceGeoLocation = {
-            latitude: 0,
-            longitude: 0,
-            accuracy: 0,
-            address: "N/A",
+            if (!rawLocation) return fallback;
+
+            try {
+              const parsed = typeof rawLocation === "string" ? JSON.parse(rawLocation) : rawLocation;
+              return {
+                latitude: Number(parsed?.latitude) || 0,
+                longitude: Number(parsed?.longitude) || 0,
+                accuracy: Number(parsed?.accuracy) || 0,
+                address:
+                  String(parsed?.address || "N/A")
+                    .replace(/^zone\s*\d+\s*/i, "")
+                    .trim() || "N/A",
+              };
+            } catch {
+              console.warn("Failed to parse location", rawLocation);
+              return fallback;
+            }
           };
 
-          if (!rawLocation) return fallback;
+          const checkInLocation = parseGeoLocation(item.check_in_location);
+          const checkOutLocation = parseGeoLocation(item.check_out_location);
+          // Backward compatibility: use check-in as the primary location.
+          const location = checkInLocation;
 
-          try {
-            const parsed = typeof rawLocation === "string" ? JSON.parse(rawLocation) : rawLocation;
-            return {
-              latitude: Number(parsed?.latitude) || 0,
-              longitude: Number(parsed?.longitude) || 0,
-              accuracy: Number(parsed?.accuracy) || 0,
-              address:
-                String(parsed?.address || "N/A")
-                  .replace(/^zone\s*\d+\s*/i, "")
-                  .trim() || "N/A",
-            };
-          } catch {
-            console.warn("Failed to parse location", rawLocation);
-            return fallback;
-          }
-        };
-
-        const checkInLocation = parseGeoLocation(item.check_in_location);
-        const checkOutLocation = parseGeoLocation(item.check_out_location);
-        // Backward compatibility: use check-in as the primary location.
-        const location = checkInLocation;
-
-        // Format time from ISO string
-        const formatTime = (isoString: string | null) => {
-          if (!isoString) return null;
-          const d = new Date(isoString);
-          return d.toTimeString().slice(0, 5); // HH:MM
-        };
-
-        // Extract date from check_in, fallback to created_at
-        const getDate = (isoString: string | null, fallbackString?: string | null) => {
-          if (isoString) {
+          // Format time from ISO string
+          const formatTime = (isoString: string | null) => {
+            if (!isoString) return null;
             const d = new Date(isoString);
-            return d.toISOString().split("T")[0]; // YYYY-MM-DD
-          }
-          if (fallbackString) {
-            const d = new Date(fallbackString);
-            return d.toISOString().split("T")[0]; // YYYY-MM-DD
-          }
-          return null;
-        };
+            return d.toTimeString().slice(0, 5); // HH:MM
+          };
 
-        // Helper function to construct full image URL
-        const getImageUrl = (relativePath: string | null) => {
-          const fullUrl = resolveImageUrl(relativePath);
-          console.log("Constructing image URL:", { relativePath, fullUrl });
-          return fullUrl;
-        };
+          // Extract date from check_in, fallback to created_at
+          const getDate = (isoString: string | null, fallbackString?: string | null) => {
+            if (isoString) {
+              const d = new Date(isoString);
+              return d.toISOString().split("T")[0]; // YYYY-MM-DD
+            }
+            if (fallbackString) {
+              const d = new Date(fallbackString);
+              return d.toISOString().split("T")[0]; // YYYY-MM-DD
+            }
+            return null;
+          };
 
-        // Debug log for image fields
-        console.log("API Response Item:", {
-          check_in_image_url: item.check_in_image_url,
-          check_out_image_url: item.check_out_image_url,
-          id: item.id
-        });
+          // Helper function to construct full image URL
+          const getImageUrl = (relativePath: string | null) => {
+            const fullUrl = resolveImageUrl(relativePath);
+            console.log("Constructing image URL:", { relativePath, fullUrl });
+            return fullUrl;
+          };
 
-        // Debug log for each item being processed
-        const extractedDate = getDate(item.check_in, item.created_at);
-        console.log("Processing API Item:", {
-          id: item.id,
-          check_in: item.check_in,
-          created_at: item.created_at,
-          extracted_date: extractedDate,
-          status: item.status,
-          employee_name: `${item.first_name} ${item.last_name || ""}`.trim(),
-          hours_worked: item.hours_worked
-        });
-
-        // Determine actual attendance status using shift-based calculation
-        // IMPORTANT: Do not overwrite backend status='late' with frontend calculation.
-        // Only allow upgrading present -> late for UI convenience.
-        let actualStatus = item.status;
-        let calculatedLateBy = "";
-        
-        // If there's a check-in time, calculate lateBy and (optionally) upgrade present -> late
-        if (item.check_in && item.shift_id) {
-          const attendanceDate = getDate(item.check_in, item.created_at) || "";
-          const shiftCalculation = calculateAttendanceStatus(
-            item.check_in,
-            item.shift_id.toString(),
-            attendanceDate
-          );
-
-          // Keep backend late as-is; otherwise upgrade present -> late if calculation says late
-          if (item.status !== "late" && item.status === "present" && shiftCalculation.status === "late") {
-            actualStatus = "late";
-          }
-
-          if (actualStatus === "late") {
-            calculatedLateBy = shiftCalculation.lateBy || "";
-          }
-          
-          console.log("Shift-based attendance calculation:", {
-            employee: item.first_name,
-            checkIn: item.check_in,
-            shiftId: item.shift_id,
-            backendStatus: item.status,
-            finalStatus: actualStatus,
-            lateBy: shiftCalculation.lateBy,
-            reason: shiftCalculation.reason
+          // Debug log for image fields
+          console.log("API Response Item:", {
+            check_in_image_url: item.check_in_image_url,
+            check_out_image_url: item.check_out_image_url,
+            id: item.id
           });
-        } else if (!item.check_in && item.status === "absent") {
-          // If no check_in and status is absent, it might be unmarked attendance
-          actualStatus = "unmarked";
-          console.log("Unmarked attendance detected for:", item.first_name);
-        }
 
-        return {
-          id: item.id.toString(),
-          employeeId: getEmployeeCode(item),
-          employeeName: `${item.first_name} ${item.last_name || ""}`.trim(),
-          date: getDate(item.check_in, item.created_at) || "",
-          inTime: formatTime(item.check_in),
-          outTime: formatTime(item.check_out),
-          status: actualStatus,
-          hoursWorked: parseFloat(item.hours_worked || "0"),
-          overtimeHours: parseFloat(item.overtime_hours || "0"),
-          autoFlag: item.auto_flag === 1,
-          flagReason: item.flag_reason || undefined,
-          device: item.device_info || "Unknown",
-          location,
-          checkInLocation,
-          checkOutLocation: item.check_out ? checkOutLocation : undefined,
-          imageUrl: getImageUrl(item.check_in_image_url), // Legacy field
-          imageIn: getImageUrl(item.check_in_image_url),
-          imageOut: getImageUrl(item.check_out_image_url),
-          inConfidence: undefined,
-          outConfidence: undefined,
-          reportingManager: undefined,
-          type: (item.status === "half" ? "half" : item.status === "absent" ? "absent" : item.status === "unmarked" ? "unmarked" : "full") as "full" | "half" | "absent" | "present" | "unmarked",
-          lateBy: calculatedLateBy,
-          // Also store the original employee_id for matching
-          originalEmployeeId: item.employee_id,
-        };
-      });
+          // Debug log for each item being processed
+          const extractedDate = getDate(item.check_in, item.created_at);
+          console.log("Processing API Item:", {
+            id: item.id,
+            check_in: item.check_in,
+            created_at: item.created_at,
+            extracted_date: extractedDate,
+            status: item.status,
+            employee_name: `${item.first_name} ${item.last_name || ""}`.trim(),
+            hours_worked: item.hours_worked
+          });
 
-      setLogs(mappedLogs);
-    } else {
-      console.log("No attendance data found");
-      setLogs([]);
+          // Determine actual attendance status using shift-based calculation
+          // IMPORTANT: Do not overwrite backend status='late' with frontend calculation.
+          // Only allow upgrading present -> late for UI convenience.
+          let actualStatus = item.status;
+          let calculatedLateBy = "";
+
+          // If there's a check-in time, calculate lateBy and (optionally) upgrade present -> late
+          if (item.check_in && item.shift_id) {
+            const attendanceDate = getDate(item.check_in, item.created_at) || "";
+            const shiftCalculation = calculateAttendanceStatus(
+              item.check_in,
+              item.shift_id.toString(),
+              attendanceDate
+            );
+
+            // Keep backend late as-is; otherwise upgrade present -> late if calculation says late
+            if (item.status !== "late" && item.status === "present" && shiftCalculation.status === "late") {
+              actualStatus = "late";
+            }
+
+            if (actualStatus === "late") {
+              calculatedLateBy = shiftCalculation.lateBy || "";
+            }
+
+            console.log("Shift-based attendance calculation:", {
+              employee: item.first_name,
+              checkIn: item.check_in,
+              shiftId: item.shift_id,
+              backendStatus: item.status,
+              finalStatus: actualStatus,
+              lateBy: shiftCalculation.lateBy,
+              reason: shiftCalculation.reason
+            });
+          } else if (!item.check_in && item.status === "absent") {
+            // If no check_in and status is absent, it might be unmarked attendance
+            actualStatus = "unmarked";
+            console.log("Unmarked attendance detected for:", item.first_name);
+          }
+
+          return {
+            id: item.id.toString(),
+            employeeId: getEmployeeCode(item),
+            employeeName: `${item.first_name} ${item.last_name || ""}`.trim(),
+            date: getDate(item.check_in, item.created_at) || "",
+            inTime: formatTime(item.check_in),
+            outTime: formatTime(item.check_out),
+            status: actualStatus,
+            hoursWorked: parseFloat(item.hours_worked || "0"),
+            overtimeHours: parseFloat(item.overtime_hours || "0"),
+            autoFlag: item.auto_flag === 1,
+            flagReason: item.flag_reason || undefined,
+            device: item.device_info || "Unknown",
+            location,
+            checkInLocation,
+            checkOutLocation: item.check_out ? checkOutLocation : undefined,
+            imageUrl: getImageUrl(item.check_in_image_url), // Legacy field
+            imageIn: getImageUrl(item.check_in_image_url),
+            imageOut: getImageUrl(item.check_out_image_url),
+            inConfidence: undefined,
+            outConfidence: undefined,
+            reportingManager: undefined,
+            type: (item.status === "half" ? "half" : item.status === "absent" ? "absent" : item.status === "unmarked" ? "unmarked" : "full") as "full" | "half" | "absent" | "present" | "unmarked",
+            lateBy: calculatedLateBy,
+            // Also store the original employee_id for matching
+            originalEmployeeId: item.employee_id,
+          };
+        });
+
+        setLogs(mappedLogs);
+      } else {
+        console.log("No attendance data found");
+        setLogs([]);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to load attendance logs");
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Fetch error:", err);
-    setError("Failed to load attendance logs");
-    toast.error("Failed to load data");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Fetch on mount and when month changes
   useEffect(() => {
@@ -953,10 +953,10 @@ const fetchAttendanceLogs = async () => {
     const dayOfWeek = d.getDay();
     return dayOfWeek === 0 || dayOfWeek === 6;
   };
-   
-   
-   
-   
+
+
+
+
   // Get initial data based on user permissions
   const getInitialData = () => {
     if (canPerformModuleAction("attendance", "view") && !canPerformModuleAction("attendance", "edit")) {
@@ -980,7 +980,7 @@ const fetchAttendanceLogs = async () => {
 
     // When in calendar mode with selected employee, filter by that employee
     if (viewMode === 'calendar' && selectedEmployee) {
-      data = data.filter(record => 
+      data = data.filter(record =>
         record.originalEmployeeId?.toString() === selectedEmployee.id ||
         record.employeeId === selectedEmployee.employeeId
       );
@@ -1082,14 +1082,14 @@ const fetchAttendanceLogs = async () => {
   // Get records for the selected date
   const selectedDateRecords = useMemo(() => {
     if (!selectedDate) return [];
-    
+
     const records = filteredData.filter((record) => record.date === selectedDate);
-    
+
     // If it's today and no real records found, create a mock unmarked record
     const today = new Date().toISOString().split('T')[0];
     const isToday = selectedDate === today;
     const hasRealRecords = records.some(r => !r.id.startsWith('absent-') && !r.id.startsWith('unmarked-'));
-    
+
     if (isToday && !hasRealRecords) {
       const mockUnmarkedRecord: AttendanceLogRecord = {
         id: `unmarked-${selectedDate}`,
@@ -1116,7 +1116,7 @@ const fetchAttendanceLogs = async () => {
       };
       return [mockUnmarkedRecord];
     }
-    
+
     return records;
   }, [selectedDate, filteredData]);
 
@@ -1162,7 +1162,7 @@ const fetchAttendanceLogs = async () => {
     toast.success("Attendance log exported as CSV");
   };
 
- 
+
 
   // Calendar functions
   const getDaysInMonth = (date: Date) => {
@@ -1185,7 +1185,7 @@ const fetchAttendanceLogs = async () => {
     const dateStr = formatDateString(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const today = new Date().toISOString().split('T')[0];
     const isToday = dateStr === today;
-    
+
     // If it's today and there are no records, create a mock unmarked record
     if (isToday && !recordsByDate[dateStr]) {
       // Create a temporary unmarked record for display
@@ -1212,12 +1212,12 @@ const fetchAttendanceLogs = async () => {
         imageOut: "",
         type: "unmarked"
       };
-      
+
       // Temporarily add this record for the modal
       const tempRecords = [mockUnmarkedRecord];
       setSelectedDate(dateStr);
       setIsModalOpen(true);
-      
+
       // We'll handle this in the modal rendering
       console.log("Showing unmarked attendance for today:", dateStr);
     } else if (recordsByDate[dateStr]) {
@@ -1267,8 +1267,8 @@ const fetchAttendanceLogs = async () => {
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground">No employees found</p>
             <p className="text-xs text-muted-foreground mt-2">
-              Debug: employeesLoading={employeesLoading.toString()}, 
-              employeesType={Array.isArray(effectiveEmployees) ? 'array' : typeof effectiveEmployees}, 
+              Debug: employeesLoading={employeesLoading.toString()},
+              employeesType={Array.isArray(effectiveEmployees) ? 'array' : typeof effectiveEmployees},
               employeesLength={Array.isArray(effectiveEmployees) ? effectiveEmployees.length : 'N/A'}
             </p>
           </div>
@@ -1280,7 +1280,7 @@ const fetchAttendanceLogs = async () => {
                 console.warn("Invalid employee data:", employee);
                 return null;
               }
-              
+
               return (
                 <div
                   key={employee.id}
@@ -1324,7 +1324,7 @@ const fetchAttendanceLogs = async () => {
             Attendance Log
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
-            {viewMode === 'employee-list' 
+            {viewMode === 'employee-list'
               ? 'Select an employee to view their attendance calendar.'
               : `Viewing attendance for ${selectedEmployee?.name}. Click a date to see details.`
             }
@@ -1356,9 +1356,8 @@ const fetchAttendanceLogs = async () => {
                 </CardHeader>
                 <CardContent>
                   <div
-                    className={`grid gap-2 sm:gap-4 grid-cols-1 ${
-                      canPerformModuleAction("attendance", "approve") ? "sm:grid-cols-2" : "sm:grid-cols-2 md:grid-cols-3"
-                    }`}
+                    className={`grid gap-2 sm:gap-4 grid-cols-1 ${canPerformModuleAction("attendance", "approve") ? "sm:grid-cols-2" : "sm:grid-cols-2 md:grid-cols-3"
+                      }`}
                   >
                     {canPerformModuleAction("attendance", "approve") && (
                       <div className="space-y-1.5 sm:space-y-2">
@@ -1505,7 +1504,7 @@ const fetchAttendanceLogs = async () => {
                       );
                       const hasRecords = !!recordsByDate[dateStr];
                       const records = recordsByDate[dateStr] || [];
-                      
+
                       // Check if this date is a weekend (Saturday or Sunday - holiday)
                       const dayOfWeek = new Date(
                         currentMonth.getFullYear(),
@@ -1513,14 +1512,14 @@ const fetchAttendanceLogs = async () => {
                         day
                       ).getDay();
                       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday is 0, Saturday is 6
-                      
+
                       // Check if this date is a holiday from the API
                       const isApiHoliday = isHoliday(dateStr);
                       const holidayName = getHolidayName(dateStr);
-                      
+
                       // A date is a holiday if it's a weekend OR an API holiday
                       const isHolidayDate = isWeekend || isApiHoliday;
-                      
+
                       // Debug logging for each date
                       if (day >= 20 && day <= 28) { // Log for dates around the issue
                         console.log(`Date ${dateStr} (${day}):`, {
@@ -1534,7 +1533,7 @@ const fetchAttendanceLogs = async () => {
                           dayOfWeek
                         });
                       }
-                      
+
                       // Check if this is today and there are no real records (unmarked attendance)
                       const today = new Date().toISOString().split('T')[0];
                       const isToday = dateStr === today;
@@ -1580,11 +1579,11 @@ const fetchAttendanceLogs = async () => {
                         // No records - check if past date or future date
                         const today = new Date().toISOString().split('T')[0];
                         if (dateStr < today) {
-                          // Past date with no records = absent
-                          bgColor = "bg-red-50 border-red-300";
-                        } else if (dateStr > today) {
-                          // Future date = not marked
+                          // Past date with no records = NOT MARKED (not absent)
                           bgColor = "bg-orange-50 border-orange-300";
+                        } else if (dateStr > today) {
+                          // Future date = grayed out (upcoming)
+                          bgColor = "bg-gray-100 border-gray-200";
                         } else {
                           // Today with no records = not marked
                           bgColor = "bg-orange-50 border-orange-300";
@@ -1596,41 +1595,39 @@ const fetchAttendanceLogs = async () => {
                           key={day}
                           onClick={() => !disableHolidayCell && handleDateClick(day)}
                           disabled={disableHolidayCell}
-                          className={`aspect-square p-0.5 sm:p-2 rounded border sm:border-2 text-xs sm:text-sm font-medium transition-all ${
-                            disableHolidayCell
-                              ? "bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed"
-                              : (hasRecords || isTodayUnmarked)
+                          className={`aspect-square p-0.5 sm:p-2 rounded border sm:border-2 text-xs sm:text-sm font-medium transition-all ${disableHolidayCell
+                            ? "bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed"
+                            : (hasRecords || isTodayUnmarked)
                               ? `${bgColor} cursor-pointer hover:shadow-md sm:hover:scale-105`
                               : (() => {
-                                  const today = new Date().toISOString().split('T')[0];
-                                  if (dateStr < today) {
-                                    return "bg-red-50 border-red-300 text-red-700 cursor-not-allowed"; // Past absent
-                                  } else if (dateStr > today) {
-                                    return "bg-orange-50 border-orange-300 text-orange-700 cursor-not-allowed"; // Future not marked
-                                  } else {
-                                    return "bg-orange-50 border-orange-300 text-orange-700 cursor-not-allowed"; // Today not marked
-                                  }
-                                })()
-                          }`}
+                                const today = new Date().toISOString().split('T')[0];
+                                if (dateStr < today) {
+                                  return "bg-orange-50 border-orange-300 text-orange-700 cursor-not-allowed"; // Past not marked
+                                } else if (dateStr > today) {
+                                  return "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"; // Future grayed out
+                                } else {
+                                  return "bg-orange-50 border-orange-300 text-orange-700 cursor-not-allowed"; // Today not marked
+                                }
+                              })()
+                            }`}
                         >
                           <div className="flex flex-col items-center justify-center h-full gap-0.5 sm:gap-1">
                             <span
-                              className={`text-xs sm:text-sm ${
-                                disableHolidayCell 
-                                  ? "text-gray-500 font-medium" 
-                                  : (hasRecords || isTodayUnmarked) 
-                                    ? "text-gray-900 font-bold" 
-                                    : (() => {
-                                        const today = new Date().toISOString().split('T')[0];
-                                        if (dateStr < today) {
-                                          return "text-red-700 font-bold"; // Past absent
-                                        } else if (dateStr > today) {
-                                          return "text-orange-700 font-bold"; // Future not marked
-                                        } else {
-                                          return "text-orange-700 font-bold"; // Today not marked
-                                        }
-                                      })()
-                              }`}
+                              className={`text-xs sm:text-sm ${disableHolidayCell
+                                ? "text-gray-500 font-medium"
+                                : (hasRecords || isTodayUnmarked)
+                                  ? "text-gray-900 font-bold"
+                                  : (() => {
+                                    const today = new Date().toISOString().split('T')[0];
+                                    if (dateStr < today) {
+                                      return "text-red-600 font-bold"; // Past not marked
+                                    } else if (dateStr > today) {
+                                      return "text-gray-400 font-medium"; // Future grayed out
+                                    } else {
+                                      return "text-orange-700 font-bold"; // Today not marked
+                                    }
+                                  })()
+                                }`}
                             >
                               {day}
                             </span>
@@ -1646,11 +1643,11 @@ const fetchAttendanceLogs = async () => {
                                   {(() => {
                                     const today = new Date().toISOString().split('T')[0];
                                     if (dateStr < today) {
-                                      // Past absent
-                                      return <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-600 flex-shrink-0"></div>;
-                                    } else if (dateStr > today) {
-                                      // Future not marked
+                                      // Past not marked
                                       return <Clock className="w-2 h-2 sm:w-3 sm:h-3 text-orange-600 flex-shrink-0" />;
+                                    } else if (dateStr > today) {
+                                      // Future - no icon (grayed out)
+                                      return null;
                                     } else {
                                       // Today not marked
                                       return <Clock className="w-2 h-2 sm:w-3 sm:h-3 text-orange-600 flex-shrink-0" />;
@@ -1661,9 +1658,10 @@ const fetchAttendanceLogs = async () => {
                                   {(() => {
                                     const today = new Date().toISOString().split('T')[0];
                                     if (dateStr < today) {
-                                      return <span className="text-red-600">ABSENT</span>;
-                                    } else if (dateStr > today) {
                                       return <span className="text-orange-600">NOT MARKED</span>;
+                                    } else if (dateStr > today) {
+                                      // Future - no text (grayed out)
+                                      return null;
                                     } else {
                                       return <span className="text-orange-600">NOT MARKED</span>;
                                     }
@@ -1750,8 +1748,8 @@ const fetchAttendanceLogs = async () => {
       </div>
 
       {/* Modal for date details */}
-            {/* Modal for date details */}
-            {/* Modal for date details - Exact design as per your image */}
+      {/* Modal for date details */}
+      {/* Modal for date details - Exact design as per your image */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1783,7 +1781,7 @@ const fetchAttendanceLogs = async () => {
                         date: record.date,
                         employeeName: record.employeeName
                       });
-                      
+
                       return (
                         <div key={record.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1813,7 +1811,7 @@ const fetchAttendanceLogs = async () => {
                                 <span className="whitespace-nowrap">Check-out: {record.outTime || "—"}</span>
                                 <span className="whitespace-nowrap">Hours: {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(2)}h` : "—"}</span>
                               </div>
-                              
+
                               {/* Attendance Photos */}
                               <div className="mt-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1904,7 +1902,7 @@ const fetchAttendanceLogs = async () => {
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Additional Info */}
                               <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs text-gray-600">
                                 <div>
@@ -1914,9 +1912,9 @@ const fetchAttendanceLogs = async () => {
                                   <div>
                                     <span className="font-medium">Check-in:</span>{" "}
                                     {record.checkInLocation &&
-                                    Number.isFinite(record.checkInLocation.latitude) &&
-                                    Number.isFinite(record.checkInLocation.longitude) &&
-                                    (record.checkInLocation.latitude !== 0 || record.checkInLocation.longitude !== 0)
+                                      Number.isFinite(record.checkInLocation.latitude) &&
+                                      Number.isFinite(record.checkInLocation.longitude) &&
+                                      (record.checkInLocation.latitude !== 0 || record.checkInLocation.longitude !== 0)
                                       ? `${record.checkInLocation.latitude},${record.checkInLocation.longitude}`
                                       : "—"}
                                   </div>
@@ -1939,9 +1937,9 @@ const fetchAttendanceLogs = async () => {
                                   <div>
                                     <span className="font-medium">Check-out:</span>{" "}
                                     {record.checkOutLocation &&
-                                    Number.isFinite(record.checkOutLocation.latitude) &&
-                                    Number.isFinite(record.checkOutLocation.longitude) &&
-                                    (record.checkOutLocation.latitude !== 0 || record.checkOutLocation.longitude !== 0)
+                                      Number.isFinite(record.checkOutLocation.latitude) &&
+                                      Number.isFinite(record.checkOutLocation.longitude) &&
+                                      (record.checkOutLocation.latitude !== 0 || record.checkOutLocation.longitude !== 0)
                                       ? `${record.checkOutLocation.latitude},${record.checkOutLocation.longitude}`
                                       : "—"}
                                   </div>

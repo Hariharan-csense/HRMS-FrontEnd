@@ -49,7 +49,7 @@ const authApi = axios.create({
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
-  withCredentials: true,  
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

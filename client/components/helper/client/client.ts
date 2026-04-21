@@ -12,6 +12,8 @@ export interface Client {
   status: 'active' | 'inactive';
   company_id: number;
   assigned_to?: number;
+  assigned_employee_ids?: number[];
+  assigned_employees?: Employee[];
   first_name?: string;
   last_name?: string;
   employee_id?: string;
@@ -28,7 +30,7 @@ export interface Employee {
   first_name: string;
   last_name: string;
   employee_id: string;
-  email: string;
+  email?: string;
 }
 
 export const clientApi = {

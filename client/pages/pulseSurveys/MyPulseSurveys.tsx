@@ -76,13 +76,35 @@ const MyPulseSurveys: React.FC = () => {
               </h1>
             </div>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              {surveys.length === 0 && !loading 
-                ? "No surveys available at the moment. Check back later!" 
-                : loading 
-                ? "Loading your surveys..." 
-                : `You have ${surveys.filter(s => !s.myResponse).length} pending survey(s) to complete`}
+              {surveys.length === 0 && !loading
+                ? "No surveys available at the moment. Check back later!"
+                : loading
+                  ? "Loading your surveys..."
+                  : `You have ${surveys.filter(s => !s.myResponse).length} pending survey(s) to complete`}
             </p>
           </div>
+
+          {/* Default Info Message */}
+          {!loading && (
+            <Card className="border-0 shadow-md bg-gradient-to-r from-blue-50 to-indigo-50">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                    <MessageSquare className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">📋 Pulse Surveys</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Share your feedback through quick pulse surveys. Your responses help us improve workplace satisfaction and employee engagement.
+                      {surveys.length > 0
+                        ? ` You have ${surveys.filter(s => !s.myResponse).length} pending survey(s) to complete.`
+                        : " Check back later for new surveys!"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Stats Cards */}
           {!loading && surveys.length > 0 && (
@@ -162,20 +184,18 @@ const MyPulseSurveys: React.FC = () => {
                     const completed = Boolean(response?.respondedAt);
 
                     return (
-                      <Card 
-                        key={s.id} 
-                        className={`border-0 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
-                          completed ? 'bg-gradient-to-r from-emerald-50 to-teal-50' : 'bg-gradient-to-r from-emerald-50 to-cyan-50'
-                        }`}
+                      <Card
+                        key={s.id}
+                        className={`border-0 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${completed ? 'bg-gradient-to-r from-emerald-50 to-teal-50' : 'bg-gradient-to-r from-emerald-50 to-cyan-50'
+                          }`}
                       >
                         <CardContent className="p-6">
                           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                             {/* Survey Info */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start gap-3 mb-3">
-                                <div className={`p-2 rounded-lg ${
-                                  completed ? 'bg-emerald-200' : 'bg-teal-200'
-                                }`}>
+                                <div className={`p-2 rounded-lg ${completed ? 'bg-emerald-200' : 'bg-teal-200'
+                                  }`}>
                                   {completed ? (
                                     <CheckCircle2 className="h-5 w-5 text-emerald-700" />
                                   ) : (
@@ -186,11 +206,10 @@ const MyPulseSurveys: React.FC = () => {
                                   <h3 className="font-bold text-lg text-gray-900 truncate">{s.title}</h3>
                                   <Badge
                                     variant={completed ? "secondary" : "outline"}
-                                    className={`mt-2 ${
-                                      completed
+                                    className={`mt-2 ${completed
                                         ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0"
                                         : "bg-gradient-to-r from-teal-500 to-cyan-500 text-white border-0"
-                                    }`}
+                                      }`}
                                   >
                                     {completed ? "✓ Completed" : "⏳ Pending"}
                                   </Badge>
@@ -238,11 +257,10 @@ const MyPulseSurveys: React.FC = () => {
                               )}
 
                               <Button
-                                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg ${
-                                  completed
+                                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg ${completed
                                     ? "bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700"
                                     : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                                } text-white border-0`}
+                                  } text-white border-0`}
                                 onClick={() =>
                                   navigate(`/pulse-surveys/respond/${s.id}`)
                                 }

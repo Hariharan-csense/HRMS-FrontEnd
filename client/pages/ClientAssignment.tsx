@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap, MapPin, Navigation, Building, Users, Mail, Phone, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap, MapPin, Navigation, Building, Users, Mail, Phone, Loader2, ChevronDown, Download, FileSpreadsheet, FileUp } from "lucide-react";
 import { clientApi, Client, Employee } from "@/components/helper/client/client";
 import { getCurrentLocation, getAddressFromCoordinates } from "@/components/helper/clientAttendance/clientAttendance";
 import { showToast } from "@/utils/toast";
@@ -27,6 +30,10 @@ export default function ClientAssignment() {
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEmployeePickerOpen, setIsEmployeePickerOpen] = useState(false);
+  const [coordinatesInput, setCoordinatesInput] = useState("");
+  const [excelData, setExcelData] = useState<any[]>([]);
 
   // Load data on component mount
   useEffect(() => {
@@ -64,6 +71,7 @@ export default function ClientAssignment() {
         ...location,
         address
       });
+      setCoordinatesInput(`${location.latitude}, ${location.longitude}`);
       setFormData({
         ...formData,
         geo_latitude: location.latitude,
@@ -93,11 +101,26 @@ export default function ClientAssignment() {
   const handleOpenDialog = (item?: any) => {
     if (item) {
       setEditingId(item.id);
-      setFormData({ ...item });
+      setFormData({
+        ...item,
+        assigned_employee_ids:
+          Array.isArray(item.assigned_employee_ids) && item.assigned_employee_ids.length
+            ? item.assigned_employee_ids
+            : item.assigned_to
+              ? [item.assigned_to]
+              : [],
+      });
+      setCoordinatesInput(
+        item.geo_latitude && item.geo_longitude
+          ? `${item.geo_latitude}, ${item.geo_longitude}`
+          : ""
+      );
     } else {
       setEditingId(null);
-      setFormData({ geo_radius: 50 }); // Default radius for new clients
+      setFormData({ geo_radius: 50, assigned_employee_ids: [] }); // Default radius for new clients
+      setCoordinatesInput("");
     }
+    setIsEmployeePickerOpen(false);
     setCurrentLocation(null); // Reset location
     setLocationLoading(false);
     setIsDialogOpen(true);
@@ -120,10 +143,16 @@ export default function ClientAssignment() {
     setSaving(true);
     try {
       let result;
+      const normalizedAssignedEmployeeIds = Array.isArray(formData.assigned_employee_ids)
+        ? formData.assigned_employee_ids
+        : [];
+
       const payload = {
         ...formData,
         email: formData.email ? normalizeEmail(formData.email) : "",
         phone: formData.phone ? formData.phone.trim() : "",
+        assigned_to: normalizedAssignedEmployeeIds[0] ?? null,
+        assigned_employee_ids: normalizedAssignedEmployeeIds,
       };
       if (editingId) {
         result = await clientApi.updateClient(editingId, payload);
@@ -176,11 +205,192 @@ export default function ClientAssignment() {
     }
   };
 
-  const getEmployeeName = (client: Client) => {
+  const getAssignedEmployeeNames = (client: Client) => {
+    if (Array.isArray(client.assigned_employees) && client.assigned_employees.length) {
+      return client.assigned_employees
+        .map((employee) => `${employee.first_name} ${employee.last_name}`)
+        .join(", ");
+    }
+
     if (client.first_name && client.last_name) {
       return `${client.first_name} ${client.last_name}`;
     }
     return "Unassigned";
+  };
+
+  const toggleAssignedEmployee = (employeeId: number, checked: boolean) => {
+    const currentIds = Array.isArray(formData.assigned_employee_ids)
+      ? formData.assigned_employee_ids
+      : [];
+
+    setFormData({
+      ...formData,
+      assigned_employee_ids: checked
+        ? [...new Set([...currentIds, employeeId])]
+        : currentIds.filter((id: number) => id !== employeeId),
+    });
+  };
+
+  const handleCoordinatesChange = (value: string) => {
+    setCoordinatesInput(value);
+
+    const [latitudeRaw, longitudeRaw] = value.split(",").map((item) => item.trim());
+    const latitude = Number(latitudeRaw);
+    const longitude = Number(longitudeRaw);
+
+    setFormData({
+      ...formData,
+      geo_latitude: value && Number.isFinite(latitude) ? latitude : undefined,
+      geo_longitude: value && Number.isFinite(longitude) ? longitude : undefined,
+    });
+  };
+
+  const selectedEmployeeIds = Array.isArray(formData.assigned_employee_ids)
+    ? formData.assigned_employee_ids
+    : [];
+
+  const selectedEmployees = employees.filter((employee) =>
+    selectedEmployeeIds.includes(employee.id)
+  );
+
+  const selectedEmployeesSummary = selectedEmployees.length
+    ? selectedEmployees.map((employee) => employee.first_name).join(", ")
+    : "No employees selected";
+
+  // Export all clients to Excel
+  const handleExportToExcel = () => {
+    if (clients.length === 0) {
+      showToast.error('No clients to export');
+      return;
+    }
+
+    const exportData = clients.map(client => ({
+      'Client ID': client.client_id || '',
+      'Client Name': client.client_name || '',
+      'Contact Person': client.contact_person || '',
+      'Email': client.email || '',
+      'Phone': client.phone || '',
+      'Address': client.address || '',
+      'Status': client.status || '',
+      'Assigned Employees': getAssignedEmployeeNames(client)
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Clients');
+    XLSX.writeFile(wb, `Clients_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast.success(`Exported ${clients.length} clients to Excel`);
+  };
+
+  // Download empty template with headers only
+  const handleDownloadTemplate = () => {
+    const templateData = [{
+      'Client ID': '',
+      'Client Name': '',
+      'Contact Person': '',
+      'Email': '',
+      'Phone': '',
+      'Address': '',
+      'Status': 'active',
+      'Assigned Employees': ''
+    }];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Client Template');
+    XLSX.writeFile(wb, 'Client_Import_Template.xlsx');
+    showToast.success('Template downloaded successfully');
+  };
+
+  // Import clients from Excel
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith(".xls") && !lowerName.endsWith(".xlsx")) {
+      showToast.error("Please upload a valid Excel file (.xls or .xlsx)");
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+
+      if (!worksheet) {
+        throw new Error("No worksheet found in the uploaded Excel file");
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
+      const nonEmptyRows = rows.filter((row) =>
+        Object.values(row).some((value) => String(value ?? "").trim() !== "")
+      );
+
+      if (!nonEmptyRows.length) {
+        throw new Error("Excel file is empty");
+      }
+
+      // Process each row and create clients
+      let successCount = 0;
+      const failures: string[] = [];
+
+      for (let i = 0; i < nonEmptyRows.length; i++) {
+        const row = nonEmptyRows[i];
+        const rowNumber = i + 2;
+
+        const clientName = String(row['Client Name'] || '').trim();
+        if (!clientName) {
+          failures.push(`Row ${rowNumber}: Client Name is required`);
+          continue;
+        }
+
+        const statusValue = String(row['Status'] || 'active').toLowerCase().trim();
+        const payload = {
+          client_name: clientName,
+          client_id: String(row['Client ID'] || '').trim() || undefined,
+          contact_person: String(row['Contact Person'] || '').trim() || undefined,
+          email: String(row['Email'] || '').trim() || undefined,
+          phone: String(row['Phone'] || '').trim() || undefined,
+          address: String(row['Address'] || '').trim() || undefined,
+          status: (statusValue === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
+          geo_radius: 50,
+          assigned_employee_ids: []
+        };
+
+        try {
+          const result = await clientApi.createClient(payload);
+          if (result.data || result.success) {
+            successCount++;
+          } else {
+            failures.push(`Row ${rowNumber}: ${result.error || 'Failed to create client'}`);
+          }
+        } catch (err) {
+          failures.push(`Row ${rowNumber}: Failed to create client`);
+        }
+      }
+
+      // Refresh clients list
+      const clientsResult = await clientApi.getClients();
+      if (clientsResult.data) {
+        setClients(clientsResult.data);
+      }
+
+      if (successCount > 0 && failures.length === 0) {
+        showToast.success(`${successCount} client(s) imported successfully`);
+      } else if (successCount > 0) {
+        showToast.success(`${successCount} imported, ${failures.length} failed`);
+        console.error('Import failures:', failures);
+      } else {
+        showToast.error(failures.slice(0, 3).join(' | ') || 'Failed to import clients');
+      }
+    } catch (uploadError) {
+      const message = uploadError instanceof Error ? uploadError.message : "Failed to import Excel file";
+      showToast.error(message);
+    }
   };
 
   if (loading) {
@@ -222,6 +432,42 @@ export default function ClientAssignment() {
                 <Plus className="w-4 h-4" />
                 Add Client
               </Button>
+
+              {/* Excel Actions */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={handleExportToExcel}
+                  className="gap-2"
+                  disabled={clients.length === 0}
+                >
+                  <Download className="w-4 h-4" />
+                  Export Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadTemplate}
+                  className="gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Template
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Import
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportExcel}
+                  className="hidden"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -238,8 +484,8 @@ export default function ClientAssignment() {
                   </div>
                   <span
                     className={`text-xs px-2 py-1 rounded font-medium ${client.status === "active"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
                       }`}
                   >
                     {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
@@ -275,7 +521,7 @@ export default function ClientAssignment() {
                       <div>
                         <p className="text-xs text-muted-foreground">Assigned to</p>
                         <p className="text-sm font-medium">
-                          {getEmployeeName(client)}
+                          {getAssignedEmployeeNames(client)}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -291,7 +537,7 @@ export default function ClientAssignment() {
                           className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg"
                           disabled={saving || deleting}
                         >
-                          {deleting === client.id ? (
+                          {deleting && deleteId === client.id ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           ) : (
                             <Trash2 className="w-3.5 h-3.5" />
@@ -348,48 +594,6 @@ export default function ClientAssignment() {
                 />
               </div>
               <div>
-                <Label>Contact Person</Label>
-                <Input
-                  value={formData.contact_person || ""}
-                  onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Email</Label>
-                <Input
-                  value={formData.email || ""}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  type="email"
-                  className="mt-2"
-                />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input
-                  value={formData.phone || ""}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Industry</Label>
-                <Input
-                  value={formData.industry || ""}
-                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                  className="mt-2"
-                />
-              </div>
-              <div>
                 <Label>Status</Label>
                 <Select value={formData.status || "active"} onValueChange={(val) => setFormData({ ...formData, status: val })}>
                   <SelectTrigger className="mt-2">
@@ -413,23 +617,86 @@ export default function ClientAssignment() {
             </div>
 
             <div>
-              <Label>Assign to Employee</Label>
-              <Select
-                value={formData.assigned_to?.toString() || "unassigned"}
-                onValueChange={(val) => setFormData({ ...formData, assigned_to: val === "unassigned" ? null : parseInt(val) })}
+              <Label>Assign Employees</Label>
+              <Collapsible
+                open={isEmployeePickerOpen}
+                onOpenChange={setIsEmployeePickerOpen}
+                className="mt-2 rounded-lg border bg-background"
               >
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Select employee..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id.toString()}>
-                      {employee.first_name} {employee.last_name} ({employee.employee_id})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">
+                        {selectedEmployees.length} employee{selectedEmployees.length === 1 ? "" : "s"} selected
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {selectedEmployeesSummary}
+                      </div>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isEmployeePickerOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent className="border-t px-3 py-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    {/* <p className="text-sm text-muted-foreground">
+                      Client-ku multiple employees assign pannalaam
+                    </p> */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, assigned_employee_ids: [] })}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+
+                  {selectedEmployees.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {selectedEmployees.map((employee) => (
+                        <span
+                          key={employee.id}
+                          className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+                        >
+                          {employee.first_name} {employee.last_name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                    {employees.map((employee) => {
+                      const checked = selectedEmployeeIds.includes(employee.id);
+
+                      return (
+                        <label
+                          key={employee.id}
+                          className="flex items-center gap-3 rounded-md border p-2 cursor-pointer hover:bg-muted/50"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => toggleAssignedEmployee(employee.id, Boolean(value))}
+                          />
+                          <div className="text-sm">
+                            <div className="font-medium">
+                              {employee.first_name} {employee.last_name}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {employee.employee_id}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             {/* Geo-Fence Section */}
@@ -471,29 +738,17 @@ export default function ClientAssignment() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                      <Label>Latitude</Label>
-                      <Input
-                        type="number"
-                        step="any"
-                        value={formData.geo_latitude || ""}
-                        onChange={(e) => setFormData({ ...formData, geo_latitude: parseFloat(e.target.value) || undefined })}
-                        placeholder="e.g., 13.0827"
-                        className="mt-2"
-                      />
-                    </div>
-                    <div>
-                      <Label>Longitude</Label>
-                      <Input
-                        type="number"
-                        step="any"
-                        value={formData.geo_longitude || ""}
-                        onChange={(e) => setFormData({ ...formData, geo_longitude: parseFloat(e.target.value) || undefined })}
-                        placeholder="e.g., 80.2707"
-                        className="mt-2"
-                      />
-                    </div>
+                  <div className="mt-2">
+                    <Label>Coordinates</Label>
+                    <Input
+                      value={coordinatesInput}
+                      onChange={(e) => handleCoordinatesChange(e.target.value)}
+                      placeholder="e.g., 13.0827, 80.2707"
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: latitude, longitude
+                    </p>
                   </div>
                 </div>
 

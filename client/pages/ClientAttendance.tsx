@@ -58,12 +58,7 @@ export default function ClientAttendance() {
       ]);
 
       if (clientsResult.data) {
-        const currentEmployeeId = Number(user?.id);
-        const myClients = clientsResult.data.filter((client) => {
-          const assignedEmployeeId = Number(client.assigned_to);
-          return Number.isFinite(currentEmployeeId) && assignedEmployeeId === currentEmployeeId;
-        });
-        setClients(myClients);
+        setClients(clientsResult.data);
       }
       
       if (attendanceResult.data) {
@@ -535,16 +530,16 @@ export default function ClientAttendance() {
             </div>
 
             <div>
-              <Label>Comments for Admin *</Label>
+              <Label>Comments for Admin</Label>
               <Textarea
                 value={workCompleted}
                 onChange={(e) => setWorkCompleted(e.target.value)}
-                placeholder="Please provide detailed comments about the work completed, client feedback, next steps, or any issues encountered..."
+                placeholder="Optional: work completed, client feedback, next steps, or any issues encountered..."
                 className="mt-2 border-2 border-blue-200 focus:border-blue-400"
                 rows={4}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                These comments will be visible to administrators for review and follow-up
+                These comments are optional and will be visible to administrators if provided
               </p>
             </div>
           </div>
@@ -553,7 +548,7 @@ export default function ClientAttendance() {
             <Button variant="outline" onClick={() => setIsCheckOutDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCheckOut} disabled={!currentLocation || !workCompleted.trim()}>
+            <Button onClick={handleCheckOut} disabled={!currentLocation}>
               Check Out
             </Button>
           </div>

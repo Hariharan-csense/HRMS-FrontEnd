@@ -3,6 +3,8 @@ interface SavedProfile {
   name?: string;
   avatar?: string;
   companyName?: string;
+  employee_id?: string;
+  employeeId?: string;
   lastLogin: string;
   rememberMe: boolean;
 }
@@ -19,6 +21,8 @@ class ProfileManager {
         name: user.name,
         avatar: user.avatar,
         companyName: user.companyName,
+        employee_id: user.employee_id || user.employeeId,
+        employeeId: user.employee_id || user.employeeId,
         lastLogin: new Date().toISOString(),
         rememberMe: true
       };

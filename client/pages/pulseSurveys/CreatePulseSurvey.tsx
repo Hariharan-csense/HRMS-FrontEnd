@@ -102,8 +102,8 @@ const EmployeeCombobox: React.FC<{
 
 const CreatePulseSurvey: React.FC = () => {
   const navigate = useNavigate();
-  const [title, setTitle] = useState("");
-  const [message, setMessage] = useState("");
+  const [title, setTitle] = useState("How happy are you at work today?");
+  const [message, setMessage] = useState("On a scale of 1-10, how happy are you with your work today? Share your feedback to help us improve your workplace experience.");
   const [templates, setTemplates] = useState<Array<{ id: number; name: string; title: string; message: string }>>([]);
   const [templateId, setTemplateId] = useState<string>("");
   const [recipientType, setRecipientType] = useState<RecipientType>("all");
@@ -130,7 +130,7 @@ const CreatePulseSurvey: React.FC = () => {
     })();
     return () => {
       cancelled = true;
-      };
+    };
   }, []);
 
   React.useEffect(() => {
@@ -157,9 +157,9 @@ const CreatePulseSurvey: React.FC = () => {
         const raw = empRes?.data;
         const list: any[] =
           Array.isArray(raw) ? raw :
-          Array.isArray(raw?.employees) ? raw.employees :
-          Array.isArray(raw?.data) ? raw.data :
-          [];
+            Array.isArray(raw?.employees) ? raw.employees :
+              Array.isArray(raw?.data) ? raw.data :
+                [];
 
         const mapped: SimpleEmployee[] = list.map((e: any) => {
           const first = e.first_name || e.firstName || "";
@@ -311,15 +311,15 @@ const CreatePulseSurvey: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-              <Label htmlFor="survey-title">Survey Title</Label>
-              <Input
-                id="survey-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Are you happy?"
-                className="h-11"
-              />
-            </div>
+                <Label htmlFor="survey-title">Survey Title</Label>
+                <Input
+                  id="survey-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Are you happy?"
+                  className="h-11"
+                />
+              </div>
 
               <div className="flex items-start space-x-3 pt-7">
                 <Checkbox

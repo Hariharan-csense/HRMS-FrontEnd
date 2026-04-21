@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader, ChevronLeft } from "lucide-react";
 import { mockUsers } from "@/lib/auth";
 import type { UserRole } from "@/lib/auth";
-import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { isValidEmail, normalizeEmail, isOptionalPhoneValid } from "@/lib/validation";
 import { BASE_URL } from "@/lib/endpoint";
 
 export default function RegisterUser() {
@@ -18,11 +18,13 @@ export default function RegisterUser() {
     email: "",
     password: "",
     confirmPassword: "",
+    phone: "",
     role: "employee" as UserRole,
     department: "",
     companyName: "",
   });
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string }>({});
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
@@ -75,6 +77,16 @@ export default function RegisterUser() {
       [name]: value,
     }));
     setError("");
+
+    // Phone validation with field error only
+    if (name === "phone") {
+      const phoneValue = value.trim();
+      if (phoneValue && !isOptionalPhoneValid(phoneValue)) {
+        setFieldErrors({ phone: "Phone number must be 10 digits starting with 6, 7, 8, or 9" });
+      } else {
+        setFieldErrors({});
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,6 +105,10 @@ export default function RegisterUser() {
     }
     if (!isValidEmail(formData.email)) {
       setError("Please enter a valid email address");
+      return;
+    }
+    if (formData.phone && !isOptionalPhoneValid(formData.phone)) {
+      setError("Phone number must be 10 digits and start with 6, 7, 8, or 9");
       return;
     }
     if (!formData.password) {
@@ -130,6 +146,7 @@ export default function RegisterUser() {
           email: normalizeEmail(formData.email),
           password: formData.password,
           confirmPassword: formData.confirmPassword,
+          phone: formData.phone.trim() || undefined,
           role: formData.role,
           department: formData.department,
           company_name: formData.role === 'admin' ? formData.companyName : undefined
@@ -148,6 +165,7 @@ export default function RegisterUser() {
         email: "",
         password: "",
         confirmPassword: "",
+        phone: "",
         role: "employee",
         department: "",
         companyName: "",
@@ -237,6 +255,28 @@ export default function RegisterUser() {
                       onChange={handleInputChange}
                       disabled={isLoading}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="9876543210"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      disabled={isLoading}
+                      className={fieldErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
+                    />
+                    {fieldErrors.phone && (
+                      <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {fieldErrors.phone}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
