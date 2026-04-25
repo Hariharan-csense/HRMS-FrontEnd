@@ -39,7 +39,9 @@ import { toast } from "sonner";
 import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi from "@/components/helper/branch/branch";
 import { useRole } from "@/context/RoleContext";
+import { useAuth } from "@/context/AuthContext";
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/googleMaps";
+import { useRealtimeTracking } from "@/hooks/useRealtimeTracking";
 
 const toFiniteNumber = (value: unknown): number | null => {
   const num = typeof value === "string" ? Number(value) : (value as number);
@@ -468,7 +470,7 @@ const createEmployeeMarkerIcon = (firstName: string | undefined, lastName: strin
   const pulseColor = isCheckedIn ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)";
 
   const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" width="80" height="100">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
       <defs>
         <style>
           @keyframes pulse {
@@ -481,7 +483,6 @@ const createEmployeeMarkerIcon = (firstName: string | undefined, lastName: strin
           }
         </style>
       </defs>
-      <ellipse cx="40" cy="90" rx="25" ry="5" fill="rgba(0,0,0,0.1)"/>
       <circle class="pulse-circle" cx="40" cy="40" r="30" fill="${pulseColor}"/>
       <circle cx="40" cy="40" r="28" fill="white" stroke="${statusColor}" stroke-width="3"/>
       <circle cx="40" cy="40" r="26" fill="${statusColor}" opacity="0.1"/>
@@ -493,13 +494,23 @@ const createEmployeeMarkerIcon = (firstName: string | undefined, lastName: strin
 
   return {
     url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`,
-    scaledSize: { width: 80, height: 100 },
-    anchor: { x: 40, y: 100 },
+    scaledSize: { width: 80, height: 80 },
+    anchor: { x: 40, y: 40 },
   };
 };
 
+const createNavigationPuckIcon = (isSelected: boolean) => ({
+  path: google.maps.SymbolPath.CIRCLE,
+  scale: isSelected ? 9 : 7,
+  fillColor: isSelected ? "#1d4ed8" : "#2563eb",
+  fillOpacity: 1,
+  strokeColor: "#ffffff",
+  strokeWeight: isSelected ? 4 : 3,
+});
+
 export default function LiveTracking() {
   const { hasModuleAccess } = useRole();
+  const { user } = useAuth();
   const { isLoaded: isMapLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
   const [searchTerm, setSearchTerm] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -537,6 +548,31 @@ export default function LiveTracking() {
   const [hoverStayMarkers, setHoverStayMarkers] = useState<{ empId: string; markers: { lat: number; lng: number; address: string; duration: number }[] } | null>(null);
 
   const canViewTracking = hasModuleAccess('live_tracking') || hasModuleAccess('attendance');
+  const companyId = user?.company_id || user?.companyId;
+
+  const { isConnected, connectionMode, error: realtimeError, lastUpdate } = useRealtimeTracking({
+    enabled: Boolean(canViewTracking && companyId),
+    companyId: companyId || "0",
+    onLocationUpdate: (location) => {
+      setEmployees((prev) =>
+        prev.map((employee) =>
+          String(employee.id) === String(location.employee_id)
+            ? {
+                ...employee,
+                latitude: Number(location.latitude) || employee.latitude || null,
+                longitude: Number(location.longitude) || employee.longitude || null,
+                accuracy: Number(location.accuracy) || null,
+                address: location.address || employee.address || null,
+                locationTimestamp: location.location_timestamp || new Date().toISOString(),
+                isTracking: true,
+                trackingStatus: "active",
+                minutesSinceUpdate: 0,
+              }
+            : employee
+        )
+      );
+    },
+  });
 
   // CSV export function for location history
   const exportLocationHistoryCSV = (employeeName: string, timeline: any[]) => {
@@ -720,7 +756,7 @@ export default function LiveTracking() {
   }, [canViewTracking]);
 
   useEffect(() => {
-    if (!autoRefresh || !canViewTracking) return;
+    if (!autoRefresh || !canViewTracking || connectionMode === "realtime") return;
 
     const interval = setInterval(async () => {
       try {
@@ -742,7 +778,7 @@ export default function LiveTracking() {
     }, refreshInterval * 1000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, canViewTracking, refreshInterval]);
+  }, [autoRefresh, canViewTracking, refreshInterval, connectionMode]);
 
   const trackedEmployees = useMemo(() => {
     if (!canViewTracking || employees.length === 0) {
@@ -970,8 +1006,57 @@ export default function LiveTracking() {
   }, [trackedEmployees, canViewTracking]);
 
   useEffect(() => {
+    if (!canViewTracking || selectedEmployee || trackedEmployees.length === 0) {
+      return;
+    }
+
+    const firstActiveEmployee = trackedEmployees.find(
+      (emp) => emp.trackingStatus === "checked-in" && emp.currentLocation
+    );
+
+    if (firstActiveEmployee) {
+      setSelectedEmployee(String(firstActiveEmployee.id));
+      setSelectedMarker(`emp-${firstActiveEmployee.id}`);
+    }
+  }, [trackedEmployees, selectedEmployee, canViewTracking]);
+
+  useEffect(() => {
+    if (!lastUpdate || !selectedEmployee) return;
+
+    const selectedEmp = trackedEmployees.find((emp) => String(emp.id) === String(selectedEmployee));
+    if (!selectedEmp) return;
+
+    const selectedDbId = String(selectedEmp.dbEmployeeId ?? selectedEmp.id);
+    if (String(lastUpdate.employee_id) !== selectedDbId) return;
+
+    const latitude = Number(lastUpdate.latitude);
+    const longitude = Number(lastUpdate.longitude);
+    if (!isValidLatLng(latitude, longitude)) return;
+
+    setSelectedRoutePoints((prev) => {
+      const nextPoint = {
+        id: String(lastUpdate.id || `${Date.now()}`),
+        employee_id: lastUpdate.employee_id,
+        latitude,
+        longitude,
+        accuracy: lastUpdate.accuracy ?? null,
+        address: lastUpdate.address || "",
+        location_timestamp: lastUpdate.location_timestamp || new Date().toISOString(),
+      } as RouteHistoryPoint;
+
+      const lastPoint = prev[prev.length - 1];
+      if (lastPoint && lastPoint.latitude === nextPoint.latitude && lastPoint.longitude === nextPoint.longitude) {
+        return prev;
+      }
+
+      return [...prev, nextPoint].slice(-1000);
+    });
+  }, [lastUpdate, selectedEmployee, trackedEmployees]);
+
+  useEffect(() => {
     if (!mapInstance || filteredEmployees.length === 0 || !canViewTracking) return;
     if (isAnimating) return;
+    if (selectedRoutePoints.length >= 2) return;
 
     if (typeof window === 'undefined' || !window.google || !window.google.maps) {
       return;
@@ -997,6 +1082,25 @@ export default function LiveTracking() {
       console.error('Error fitting map bounds:', error);
     }
   }, [mapInstance, filteredEmployees, officeLocations, canViewTracking, isAnimating]);
+
+  useEffect(() => {
+    if (!mapInstance || selectedRoutePoints.length < 2) return;
+    if (typeof window === 'undefined' || !window.google || !window.google.maps) {
+      return;
+    }
+
+    try {
+      const bounds = new window.google.maps.LatLngBounds();
+
+      selectedRoutePoints.forEach((point) => {
+        bounds.extend({ lat: point.latitude, lng: point.longitude });
+      });
+
+      mapInstance.fitBounds(bounds, { top: 80, right: 80, bottom: 80, left: 80 });
+    } catch (error) {
+      console.error("Error fitting selected route bounds:", error);
+    }
+  }, [mapInstance, selectedRoutePoints]);
 
   // Fetch location history for hover tooltip - get all GPS points with addresses and travel path
   const fetchEmployeeLocationHistory = async (employeeDbId: string | number, empId?: string) => {
@@ -1300,6 +1404,13 @@ export default function LiveTracking() {
         }
 
         setSelectedRoutePoints(routePoints);
+        setTravelPaths((prev) => ({
+          ...prev,
+          [String(selectedEmp?.id || selectedEmployee)]: routePoints.map((point) => ({
+            lat: point.latitude,
+            lng: point.longitude,
+          })),
+        }));
         setSelectedRouteSummary({
           ...(result.data?.summary || {}),
           totalDistanceMeters:
@@ -1592,61 +1703,59 @@ export default function LiveTracking() {
     };
   }, [canViewTracking, mapStyle]);
 
-  if (!canViewTracking) {
-    return (
-      <Layout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Card className="w-full max-w-md">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <UserCheck className="w-8 h-8 text-blue-600" />
-                </div>
-                <CardTitle className="text-2xl">Employee Check-In</CardTitle>
-                <CardDescription>
-                  Check in to start location tracking for your travel
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Alert>
-                  <MapPin className="w-4 h-4" />
-                  <AlertDescription>
-                    Location tracking will start after you check in. Your movement will be monitored while you travel.
-                  </AlertDescription>
-                </Alert>
+  const noTrackingAccessView = (
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <UserCheck className="w-8 h-8 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl">Employee Check-In</CardTitle>
+              <CardDescription>
+                Check in to start location tracking for your travel
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <MapPin className="w-4 h-4" />
+                <AlertDescription>
+                  Location tracking will start after you check in. Your movement will be monitored while you travel.
+                </AlertDescription>
+              </Alert>
 
-                <Button
-                  onClick={handleCheckIn}
-                  disabled={checkingIn}
-                  className="w-full"
-                  size="lg"
-                >
-                  {checkingIn ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Checking In...
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="w-4 h-4 mr-2" />
-                      Check In Now
-                    </>
-                  )}
-                </Button>
+              <Button
+                onClick={handleCheckIn}
+                disabled={checkingIn}
+                className="w-full"
+                size="lg"
+              >
+                {checkingIn ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Checking In...
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Check In Now
+                  </>
+                )}
+              </Button>
 
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>After check-in, your location will be tracked</p>
-                  <p>when you travel to places like Egmore</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <div className="text-center text-sm text-muted-foreground">
+                <p>After check-in, your location will be tracked</p>
+                <p>when you travel to places like Egmore</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </Layout>
-    );
-  }
+      </div>
+    </Layout>
+  );
 
-  return (
+  const trackingView = (
     <Layout>
       <div className="space-y-6">
         <div>
@@ -1658,6 +1767,20 @@ export default function LiveTracking() {
             Real-time location tracking of employees with tracking enabled
           </p>
         </div>
+
+        <Alert className={connectionMode === "realtime" ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}>
+          <AlertDescription className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">
+              {connectionMode === "realtime"
+                ? "Realtime socket connected"
+                : connectionMode === "polling"
+                  ? "Realtime unavailable. Using polling refresh"
+                  : "Connecting to live tracking..."}
+            </span>
+            {isConnected && <Badge className="bg-green-600">Live</Badge>}
+            {realtimeError && <span className="text-amber-700">{realtimeError}</span>}
+          </AlertDescription>
+        </Alert>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -1978,34 +2101,65 @@ export default function LiveTracking() {
 
                 {Object.entries(travelPaths).map(([empId, pathPoints]) => {
                   if (pathPoints.length < 2) return null;
+                  if (selectedEmployee && String(selectedEmployee) === String(empId)) return null;
 
                   return (
                     <Polyline
                       key={`path-${empId}`}
                       path={pathPoints.slice(-100)}
                       options={{
-                        strokeColor: "#f59e0b",
-                        strokeOpacity: 0.6,
-                        strokeWeight: 2,
+                        strokeColor: "#64748b",
+                        strokeOpacity: 0.45,
+                        strokeWeight: 3,
                         geodesic: true,
+                        zIndex: 10,
                       }}
                     />
                   );
                 })}
 
                 {selectedRoutePoints.length >= 2 && (
-                  <Polyline
-                    path={selectedRoutePoints.map((point) => ({
-                      lat: point.latitude,
-                      lng: point.longitude,
-                    }))}
-                    options={{
-                      strokeColor: "#2563eb",
-                      strokeOpacity: 0.95,
-                      strokeWeight: 4,
-                      geodesic: true,
-                    }}
-                  />
+                  <>
+                    <Polyline
+                      path={selectedRoutePoints.map((point) => ({
+                        lat: point.latitude,
+                        lng: point.longitude,
+                      }))}
+                      options={{
+                        strokeColor: "#312e81",
+                        strokeOpacity: 0.95,
+                        strokeWeight: 10,
+                        geodesic: true,
+                        zIndex: 20,
+                      }}
+                    />
+                    <Polyline
+                      path={selectedRoutePoints.map((point) => ({
+                        lat: point.latitude,
+                        lng: point.longitude,
+                      }))}
+                      options={{
+                        strokeColor: "#4f46e5",
+                        strokeOpacity: 1,
+                        strokeWeight: 6,
+                        geodesic: true,
+                        zIndex: 21,
+                        icons: [
+                          {
+                            icon: {
+                              path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                              scale: 3,
+                              fillColor: "#4f46e5",
+                              fillOpacity: 1,
+                              strokeOpacity: 1,
+                            },
+                            offset: "0%",
+                            repeat: "90px",
+                          },
+                        ],
+                      }}
+                    />
+                  </>
                 )}
 
                 {selectedRoutePoints[0] && (
@@ -2148,6 +2302,7 @@ export default function LiveTracking() {
                   const empLng = toFiniteNumber(emp.currentLocation.longitude);
                   if (!isValidLatLng(empLat, empLng)) return null;
                   const isCheckedIn = emp.trackingStatus === "checked-in";
+                  const isSelectedEmployee = String(selectedEmployee || "") === String(emp.id);
                   const accuracyRadius = Math.max(1, toFiniteNumber(emp.currentLocation.accuracy) ?? 10);
 
                   return (
@@ -2172,9 +2327,25 @@ export default function LiveTracking() {
                           lat: empLat,
                           lng: empLng,
                         }}
+                        zIndex={5}
+                        icon={createNavigationPuckIcon(isSelectedEmployee) as any}
+                      />
+
+                      <Marker
+                        position={{
+                          lat: empLat,
+                          lng: empLng,
+                        }}
+                        zIndex={10}
                         title={`${emp.firstName} ${emp.lastName}`}
                         icon={createEmployeeMarkerIcon(emp.firstName, emp.lastName, isCheckedIn) as any}
-                        onClick={() => setSelectedMarker(`emp-${emp.id}`)}
+                        onClick={() => {
+                          setSelectedMarker(`emp-${emp.id}`);
+                          setSelectedEmployee(String(emp.id));
+                          if (emp.dbEmployeeId) {
+                            fetchEmployeeLocationHistory(emp.dbEmployeeId, `emp-${emp.id}`);
+                          }
+                        }}
                         onMouseOver={() => {
                           setHoveredMarker(`emp-${emp.id}`);
                           // Fetch location history and travel path for this employee
@@ -2811,5 +2982,7 @@ export default function LiveTracking() {
       </div>
     </Layout>
   );
+
+  return canViewTracking ? trackingView : noTrackingAccessView;
 }
 

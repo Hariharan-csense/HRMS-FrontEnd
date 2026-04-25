@@ -20,6 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -37,11 +43,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, AlertTriangle, Clock, User, FileText, Loader2 } from "lucide-react";
+import { Search, AlertTriangle, Clock, User, FileText, Loader2, ChevronDown, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"; // உங்க path correct ஆ இருக்கணும்
 import { useRole } from "@/context/RoleContext";
 import { useAuth } from "@/context/AuthContext";
+import { leaveTypeApi, type LeaveType } from "@/components/helper/leave/leave";
+import { cn } from "@/lib/utils";
 
 interface OverrideRecord {
   requested_by: ReactNode;
@@ -52,9 +60,12 @@ interface OverrideRecord {
   id: string;
   recordId: string; // attendance record ID
   employeeId: string;
+  employee_id?: string;
   employeeName: string;
   originalStatus: "present" | "absent" | "half";
+  original_status?: string;
   overriddenStatus: "present" | "absent" | "half";
+  overridden_status?: string;
   reason: string;
   approvedBy?: string;
   approved_by?: string;
@@ -68,6 +79,47 @@ interface OverrideRecord {
   }[];
 }
 
+type AttendanceStatusOption = {
+  value: string;
+  label: string;
+  className: string;
+};
+
+type LeaveMode = "none" | "paid" | "half";
+
+const ATTENDANCE_STATUS_OPTIONS: AttendanceStatusOption[] = [
+  {
+    value: "absent",
+    label: "Absent",
+    className:
+      "border-red-200 text-red-700 hover:bg-red-50 data-[active=true]:border-red-700 data-[active=true]:bg-red-700 data-[active=true]:text-white",
+  },
+  {
+    value: "half",
+    label: "Half Day",
+    className:
+      "border-amber-200 text-amber-700 hover:bg-amber-50 data-[active=true]:border-amber-300 data-[active=true]:bg-amber-100 data-[active=true]:text-amber-900",
+  },
+  {
+    value: "present",
+    label: "Present",
+    className:
+      "border-emerald-200 text-emerald-700 hover:bg-emerald-50 data-[active=true]:border-emerald-300 data-[active=true]:bg-emerald-100 data-[active=true]:text-emerald-900",
+  },
+  {
+    value: "week_off",
+    label: "Week Off",
+    className:
+      "border-slate-200 text-slate-700 hover:bg-slate-50 data-[active=true]:border-slate-300 data-[active=true]:bg-slate-100 data-[active=true]:text-slate-900",
+  },
+  {
+    value: "holiday",
+    label: "Holiday",
+    className:
+      "border-indigo-200 text-indigo-700 hover:bg-indigo-50 data-[active=true]:border-indigo-300 data-[active=true]:bg-indigo-100 data-[active=true]:text-indigo-900",
+  },
+];
+
 export default function AttendanceOverride() {
   const { canPerformModuleAction, hasAnyRole } = useRole();
   const { user } = useAuth();
@@ -79,6 +131,8 @@ export default function AttendanceOverride() {
   const [isCreatingOverride, setIsCreatingOverride] = useState(false);
   const [isSubmittingOverride, setIsSubmittingOverride] = useState(false);
   const [processingOverrideId, setProcessingOverrideId] = useState<string | null>(null);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
   const [overrideForm, setOverrideForm] = useState({
     employeeId: "",
     date: "",
@@ -87,6 +141,8 @@ export default function AttendanceOverride() {
     reason: "",
     requestedCheckIn: "",
     requestedCheckOut: "",
+    leaveMode: "none" as LeaveMode,
+    leaveTypeName: "",
   });
 
   const defaultEmployeeId = useMemo(() => {
@@ -171,16 +227,110 @@ useEffect(() => {
   fetchOverrides();
 }, []);
 
+useEffect(() => {
+  const fetchLeaveTypes = async () => {
+    setLeaveTypesLoading(true);
+    const result = await leaveTypeApi.getLeaveTypes();
+    if (result.data) {
+      setLeaveTypes(result.data.filter((leaveType) => leaveType.isActive !== false));
+    }
+    setLeaveTypesLoading(false);
+  };
+
+  if (isCreatingOverride) {
+    fetchLeaveTypes();
+  }
+}, [isCreatingOverride]);
+
+const selectedLeaveType = useMemo(
+  () => leaveTypes.find((leaveType) => leaveType.name === overrideForm.leaveTypeName) || null,
+  [leaveTypes, overrideForm.leaveTypeName]
+);
+
+const requiresTimeFields =
+  overrideForm.leaveMode === "none" &&
+  (overrideForm.overriddenStatus === "present" || overrideForm.overriddenStatus === "half");
+
+const buildOverrideReason = () => {
+  const trimmedReason = overrideForm.reason.trim();
+  const leaveLabel =
+    overrideForm.leaveMode === "paid"
+      ? "Paid Leave"
+      : overrideForm.leaveMode === "half"
+        ? "Half Day Leave"
+        : "";
+
+  if (!leaveLabel || !overrideForm.leaveTypeName) {
+    return trimmedReason;
+  }
+
+  return `[${leaveLabel} - ${overrideForm.leaveTypeName}] ${trimmedReason}`;
+};
+
+const resetOverrideForm = () => {
+  setOverrideForm({
+    employeeId: defaultEmployeeId,
+    date: "",
+    originalStatus: "absent",
+    overriddenStatus: "present",
+    requestedCheckIn: "",
+    requestedCheckOut: "",
+    reason: "",
+    leaveMode: "none",
+    leaveTypeName: "",
+  });
+};
+
+const handleStatusSelection = (value: string) => {
+  setOverrideForm((prev) => {
+    const nextForm = {
+      ...prev,
+      overriddenStatus: value,
+    };
+
+    if (value !== "half" && prev.leaveMode === "half") {
+      nextForm.leaveMode = "none";
+      nextForm.leaveTypeName = "";
+    }
+
+    return nextForm;
+  });
+};
+
+const handleLeaveModeSelection = (leaveMode: LeaveMode) => {
+  setOverrideForm((prev) => ({
+    ...prev,
+    leaveMode,
+    leaveTypeName: "",
+    overriddenStatus:
+      leaveMode === "half"
+        ? "half"
+        : prev.overriddenStatus === "half"
+          ? "absent"
+          : prev.overriddenStatus,
+    requestedCheckIn: leaveMode === "none" ? prev.requestedCheckIn : "",
+    requestedCheckOut: leaveMode === "none" ? prev.requestedCheckOut : "",
+  }));
+};
+
 
 const handleCreateOverride = async () => {
   if (
     !overrideForm.employeeId.trim() ||
     !overrideForm.date ||
-    !overrideForm.requestedCheckIn ||
-    !overrideForm.requestedCheckOut ||
     !overrideForm.reason.trim()
   ) {
-    toast.error("Employee ID, Date, Check-in, Check-out and Reason are required");
+    toast.error("Employee ID, date and reason are required");
+    return;
+  }
+
+  if (requiresTimeFields && (!overrideForm.requestedCheckIn || !overrideForm.requestedCheckOut)) {
+    toast.error("Requested check-in and check-out are required for present or half day override");
+    return;
+  }
+
+  if (overrideForm.leaveMode !== "none" && !overrideForm.leaveTypeName) {
+    toast.error("Select a leave type");
     return;
   }
 
@@ -188,9 +338,9 @@ const handleCreateOverride = async () => {
   try {
     const result = await attendanceApi.createOverride({
       employeeId: overrideForm.employeeId,
-      reason: overrideForm.reason,
-      requestedCheckIn: overrideForm.requestedCheckIn || undefined,
-      requestedCheckOut: overrideForm.requestedCheckOut || undefined,
+      reason: buildOverrideReason(),
+      requestedCheckIn: requiresTimeFields ? overrideForm.requestedCheckIn || undefined : undefined,
+      requestedCheckOut: requiresTimeFields ? overrideForm.requestedCheckOut || undefined : undefined,
       date: overrideForm.date,
       originalStatus: overrideForm.originalStatus,
       overriddenStatus: overrideForm.overriddenStatus,
@@ -199,15 +349,8 @@ const handleCreateOverride = async () => {
     if (result.success || result.data) {
       toast.success("Override request created successfully!");
       setIsCreatingOverride(false);
-      setOverrideForm({
-        employeeId: defaultEmployeeId,
-        date: "",
-        originalStatus: "absent",
-        overriddenStatus: "present",
-        requestedCheckIn: "",
-        requestedCheckOut: "",
-        reason: "",
-      });
+      resetOverrideForm();
+      await fetchOverrides();
     } else {
       toast.error(result.error || "Failed to create override");
     }
@@ -231,6 +374,14 @@ const canRejectOverride =
     canPerformModuleAction("attendance", "reject", "override") ||
     canPerformModuleAction("attendance", "update", "override")
   );
+
+const statusChoices = useMemo(
+  () =>
+    ATTENDANCE_STATUS_OPTIONS.filter(
+      (statusOption) => statusOption.value !== overrideForm.originalStatus
+    ),
+  [overrideForm.originalStatus]
+);
 
 const handleProcessOverride = async (overrideId: string, status: "approved" | "rejected") => {
   setProcessingOverrideId(overrideId);
@@ -426,7 +577,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                 New Override Request
               </Button>
             </DialogTrigger>
-                            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
+                            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-xl">Create Attendance Override</DialogTitle>
                   <DialogDescription>
@@ -434,47 +585,73 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-5 py-4">
-                  {/* Employee ID - Required */}
-                  <div className="space-y-2">
-                    <Label htmlFor="employeeId">
-                      Employee ID <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="employeeId"
-                      placeholder="e.g., EMP003 / CMS001"
-                      value={overrideForm.employeeId}
-                      onChange={(e) =>
-                        setOverrideForm((prev) => ({
-                          ...prev,
-                          employeeId: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  {/* Attendance Date - Required */}
-                  <div className="space-y-2">
-                    <Label htmlFor="overrideDate">
-                      Attendance Date <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="overrideDate"
-                      type="date"
-                      value={overrideForm.date}
-                      onChange={(e) =>
-                        setOverrideForm((prev) => ({
-                          ...prev,
-                          date: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  {/* From Status & To Status */}
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-6 py-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>From Status</Label>
+                      <Label htmlFor="employeeId">
+                        Employee ID <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="employeeId"
+                        placeholder="e.g., EMP003 / CMS001"
+                        value={overrideForm.employeeId}
+                        onChange={(e) =>
+                          setOverrideForm((prev) => ({
+                            ...prev,
+                            employeeId: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="overrideDate">
+                        Attendance Date <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="overrideDate"
+                          type="date"
+                          value={overrideForm.date}
+                          onChange={(e) =>
+                            setOverrideForm((prev) => ({
+                              ...prev,
+                              date: e.target.value,
+                            }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={resetOverrideForm}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-base font-semibold">
+                          {overrideForm.date
+                            ? new Date(`${overrideForm.date}T00:00:00`).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "long",
+                              })
+                            : "Select attendance date"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Pick the final attendance state for this day.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Current Status</Label>
                       <Select
                         value={overrideForm.originalStatus}
                         onValueChange={(value) =>
@@ -485,76 +662,155 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select" />
+                          <SelectValue placeholder="Select current status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="absent">Absent</SelectItem>
-                          <SelectItem value="present">Present</SelectItem>
-                          <SelectItem value="half">Half Day</SelectItem>
+                          {ATTENDANCE_STATUS_OPTIONS.map((statusOption) => (
+                            <SelectItem key={statusOption.value} value={statusOption.value}>
+                              {statusOption.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>To Status</Label>
-                      <Select
-                        value={overrideForm.overriddenStatus}
-                        onValueChange={(value) =>
-                          setOverrideForm((prev) => ({
-                            ...prev,
-                            overriddenStatus: value,
-                          }))
-                        }
+                    <div className="space-y-3">
+                      <Label>Override Status</Label>
+                      <div className="flex flex-wrap gap-3">
+                        {statusChoices.map((statusOption) => (
+                          <button
+                            key={statusOption.value}
+                            type="button"
+                            data-active={overrideForm.overriddenStatus === statusOption.value}
+                            onClick={() => handleStatusSelection(statusOption.value)}
+                            className={cn(
+                              "rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
+                              statusOption.className
+                            )}
+                          >
+                            {statusOption.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+                    <div>
+                      <Label>Leaves</Label>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Select leave mode if this override should be treated as leave.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        data-active={overrideForm.leaveMode === "paid"}
+                        onClick={() => handleLeaveModeSelection(overrideForm.leaveMode === "paid" ? "none" : "paid")}
+                        className={cn(
+                          "rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
+                          "border-violet-200 text-violet-700 hover:bg-violet-100",
+                          overrideForm.leaveMode === "paid" && "border-violet-300 bg-violet-100 text-violet-900"
+                        )}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="present">Present</SelectItem>
-                          <SelectItem value="absent">Absent</SelectItem>
-                          <SelectItem value="half">Half Day</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        Paid Leave
+                      </button>
+                      <button
+                        type="button"
+                        data-active={overrideForm.leaveMode === "half"}
+                        onClick={() => handleLeaveModeSelection(overrideForm.leaveMode === "half" ? "none" : "half")}
+                        className={cn(
+                          "rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
+                          "border-indigo-200 text-indigo-700 hover:bg-indigo-100",
+                          overrideForm.leaveMode === "half" && "border-indigo-300 bg-indigo-100 text-indigo-900"
+                        )}
+                      >
+                        Half Day Leave
+                      </button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full border-blue-200 text-blue-700 hover:bg-blue-50"
+                          >
+                            {overrideForm.leaveTypeName || "Choose Leave Type"}
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                          {leaveTypesLoading ? (
+                            <DropdownMenuItem disabled>Loading leave types...</DropdownMenuItem>
+                          ) : leaveTypes.length > 0 ? (
+                            leaveTypes.map((leaveType) => (
+                              <DropdownMenuItem
+                                key={leaveType.id}
+                                onClick={() =>
+                                  setOverrideForm((prev) => ({
+                                    ...prev,
+                                    leaveMode: prev.leaveMode === "none" ? "paid" : prev.leaveMode,
+                                    leaveTypeName: leaveType.name,
+                                  }))
+                                }
+                              >
+                                {leaveType.name}
+                              </DropdownMenuItem>
+                            ))
+                          ) : (
+                            <DropdownMenuItem disabled>No leave types found</DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
+
+                    {selectedLeaveType && (
+                      <div className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-700">
+                        {selectedLeaveType.name}
+                        {selectedLeaveType.maxDays ? ` • Max ${selectedLeaveType.maxDays} days` : ""}
+                        {selectedLeaveType.isPaid ? " • Paid" : " • Unpaid"}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Requested Check-in/out (optional) */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="requestedCheckIn">
-                        Requested Check-in <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="requestedCheckIn"
-                        type="time"
-                        value={overrideForm.requestedCheckIn}
-                        onChange={(e) =>
-                          setOverrideForm((prev) => ({
-                            ...prev,
-                            requestedCheckIn: e.target.value,
-                          }))
-                        }
-                      />
+                  {requiresTimeFields && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="requestedCheckIn">
+                          Requested Check-in <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="requestedCheckIn"
+                          type="time"
+                          value={overrideForm.requestedCheckIn}
+                          onChange={(e) =>
+                            setOverrideForm((prev) => ({
+                              ...prev,
+                              requestedCheckIn: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="requestedCheckOut">
+                          Requested Check-out <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="requestedCheckOut"
+                          type="time"
+                          value={overrideForm.requestedCheckOut}
+                          onChange={(e) =>
+                            setOverrideForm((prev) => ({
+                              ...prev,
+                              requestedCheckOut: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="requestedCheckOut">
-                        Requested Check-out <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="requestedCheckOut"
-                        type="time"
-                        value={overrideForm.requestedCheckOut}
-                        onChange={(e) =>
-                          setOverrideForm((prev) => ({
-                            ...prev,
-                            requestedCheckOut: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Reason - Required */}
                   <div className="space-y-2">
                     <Label htmlFor="reason">
                       Reason for Override <span className="text-red-500">*</span>
@@ -579,7 +835,10 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                   <div className="flex justify-end gap-3 pt-4">
                     <Button
                       variant="outline"
-                      onClick={() => setIsCreatingOverride(false)}
+                      onClick={() => {
+                        setIsCreatingOverride(false);
+                        resetOverrideForm();
+                      }}
                     >
                       Cancel
                     </Button>

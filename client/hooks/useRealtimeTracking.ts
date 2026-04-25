@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import io, { Socket } from "socket.io-client";
+import { BASE_URL } from "@/lib/endpoint";
 
 type LocationUpdate = {
   id: number;
@@ -32,6 +33,15 @@ type UseRealtimeTrackingReturn = {
 };
 
 let globalSocket: Socket | null = null;
+const SOCKET_PATH = "/backend/socket.io";
+
+const SOCKET_URL = (() => {
+  try {
+    return new URL(BASE_URL).origin;
+  } catch {
+    return typeof window !== "undefined" ? window.location.origin : "";
+  }
+})();
 
 export const useRealtimeTracking = (
   options: UseRealtimeTrackingOptions
@@ -53,42 +63,45 @@ export const useRealtimeTracking = (
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const connect = () => {
-    if (socketRef.current?.connected) {
-      return;
-    }
-
+  const connect = useCallback(() => {
     try {
-      // Reuse global socket if available and not connected
-      if (globalSocket && !globalSocket.connected) {
-        socketRef.current = globalSocket;
-      } else if (!globalSocket) {
-        // Create new socket connection
-        globalSocket = io(window.location.origin, {
+      if (!globalSocket) {
+        globalSocket = io(SOCKET_URL, {
+          path: SOCKET_PATH,
           transports: ["websocket", "polling"],
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
           reconnectionAttempts: 10,
           withCredentials: true,
+          autoConnect: false,
         });
-        socketRef.current = globalSocket;
       }
 
+      socketRef.current = globalSocket;
       const socket = socketRef.current;
+      if (!socket) {
+        throw new Error("Socket initialization failed");
+      }
+
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("location:update");
+      socket.off("tracking:start");
+      socket.off("tracking:stop");
+      socket.off("connect_error");
+      socket.off("error");
 
       socket.on("connect", () => {
         setIsConnected(true);
         setConnectionMode("realtime");
         setError(null);
-
-        // Join company-specific room
         socket.emit("join:company", companyId);
       });
 
       socket.on("disconnect", () => {
         setIsConnected(false);
-        setConnectionMode("disconnected");
+        setConnectionMode(fallbackToPolling ? "polling" : "disconnected");
       });
 
       socket.on("location:update", (location: LocationUpdate) => {
@@ -107,13 +120,10 @@ export const useRealtimeTracking = (
       socket.on("connect_error", (err) => {
         const errorMsg =
           err.message || "WebSocket connection error. Falling back to polling.";
+        setIsConnected(false);
         setError(errorMsg);
         onError?.(errorMsg);
-
-        // Try polling as fallback
-        if (fallbackToPolling) {
-          setConnectionMode("polling");
-        }
+        setConnectionMode(fallbackToPolling ? "polling" : "disconnected");
       });
 
       socket.on("error", (err) => {
@@ -121,6 +131,15 @@ export const useRealtimeTracking = (
         setError(errorMsg);
         onError?.(errorMsg);
       });
+
+      if (socket.connected) {
+        setIsConnected(true);
+        setConnectionMode("realtime");
+        setError(null);
+        socket.emit("join:company", companyId);
+      } else {
+        socket.connect();
+      }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to initialize Socket.IO";
       setError(errorMsg);
@@ -130,12 +149,19 @@ export const useRealtimeTracking = (
         setConnectionMode("polling");
       }
     }
-  };
+  }, [companyId, fallbackToPolling, onError, onLocationUpdate]);
 
-  const disconnect = () => {
-    if (socketRef.current) {
-      socketRef.current.emit("leave:company", companyId);
-      socketRef.current.disconnect();
+  const disconnect = useCallback(() => {
+    const socket = socketRef.current;
+    if (socket) {
+      socket.emit("leave:company", companyId);
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("location:update");
+      socket.off("tracking:start");
+      socket.off("tracking:stop");
+      socket.off("connect_error");
+      socket.off("error");
       socketRef.current = null;
     }
     setIsConnected(false);
@@ -144,7 +170,7 @@ export const useRealtimeTracking = (
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
-  };
+  }, [companyId]);
 
   useEffect(() => {
     if (enabled) {
@@ -158,7 +184,7 @@ export const useRealtimeTracking = (
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [enabled, companyId]);
+  }, [enabled, connect, disconnect]);
 
   return {
     isConnected,
@@ -210,7 +236,7 @@ export const useSendLocation = (options: UseSendLocationOptions): UseSendLocatio
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken") || localStorage.getItem("token") || ""}`,
         },
         body: JSON.stringify({
           employeeId,

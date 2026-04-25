@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -207,6 +215,9 @@ export default function RoleAccessDebug() {
   const [formName, setFormName] = useState("");
   const [formModules, setFormModules] = useState<EditableModules>({});
   const [addingNewRole, setAddingNewRole] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const editorCardRef = useRef<HTMLDivElement | null>(null);
 
   const bootstrap = async () => {
@@ -301,10 +312,22 @@ export default function RoleAccessDebug() {
     }
   };
 
-  const deleteRole = async (roleId: string) => {
-    if (!confirm("Delete this role?")) return;
-    await roleApi.deleteRole(roleId);
-    await bootstrap();
+  const openDeleteDialog = (roleId: string) => {
+    setDeletingRoleId(roleId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const deleteRole = async () => {
+    if (!deletingRoleId) return;
+    setIsDeleting(true);
+    try {
+      await roleApi.deleteRole(deletingRoleId);
+      setIsDeleteDialogOpen(false);
+      setDeletingRoleId(null);
+      await bootstrap();
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const copyRole = (role: RoleDebugInfo) => {
@@ -693,7 +716,7 @@ export default function RoleAccessDebug() {
                       variant="outline"
                       size="sm"
                       className="border-2 border-red-300 hover:bg-red-50 text-red-600 font-medium px-3 py-2 sm:px-4 sm:py-2 rounded-xl transition-all duration-200 text-xs sm:text-sm"
-                      onClick={() => deleteRole(role.id)}
+                      onClick={() => openDeleteDialog(role.id)}
                     >
                       <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                       <span className="hidden xs:inline">Delete</span>
@@ -796,6 +819,30 @@ export default function RoleAccessDebug() {
             ))}
           </CardContent>
         </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Role</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this role? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={deleteRole}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

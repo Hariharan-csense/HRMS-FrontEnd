@@ -4,7 +4,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import AttendanceMap from "@/components/AttendanceMap";
-import AdminRealTimeMap from "@/components/AdminRealTimeMap";
 import { useOfficeLocation } from "@/hooks/useOfficeLocation";
 import { AdminDashboardData, getAdminDashboardData, EmployeeDashboardData, getEmployeeDashboardData, ManagerDashboardData, getManagerDashboardData, HRDashboardData, getHRDashboardData, FinanceDashboardData, getFinanceDashboardData } from "@/components/helper/dashboard/dashboard";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
@@ -431,19 +430,80 @@ const filterDashboardModuleCards = (
       canPerformModuleAction(card.module, "view")
   );
 
+const isDashboardAccessIssue = (message?: string | null) => {
+  const normalized = String(message || "").toLowerCase();
+  return (
+    normalized.includes("access denied") ||
+    normalized.includes("not authorized") ||
+    normalized.includes("permission") ||
+    normalized.includes("unauthorized")
+  );
+};
+
+const DashboardAccessPlaceholder = ({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) => (
+  <div className="mx-auto max-w-5xl space-y-6">
+    <div className="dashboard-header">
+      <div className="relative z-10">
+        <h1 className="text-4xl font-bold mb-2">{title}</h1>
+        <p className="text-white/90 text-lg">{description}</p>
+      </div>
+    </div>
+
+    <Card className="modern-card border-0 shadow-xl">
+      <CardContent className="p-8">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Dashboard access not configured yet
+            </h2>
+            <p className="text-gray-600 leading-relaxed">
+              If the role is not created or dashboard view permission is not
+              assigned, the data will not be displayed here. Once you create a
+              role in Roles & Permissions and grant access to the
+              dashboard/module, the overview will load normally.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+
 const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
-  const { canPerformModuleAction } = useRole();
+  const { canPerformModuleAction, userRoles, loading: roleLoading } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  const hasConfiguredRoles = userRoles.length > 0;
 
   useEffect(() => {
+    if (roleLoading) {
+      return;
+    }
+
+    if (!hasConfiguredRoles) {
+      setDashboardData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const result = await getAdminDashboardData();
 
         if (result.error) {
@@ -459,15 +519,33 @@ const AdminDashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [hasConfiguredRoles, roleLoading]);
 
 
 
-  if (loading) {
+  if (loading || roleLoading) {
     return <div>Loading dashboard data...</div>;
   }
 
+  if (!hasConfiguredRoles) {
+    return (
+      <DashboardAccessPlaceholder
+        title="Admin Dashboard"
+        description="Dashboard widgets will appear once a role and permissions are configured."
+      />
+    );
+  }
+
   if (error) {
+    if (isDashboardAccessIssue(error)) {
+      return (
+        <DashboardAccessPlaceholder
+          title="Admin Dashboard"
+          description="This account does not have dashboard access yet."
+        />
+      );
+    }
+
     return <div className="text-red-500">Error: {error}</div>;
   }
 
@@ -626,9 +704,6 @@ const AdminDashboard = () => {
           />
         </div>
       </div>
-
-      {/* Live tracking widget */}
-      <AdminRealTimeMap />
 
       <ModuleCardsSection cards={visibleAdminModuleCards} navigate={navigate} />
 

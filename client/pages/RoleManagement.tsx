@@ -32,9 +32,9 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/context/RoleContext";
 import { roleApi, Role, ModulePermission } from "@/components/helper/roles/roles";
-import { 
-  Plus, 
-  Edit, 
+import {
+  Plus,
+  Edit,
   Trash2,
   Loader2
 } from "lucide-react";
@@ -45,8 +45,10 @@ const RoleManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreatingRole, setIsCreatingRole] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const [isDeletingRole, setIsDeletingRole] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const { toast } = useToast();
 
@@ -215,7 +217,7 @@ const RoleManagement: React.FC = () => {
     }
   };
 
-  const handleDeleteRole = async (roleId: string) => {
+  const openDeleteDialog = (role: Role) => {
     if (!canDeleteRole) {
       toast({
         title: "Access Denied",
@@ -224,16 +226,23 @@ const RoleManagement: React.FC = () => {
       });
       return;
     }
+    setSelectedRole(role);
+    setIsDeleteDialogOpen(true);
+  };
 
-    if (!confirm('Are you sure you want to delete this role?')) return;
+  const handleDeleteRole = async () => {
+    if (!selectedRole) return;
 
+    setIsDeletingRole(true);
     try {
-      const result = await roleApi.deleteRole(roleId);
+      const result = await roleApi.deleteRole(selectedRole.id);
       if (result.success) {
         toast({
           title: "Success",
           description: "Role deleted successfully",
         });
+        setIsDeleteDialogOpen(false);
+        setSelectedRole(null);
         fetchRoles();
       } else if (result.error) {
         toast({
@@ -248,6 +257,8 @@ const RoleManagement: React.FC = () => {
         description: "Failed to delete role",
         variant: "destructive",
       });
+    } finally {
+      setIsDeletingRole(false);
     }
   };
 
@@ -494,7 +505,7 @@ const RoleManagement: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDeleteRole(role.id)}
+                              onClick={() => openDeleteDialog(role)}
                               className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -577,6 +588,37 @@ const RoleManagement: React.FC = () => {
                   </>
                 ) : (
                   "Update Role"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Role</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the role <strong>{selectedRole?.name}</strong>? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteRole}
+                disabled={isDeletingRole}
+              >
+                {isDeletingRole ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
                 )}
               </Button>
             </DialogFooter>

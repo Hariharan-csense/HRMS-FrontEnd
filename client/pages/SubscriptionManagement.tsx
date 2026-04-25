@@ -69,26 +69,26 @@ const getStorageForPlan = (plan: SubscriptionPlan): string => {
   if (plan.storage_gb) {
     return `${plan.storage_gb}GB`;
   }
-  
+
   // Fallback to name-based calculation for backward compatibility
   const name = plan.name.toLowerCase();
-  
+
   if (name.includes('free')) {
     return '500MB';
   }
-  
+
   if (name.includes('basic') || name.includes('starter')) {
     return '2GB';
   }
-  
+
   if (name.includes('standard') || name.includes('professional') || name.includes('pro')) {
     return '5GB';
   }
-  
+
   if (name.includes('advanced') || name.includes('advance') || name.includes('business') || name.includes('premium') || name.includes('enterprise')) {
     return '10GB';
   }
-  
+
   return '1GB'; // Default storage
 };
 
@@ -312,7 +312,7 @@ const SubscriptionManagement: React.FC = () => {
     };
 
     const variant = variants[status] || variants.cancelled;
-    
+
     return (
       <Badge className={variant.color}>
         <span className="flex items-center gap-1">
@@ -342,535 +342,524 @@ const SubscriptionManagement: React.FC = () => {
           <h1 className="text-3xl font-bold text-[#17c491]">Subscription Management</h1>
         </div>
 
-      {/* Current Subscription Status */}
-      {currentSubscription && (
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">
-          <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl py-4">
-            <CardTitle className="flex items-center justify-between text-white text-lg">
-              <span>Current Subscription</span>
-              {getStatusBadge(currentSubscription.status)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {currentSubscription.status === 'trial' && currentSubscription.is_trial_active && (
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-green-800 font-medium">
-                  🎉 Welcome! Your free trial is active
-                </p>
-                <p className="text-green-700 text-sm mt-1">
-                  Enjoy full access to all features during your trial period. Choose a plan below to upgrade anytime and continue using service without interruption.
-                </p>
-              </div>
-            )}
+        {/* Current Subscription Status */}
+        {currentSubscription && (
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">
+            <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl py-4">
+              <CardTitle className="flex items-center justify-between text-white text-lg">
+                <span>Current Subscription</span>
+                {getStatusBadge(currentSubscription.status)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {currentSubscription.status === 'trial' && currentSubscription.is_trial_active && (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-800 font-medium">
+                    🎉 Welcome! Your free trial is active
+                  </p>
+                  <p className="text-green-700 text-sm mt-1">
+                    Enjoy full access to all features during your trial period. Choose a plan below to upgrade anytime and continue using service without interruption.
+                  </p>
+                </div>
+              )}
 
-            {isTrialExpired && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800 font-medium">
-                  ⚠️ Your free trial has ended
-                </p>
-                <p className="text-red-700 text-sm mt-1">
-                  Your trial period has ended. Choose a plan below to subscribe and continue using all features without interruption.
-                </p>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Plan</p>
-                <p className="font-semibold">{currentSubscription.plan_name}</p>
-                <ul className="mt-2 list-disc pl-4 text-sm text-gray-500 space-y-1">
-                  {(currentSubscription.plan_description || "")
-                    .split(/,|\n/)
-                    .map((item) => item.trim())
-                    .filter(Boolean)
-                    .map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Users</p>
-                <p className="font-semibold flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  {currentSubscription.max_users || currentSubscription.plan_max_users || 0} Users
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Storage</p>
-                <p className="font-semibold flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  {currentSubscription.used_storage_mb ? 
-                    `${Math.round(currentSubscription.used_storage_mb / 1024 * 100) / 100}GB / ${currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1}GB` 
-                    : `${currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1}GB Total`
-                  }
-                </p>
-                {currentSubscription.storage_usage_percentage !== undefined && (
-                  <div className="mt-1">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${
-                          currentSubscription.storage_usage_percentage > 90 ? 'bg-red-500' :
-                          currentSubscription.storage_usage_percentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(currentSubscription.storage_usage_percentage, 100)}%` }}
-                      ></div>
+              {isTrialExpired && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-800 font-medium">
+                    ⚠️ Your free trial has ended
+                  </p>
+                  <p className="text-red-700 text-sm mt-1">
+                    Your trial period has ended. Choose a plan below to subscribe and continue using all features without interruption.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Plan</p>
+                  <p className="font-semibold">{currentSubscription.plan_name}</p>
+                  <ul className="mt-2 list-disc pl-4 text-sm text-gray-500 space-y-1">
+                    {(currentSubscription.plan_description || "")
+                      .split(/,|\n/)
+                      .map((item) => item.trim())
+                      .filter(Boolean)
+                      .map((item, index) => (
+                        <li key={`${item}-${index}`}>{item}</li>
+                      ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Users</p>
+                  <p className="font-semibold flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    {currentSubscription.max_users || currentSubscription.plan_max_users || 0} Users
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Storage</p>
+                  <p className="font-semibold flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    {currentSubscription.used_storage_mb ?
+                      `${Math.round(currentSubscription.used_storage_mb / 1024 * 100) / 100}GB / ${currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1}GB`
+                      : `${currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1}GB Total`
+                    }
+                  </p>
+                  {currentSubscription.storage_usage_percentage !== undefined && (
+                    <div className="mt-1">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${currentSubscription.storage_usage_percentage > 90 ? 'bg-red-500' :
+                              currentSubscription.storage_usage_percentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                            }`}
+                          style={{ width: `${Math.min(currentSubscription.storage_usage_percentage, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {currentSubscription.storage_usage_percentage}% used
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {currentSubscription.storage_usage_percentage}% used
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Duration</p>
+                  <p className="font-semibold flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {currentSubscription.days_remaining} days remaining
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Duration</p>
-                <p className="font-semibold flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  {currentSubscription.days_remaining} days remaining
-                </p>
-              </div>
-            </div>
-            
-            {currentSubscription.is_trial_active && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <Clock className="inline w-4 h-4 mr-1" />
-                  Trial ends in {currentSubscription.trial_days_remaining} days
-                </p>
-              </div>
-            )}
 
-            {/* Storage Warning */}
-            {currentSubscription.storage_usage_percentage !== undefined && currentSubscription.storage_usage_percentage > 80 && (
-              <div className={`mt-4 p-4 rounded-lg ${
-                currentSubscription.storage_usage_percentage > 95 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'
-              }`}>
-                <p className={`font-medium ${
-                  currentSubscription.storage_usage_percentage > 95 ? 'text-red-800' : 'text-yellow-800'
-                }`}>
-                  {currentSubscription.storage_usage_percentage > 95 ? '⚠️ Critical: Storage Almost Full!' : '⚠️ Storage Running Low'}
+              {currentSubscription.is_trial_active && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <Clock className="inline w-4 h-4 mr-1" />
+                    Trial ends in {currentSubscription.trial_days_remaining} days
+                  </p>
+                </div>
+              )}
+
+              {/* Storage Warning */}
+              {currentSubscription.storage_usage_percentage !== undefined && currentSubscription.storage_usage_percentage > 80 && (
+                <div className={`mt-4 p-4 rounded-lg ${currentSubscription.storage_usage_percentage > 95 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'
+                  }`}>
+                  <p className={`font-medium ${currentSubscription.storage_usage_percentage > 95 ? 'text-red-800' : 'text-yellow-800'
+                    }`}>
+                    {currentSubscription.storage_usage_percentage > 95 ? '⚠️ Critical: Storage Almost Full!' : '⚠️ Storage Running Low'}
+                  </p>
+                  <p className={`text-sm mt-1 ${currentSubscription.storage_usage_percentage > 95 ? 'text-red-700' : 'text-yellow-700'
+                    }`}>
+                    You're using {currentSubscription.storage_usage_percentage}% of your {currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1}GB storage limit.
+                    {currentSubscription.storage_usage_percentage > 95 ?
+                      ' Upload files will be blocked. Upgrade immediately to continue using the service.' :
+                      ' Consider upgrading to a higher plan to avoid service interruption.'
+                    }
+                  </p>
+                  <Button
+                    className={`mt-3 ${currentSubscription.storage_usage_percentage > 95 ? 'bg-red-600 hover:bg-red-700' : 'bg-yellow-600 hover:bg-yellow-700'
+                      } text-white`}
+                    onClick={() => {
+                      setShowPaymentModal(true);
+                      setSelectedPlan(plans.find(p => p.storage_gb && p.storage_gb > (currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1)) || plans[plans.length - 1]);
+                    }}
+                  >
+                    Upgrade Plan for More Storage
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Available Plans */}
+        <div>
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Perfect Plan</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto mb-6">
+              Select the plan that best fits your business needs. All plans include core features with different limits and capabilities.
+            </p>
+
+            {/* Try Everything Free Banner */}
+            {!currentSubscription && (
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 py-6 px-4 rounded-xl mb-8">
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Try Everything Free
+                </h3>
+                <p className="text-green-100 mb-4">
+                  No credit card required • Cancel anytime
                 </p>
-                <p className={`text-sm mt-1 ${
-                  currentSubscription.storage_usage_percentage > 95 ? 'text-red-700' : 'text-yellow-700'
-                }`}>
-                  You're using {currentSubscription.storage_usage_percentage}% of your {currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1}GB storage limit. 
-                  {currentSubscription.storage_usage_percentage > 95 ? 
-                    ' Upload files will be blocked. Upgrade immediately to continue using the service.' : 
-                    ' Consider upgrading to a higher plan to avoid service interruption.'
-                  }
-                </p>
-                <Button 
-                  className={`mt-3 ${
-                    currentSubscription.storage_usage_percentage > 95 ? 'bg-red-600 hover:bg-red-700' : 'bg-yellow-600 hover:bg-yellow-700'
-                  } text-white`}
-                  onClick={() => {
-                    setShowPaymentModal(true);
-                    setSelectedPlan(plans.find(p => p.storage_gb && p.storage_gb > (currentSubscription.storage_gb || currentSubscription.plan_storage_gb || 1)) || plans[plans.length - 1]);
-                  }}
+                <Button
+                  className="bg-white text-green-700 hover:bg-gray-100 px-6 py-2 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  onClick={() => navigate('/signup')}
                 >
-                  Upgrade Plan for More Storage
+                  Start Free Trial
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             )}
-
-      
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Available Plans */}
-      <div>
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Perfect Plan</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto mb-6">
-            Select the plan that best fits your business needs. All plans include core features with different limits and capabilities.
-          </p>
-          
-          {/* Try Everything Free Banner */}
-          {!currentSubscription && (
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 py-6 px-4 rounded-xl mb-8">
-            <h3 className="text-xl font-bold text-white mb-2">
-              Try Everything Free
-            </h3>
-            <p className="text-green-100 mb-4">
-              No credit card required • Cancel anytime
-            </p>
-            <Button 
-              className="bg-white text-green-700 hover:bg-gray-100 px-6 py-2 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-              onClick={() => navigate('/signup')}
-            >
-              Start Free Trial
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
           </div>
+
+          <Card className="border border-gray-200 shadow-sm mb-8">
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-gray-700 font-medium">Number of Users</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={selectedUsers}
+                    onChange={(e) => {
+                      const nextValue = parseInt(e.target.value, 10);
+                      setSelectedUsers(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-700 font-medium">Billing Cycle</Label>
+                  <Select
+                    value={selectedBillingCycle}
+                    onValueChange={(value) => setSelectedBillingCycle(value as 'monthly' | 'yearly')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select billing cycle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+            </CardContent>
+          </Card>
+          {plans && plans.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {plans.map((plan) => {
+                const isMostPopular = plan.name.toLowerCase() === 'standard';
+                const isCurrentPlan = !!currentSubscription && (
+                  currentSubscription.plan_id === plan.id ||
+                  currentSubscription.plan_name?.toLowerCase() === plan.name.toLowerCase()
+                );
+                const isLockedCurrentPlan = hasPaidSubscription && isCurrentPlan;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative bg-gradient-to-br ${getPlanGradient(plan.name)} rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${isLockedCurrentPlan ? 'opacity-80 hover:shadow-lg' : 'hover:shadow-xl hover:scale-105'
+                      } ${isMostPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
+                      }`}
+                  >
+                    {isMostPopular && (
+                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
+                        Most Popular
+                      </div>
+                    )}
+
+                    {isLockedCurrentPlan && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <Badge className="bg-gray-900 text-white">Current Plan</Badge>
+                      </div>
+                    )}
+
+                    <div className={`${isLockedCurrentPlan ? 'blur-[1px]' : ''}`}>
+                      <div className={`p-6 sm:p-8 ${isMostPopular ? 'pt-10 sm:pt-12' : 'pt-6 sm:pt-8'}`}>
+                        {/* User Icon */}
+                        <div className="flex justify-center mb-6">
+                          <div className="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center shadow-md">
+                            {getPlanIcon(plan.name)}
+                          </div>
+                        </div>
+
+                        {/* Plan Name */}
+                        <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-4">
+                          {plan.name}
+                        </h3>
+
+                        {/* Price */}
+                        {(() => {
+                          const pricing = getPricingSummary(plan, selectedUsers, selectedBillingCycle);
+                          return (
+                            <div className="text-center mb-6">
+                              <div className="flex items-baseline justify-center gap-1">
+                                <span className={`text-4xl sm:text-5xl font-bold ${getPlanAccentText(plan.name)}`}>
+                                  {formatCurrency(pricing.effectivePerUser)}
+                                </span>
+                                <span className="text-gray-600 text-lg">/user/month</span>
+                              </div>
+                              <span className="text-gray-500 text-sm block mt-2">
+                                Per user monthly: {formatCurrency(pricing.monthlyPerUser)}
+                                {selectedBillingCycle === 'yearly' ? ` • Per user yearly billing: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month` : ''}
+                              </span>
+                              {selectedBillingCycle === 'yearly' && (
+                                <span className="text-emerald-600 text-sm block">
+                                  Yearly price configured for this package: {formatCurrency(pricing.yearlyPerUserMonthly)} / month
+                                </span>
+                              )}
+                              <span className="text-gray-500 text-sm block">
+                                Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)} for {selectedUsers} users
+                              </span>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Plan Description with Bullet Points */}
+                        <div className="space-y-3 mb-8">
+                          {plan.description.split('\n').map((item, index) => (
+                            <div key={index} className="flex items-center justify-between py-2">
+                              <span className="text-gray-700 text-sm flex-1">{item}</span>
+                              <div className="flex items-center justify-center w-6 h-6">
+                                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                  <Check className="w-3 h-3 text-white" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* CTA Button */}
+                        {isLockedCurrentPlan ? (
+                          <Button
+                            className="w-full py-3 px-4 font-semibold text-sm sm:text-base whitespace-normal text-center bg-gray-200 text-gray-700 cursor-not-allowed"
+                            disabled
+                          >
+                            <span className="flex items-center justify-center">
+                              Current Plan
+                            </span>
+                          </Button>
+                        ) : !currentSubscription ? (
+                          <Button
+                            className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${isMostPopular
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            onClick={() => handleStartTrial(plan.id)}
+                          >
+                            <span className="flex items-center justify-center">
+                              Try Everything Free!
+                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                            </span>
+                          </Button>
+                        ) : (currentSubscription.status === 'trial' && currentSubscription.is_trial_active) ? (
+                          <Button
+                            className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${isMostPopular
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            onClick={() => {
+                              setSelectedPlan(plan);
+                              setShowPaymentModal(true);
+                            }}
+                          >
+                            <span className="flex items-center justify-center">
+                              Upgrade Now
+                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                            </span>
+                          </Button>
+                        ) : isTrialExpired ? (
+                          <Button
+                            className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${isMostPopular
+                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                : 'bg-red-500 hover:bg-red-600 text-white'
+                              }`}
+                            onClick={() => {
+                              setSelectedPlan(plan);
+                              setShowPaymentModal(true);
+                            }}
+                          >
+                            <span className="flex items-center justify-center">
+                              Subscribe Now
+                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                            </span>
+                          </Button>
+                        ) : (
+                          <Button
+                            className={`w-full py-3 px-4 font-semibold border-2 transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${isMostPopular
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedPlan(plan);
+                              setShowPaymentModal(true);
+                            }}
+                          >
+                            <span className="flex items-center justify-center">
+                              Upgrade to {plan.name}
+                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                            </span>
+                          </Button>
+                        )}
+
+                        {/* Trial Information */}
+                        {!currentSubscription && (
+                          <div className="text-center mt-4">
+                            <p className="text-gray-600 text-sm">
+                              {plan.trial_days} days free trial
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="text-center py-12">
+              <CardContent>
+                <div className="max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Plans Available</h3>
+                  <p className="text-gray-600 mb-4">No subscription plans are available at the moment.</p>
+                  <p className="text-sm text-gray-500">Please contact our support team for assistance with custom plans.</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
-        <Card className="border border-gray-200 shadow-sm mb-8">
-          <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Number of Users</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={selectedUsers}
-                  onChange={(e) => {
-                    const nextValue = parseInt(e.target.value, 10);
-                    setSelectedUsers(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Billing Cycle</Label>
-                <Select
-                  value={selectedBillingCycle}
-                  onValueChange={(value) => setSelectedBillingCycle(value as 'monthly' | 'yearly')}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select billing cycle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-          </CardContent>
-        </Card>
-        {plans && plans.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {plans.map((plan) => {
-              const isMostPopular = plan.name.toLowerCase() === 'standard';
-              const isCurrentPlan = !!currentSubscription && (
-                currentSubscription.plan_id === plan.id ||
-                currentSubscription.plan_name?.toLowerCase() === plan.name.toLowerCase()
-              );
-              const isLockedCurrentPlan = hasPaidSubscription && isCurrentPlan;
-               
-              return (
-                <div 
-                  key={plan.id} 
-                  className={`relative bg-gradient-to-br ${getPlanGradient(plan.name)} rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
-                    isLockedCurrentPlan ? 'opacity-80 hover:shadow-lg' : 'hover:shadow-xl hover:scale-105'
-                  } ${
-                    isMostPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
-                  }`}
-                >
-                  {isMostPopular && (
-                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
-                      Most Popular
-                    </div>
-                  )}
-
-                  {isLockedCurrentPlan && (
-                    <div className="absolute top-4 right-4 z-10">
-                      <Badge className="bg-gray-900 text-white">Current Plan</Badge>
-                    </div>
-                  )}
-                   
-                  <div className={`${isLockedCurrentPlan ? 'blur-[1px]' : ''}`}>
-                    <div className={`p-6 sm:p-8 ${isMostPopular ? 'pt-10 sm:pt-12' : 'pt-6 sm:pt-8'}`}>
-                     {/* User Icon */}
-                     <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center shadow-md">
-                          {getPlanIcon(plan.name)}
-                       </div>
-                     </div>
-                     
-                     {/* Plan Name */}
-                    <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-4">
-                      {plan.name}
-                    </h3>
-                    
-                     {/* Price */}
-                      {(() => {
-                        const pricing = getPricingSummary(plan, selectedUsers, selectedBillingCycle);
-                        return (
-                          <div className="text-center mb-6">
-                            <div className="flex items-baseline justify-center gap-1">
-                              <span className={`text-4xl sm:text-5xl font-bold ${getPlanAccentText(plan.name)}`}>
-                                {formatCurrency(pricing.effectivePerUser)}
-                              </span>
-                            <span className="text-gray-600 text-lg">/user/month</span>
-                          </div>
-                          <span className="text-gray-500 text-sm block mt-2">
-                              Per user monthly: {formatCurrency(pricing.monthlyPerUser)}
-                              {selectedBillingCycle === 'yearly' ? ` • Per user yearly billing: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month` : ''}
-                            </span>
-                            {selectedBillingCycle === 'yearly' && (
-                              <span className="text-emerald-600 text-sm block">
-                                Yearly price configured for this package: {formatCurrency(pricing.yearlyPerUserMonthly)} / month
-                              </span>
-                            )}
-                            <span className="text-gray-500 text-sm block">
-                              Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)} for {selectedUsers} users
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    
-                    {/* Plan Description with Bullet Points */}
-                    <div className="space-y-3 mb-8">
-                      {plan.description.split('\n').map((item, index) => (
-                        <div key={index} className="flex items-center justify-between py-2">
-                          <span className="text-gray-700 text-sm flex-1">{item}</span>
-                          <div className="flex items-center justify-center w-6 h-6">
-                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                              <Check className="w-3 h-3 text-white" />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                     </div>
-                     
-                     {/* CTA Button */}
-                    {isLockedCurrentPlan ? (
-                      <Button
-                        className="w-full py-3 px-4 font-semibold text-sm sm:text-base whitespace-normal text-center bg-gray-200 text-gray-700 cursor-not-allowed"
-                        disabled
-                      >
-                        <span className="flex items-center justify-center">
-                          Current Plan
-                        </span>
-                      </Button>
-                    ) : !currentSubscription ? (
-                      <Button 
-                        className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                          isMostPopular 
-                            ? 'bg-orange-500 hover:bg-orange-600 text-white' 
-                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => handleStartTrial(plan.id)}
-                      >
-                        <span className="flex items-center justify-center">
-                          Try Everything Free!
-                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                        </span>
-                      </Button>
-                    ) : (currentSubscription.status === 'trial' && currentSubscription.is_trial_active) ? (
-                      <Button 
-                        className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                          isMostPopular 
-                            ? 'bg-orange-500 hover:bg-orange-600 text-white' 
-                            : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                        onClick={() => {
-                          setSelectedPlan(plan);
-                          setShowPaymentModal(true);
-                        }}
-                      >
-                        <span className="flex items-center justify-center">
-                          Upgrade Now
-                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                        </span>
-                      </Button>
-                    ) : isTrialExpired ? (
-                      <Button 
-                        className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                          isMostPopular 
-                            ? 'bg-red-500 hover:bg-red-600 text-white' 
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                        }`}
-                        onClick={() => {
-                          setSelectedPlan(plan);
-                          setShowPaymentModal(true);
-                        }}
-                      >
-                        <span className="flex items-center justify-center">
-                          Subscribe Now
-                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                        </span>
-                      </Button>
-                    ) : (
-                      <Button 
-                        className={`w-full py-3 px-4 font-semibold border-2 transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                          isMostPopular 
-                            ? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500' 
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedPlan(plan);
-                          setShowPaymentModal(true);
-                        }}
-                      >
-                        <span className="flex items-center justify-center">
-                          Upgrade to {plan.name}
-                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                        </span>
-                      </Button>
-                    )}
-                    
-                    {/* Trial Information */}
-                    {!currentSubscription && (
-                     <div className="text-center mt-4">
-                       <p className="text-gray-600 text-sm">
-                         {plan.trial_days} days free trial
-                       </p>
-                     </div>
-                    )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <Card className="text-center py-12">
+        {/* Payment History */}
+        {payments && payments.length > 0 && (
+          <Card className="border-0 shadow-xl bg-white/90">
+            <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl">
+              <CardTitle className="text-white">Payment History</CardTitle>
+            </CardHeader>
             <CardContent>
-              <div className="max-w-md mx-auto">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Plans Available</h3>
-                <p className="text-gray-600 mb-4">No subscription plans are available at the moment.</p>
-                <p className="text-sm text-gray-500">Please contact our support team for assistance with custom plans.</p>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Date</th>
+                      <th className="text-left p-2">Amount</th>
+                      <th className="text-left p-2">Method</th>
+                      <th className="text-left p-2">Transaction ID</th>
+                      <th className="text-left p-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((payment) => (
+                      <tr key={payment.id} className="border-b">
+                        <td className="p-2">{new Date(payment.payment_date).toLocaleDateString()}</td>
+                        <td className="p-2">₹{payment.amount.toLocaleString()}</td>
+                        <td className="p-2">{payment.payment_method}</td>
+                        <td className="p-2">{payment.transaction_id}</td>
+                        <td className="p-2">
+                          <Badge className={
+                            payment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                          }>
+                            {payment.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {payments.map((payment) => (
+                  <Card key={payment.id} className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">₹{payment.amount.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600">{new Date(payment.payment_date).toLocaleDateString()}</p>
+                      </div>
+                      <Badge className={
+                        payment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                      }>
+                        {payment.status}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Method:</span>
+                        <span className="font-medium">{payment.payment_method}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Transaction ID:</span>
+                        <span className="font-medium text-xs break-all">{payment.transaction_id}</span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </CardContent>
           </Card>
         )}
-      </div>
 
-      
-      {/* Payment History */}
-      {payments && payments.length > 0 && (
-        <Card className="border-0 shadow-xl bg-white/90">
-          <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl">
-            <CardTitle className="text-white">Payment History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Date</th>
-                    <th className="text-left p-2">Amount</th>
-                    <th className="text-left p-2">Method</th>
-                    <th className="text-left p-2">Transaction ID</th>
-                    <th className="text-left p-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((payment) => (
-                    <tr key={payment.id} className="border-b">
-                      <td className="p-2">{new Date(payment.payment_date).toLocaleDateString()}</td>
-                      <td className="p-2">₹{payment.amount.toLocaleString()}</td>
-                      <td className="p-2">{payment.payment_method}</td>
-                      <td className="p-2">{payment.transaction_id}</td>
-                      <td className="p-2">
-                        <Badge className={
-                          payment.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                          payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-red-100 text-red-800'
-                        }>
-                          {payment.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
-              {payments.map((payment) => (
-                <Card key={payment.id} className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-semibold text-gray-900">₹{payment.amount.toLocaleString()}</p>
-                      <p className="text-sm text-gray-600">{new Date(payment.payment_date).toLocaleDateString()}</p>
-                    </div>
-                    <Badge className={
-                      payment.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                      payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                      'bg-red-100 text-red-800'
-                    }>
-                      {payment.status}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Method:</span>
-                      <span className="font-medium">{payment.payment_method}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Transaction ID:</span>
-                      <span className="font-medium text-xs break-all">{payment.transaction_id}</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Payment Modal */}
-      {showPaymentModal && selectedPlan && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Complete Payment</CardTitle>
-              <p className="text-sm text-gray-600">
-                Upgrade to {selectedPlan.name} plan
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-semibold">{selectedPlan.name}</p>
-                <div className="flex items-baseline gap-2">
-                  {(() => {
-                    const pricing = getPricingSummary(selectedPlan, selectedUsers, selectedBillingCycle);
-                    return (
-                      <>
-                        <span className="text-2xl font-bold">{formatCurrency(pricing.effectivePerUser)}</span>
-                        <span className="text-gray-600">/user/month</span>
-                        <span className="text-sm text-gray-500 ml-auto">
-                          Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)}
-                        </span>
-                      </>
-                    );
-                  })()}
-                </div>
+        {/* Payment Modal */}
+        {showPaymentModal && selectedPlan && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Complete Payment</CardTitle>
                 <p className="text-sm text-gray-600">
-                  {selectedUsers} subscribed users. You can add up to {selectedUsers} employees after payment.
+                  Upgrade to {selectedPlan.name} plan
                 </p>
-                {selectedBillingCycle === 'yearly' && (
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="font-semibold">{selectedPlan.name}</p>
+                  <div className="flex items-baseline gap-2">
+                    {(() => {
+                      const pricing = getPricingSummary(selectedPlan, selectedUsers, selectedBillingCycle);
+                      return (
+                        <>
+                          <span className="text-2xl font-bold">{formatCurrency(pricing.effectivePerUser)}</span>
+                          <span className="text-gray-600">/user/month</span>
+                          <span className="text-sm text-gray-500 ml-auto">
+                            Total {selectedBillingCycle}: {formatCurrency(pricing.totalPrice)}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {selectedUsers} subscribed users. You can add up to {selectedUsers} employees after payment.
+                  </p>
+                  {selectedBillingCycle === 'yearly' && (
                     <p className="text-sm text-emerald-600">
-                    Yearly price comes directly from the saved package configuration.
+                      Yearly price comes directly from the saved package configuration.
                     </p>
                   )}
-                <p className="text-sm text-gray-600">{getStorageForPlan(selectedPlan)} storage</p>
-              </div>
+                  <p className="text-sm text-gray-600">{getStorageForPlan(selectedPlan)} storage</p>
+                </div>
 
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleUpgrade}
-                  className="flex-1"
-                  disabled={isPaying}
-                >
-                  {isPaying ? 'Starting Payment...' : 'Pay with Razorpay'}
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setSelectedPlan(null);
-                  }}
-                  disabled={isPaying}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleUpgrade}
+                    className="flex-1"
+                    disabled={isPaying}
+                  >
+                    {isPaying ? 'Starting Payment...' : 'Pay with Razorpay'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowPaymentModal(false);
+                      setSelectedPlan(null);
+                    }}
+                    disabled={isPaying}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </Layout>
   );
