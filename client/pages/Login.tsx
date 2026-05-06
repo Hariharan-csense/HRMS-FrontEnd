@@ -394,9 +394,8 @@ export default function Login() {
                     </Button>
 
                     <div
-                      className={`text-center pt-4 animate-fade-in-up ${
-                        isRegisterClicked ? "register-button-spin" : ""
-                      }`}
+                      className={`text-center pt-4 animate-fade-in-up ${isRegisterClicked ? "register-button-spin" : ""
+                        }`}
                       style={{ animationDelay: "0.4s" }}
                     >
                       <p className="text-sm text-slate-600">

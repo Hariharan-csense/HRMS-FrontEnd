@@ -821,13 +821,14 @@ useEffect(() => {
   // Update form data when selected managers change
   useEffect(() => {
     if (selectedReportingManagers.length > 0) {
-      const selectedManagers = reportingManagers.filter(m => selectedReportingManagers.includes(m.id));
+      const selectedManagers = reportingManagers.filter(m => selectedReportingManagers.includes(String(m.id)));
       const managerNames = selectedManagers.map(m => m.fullName || m.name).join(', ');
       const managerEmails = selectedManagers.map(m => m.email).filter(Boolean).join(', ');
       
       setFormData(prev => ({
         ...prev,
         reportingManagerIds: selectedReportingManagers,
+        reportingManagerId: selectedReportingManagers.join(','),
         reportingManagerName: managerNames,
         reportingManagerEmail: managerEmails
       }));
@@ -836,6 +837,7 @@ useEffect(() => {
       setFormData(prev => ({
         ...prev,
         reportingManagerIds: [],
+        reportingManagerId: '',
         reportingManagerName: '',
         reportingManagerEmail: ''
       }));
@@ -932,7 +934,7 @@ useEffect(() => {
     if (item) {
       setEditingId(item.id);
       setFormData({ ...item });
-      setSelectedReportingManagers(item.reportingManagerIds || []);
+      setSelectedReportingManagers((item.reportingManagerIds || []).map((id: any) => String(id)));
     } else {
       setEditingId(null);
       setSelectedReportingManagers([]);
@@ -987,7 +989,10 @@ useEffect(() => {
         const calculatedDays = Math.floor((parsedToDate.getTime() - parsedFromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
         // Get reporting manager details from form or current user data
-        const reportingManagerId = formData.reportingManagerId || currentUserEmployee?.reporting_manager_id;
+        const reportingManagerId =
+          (selectedReportingManagers.length > 0
+            ? selectedReportingManagers.join(',')
+            : formData.reportingManagerId) || currentUserEmployee?.reporting_manager_id;
         const reportingManagerName = formData.reportingManagerName || currentUserEmployee?.reporting_manager_name;
         const reportingManagerEmail = formData.reportingManagerEmail || currentUserEmployee?.reporting_manager_email;
 
@@ -1932,7 +1937,7 @@ useEffect(() => {
                       <div className="flex flex-wrap gap-2">
                         {selectedReportingManagers.length > 0 ? (
                           selectedReportingManagers.map((managerId) => {
-                            const manager = reportingManagers.find((r) => r.id === managerId);
+                            const manager = reportingManagers.find((r) => String(r.id) === managerId);
                             return manager ? (
                               <span key={manager.id} className="flex items-center gap-2 bg-gradient-to-r from-indigo-100 to-blue-100 px-3 py-1.5 rounded-full text-sm font-bold text-indigo-700">
                                 {manager.fullName || manager.name}
@@ -1960,17 +1965,27 @@ useEffect(() => {
                             key={manager.id}
                             className="flex items-center gap-4 p-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 cursor-pointer border-b last:border-b-0 transition-all"
                             onClick={() => {
-                              const isSelected = selectedReportingManagers.includes(manager.id);
+                              const managerId = String(manager.id);
+                              const isSelected = selectedReportingManagers.includes(managerId);
                               if (isSelected) {
-                                setSelectedReportingManagers(prev => prev.filter(id => id !== manager.id));
+                                setSelectedReportingManagers(prev => prev.filter(id => id !== managerId));
                               } else {
-                                setSelectedReportingManagers(prev => [...prev, manager.id]);
+                                setSelectedReportingManagers(prev => [...prev, managerId]);
                               }
                             }}
                           >
                             <Checkbox
-                              checked={selectedReportingManagers.includes(manager.id)}
-                              onChange={() => {}}
+                              checked={selectedReportingManagers.includes(String(manager.id))}
+                              onClick={(event) => event.stopPropagation()}
+                              onCheckedChange={() => {
+                                const managerId = String(manager.id);
+                                const isSelected = selectedReportingManagers.includes(managerId);
+                                setSelectedReportingManagers(prev =>
+                                  isSelected
+                                    ? prev.filter(id => id !== managerId)
+                                    : [...prev, managerId]
+                                );
+                              }}
                               className="w-5 h-5 text-indigo-600 border-gray-400 rounded-lg focus:ring-indigo-500/20"
                             />
                             <div className="flex items-center gap-3 flex-1">

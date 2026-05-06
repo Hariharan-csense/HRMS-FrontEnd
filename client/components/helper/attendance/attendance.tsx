@@ -46,6 +46,7 @@ export const attendanceApi = {
   getAttendanceStatus: async (): Promise<{
     success?: boolean;
     isCheckedIn?: boolean;
+    hasCheckedInToday?: boolean;
     todayRecords?: any[];
     error?: string;
   }> => {
@@ -54,6 +55,7 @@ export const attendanceApi = {
       return {
         success: response.data.success,
         isCheckedIn: response.data.isCheckedIn,
+        hasCheckedInToday: response.data.hasCheckedInToday,
         todayRecords: response.data.todayRecords || []
       };
     } catch (error: any) {
@@ -121,6 +123,7 @@ export const attendanceApi = {
     reason: string;
     requestedCheckIn?: string;
     requestedCheckOut?: string;
+    leaveMode?: "none" | "paid" | "half";
   }) => {
     try {
       const response = await ENDPOINTS.createOverride(data);
@@ -171,7 +174,7 @@ getOverrides: async (filters?: {
     
     // Backend response structure பொறுத்து adjust பண்ணுங்க
     // Example: { success: true, data: [...] }
-    const overrideList = response.data?.data || response.data || [];
+    const overrideList = response.data?.data || response.data?.overrides || response.data || [];
 
     return { data: overrideList };
   } catch (error: any) {

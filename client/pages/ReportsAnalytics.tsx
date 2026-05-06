@@ -32,6 +32,7 @@ import {
 import { TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import reportService from "@/components/helper/roles/report/report";
+import ENDPOINTS from "@/lib/endpoint";
 import { PdfExportService } from "@/services/pdfExportService";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -53,6 +54,8 @@ export default function ReportsAnalytics() {
   const [attendanceData, setAttendanceData] = useState([]); // monthly trend
   const [attendanceRows, setAttendanceRows] = useState([]); // detailed rows for export
   const [filteredAttendanceRows, setFilteredAttendanceRows] = useState([]);
+  const [attendanceLeaveRows, setAttendanceLeaveRows] = useState([]);
+  const [attendancePermissionRows, setAttendancePermissionRows] = useState([]);
   const [leaveData, setLeaveData] = useState([]);
   const [payrollData, setPayrollData] = useState([]);
   const [expenseData, setExpenseData] = useState([]);
@@ -351,6 +354,15 @@ export default function ReportsAnalytics() {
           "Early Departure (HH:MM:SS)",
           "Overtime (HH:MM:SS)",
           "Notes",
+          "Leave Taken",
+          "Leave Type",
+          "Leave Days",
+          "Leave Reason",
+          "Permission Taken",
+          "Permission From",
+          "Permission To",
+          "Permission Duration",
+          "Permission Reason",
           "Punch in time",
           "Punch out time",
           "Punch Type",
@@ -428,6 +440,15 @@ export default function ReportsAnalytics() {
             "Early Departure (HH:MM:SS)": fmtDuration(get("earlyDeparture", "early_by")),
             "Overtime (HH:MM:SS)": fmtDuration(get("overtime", "overtime_hours")),
             "Notes": get("notes", "remarks", "flag_reason"),
+            "Leave Taken": get("leaveTaken", "leave_taken"),
+            "Leave Type": get("leaveType", "leave_type", "leave_type_name"),
+            "Leave Days": get("leaveDays", "leave_days"),
+            "Leave Reason": get("leaveReason", "leave_reason"),
+            "Permission Taken": get("permissionTaken", "permission_taken"),
+            "Permission From": fmtTime(get("permissionFromTime", "permission_from_time", "permission_time_from")),
+            "Permission To": fmtTime(get("permissionToTime", "permission_to_time", "permission_time_to")),
+            "Permission Duration": get("permissionDuration", "permission_duration"),
+            "Permission Reason": get("permissionReason", "permission_reason"),
             "Punch in time": fmtTime(get("inTime", "checkInTime", "check_in_time", "punch_in_time", "check_in")),
             "Punch out time": fmtTime(get("outTime", "checkOutTime", "check_out_time", "punch_out_time", "check_out")),
             "Punch Type": get("punchType", "punch_type", "check_in_type") || "Shift",
@@ -456,6 +477,90 @@ export default function ReportsAnalytics() {
         XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+
+        const getAux = (item: any, ...keys: string[]) => {
+          for (const k of keys) {
+            if (item?.[k] !== undefined && item?.[k] !== null) return item[k];
+          }
+          return "";
+        };
+
+        const matchesCommonFilters = (item: any) => {
+          if (filters.employee && filters.employee !== "all" && getEmployeeFilterValue(item) !== filters.employee) {
+            return false;
+          }
+
+          if (
+            filters.department &&
+            filters.department !== "all" &&
+            normalizeValue(getDepartmentFilterValue(item)) !== normalizeValue(filters.department)
+          ) {
+            return false;
+          }
+
+          return true;
+        };
+
+        const matchesDateFilter = (item: any, ...dateKeys: string[]) => {
+          if (!filters.month && !filters.day) return true;
+
+          const dates = dateKeys
+            .map((key) => String(getAux(item, key) || "").slice(0, 10))
+            .filter(Boolean);
+
+          if (filters.day) return dates.some((date) => date === filters.day);
+          if (filters.month) return dates.some((date) => date.slice(0, 7) === filters.month);
+          return true;
+        };
+
+        const leaveExportRows = attendanceLeaveRows
+          .filter((item: any) => matchesCommonFilters(item))
+          .filter((item: any) => matchesDateFilter(item, "leaveFromDate", "leaveToDate"))
+          .map((item: any) => ({
+            "Application ID": getAux(item, "leaveApplicationId"),
+            "Employee ID": getAux(item, "employeeCode", "employee_id", "employeeId"),
+            "Employee Name": getAux(item, "employeeName", "employee_name", "employee_name"),
+            "Phone Number": getAux(item, "phoneNumber", "mobile", "phone"),
+            "Branch": getAux(item, "branch", "branch_name"),
+            "Department": getAux(item, "department", "department_name"),
+            "Designation": getAux(item, "designation", "designation_name"),
+            "Leave Type": getAux(item, "leaveType", "leave_type_name"),
+            "From Date": fmtDate(getAux(item, "leaveFromDate", "from_date")),
+            "To Date": fmtDate(getAux(item, "leaveToDate", "to_date")),
+            "Days": getAux(item, "leaveDays", "days"),
+            "Status": getAux(item, "leaveStatus", "status"),
+            "Reason": getAux(item, "leaveReason", "reason"),
+            "Remarks": getAux(item, "leaveRemarks", "remarks"),
+          }));
+
+        const permissionExportRows = attendancePermissionRows
+          .filter((item: any) => matchesCommonFilters(item))
+          .filter((item: any) => matchesDateFilter(item, "permissionDate"))
+          .map((item: any) => ({
+            "Permission ID": getAux(item, "permissionApplicationId"),
+            "Employee ID": getAux(item, "employeeCode", "employee_id", "employeeId"),
+            "Employee Name": getAux(item, "employeeName", "employee_name", "employee_name"),
+            "Phone Number": getAux(item, "phoneNumber", "mobile", "phone"),
+            "Branch": getAux(item, "branch", "branch_name"),
+            "Department": getAux(item, "department", "department_name"),
+            "Designation": getAux(item, "designation", "designation_name"),
+            "Date": fmtDate(getAux(item, "permissionDate", "permission_date")),
+            "From": fmtTime(getAux(item, "permissionFromTime", "permission_time_from")),
+            "To": fmtTime(getAux(item, "permissionToTime", "permission_time_to")),
+            "Duration": getAux(item, "permissionDuration", "permission_duration"),
+            "Status": getAux(item, "permissionStatus", "status"),
+            "Reason": getAux(item, "permissionReason", "reason"),
+            "Remarks": getAux(item, "permissionRemarks", "remarks"),
+          }));
+
+        const leavesSheet = XLSX.utils.json_to_sheet(leaveExportRows.length ? leaveExportRows : [{ "No leave data": "" }]);
+        XLSX.utils.book_append_sheet(workbook, leavesSheet, "Leaves");
+
+        const permissionsSheet = XLSX.utils.json_to_sheet(
+          permissionExportRows.length ? permissionExportRows : [{ "No permission data": "" }]
+        );
+        XLSX.utils.book_append_sheet(workbook, permissionsSheet, "Permissions");
+
         const fileName = `attendance-report-${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
       } else {
@@ -538,9 +643,76 @@ export default function ReportsAnalytics() {
             attendanceResult?.stats ||
             null;
 
+          let reportLeaveRows = Array.isArray(attendanceResult?.leaveRows) ? attendanceResult.leaveRows : [];
+          let reportPermissionRows = Array.isArray(attendanceResult?.permissionRows) ? attendanceResult.permissionRows : [];
+
+          if (reportLeaveRows.length === 0) {
+            try {
+              const leaveResponse = await ENDPOINTS.getleaveapplications();
+              const rawLeaves =
+                (Array.isArray(leaveResponse?.data?.applications) && leaveResponse.data.applications) ||
+                (Array.isArray(leaveResponse?.data?.leaveApplications) && leaveResponse.data.leaveApplications) ||
+                (Array.isArray(leaveResponse?.data) && leaveResponse.data) ||
+                [];
+
+              reportLeaveRows = rawLeaves.map((leave: any) => ({
+                leaveApplicationId: leave.application_id || leave.leaveApplicationId || leave.id,
+                employeePkId: leave.employee_id || leave.employeeId,
+                employeeCode: leave.employee_code || leave.employeeCode || leave.employee_id || leave.employeeId,
+                employeeName: leave.employee_name || leave.employeeName,
+                phoneNumber: leave.phoneNumber || leave.mobile || leave.phone,
+                branch: leave.branch || leave.branch_name,
+                department: leave.department || leave.department_name,
+                designation: leave.designation || leave.designation_name,
+                leaveType: leave.leave_type_name || leave.leaveType || leave.leave_type,
+                leaveFromDate: leave.from_date || leave.fromDate,
+                leaveToDate: leave.to_date || leave.toDate,
+                leaveDays: leave.days,
+                leaveStatus: leave.status,
+                leaveReason: leave.reason,
+                leaveRemarks: leave.remarks,
+              }));
+            } catch (leaveErr) {
+              console.warn("Attendance export leave fallback failed:", leaveErr);
+            }
+          }
+
+          if (reportPermissionRows.length === 0) {
+            try {
+              const permissionResponse = await ENDPOINTS.getLeavePermissionApplications();
+              const rawPermissions =
+                (Array.isArray(permissionResponse?.data?.applications) && permissionResponse.data.applications) ||
+                (Array.isArray(permissionResponse?.data?.permissions) && permissionResponse.data.permissions) ||
+                (Array.isArray(permissionResponse?.data) && permissionResponse.data) ||
+                [];
+
+              reportPermissionRows = rawPermissions.map((permission: any) => ({
+                permissionApplicationId: permission.permission_id || permission.permissionApplicationId || permission.id,
+                employeePkId: permission.employee_id || permission.employeeId,
+                employeeCode: permission.employee_code || permission.employeeCode || permission.employee_id || permission.employeeId,
+                employeeName: permission.employee_name || permission.employeeName,
+                phoneNumber: permission.phoneNumber || permission.mobile || permission.phone,
+                branch: permission.branch || permission.branch_name,
+                department: permission.department || permission.department_name,
+                designation: permission.designation || permission.designation_name,
+                permissionDate: permission.permission_date || permission.permissionDate,
+                permissionFromTime: permission.permission_time_from || permission.permissionFromTime,
+                permissionToTime: permission.permission_time_to || permission.permissionToTime,
+                permissionDuration: permission.permissionDuration,
+                permissionStatus: permission.status,
+                permissionReason: permission.reason,
+                permissionRemarks: permission.remarks,
+              }));
+            } catch (permissionErr) {
+              console.warn("Attendance export permission fallback failed:", permissionErr);
+            }
+          }
+
           setAttendanceData(trend || []);
           setAttendanceRows(attendanceResult?.rows || []);
           setFilteredAttendanceRows(attendanceResult?.rows || []);
+          setAttendanceLeaveRows(reportLeaveRows);
+          setAttendancePermissionRows(reportPermissionRows);
           setAttendanceSummary(summary || {});
           console.log("Attendance report payload:", attendanceResult);
           console.log("Attendance trend used for export:", trend);
@@ -744,6 +916,8 @@ export default function ReportsAnalytics() {
                   <SelectItem value="present">Present</SelectItem>
                   <SelectItem value="absent">Absent</SelectItem>
                   <SelectItem value="half">Half Day</SelectItem>
+                  <SelectItem value="leave">Leave</SelectItem>
+                  <SelectItem value="permission">Permission</SelectItem>
                 </SelectContent>
               </Select>
             </div>

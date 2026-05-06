@@ -30,6 +30,7 @@ export interface LeavePermissionFormData {
   employee_name?: string;
   reporting_manager_id?: string;
   reporting_manager_name?: string;
+  reporting_manager_email?: string;
 }
 
 export const leavePermissionApi = {

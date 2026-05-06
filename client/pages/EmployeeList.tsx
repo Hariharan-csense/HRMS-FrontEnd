@@ -39,6 +39,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -55,7 +60,8 @@ import {
   MapPin,
   Download,
   FileSpreadsheet,
-  FileUp
+  FileUp,
+  Calendar
 } from "lucide-react";
 import {
   Employee,
@@ -139,13 +145,21 @@ const extractDatePart = (dateString: string | null | undefined): string => {
   if (!dateString) return "";
 
   try {
+    const trimmedDate = String(dateString).trim();
+
     // If it's already in YYYY-MM-DD format, return as-is
-    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateString;
+    if (trimmedDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return trimmedDate;
+    }
+
+    const dayFirstMatch = trimmedDate.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dayFirstMatch) {
+      const [, day, month, year] = dayFirstMatch;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     }
 
     // Handle ISO date strings with timezone
-    const date = new Date(dateString);
+    const date = new Date(trimmedDate);
 
     // Get the date parts in local timezone
     const year = date.getFullYear();
@@ -155,9 +169,233 @@ const extractDatePart = (dateString: string | null | undefined): string => {
     return `${year}-${month}-${day}`;
   } catch (error) {
     console.error("Error parsing date:", dateString, error);
-    return dateString.split("T")[0] || "";
+    return String(dateString).split("T")[0] || "";
   }
 };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const getDaysInMonth = (year: number, month: number) =>
+  new Date(year, month, 0).getDate();
+
+const splitISODate = (value?: string) => {
+  const normalized = extractDatePart(value);
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) {
+    return { year: "", month: "", day: "" };
+  }
+
+  return {
+    year: match[1],
+    month: match[2],
+    day: match[3],
+  };
+};
+
+const buildISODate = (year: string, month: string, day: string) => {
+  if (!year || !month || !day) return "";
+
+  const numericYear = Number(year);
+  const numericMonth = Number(month);
+  const numericDay = Number(day);
+
+  if (
+    !Number.isFinite(numericYear) ||
+    !Number.isFinite(numericMonth) ||
+    !Number.isFinite(numericDay)
+  ) {
+    return "";
+  }
+
+  const safeMonth = clamp(numericMonth, 1, 12);
+  const safeDay = clamp(numericDay, 1, getDaysInMonth(numericYear, safeMonth));
+
+  return `${String(numericYear).padStart(4, "0")}-${String(safeMonth).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
+};
+
+const formatDateForDisplay = (value?: string) => {
+  const { year, month, day } = splitISODate(value);
+  if (!year || !month || !day) return "";
+  return `${day}-${month}-${year}`;
+};
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const YEAR_WHEEL_SPEED = 6;
+
+const normalizeManualDateInput = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+
+  return [day, month, year].filter(Boolean).join("-");
+};
+
+const parseManualDisplayDate = (value: string) => {
+  const match = value.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (!match) return "";
+
+  const [, day, month, year] = match;
+  return buildISODate(year, month, day);
+};
+
+const FastDateInput = ({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value?: string;
+  onChange: (value: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [displayValue, setDisplayValue] = useState(formatDateForDisplay(value));
+  const currentYear = new Date().getFullYear();
+  const parsed = splitISODate(value);
+  const selectedYear = Number(parsed.year) || 1990;
+  const selectedMonth = Number(parsed.month) || 1;
+  const selectedDay = Number(parsed.day) || 1;
+  const years = useMemo(
+    () => Array.from({ length: currentYear - 1899 }, (_, index) => currentYear - index),
+    [currentYear]
+  );
+  const daysInSelectedMonth = getDaysInMonth(selectedYear, selectedMonth);
+
+  useEffect(() => {
+    setDisplayValue(formatDateForDisplay(value));
+  }, [value]);
+
+  const setDate = (year: number, month: number, day: number, closePicker = false) => {
+    onChange(buildISODate(String(year), String(month), String(day)));
+    if (closePicker) {
+      setOpen(false);
+    }
+  };
+
+  const handleManualChange = (nextValue: string) => {
+    const normalizedValue = normalizeManualDateInput(nextValue);
+    setDisplayValue(normalizedValue);
+
+    if (!normalizedValue) {
+      onChange("");
+      return;
+    }
+
+    const parsedValue = parseManualDisplayDate(normalizedValue);
+    if (parsedValue) {
+      onChange(parsedValue);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className="relative mt-2">
+        <Input
+          id={id}
+          inputMode="numeric"
+          value={displayValue}
+          onChange={(event) => handleManualChange(event.target.value)}
+          onBlur={() => {
+            const parsedValue = parseManualDisplayDate(displayValue);
+            if (parsedValue) {
+              setDisplayValue(formatDateForDisplay(parsedValue));
+            }
+          }}
+          placeholder="dd-mm-yyyy"
+          className="pr-11"
+        />
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1 h-8 w-8 text-muted-foreground"
+            aria-label="Open date picker"
+          >
+            <Calendar className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent align="start" className="w-[320px] p-3">
+        <div className="grid grid-cols-[1fr_104px] gap-3">
+          <div className="space-y-3">
+            <Select
+              value={String(selectedMonth).padStart(2, "0")}
+              onValueChange={(month) => {
+                const nextMonth = Number(month);
+                setDate(selectedYear, nextMonth, clamp(selectedDay, 1, getDaysInMonth(selectedYear, nextMonth)));
+              }}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTH_LABELS.map((label, index) => {
+                  const month = String(index + 1).padStart(2, "0");
+                  return (
+                    <SelectItem key={month} value={month}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
+              {["S", "M", "T", "W", "T", "F", "S"].map((label, index) => (
+                <div key={`${label}-${index}`}>{label}</div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({
+                length: new Date(selectedYear, selectedMonth - 1, 1).getDay(),
+              }).map((_, index) => (
+                <div key={`blank-${index}`} />
+              ))}
+              {Array.from({ length: daysInSelectedMonth }, (_, index) => index + 1).map((day) => (
+                <Button
+                  key={day}
+                  type="button"
+                  variant={day === selectedDay ? "default" : "ghost"}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setDate(selectedYear, selectedMonth, day, true)}
+                >
+                  {day}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="max-h-64 overflow-y-auto rounded-md border bg-slate-50"
+            onWheel={(event) => {
+              event.currentTarget.scrollTop += event.deltaY * YEAR_WHEEL_SPEED;
+              event.preventDefault();
+            }}
+          >
+            {years.map((year) => (
+              <button
+                key={year}
+                type="button"
+                className={`block w-full border-b px-3 py-2 text-left text-sm hover:bg-white ${
+                  year === selectedYear ? "bg-primary text-primary-foreground hover:bg-primary" : ""
+                }`}
+                onClick={() => setDate(year, selectedMonth, clamp(selectedDay, 1, getDaysInMonth(year, selectedMonth)))}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 
 const isLocationTrackingEnabled = (value: unknown): boolean =>
   value === 1 || value === "1" || value === true;
@@ -230,8 +468,54 @@ export default function EmployeeList() {
   const [excelFileName, setExcelFileName] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [emailDuplicateCheck, setEmailDuplicateCheck] = useState<{
+    checking: boolean;
+    error: string | null;
+  }>({ checking: false, error: null });
   const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setEmailDuplicateCheck({ checking: false, error: null });
+      return;
+    }
+
+    const email = formData.email.trim();
+    if (!email || !isValidEmail(email)) {
+      setEmailDuplicateCheck({ checking: false, error: null });
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    let isCurrent = true;
+    setEmailDuplicateCheck({ checking: true, error: null });
+
+    const timeoutId = window.setTimeout(async () => {
+      const result = await employeeApi.checkEmployeeDuplicate(
+        "email",
+        normalizedEmail,
+        editingId,
+      );
+
+      if (!isCurrent) return;
+
+      if (result.error) {
+        setEmailDuplicateCheck({ checking: false, error: result.error });
+        return;
+      }
+
+      setEmailDuplicateCheck({
+        checking: false,
+        error: result.exists ? result.message || "Email already exists" : null,
+      });
+    }, 500);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [formData.email, editingId, isDialogOpen]);
 
 
 
@@ -338,7 +622,7 @@ export default function EmployeeList() {
         phone: employee.phone || "",
         officePhone: (employee as any).officePhone || "",
         officeEmail: (employee as any).officeEmail || "",
-        dateOfBirth: employee.dateOfBirth || "",
+        dateOfBirth: extractDatePart(employee.dateOfBirth),
         gender: employee.gender || "",
         bloodGroup: employee.bloodGroup || "",
         maritalStatus: employee.maritalStatus || "",
@@ -697,6 +981,14 @@ export default function EmployeeList() {
       showToast.error("Please enter a valid personal email address");
       return;
     }
+    if (emailDuplicateCheck.checking) {
+      showToast.error("Please wait until email verification finishes");
+      return;
+    }
+    if (emailDuplicateCheck.error) {
+      showToast.error(emailDuplicateCheck.error);
+      return;
+    }
     if (formData.officeEmail && !isValidEmail(formData.officeEmail)) {
       showToast.error("Please enter a valid office email address");
       return;
@@ -853,6 +1145,14 @@ export default function EmployeeList() {
       }
       if (!isValidEmail(formData.email)) {
         showToast.error("Please enter a valid personal email address");
+        return false;
+      }
+      if (emailDuplicateCheck.checking) {
+        showToast.error("Please wait until email verification finishes");
+        return false;
+      }
+      if (emailDuplicateCheck.error) {
+        showToast.error(emailDuplicateCheck.error);
         return false;
       }
       if (!isOptionalTenDigitPhoneValid(formData.phone)) {
@@ -2027,12 +2327,10 @@ export default function EmployeeList() {
                 </div>
                 <div>
                   <Label htmlFor="dob">Date of Birth</Label>
-                  <Input
+                  <FastDateInput
                     id="dob"
-                    type="date"
                     value={formData.dateOfBirth || ""}
-                    onChange={(e) => handleFormChange("dateOfBirth", e.target.value)}
-                    className="mt-2"
+                    onChange={(value) => handleFormChange("dateOfBirth", value)}
                   />
                 </div>
               </div>
@@ -2079,8 +2377,19 @@ export default function EmployeeList() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleFormChange("email", e.target.value)}
-                    className="mt-2"
+                    aria-invalid={Boolean(emailDuplicateCheck.error)}
+                    className={`mt-2 ${emailDuplicateCheck.error ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                   />
+                  {emailDuplicateCheck.checking && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Verifying email...
+                    </p>
+                  )}
+                  {emailDuplicateCheck.error && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {emailDuplicateCheck.error}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="phone">Mobile Number</Label>
@@ -2531,6 +2840,10 @@ export default function EmployeeList() {
                     setActiveTab(tabOrder[idx + 1]);
                   }
                 }}
+                disabled={
+                  activeTab === "personal" &&
+                  (emailDuplicateCheck.checking || Boolean(emailDuplicateCheck.error))
+                }
                 className="w-full sm:w-auto"
               >
                 Next
@@ -2538,7 +2851,11 @@ export default function EmployeeList() {
             ) : (
               <Button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={
+                  saving ||
+                  emailDuplicateCheck.checking ||
+                  Boolean(emailDuplicateCheck.error)
+                }
                 className="w-full sm:w-auto"
               >
                 {saving ? (

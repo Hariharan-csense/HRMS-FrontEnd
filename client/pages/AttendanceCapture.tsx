@@ -63,6 +63,7 @@ export default function AttendanceCapture() {
     address: string;
   } | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceCapture | null>(null);
 
@@ -104,6 +105,12 @@ export default function AttendanceCapture() {
           typeof statusResponse.isCheckedIn === "boolean"
             ? statusResponse.isCheckedIn
             : activeSessionFromRecords
+        );
+        setHasCheckedInToday(
+          typeof statusResponse.hasCheckedInToday === "boolean"
+            ? statusResponse.hasCheckedInToday
+            : Array.isArray(statusResponse.todayRecords) &&
+              statusResponse.todayRecords.some((record: any) => Boolean(record?.check_in))
         );
         
         // Transform today's records to match the local format
@@ -182,11 +189,13 @@ export default function AttendanceCapture() {
         }
       } else if (typeof window !== "undefined") {
         setIsCheckedIn(localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true");
+        setHasCheckedInToday(false);
       }
     } catch (error) {
       console.error('Error fetching attendance status:', error);
       if (typeof window !== "undefined") {
         setIsCheckedIn(localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true");
+        setHasCheckedInToday(false);
       }
     }
   };
@@ -492,6 +501,11 @@ export default function AttendanceCapture() {
       return;
     }
 
+    if (type === "check-in" && hasCheckedInToday) {
+      toast.error("You have already checked in today.");
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -568,6 +582,9 @@ export default function AttendanceCapture() {
 
       setTodayRecords((prev) => [record, ...prev]);
       setIsCheckedIn(pendingAttendance.type === "check-in");
+      if (pendingAttendance.type === "check-in") {
+        setHasCheckedInToday(true);
+      }
       if (typeof window !== "undefined") {
         if (pendingAttendance.type === "check-in") {
           localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
@@ -667,9 +684,9 @@ export default function AttendanceCapture() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={() => captureAttendance("check-in")}
-                    disabled={isProcessing || isCheckedIn}
-                    variant={isCheckedIn ? "secondary" : "default"}
-                    className={`gap-2 ${isCheckedIn ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-[#17c491] hover:bg-[#12a978] text-white"}`}
+                    disabled={isProcessing || hasCheckedInToday}
+                    variant={hasCheckedInToday ? "secondary" : "default"}
+                    className={`gap-2 ${hasCheckedInToday ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-[#17c491] hover:bg-[#12a978] text-white"}`}
                     size="lg"
                   >
                     {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -789,7 +806,7 @@ export default function AttendanceCapture() {
                   <div>
                     <p className="text-sm text-muted-foreground">Current Status</p>
                     <p className="text-2xl font-bold">
-                      {isCheckedIn ? "Checked In" : "Not Checked In"}
+                      {isCheckedIn ? "Checked In" : hasCheckedInToday ? "Checked Out" : "Not Checked In"}
                     </p>
                   </div>
                 </div>

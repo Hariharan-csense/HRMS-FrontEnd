@@ -107,6 +107,32 @@ createEmployee: async (employeeData: any): Promise<{ data?: any; error?: string 
     };
   }
 },
+checkEmployeeDuplicate: async (
+  field: string,
+  value: string,
+  excludeEmployeeId?: string | null
+): Promise<{ exists?: boolean; message?: string | null; error?: string }> => {
+  try {
+    const response = await ENDPOINTS.checkEmployeeDuplicate({
+      field,
+      value,
+      excludeEmployeeId: excludeEmployeeId || undefined,
+    });
+
+    return {
+      exists: Boolean(response.data?.exists),
+      message: response.data?.message || null,
+    };
+  } catch (error: any) {
+    console.error("Error checking employee duplicate:", error);
+    return {
+      error:
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to check duplicate employee data",
+    };
+  }
+},
   // Update an employee
  // Update an employee
 updateEmployee: async (id: string, employeeData: any): Promise<{ data?: any; error?: string }> => {

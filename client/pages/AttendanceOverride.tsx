@@ -67,6 +67,8 @@ interface OverrideRecord {
   overriddenStatus: "present" | "absent" | "half";
   overridden_status?: string;
   reason: string;
+  requested_check_in?: string | null;
+  requested_check_out?: string | null;
   approvedBy?: string;
   approved_by?: string;
   approved_by_name?: string;
@@ -341,6 +343,7 @@ const handleCreateOverride = async () => {
       reason: buildOverrideReason(),
       requestedCheckIn: requiresTimeFields ? overrideForm.requestedCheckIn || undefined : undefined,
       requestedCheckOut: requiresTimeFields ? overrideForm.requestedCheckOut || undefined : undefined,
+      leaveMode: overrideForm.leaveMode,
       date: overrideForm.date,
       originalStatus: overrideForm.originalStatus,
       overriddenStatus: overrideForm.overriddenStatus,
@@ -436,6 +439,17 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
     }
   };
 
+  const formatRequestedTime = (value?: string | null) => {
+    if (!value) return "-";
+    const [hourText, minuteText = "00"] = String(value).split(":");
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (Number.isNaN(hour)) return String(value);
+    const period = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+  };
+
   const renderOverrideActions = (override: any, compact = false) => (
     <div className={`flex items-center ${compact ? "justify-start" : "justify-end"} gap-2 flex-wrap`}>
       {override.status === "pending" && (
@@ -490,6 +504,20 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
             <div>
               <p className="font-medium mb-2">Reason</p>
               <p className="p-4 bg-blue-50 border border-blue-200 rounded-lg">{override.reason}</p>
+            </div>
+
+            <div>
+              <p className="font-medium mb-2">Requested Entry</p>
+              <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Requested Check-in</p>
+                  <p className="font-medium">{formatRequestedTime(override.requested_check_in)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Requested Check-out</p>
+                  <p className="font-medium">{formatRequestedTime(override.requested_check_out)}</p>
+                </div>
+              </div>
             </div>
 
             <div>

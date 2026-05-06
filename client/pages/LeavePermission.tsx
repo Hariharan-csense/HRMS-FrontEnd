@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { leavePermissionApi, type LeavePermission, type LeavePermissionFormData } from "@/components/helper/leavePermission/leavePermission";
@@ -35,6 +36,7 @@ export default function LeavePermission() {
   const [timeError, setTimeError] = useState<string>('');
   const [reportingManagerError, setReportingManagerError] = useState<string>('');
   const [managers, setManagers] = useState<any[]>([]);
+  const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
   const currentUserId = String(user?.id ?? "");
   const canCreatePermission = canPerformModuleAction("leave", "create", "permission");
   const canManagePermission =
@@ -193,6 +195,36 @@ export default function LeavePermission() {
     }
   };
 
+  const syncSelectedManagers = (ids: string[]) => {
+    const selectedManagers = managers.filter((manager) => ids.includes(String(manager.id)));
+    setSelectedManagerIds(ids);
+    setFormData((prev) => ({
+      ...prev,
+      reporting_manager_id: ids.join(','),
+      reporting_manager_name: selectedManagers
+        .map((manager) => manager.fullName || manager.name)
+        .filter(Boolean)
+        .join(', '),
+      reporting_manager_email: selectedManagers
+        .map((manager) => manager.email)
+        .filter(Boolean)
+        .join(', '),
+    }));
+    if (ids.length > 0) {
+      setReportingManagerError('');
+    }
+  };
+
+  const toggleManagerSelection = (managerId: string) => {
+    syncSelectedManagers(
+      selectedManagerIds.includes(managerId)
+        ? selectedManagerIds.filter((id) => id !== managerId)
+        : [...selectedManagerIds, managerId]
+    );
+  };
+
+  const selectedManagers = managers.filter((manager) => selectedManagerIds.includes(String(manager.id)));
+
   useEffect(() => {
     loadPermissions();
     loadManagers();
@@ -225,6 +257,7 @@ export default function LeavePermission() {
         employee_id: permission.employee_id,
         employee_name: permission.employee_name
       });
+      setSelectedManagerIds([]);
     } else {
       setEditingId(null);
       setFormData({
@@ -235,6 +268,7 @@ export default function LeavePermission() {
         permission_time_to: '',
         reason: ''
       });
+      setSelectedManagerIds([]);
     }
     setSelectedFile(null);
     setDateError('');
@@ -256,9 +290,9 @@ export default function LeavePermission() {
     setTimeError(timeValidationError);
 
     // Validate reporting manager
-    if (!formData.reporting_manager_id) {
-      setReportingManagerError('Please select a reporting manager or HR');
-      toast.error('Please select a reporting manager or HR');
+    if (selectedManagerIds.length === 0) {
+      setReportingManagerError('Please select at least one reporting manager or HR');
+      toast.error('Please select at least one reporting manager or HR');
       return;
     } else {
       setReportingManagerError('');
@@ -569,32 +603,68 @@ export default function LeavePermission() {
                   <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
                   Reporting Manager/HR *
                 </Label>
-                <Select
-                  value={formData.reporting_manager_id || ''}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, reporting_manager_id: value });
-                    setReportingManagerError('');
-                  }}
-                >
-                  <SelectTrigger className={`h-12 text-base border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-sm ${reportingManagerError ? 'border-red-500' : ''}`}>
-                    <SelectValue placeholder="Select manager(s) or HR..." />
-                  </SelectTrigger>
-                  <SelectContent className="z-50 max-h-60 overflow-auto border-gray-200 rounded-xl shadow-lg">
-                    {managers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id} className="text-base py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">{manager.fullName || manager.name}</span>
-                          {manager.isHR && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-bold">HR</span>
-                          )}
-                          {manager.isManager && (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">Manager</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dropdown = document.getElementById('permission-manager-dropdown');
+                      dropdown?.classList.toggle('hidden');
+                    }}
+                    className={`w-full min-h-12 text-base bg-white border rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all px-4 py-3 text-left flex items-center justify-between hover:border-indigo-400 shadow-sm ${reportingManagerError ? 'border-red-500' : 'border-gray-300'}`}
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {selectedManagers.length > 0 ? (
+                        selectedManagers.map((manager) => (
+                          <span key={manager.id} className="flex items-center gap-2 bg-indigo-100 px-3 py-1.5 rounded-full text-sm font-bold text-indigo-700">
+                            {manager.fullName || manager.name}
+                            {manager.isHR && <span className="text-blue-700">(HR)</span>}
+                            {manager.isManager && <span className="text-green-700">(Manager)</span>}
+                            {manager.isAdmin && <span className="text-amber-700">(Admin)</span>}
+                            {manager.isCEO && <span className="text-amber-700">(CEO)</span>}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400">Select manager(s) or HR...</span>
+                      )}
+                    </div>
+                    <span className="ml-2 text-gray-400 text-lg">v</span>
+                  </button>
+                  <div id="permission-manager-dropdown" className="hidden absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-auto">
+                    {managers.length > 0 ? (
+                      managers.map((manager) => {
+                        const managerId = String(manager.id);
+                        return (
+                          <div
+                            key={manager.id}
+                            className="flex items-center gap-4 p-4 hover:bg-indigo-50 cursor-pointer border-b last:border-b-0 transition-all"
+                            onClick={() => toggleManagerSelection(managerId)}
+                          >
+                            <Checkbox
+                              checked={selectedManagerIds.includes(managerId)}
+                              onCheckedChange={() => toggleManagerSelection(managerId)}
+                              onClick={(event) => event.stopPropagation()}
+                              className="w-5 h-5 text-indigo-600 border-gray-400 rounded-lg focus:ring-indigo-500/20"
+                            />
+                            <div className="flex flex-col items-start flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-gray-800">{manager.fullName || manager.name}</span>
+                                {manager.isHR && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-bold">HR</span>}
+                                {manager.isManager && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">Manager</span>}
+                                {manager.isAdmin && <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-bold">Admin</span>}
+                                {manager.isCEO && <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-bold">CEO</span>}
+                              </div>
+                              {manager.email && <span className="text-xs text-gray-400">{manager.email}</span>}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-8 text-sm text-gray-500 text-center">
+                        No approvers found
+                      </div>
+                    )}
+                  </div>
+                </div>
                 {reportingManagerError && (
                   <p className="text-red-500 text-sm mt-2 font-medium">{reportingManagerError}</p>
                 )}

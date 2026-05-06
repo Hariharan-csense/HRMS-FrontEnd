@@ -17,13 +17,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Download, AlertTriangle, CheckCircle2, Clock, Timer, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Search, Download, AlertTriangle, CheckCircle2, Clock, Timer, ChevronLeft, ChevronRight, ChevronDown, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"
-import { holidayApi, Holiday } from "@/components/helper/leave/leave"
+import { holidayApi, Holiday, leaveTypeApi, type LeaveApplication, type LeaveType } from "@/components/helper/leave/leave"
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts"
 import { employeeApi } from "@/components/helper/employee/employee";
 import { BASE_URL } from "@/lib/endpoint";
+import { cn } from "@/lib/utils";
 
 
 // src/api/attendanceApi.ts
@@ -42,7 +49,7 @@ export interface AttendanceLogRecord {
   date: string;
   inTime?: string;              // ← check_in → inTime
   outTime?: string;             // ← check_out → outTime
-  type: "full" | "half" | "absent" | "present" | "unmarked";
+  type: "full" | "half" | "absent" | "present" | "unmarked" | "leave";
   inConfidence?: number;
   outConfidence?: number;
   imageUrl?: string;            // Legacy field - kept for compatibility
@@ -53,7 +60,7 @@ export interface AttendanceLogRecord {
   location: AttendanceGeoLocation;
   checkInLocation?: AttendanceGeoLocation;
   checkOutLocation?: AttendanceGeoLocation;
-  status: "present" | "absent" | "half" | "miss" | "unmarked" | "late";
+  status: "present" | "absent" | "half" | "miss" | "unmarked" | "late" | "leave";
   hoursWorked: number;
   overtimeHours: number;
   autoFlag: boolean;
@@ -61,6 +68,26 @@ export interface AttendanceLogRecord {
   lateBy?: string;              // How many minutes late
   originalEmployeeId?: number;  // ← original employee_id from backend
 }
+
+export interface AttendanceLogRecord {
+  isLeaveRecord?: boolean;
+  leaveTypeName?: string;
+  leaveStatus?: string;
+  leaveSource?: "application" | "override";
+}
+
+type CalendarLeaveEntry = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  fromDate: string;
+  toDate: string;
+  leaveTypeName: string;
+  reason?: string;
+  status: string;
+  leaveMode: "paid" | "half";
+  source: "application" | "override";
+};
 
 const mockData: AttendanceLogRecord[] = [
   {
@@ -411,6 +438,52 @@ const attendanceImageFallback =
 const attendanceImageCanvas =
   "linear-gradient(45deg, #f8fafc 25%, transparent 25%), linear-gradient(-45deg, #f8fafc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f8fafc 75%), linear-gradient(-45deg, transparent 75%, #f8fafc 75%)";
 
+type LeaveMode = "none" | "paid" | "half";
+
+const OVERRIDE_STATUS_OPTIONS = [
+  {
+    value: "absent",
+    label: "Absent",
+    className:
+      "border-red-200 text-red-700 hover:bg-red-50 data-[active=true]:border-red-700 data-[active=true]:bg-red-700 data-[active=true]:text-white",
+  },
+  {
+    value: "half",
+    label: "Half Day",
+    className:
+      "border-amber-200 text-amber-700 hover:bg-amber-50 data-[active=true]:border-amber-300 data-[active=true]:bg-amber-100 data-[active=true]:text-amber-900",
+  },
+  {
+    value: "present",
+    label: "Present",
+    className:
+      "border-emerald-200 text-emerald-700 hover:bg-emerald-50 data-[active=true]:border-emerald-300 data-[active=true]:bg-emerald-100 data-[active=true]:text-emerald-900",
+  },
+  {
+    value: "week_off",
+    label: "Week Off",
+    className:
+      "border-slate-200 text-slate-700 hover:bg-slate-50 data-[active=true]:border-slate-300 data-[active=true]:bg-slate-100 data-[active=true]:text-slate-900",
+  },
+  {
+    value: "holiday",
+    label: "Holiday",
+    className:
+      "border-indigo-200 text-indigo-700 hover:bg-indigo-50 data-[active=true]:border-indigo-300 data-[active=true]:bg-indigo-100 data-[active=true]:text-indigo-900",
+  },
+];
+
+const getStatusLabel = (status: string) =>
+  OVERRIDE_STATUS_OPTIONS.find((option) => option.value === status)?.label || status;
+
+const normalizeLeaveTypeName = (name: string | undefined | null): string => {
+  if (!name) return "Leave";
+  // Fix common misspellings
+  const normalized = name.trim();
+  if (/^casule$/i.test(normalized)) return "Casual";
+  return normalized;
+};
+
 export default function AttendanceLog() {
   const { user } = useAuth();
   const { hasModuleAccess, canPerformModuleAction } = useRole();
@@ -433,10 +506,12 @@ export default function AttendanceLog() {
     employeeId: string;
     date: string;
     originalStatus: "present" | "absent" | "half";
-    overriddenStatus: "present" | "absent" | "half";
+    overriddenStatus: string;
     requestedCheckIn: string;
     requestedCheckOut: string;
     reason: string;
+    leaveMode: LeaveMode;
+    leaveTypeName: string;
   } | null>(null);
 
   // New states for employee list view
@@ -452,6 +527,9 @@ export default function AttendanceLog() {
   const [holidaysLoading, setHolidaysLoading] = useState(true);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(true);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
+  const [calendarLeaveEntries, setCalendarLeaveEntries] = useState<CalendarLeaveEntry[]>([]);
 
   const getEmployeeCode = (employee: any): string => {
     const directCode =
@@ -500,8 +578,112 @@ export default function AttendanceLog() {
       requestedCheckIn: record.inTime || "",
       requestedCheckOut: record.outTime || "",
       reason: "",
+      leaveMode: "none",
+      leaveTypeName: "",
     });
     setIsOverrideOpen(true);
+  };
+
+  useEffect(() => {
+    const fetchLeaveTypes = async () => {
+      setLeaveTypesLoading(true);
+      const result = await leaveTypeApi.getLeaveTypes();
+      if (result.data) {
+        setLeaveTypes(result.data.filter((leaveType) => leaveType.isActive !== false));
+      }
+      setLeaveTypesLoading(false);
+    };
+
+    if (isOverrideOpen) {
+      fetchLeaveTypes();
+    }
+  }, [isOverrideOpen]);
+
+  const selectedLeaveType = useMemo(
+    () => leaveTypes.find((leaveType) => leaveType.name === overrideDraft?.leaveTypeName) || null,
+    [leaveTypes, overrideDraft?.leaveTypeName]
+  );
+
+  const overrideStatusChoices = useMemo(
+    () =>
+      OVERRIDE_STATUS_OPTIONS.filter(
+        (statusOption) => statusOption.value !== overrideDraft?.originalStatus
+      ),
+    [overrideDraft?.originalStatus]
+  );
+
+  const resetOverrideDraft = () => {
+    setOverrideDraft((prev) =>
+      prev
+        ? {
+          ...prev,
+          date: "",
+          originalStatus: "absent",
+          overriddenStatus: "present",
+          requestedCheckIn: "",
+          requestedCheckOut: "",
+          reason: "",
+          leaveMode: "none",
+          leaveTypeName: "",
+        }
+        : prev
+    );
+  };
+
+  const handleOverrideStatusSelection = (value: string) => {
+    setOverrideDraft((prev) => {
+      if (!prev) return prev;
+
+      const nextDraft = {
+        ...prev,
+        overriddenStatus: value,
+      };
+
+      if (value !== "half" && prev.leaveMode === "half") {
+        nextDraft.leaveMode = "none" as LeaveMode;
+        nextDraft.leaveTypeName = "";
+      }
+
+      return nextDraft;
+    });
+  };
+
+  const handleOverrideLeaveModeSelection = (leaveMode: LeaveMode) => {
+    setOverrideDraft((prev) =>
+      prev
+        ? {
+          ...prev,
+          leaveMode,
+          leaveTypeName: "",
+          overriddenStatus:
+            leaveMode === "half"
+              ? "half"
+              : prev.overriddenStatus === "half"
+                ? "absent"
+                : prev.overriddenStatus,
+          requestedCheckIn: leaveMode === "none" ? prev.requestedCheckIn : "",
+          requestedCheckOut: leaveMode === "none" ? prev.requestedCheckOut : "",
+        }
+        : prev
+    );
+  };
+
+  const buildOverrideReason = () => {
+    if (!overrideDraft) return "";
+
+    const trimmedReason = overrideDraft.reason.trim();
+    const leaveLabel =
+      overrideDraft.leaveMode === "paid"
+        ? "Paid Leave"
+        : overrideDraft.leaveMode === "half"
+          ? "Half Day Leave"
+          : "";
+
+    if (!leaveLabel || !overrideDraft.leaveTypeName) {
+      return trimmedReason;
+    }
+
+    return `[${leaveLabel} - ${overrideDraft.leaveTypeName}] ${trimmedReason}`;
   };
 
   const handleOverride = (recordId: string) => {
@@ -519,14 +701,27 @@ export default function AttendanceLog() {
 
   const handleSubmitOverride = async () => {
     if (!overrideDraft) return;
+
+    const requiresTimeFields =
+      overrideDraft.leaveMode === "none" &&
+      (overrideDraft.overriddenStatus === "present" || overrideDraft.overriddenStatus === "half");
+
     if (
       !overrideDraft.employeeId.trim() ||
       !overrideDraft.date ||
-      !overrideDraft.requestedCheckIn ||
-      !overrideDraft.requestedCheckOut ||
       !overrideDraft.reason.trim()
     ) {
-      toast.error("Employee ID, Date, Check-in, Check-out and Reason are required");
+      toast.error("Employee ID, date and reason are required");
+      return;
+    }
+
+    if (requiresTimeFields && (!overrideDraft.requestedCheckIn || !overrideDraft.requestedCheckOut)) {
+      toast.error("Requested check-in and check-out are required for present or half day override");
+      return;
+    }
+
+    if (overrideDraft.leaveMode !== "none" && !overrideDraft.leaveTypeName) {
+      toast.error("Select a leave type");
       return;
     }
 
@@ -537,9 +732,10 @@ export default function AttendanceLog() {
       date: overrideDraft.date,
       originalStatus: overrideDraft.originalStatus,
       overriddenStatus: overrideDraft.overriddenStatus,
-      reason: overrideDraft.reason,
-      requestedCheckIn: overrideDraft.requestedCheckIn || undefined,
-      requestedCheckOut: overrideDraft.requestedCheckOut || undefined,
+      reason: buildOverrideReason(),
+      requestedCheckIn: requiresTimeFields ? overrideDraft.requestedCheckIn || undefined : undefined,
+      requestedCheckOut: requiresTimeFields ? overrideDraft.requestedCheckOut || undefined : undefined,
+      leaveMode: overrideDraft.leaveMode,
     });
 
     if (result.success || result.data) {
@@ -861,6 +1057,67 @@ export default function AttendanceLog() {
         console.log("No attendance data found");
         setLogs([]);
       }
+
+      const leaveEntries: CalendarLeaveEntry[] = [];
+      const [leaveApplicationsResult, overridesResult] = await Promise.allSettled([
+        leaveTypeApi.getLeaveApplications(),
+        attendanceApi.getOverrides(),
+      ]);
+
+      if (leaveApplicationsResult.status === "fulfilled" && Array.isArray(leaveApplicationsResult.value.data)) {
+        leaveApplicationsResult.value.data.forEach((application: LeaveApplication) => {
+          if (application.status !== "approved") return;
+
+          const fromDate = normalizeDateOnly(application.fromDate);
+          const toDate = normalizeDateOnly(application.toDate);
+          if (!fromDate || !toDate) return;
+          if (toDate < startDate || fromDate > endDate) return;
+
+          leaveEntries.push({
+            id: `leave-app-${application.id}`,
+            employeeId: String(application.employeeId || ""),
+            employeeName: application.employeeName,
+            fromDate,
+            toDate,
+            leaveTypeName: application.leaveType,
+            reason: application.reason,
+            status: application.status,
+            leaveMode: Number(application.days || 0) <= 0.5 ? "half" : "paid",
+            source: "application",
+          });
+        });
+      } else if (leaveApplicationsResult.status === "rejected") {
+        console.warn("Failed to fetch leave applications for attendance calendar", leaveApplicationsResult.reason);
+      }
+
+      if (overridesResult.status === "fulfilled" && Array.isArray(overridesResult.value.data)) {
+        overridesResult.value.data.forEach((override: any) => {
+          if (String(override.status || "").toLowerCase() !== "approved") return;
+
+          const overrideDate = normalizeDateOnly(override.override_date);
+          const reason = String(override.reason || "");
+          const leaveMatch = reason.match(/^\[(Paid Leave|Half Day Leave)\s+-\s+([^\]]+)\]/i);
+          if (!overrideDate || !leaveMatch) return;
+          if (overrideDate < startDate || overrideDate > endDate) return;
+
+          leaveEntries.push({
+            id: `leave-override-${override.id}`,
+            employeeId: String(override.employee_id || ""),
+            employeeName: "",
+            fromDate: overrideDate,
+            toDate: overrideDate,
+            leaveTypeName: leaveMatch[2].trim(),
+            reason,
+            status: "approved",
+            leaveMode: /half/i.test(leaveMatch[1]) ? "half" : "paid",
+            source: "override",
+          });
+        });
+      } else if (overridesResult.status === "rejected") {
+        console.warn("Failed to fetch attendance overrides for leave calendar", overridesResult.reason);
+      }
+
+      setCalendarLeaveEntries(leaveEntries);
     } catch (err) {
       console.error("Fetch error:", err);
       setError("Failed to load attendance logs");
@@ -948,6 +1205,18 @@ export default function AttendanceLog() {
     return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   };
 
+  const normalizeDateOnly = (value?: string | null) => {
+    if (!value) return "";
+    const text = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().split("T")[0];
+  };
+
+  const isDateInRange = (date: string, from: string, to: string) => {
+    return date >= from && date <= to;
+  };
+
   const isWeekendDate = (dateStr: string) => {
     const d = new Date(`${dateStr}T00:00:00`);
     const dayOfWeek = d.getDay();
@@ -987,6 +1256,84 @@ export default function AttendanceLog() {
     }
 
     // Backend now handles role-based filtering, so no client-side filtering needed
+
+    if (viewMode === "calendar" && selectedEmployee) {
+      const monthStart = formatDateString(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const monthEnd = formatDateString(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth(),
+        new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate()
+      );
+      const mergedData = [...data];
+      const currentEmployeeLeaves = calendarLeaveEntries.filter((entry) => {
+        const entryEmployeeId = String(entry.employeeId || "");
+        return (
+          entry.toDate >= monthStart &&
+          entry.fromDate <= monthEnd &&
+          (entryEmployeeId === selectedEmployee.id || entryEmployeeId === selectedEmployee.employeeId)
+        );
+      });
+
+      currentEmployeeLeaves.forEach((entry) => {
+        const from = entry.fromDate < monthStart ? monthStart : entry.fromDate;
+        const to = entry.toDate > monthEnd ? monthEnd : entry.toDate;
+
+        for (let day = 1; day <= new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate(); day++) {
+          const dateStr = formatDateString(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+          if (!isDateInRange(dateStr, from, to)) continue;
+
+          const existingIndex = mergedData.findIndex((record) => record.date === dateStr);
+          const leaveStatus: AttendanceLogRecord["status"] = entry.leaveMode === "half" ? "half" : "leave";
+          const leaveType: AttendanceLogRecord["type"] = entry.leaveMode === "half" ? "half" : "leave";
+
+          if (existingIndex >= 0) {
+            const existing = mergedData[existingIndex];
+            mergedData[existingIndex] = {
+              ...existing,
+              status: leaveStatus,
+              type: leaveType,
+              isLeaveRecord: true,
+              leaveTypeName: entry.leaveTypeName,
+              leaveStatus: entry.status,
+              leaveSource: entry.source,
+              flagReason: entry.reason || `${entry.leaveTypeName} leave`,
+            };
+          } else {
+            mergedData.push({
+              id: `${entry.id}-${dateStr}`,
+              employeeId: selectedEmployee.employeeId,
+              employeeName: selectedEmployee.name || entry.employeeName || "Employee",
+              date: dateStr,
+              inTime: null,
+              outTime: null,
+              status: leaveStatus,
+              hoursWorked: 0,
+              overtimeHours: 0,
+              autoFlag: false,
+              flagReason: entry.reason || `${entry.leaveTypeName} leave`,
+              device: entry.source === "override" ? "Attendance Override" : "Leave Application",
+              location: {
+                latitude: 0,
+                longitude: 0,
+                accuracy: 0,
+                address: `${entry.leaveTypeName} leave`,
+              },
+              imageUrl: "",
+              imageIn: "",
+              imageOut: "",
+              type: leaveType,
+              originalEmployeeId: Number(selectedEmployee.id),
+              isLeaveRecord: true,
+              leaveTypeName: entry.leaveTypeName,
+              leaveStatus: entry.status,
+              leaveSource: entry.source,
+            });
+          }
+        }
+      });
+
+      data = mergedData;
+    }
 
     // In calendar view, generate placeholder "absent" records for missing past dates
     // so absent days are clickable and can be overridden/edited (RBAC-gated in UI).
@@ -1048,11 +1395,13 @@ export default function AttendanceLog() {
 
     // Filter by status
     if (filterStatus !== "all") {
-      data = data.filter((record) => record.status === filterStatus);
+      data = data.filter((record) =>
+        filterStatus === "leave" ? record.isLeaveRecord : record.status === filterStatus
+      );
     }
 
     return data;
-  }, [logs, searchTerm, filterStatus, viewMode, selectedEmployee, currentMonth, holidays]);
+  }, [logs, searchTerm, filterStatus, viewMode, selectedEmployee, currentMonth, holidays, calendarLeaveEntries]);
 
   const effectiveEmployees = useMemo(() => {
     if (Array.isArray(employees) && employees.length > 0) {
@@ -1132,17 +1481,20 @@ export default function AttendanceLog() {
     return grouped;
   }, [filteredData]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, record?: AttendanceLogRecord) => {
     const variants: { [key: string]: any } = {
       present: "default",
       absent: "destructive",
       half: "secondary",
+      leave: "secondary",
       miss: "outline",
       unmarked: "outline", // Different styling for unmarked attendance
       late: "secondary",
     };
     const displayText =
-      status === "unmarked" ? "NOT MARKED" : status === "late" ? "LATE" : status.toUpperCase();
+      record?.isLeaveRecord
+        ? `${normalizeLeaveTypeName(record.leaveTypeName)}${status === "half" ? " - HALF" : ""}`.toUpperCase()
+        : status === "unmarked" ? "NOT MARKED" : status === "late" ? "LATE" : status.toUpperCase();
     return <Badge variant={variants[status] || "outline"}>{displayText}</Badge>;
   };
 
@@ -1385,6 +1737,7 @@ export default function AttendanceLog() {
                           <SelectItem value="present">Present</SelectItem>
                           <SelectItem value="absent">Absent</SelectItem>
                           <SelectItem value="half">Half Day</SelectItem>
+                          <SelectItem value="leave">Leave</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1544,9 +1897,11 @@ export default function AttendanceLog() {
                       const hasPresent = statuses.includes("present");
                       const hasAbsent = statuses.includes("absent");
                       const hasHalf = statuses.includes("half");
+                      const hasLeave = statuses.includes("leave") || records.some((r) => r.isLeaveRecord);
                       const hasLate = statuses.includes("late");
                       const hasUnmarked = statuses.includes("unmarked") || isTodayUnmarked;
                       const hasFlag = records.some((r) => r.autoFlag);
+                      const leaveRecord = records.find((r) => r.isLeaveRecord);
                       // Weekend/holiday should be shown only when there is no real attendance punch.
                       // Synthetic absent/unmarked records are excluded by hasRealRecords.
                       const hasAttendanceOnHoliday = isHolidayDate && hasRealRecords;
@@ -1568,7 +1923,8 @@ export default function AttendanceLog() {
 
                       let bgColor = "bg-white border-gray-200";
                       if (hasRecords || isTodayUnmarked) {
-                        if (hasPresent) bgColor = "bg-green-50 border-green-300";
+                        if (hasLeave) bgColor = "bg-violet-50 border-violet-300";
+                        else if (hasPresent) bgColor = "bg-green-50 border-green-300";
                         else if (hasHalf) bgColor = "bg-yellow-50 border-yellow-300";
                         else if (hasAbsent) bgColor = "bg-red-50 border-red-300";
                         else if (hasLate) bgColor = "bg-orange-50 border-orange-300"; // Late = orange
@@ -1675,6 +2031,9 @@ export default function AttendanceLog() {
                                   {hasFlag && (
                                     <AlertTriangle className="w-2 h-2 sm:w-3 sm:h-3 text-amber-600 flex-shrink-0" />
                                   )}
+                                  {hasLeave && (
+                                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-violet-600 flex-shrink-0"></div>
+                                  )}
                                   {hasPresent && (
                                     <CheckCircle2 className="w-2 h-2 sm:w-3 sm:h-3 text-green-600 flex-shrink-0" />
                                   )}
@@ -1696,6 +2055,11 @@ export default function AttendanceLog() {
                                     {records.length}
                                   </span>
                                 )}
+                                {hasLeave && leaveRecord && (
+                                  <span className="hidden sm:inline text-xs font-semibold text-violet-700">
+                                    {leaveRecord.status === "half" ? "HALF LEAVE" : "LEAVE"}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1709,7 +2073,7 @@ export default function AttendanceLog() {
                     <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-50 mb-2 sm:mb-3">
                       Legend
                     </p>
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2 sm:gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-7 gap-2 sm:gap-3">
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
                         <span className="text-xs sm:text-sm">Present</span>
@@ -1721,6 +2085,10 @@ export default function AttendanceLog() {
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-yellow-600 flex-shrink-0"></div>
                         <span className="text-xs sm:text-sm">Half Day</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-violet-600 flex-shrink-0"></div>
+                        <span className="text-xs sm:text-sm">Leave</span>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <Timer className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600 flex-shrink-0" />
@@ -1799,10 +2167,10 @@ export default function AttendanceLog() {
                                       onClick={() => canEditAttendanceLog && handleAbsentEdit(record)}
                                       title={canEditAttendanceLog ? "Click to edit this absent record" : undefined}
                                     >
-                                      {getStatusBadge(record.status)}
+                                      {getStatusBadge(record.status, record)}
                                     </button>
                                   ) : (
-                                    getStatusBadge(record.status)
+                                    getStatusBadge(record.status, record)
                                   )}
                                 </div>
                               </div>
@@ -1811,6 +2179,7 @@ export default function AttendanceLog() {
                                 <span className="whitespace-nowrap">Check-out: {record.outTime || "—"}</span>
                                 <span className="whitespace-nowrap">Hours: {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(2)}h` : "—"}</span>
                               </div>
+
 
                               {/* Attendance Photos */}
                               <div className="mt-4">
@@ -1993,114 +2362,241 @@ export default function AttendanceLog() {
           if (!open) setOverrideDraft(null);
         }}
       >
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-7">
           <DialogHeader>
             <DialogTitle className="text-xl">Create Attendance Override</DialogTitle>
             <DialogDescription>All overrides are logged with audit trail</DialogDescription>
           </DialogHeader>
 
           {overrideDraft && (
-            <div className="space-y-5 py-4">
-              {/* Employee ID - Required */}
-              <div className="space-y-2">
-                <Label htmlFor="employeeId">
-                  Employee ID <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="employeeId"
-                  placeholder="e.g., EMP003 / CMS001"
-                  value={overrideDraft.employeeId}
-                  onChange={(e) =>
-                    setOverrideDraft((prev) => (prev ? { ...prev, employeeId: e.target.value } : prev))
-                  }
-                />
-              </div>
-
-              {/* Attendance Date - Required */}
-              <div className="space-y-2">
-                <Label htmlFor="overrideDate">
-                  Attendance Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="overrideDate"
-                  type="date"
-                  value={overrideDraft.date}
-                  onChange={(e) => setOverrideDraft((prev) => (prev ? { ...prev, date: e.target.value } : prev))}
-                />
-              </div>
-
-              {/* From Status & To Status */}
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                 <div className="space-y-2">
-                  <Label>From Status</Label>
+                  <Label htmlFor="employeeId" className="text-base font-semibold">
+                    Employee ID <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="employeeId"
+                    placeholder="e.g., EMP003 / CMS001"
+                    value={overrideDraft.employeeId}
+                    onChange={(e) =>
+                      setOverrideDraft((prev) => (prev ? { ...prev, employeeId: e.target.value } : prev))
+                    }
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="overrideDate" className="text-base font-semibold">
+                    Attendance Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="overrideDate"
+                    type="date"
+                    value={overrideDraft.date}
+                    onChange={(e) => setOverrideDraft((prev) => (prev ? { ...prev, date: e.target.value } : prev))}
+                    className="h-12"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="hidden h-12 w-12 sm:inline-flex"
+                  onClick={resetOverrideDraft}
+                >
+                  <RotateCcw className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="space-y-4 rounded-2xl border border-slate-200 p-5">
+                <div>
+                  <p className="text-base font-semibold">
+                    {overrideDraft.date
+                      ? new Date(`${overrideDraft.date}T00:00:00`).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "long",
+                      })
+                      : "Select attendance date"}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Pick the final attendance state for this day.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Current Status</Label>
                   <Select
                     value={overrideDraft.originalStatus}
-                    disabled
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="absent">Absent</SelectItem>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="half">Half Day</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>To Status</Label>
-                  <Select
-                    value={overrideDraft.overriddenStatus}
                     onValueChange={(value) =>
-                      setOverrideDraft((prev) => (prev ? { ...prev, overriddenStatus: value as any } : prev))
+                      setOverrideDraft((prev) =>
+                        prev
+                          ? {
+                            ...prev,
+                            originalStatus: value as "present" | "absent" | "half",
+                            overriddenStatus:
+                              prev.overriddenStatus === value
+                                ? value === "present"
+                                  ? "absent"
+                                  : "present"
+                                : prev.overriddenStatus,
+                          }
+                          : prev
+                      )
                     }
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Select current status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="present">Present</SelectItem>
                       <SelectItem value="absent">Absent</SelectItem>
+                      <SelectItem value="present">Present</SelectItem>
                       <SelectItem value="half">Half Day</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              {/* Requested Check-in/out (optional) */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="requestedCheckIn">
-                    Requested Check-in <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="requestedCheckIn"
-                    type="time"
-                    value={overrideDraft.requestedCheckIn}
-                    onChange={(e) =>
-                      setOverrideDraft((prev) => (prev ? { ...prev, requestedCheckIn: e.target.value } : prev))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="requestedCheckOut">
-                    Requested Check-out <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="requestedCheckOut"
-                    type="time"
-                    value={overrideDraft.requestedCheckOut}
-                    onChange={(e) =>
-                      setOverrideDraft((prev) => (prev ? { ...prev, requestedCheckOut: e.target.value } : prev))
-                    }
-                  />
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Override Status</Label>
+                  <div className="flex flex-wrap gap-3">
+                    {overrideStatusChoices.map((statusOption) => (
+                      <button
+                        key={statusOption.value}
+                        type="button"
+                        data-active={overrideDraft.overriddenStatus === statusOption.value}
+                        onClick={() => handleOverrideStatusSelection(statusOption.value)}
+                        className={cn(
+                          "rounded-full border px-5 py-2 text-sm font-semibold transition-colors",
+                          statusOption.className
+                        )}
+                      >
+                        {statusOption.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Reason - Required */}
+              <div className="space-y-4 rounded-2xl border border-violet-100 bg-violet-50/40 p-5">
+                <div>
+                  <Label className="text-base font-semibold">Leaves</Label>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Select leave mode if this override should be treated as leave.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    data-active={overrideDraft.leaveMode === "paid"}
+                    onClick={() => handleOverrideLeaveModeSelection(overrideDraft.leaveMode === "paid" ? "none" : "paid")}
+                    className={cn(
+                      "rounded-full border px-5 py-2 text-sm font-semibold transition-colors",
+                      "border-violet-200 text-violet-700 hover:bg-violet-100",
+                      overrideDraft.leaveMode === "paid" && "border-violet-300 bg-violet-100 text-violet-900"
+                    )}
+                  >
+                    Paid Leave
+                  </button>
+                  <button
+                    type="button"
+                    data-active={overrideDraft.leaveMode === "half"}
+                    onClick={() => handleOverrideLeaveModeSelection(overrideDraft.leaveMode === "half" ? "none" : "half")}
+                    className={cn(
+                      "rounded-full border px-5 py-2 text-sm font-semibold transition-colors",
+                      "border-indigo-200 text-indigo-700 hover:bg-indigo-100",
+                      overrideDraft.leaveMode === "half" && "border-indigo-300 bg-indigo-100 text-indigo-900"
+                    )}
+                  >
+                    Half Day Leave
+                  </button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full border-blue-200 px-5 text-blue-700 hover:bg-blue-50"
+                      >
+                        {overrideDraft.leaveTypeName || "Choose Leave Type"}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      {leaveTypesLoading ? (
+                        <DropdownMenuItem disabled>Loading leave types...</DropdownMenuItem>
+                      ) : leaveTypes.length > 0 ? (
+                        leaveTypes.map((leaveType) => (
+                          <DropdownMenuItem
+                            key={leaveType.id}
+                            onClick={() =>
+                              setOverrideDraft((prev) =>
+                                prev
+                                  ? {
+                                    ...prev,
+                                    leaveMode: prev.leaveMode === "none" ? "paid" : prev.leaveMode,
+                                    leaveTypeName: leaveType.name,
+                                  }
+                                  : prev
+                              )
+                            }
+                          >
+                            {leaveType.name}
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled>No leave types found</DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {selectedLeaveType && (
+                  <div className="rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-700">
+                    {selectedLeaveType.name}
+                    {selectedLeaveType.maxDays ? ` - Max ${selectedLeaveType.maxDays} days` : ""}
+                    {selectedLeaveType.isPaid ? " - Paid" : " - Unpaid"}
+                  </div>
+                )}
+              </div>
+
+              {overrideDraft.leaveMode === "none" &&
+                (overrideDraft.overriddenStatus === "present" || overrideDraft.overriddenStatus === "half") && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="requestedCheckIn" className="text-base font-semibold">
+                        Requested Check-in <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="requestedCheckIn"
+                        type="time"
+                        value={overrideDraft.requestedCheckIn}
+                        onChange={(e) =>
+                          setOverrideDraft((prev) => (prev ? { ...prev, requestedCheckIn: e.target.value } : prev))
+                        }
+                        className="h-12"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="requestedCheckOut" className="text-base font-semibold">
+                        Requested Check-out <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="requestedCheckOut"
+                        type="time"
+                        value={overrideDraft.requestedCheckOut}
+                        onChange={(e) =>
+                          setOverrideDraft((prev) => (prev ? { ...prev, requestedCheckOut: e.target.value } : prev))
+                        }
+                        className="h-12"
+                      />
+                    </div>
+                  </div>
+                )}
+
               <div className="space-y-2">
-                <Label htmlFor="reason">
+                <Label htmlFor="reason" className="text-base font-semibold">
                   Reason for Override <span className="text-red-500">*</span>
                 </Label>
                 <Textarea

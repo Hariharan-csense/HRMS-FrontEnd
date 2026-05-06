@@ -6,6 +6,8 @@ import ENDPOINTS, {
   checkAndRefreshTokenIfNeeded,
   refreshAccessToken,
   resolveFileUrl,
+  verifyCredentials,
+  loginWithRole as apiLoginWithRole,
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
