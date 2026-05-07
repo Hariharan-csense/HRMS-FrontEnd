@@ -535,6 +535,14 @@ export default function OrganizationSetup() {
     }
   };
 
+  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setFormData({ ...formData, signature: previewUrl, signatureFile: file });
+    }
+  };
+
   const handleModulePermissionChange = (
     module: string,
     permission: "view" | "create" | "edit" | "approve",
@@ -736,6 +744,32 @@ export default function OrganizationSetup() {
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm border-0 bg-white">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
+                    Authorized Signature
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {company?.signature ? (
+                    <div className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-6 py-4 shadow-sm">
+                      <img
+                        src={resolveFileUrl(company.signature)}
+                        alt="Authorized Signature"
+                        className="h-16 max-w-64 object-contain"
+                        onError={(e) => {
+                          console.error('Signature failed to load:', company.signature);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No signature uploaded yet.</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1455,6 +1489,42 @@ export default function OrganizationSetup() {
                         type="file"
                         className="hidden"
                         onChange={handleLogoUpload}
+                        accept="image/*"
+                      />
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <Label>Authorized Signature</Label>
+                  <div className="mt-2">
+                    {(formData.signature || company?.signature) && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="rounded border bg-white px-3 py-2">
+                          <img
+                            src={resolveFileUrl(formData.signature || company?.signature)}
+                            alt="Authorized Signature"
+                            className="h-12 max-w-48 object-contain"
+                            onError={(e) => {
+                              console.error('Dialog signature failed to load:', formData.signature || company?.signature);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => setFormData({ ...formData, signature: undefined, signatureFile: undefined })}
+                          className="p-1 hover:bg-red-100 text-red-600 rounded"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2 px-4 py-2 border border-dashed border-primary rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
+                      <Upload className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Upload Signature</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleSignatureUpload}
                         accept="image/*"
                       />
                     </label>

@@ -10,7 +10,7 @@ export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
-
+// 
   if (
     path.startsWith("http://") ||
     path.startsWith("https://") ||

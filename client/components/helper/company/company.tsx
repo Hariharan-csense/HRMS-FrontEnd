@@ -14,6 +14,8 @@ export interface Company {
   timezone: string;
   logo?: string;
   logoFile?: File;
+  signature?: string;
+  signatureFile?: File;
   esslEnabled?: boolean;
   esslApiKey?: string;
   esslApiKeyConfigured?: boolean;
@@ -43,6 +45,7 @@ export const companyApi = {
             payrollEndDay: Number(companyData.payroll_end_day) || 31,
             timezone: companyData.timezone,
             logo: companyData.logo_url,
+            signature: companyData.signature_url,
             esslEnabled: Boolean(companyData.essl_enabled),
             esslApiKeyConfigured: Boolean(companyData.essl_api_key_configured),
             createdAt: companyData.created_at,
@@ -81,6 +84,10 @@ export const companyApi = {
         formData.append('logo', payload.logoFile);
       }
 
+      if (payload.signatureFile instanceof File) {
+        formData.append('signature', payload.signatureFile);
+      }
+
       const response = await ENDPOINTS.updateCompany(id, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -100,6 +107,7 @@ export const companyApi = {
             payrollEndDay: Number(companyData.payroll_end_day) || 31,
             timezone: companyData.timezone,
             logo: companyData.logo_url,
+            signature: companyData.signature_url,
             esslEnabled: Boolean(companyData.essl_enabled),
             esslApiKeyConfigured: Boolean(companyData.essl_api_key_configured),
             createdAt: companyData.created_at,
