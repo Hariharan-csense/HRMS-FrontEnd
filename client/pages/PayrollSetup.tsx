@@ -24,6 +24,7 @@ import payrollApi, { SalaryStructure } from "@/components/helper/payroll/payroll
 import axios from "axios";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 
 // Types
 interface PayrollProcessing {
@@ -35,6 +36,7 @@ interface PayrollProcessing {
   payableDays: number;
   lopAmount: number;
   gross: number;
+  tdsAmount?: number;
   deductions: number;
   net: number;
   status: "draft" | "final" | "paid" | "processed";
@@ -52,6 +54,7 @@ interface Payslip {
   payableDays?: number;
   lopAmount?: number;
   gross: number;
+  tdsAmount?: number;
   deductions: number;
   net: number;
   status: "draft" | "final" | "paid" | "processed";
@@ -134,7 +137,7 @@ const mockSalaryStructures: SalaryStructure[] = [
     pf: 5400,
     esi: 0,
     pt: 200,
-    tds: 5000,
+    tds: 7.35,
     otherDeductions: 500,
     createdAt: "2024-01-01",
   },
@@ -151,7 +154,7 @@ const mockSalaryStructures: SalaryStructure[] = [
     pf: 6480,
     esi: 0,
     pt: 200,
-    tds: 6500,
+    tds: 7.93,
     otherDeductions: 600,
     createdAt: "2024-01-01",
   },
@@ -683,7 +686,7 @@ export default function PayrollSetup() {
   // Updated to include name field for display
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
-  
+
 
   // Fetch attendance data when employee and month are selected
   useEffect(() => {
@@ -699,20 +702,20 @@ export default function PayrollSetup() {
         });
         return;
       }
-       
+
       try {
         const result = await payrollApi.getAttendance(formData.employeeId, formData.month);
         if (result.data) {
           setAttendanceData(result.data);
           // Calculate payable days from real attendance
-          const presentDays = result.data.filter((record: any) => 
+          const presentDays = result.data.filter((record: any) =>
             ['present', 'late'].includes(String(record.status || '').toLowerCase())
           ).length;
-          
-          const halfDays = result.data.filter((record: any) => 
+
+          const halfDays = result.data.filter((record: any) =>
             ['half', 'half_day', 'half-day'].includes(String(record.status || '').toLowerCase())
           ).length * 0.5;
-          
+
           const payableDays = presentDays + halfDays;
           setFormData(prev => ({ ...prev, payableDays }));
         }
@@ -731,24 +734,24 @@ export default function PayrollSetup() {
         setEmployeesLoading(true);
         const response = await employeeApi.getEmployees();
         console.log('Raw employee data:', response); // Debug log
-        
+
         // The employeeApi returns { data: employeesArray } format
         const employeesData = response.data || [];
-        
+
         console.log('Employees data from API:', employeesData);
-        
+
         // Transform the employee data to match the expected format
         const formattedEmployees = employeesData.map(emp => {
           console.log('Processing employee:', emp);
-          
+
           // Use employee_id from the API response
           const employeeId = emp.employee_id || emp.id || '';
-          
+
           // Handle first_name and last_name from the API response
           const firstName = emp.first_name || '';
           const lastName = emp.last_name || '';
           const fullName = `${firstName} ${lastName}`.trim() || `Employee ${employeeId}`;
-          
+
           return {
             id: employeeId,
             dbId: emp.id ? String(emp.id) : "",
@@ -757,7 +760,7 @@ export default function PayrollSetup() {
             lastName: lastName
           };
         });
-        
+
         console.log('Formatted employees:', formattedEmployees);
         setEmployees(formattedEmployees);
       } catch (error) {
@@ -767,7 +770,7 @@ export default function PayrollSetup() {
         setEmployeesLoading(false);
       }
     };
-    
+
     fetchEmployees();
   }, []);
 
@@ -798,10 +801,10 @@ export default function PayrollSetup() {
   useEffect(() => {
     const fetchSalaryStructures = async () => {
       if (!canViewSalaryStructure) return;
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const result = await payrollApi.getSalaryStructures();
         if (result.data) {
@@ -849,15 +852,15 @@ export default function PayrollSetup() {
   useEffect(() => {
     const fetchPayslips = async () => {
       if (activeTab !== "payslips") return;
-      
+
       console.log('Fetching payslips for payslips tab...');
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const result = await payrollApi.getPayslip();
         console.log('API result:', result);
-        
+
         if (result.data) {
           console.log('Setting payslips with API data:', result.data);
           setPayslips(result.data);
@@ -887,11 +890,11 @@ export default function PayrollSetup() {
         console.log('Fetching payslips data for employee...');
         setIsLoading(true);
         setError(null);
-        
+
         try {
           const result = await payrollApi.getPayslip();
           console.log('Payslips API result:', result);
-          
+
           if (result.data) {
             console.log('Setting payslips with API data:', result.data);
             setPayslips(result.data);
@@ -919,15 +922,15 @@ export default function PayrollSetup() {
   useEffect(() => {
     const fetchPayrollProcessing = async () => {
       if (activeTab !== "processing") return;
-      
+
       console.log('Fetching payroll processing for processing tab...');
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const result = await payrollApi.getPayrollProcessing();
         console.log('Payroll processing API result:', result);
-        
+
         if (result.data) {
           console.log('Setting payroll processing with API data:', result.data);
           setPayrollProcessing(result.data);
@@ -972,18 +975,18 @@ export default function PayrollSetup() {
     // Apply search filter
     return filtered.filter((s) => {
       if (!searchTerm) return true;
-      return s.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-             s.month.includes(searchTerm);
+      return s.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.month.includes(searchTerm);
     });
   }, [salaryStructures, searchTerm, user]);
 
   const filteredPayslips = useMemo(() => {
     let filtered = payslips;
-    
+
     console.log('Original payslips:', payslips);
     console.log('User object:', user);
     console.log('User ID type and value:', typeof user?.id, user?.id);
-    
+
     // Apply role-based filtering
     if (hasRole(user, "employee") && !hasRole(user, "manager")) {
       // Employees see only their own payslips - compare by employeeId instead of name
@@ -991,7 +994,7 @@ export default function PayrollSetup() {
       payslips.forEach(p => {
         console.log(`Payslip employeeId: ${p.employeeId} (type: ${typeof p.employeeId}), User ID: ${user?.id} (type: ${typeof user?.id}), Match: ${p.employeeId === user?.id?.toString()}`);
       });
-      
+
       filtered = filtered.filter((p) => p.employeeId === user?.id?.toString());
       console.log('After employee filtering:', filtered);
     } else if (hasRole(user, "manager")) {
@@ -1006,18 +1009,18 @@ export default function PayrollSetup() {
     // Admins and HR see all
 
     // Apply search filter
-    const finalFiltered = filtered.filter((p) => 
-      p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const finalFiltered = filtered.filter((p) =>
+      p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.month.includes(searchTerm)
     );
     console.log('After search filtering:', finalFiltered);
-    
+
     return finalFiltered;
   }, [payslips, searchTerm, user]);
 
   const filteredProcessing = useMemo(() => {
     let filtered = payrollProcessing;
-    
+
     // Apply role-based filtering
     if (hasRole(user, "employee") && !hasRole(user, "manager")) {
       // Employees see only their own payroll processing
@@ -1035,8 +1038,8 @@ export default function PayrollSetup() {
     // Apply search filter
     return filtered.filter((p) => {
       if (!searchTerm) return true;
-      return p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-             p.month.includes(searchTerm);
+      return p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.month.includes(searchTerm);
     });
   }, [payrollProcessing, searchTerm, user]);
 
@@ -1073,7 +1076,7 @@ export default function PayrollSetup() {
         .map((id: any) => id.toString())
     );
 
-    return payslips.some(payroll => 
+    return payslips.some(payroll =>
       possibleIds.has(String(payroll.employeeId)) && payroll.month === month
     );
   };
@@ -1098,7 +1101,7 @@ export default function PayrollSetup() {
 
       // Attach token dynamically
       api.interceptors.request.use((config) => {
-        const token = localStorage.getItem("accessToken"); 
+        const token = localStorage.getItem("accessToken");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -1116,13 +1119,7 @@ export default function PayrollSetup() {
       }
 
       const month = formData.month;
-      const toProcess = selectedEmployeeIds.filter((id) => !isPayrollProcessed(id, month));
-      const skipped = selectedEmployeeIds.length - toProcess.length;
-
-      if (!toProcess.length) {
-        toast.error("Payroll already processed for selected employee(s)");
-        return;
-      }
+      const toProcess = selectedEmployeeIds;
 
       let successCount = 0;
       let failCount = 0;
@@ -1147,9 +1144,7 @@ export default function PayrollSetup() {
 
       if (successCount > 0) {
         toast.success(
-          `Processed payroll for ${successCount} employee${successCount === 1 ? "" : "s"}${
-            skipped ? ` (${skipped} skipped)` : ""
-          }${failCount ? `, ${failCount} failed` : ""}`
+          `Processed payroll for ${successCount} employee${successCount === 1 ? "" : "s"}${failCount ? `, ${failCount} failed` : ""}`
         );
       } else {
         toast.error("Failed to process payroll");
@@ -1180,22 +1175,22 @@ export default function PayrollSetup() {
   const handleOpenDialog = (item?: any) => {
     console.log('Current employees state:', employees); // Debug log
     console.log('Opening dialog for item:', item);
-    
+
     if (item) {
       setEditingId(item.id);
       console.log('Editing item:', item);
       console.log('Item employeeId:', item.employeeId);
       console.log('Item employeeName:', item.employeeName);
-      
+
       // Find the employee in the employees list to get full details
       const employee = employees.find(emp => emp.id === item.employeeId);
       console.log('Found employee:', employee);
-      
+
       // Use the employeeName from the item directly, or construct it from employees list
-      const employeeName = item.employeeName || 
-                         (employee ? `${employee.firstName} ${employee.lastName}`.trim() : '') ||
-                         `Employee ${item.employeeId}`;
-      
+      const employeeName = item.employeeName ||
+        (employee ? `${employee.firstName} ${employee.lastName}`.trim() : '') ||
+        `Employee ${item.employeeId}`;
+
       console.log('Final employeeName:', employeeName);
 
       const basicAmount = Number(item.basic) || 0;
@@ -1209,8 +1204,8 @@ export default function PayrollSetup() {
       const esiPercentage = Number(
         item.esiPercentage ?? (esiEnabled && basicAmount > 0 ? ((esiAmount / basicAmount) * 100).toFixed(2) : 0)
       );
-      
-      setFormData({ 
+
+      setFormData({
         ...item,
         // Ensure employeeId is set for the select component
         employeeId: item.employeeId || '',
@@ -1253,8 +1248,12 @@ export default function PayrollSetup() {
     return gross || (basic + hra + lta + allowances + incentives);
   };
 
-  const calculateTotalDeductions = (pf: number, esi: number, pt: number, tds: number, other: number) => {
-    return pf + esi + pt + tds + other;
+  const calculateTdsAmount = (gross: number, tdsPercentage: number) => {
+    return Number(((toNumber(gross) * toNumber(tdsPercentage)) / 100).toFixed(2));
+  };
+
+  const calculateTotalDeductions = (pf: number, esi: number, pt: number, tdsAmount: number, other: number) => {
+    return pf + esi + pt + tdsAmount + other;
   };
 
   const toNumber = (value: any): number => {
@@ -1285,7 +1284,7 @@ export default function PayrollSetup() {
     console.log('formData:', formData);
     console.log('formData.employeeId:', formData.employeeId);
     console.log('formData.employeeName:', formData.employeeName);
-    
+
     if (!formData.employeeId || !formData.employeeName) {
       toast.error("Please select an employee");
       return;
@@ -1302,13 +1301,14 @@ export default function PayrollSetup() {
         recalculatedFormData.allowances || 0,
         recalculatedFormData.incentives || 0
       );
-      
+
       const salaryData = {
         ...recalculatedFormData,
         gross,
         // Transform frontend field names to backend field names
         employee_id: recalculatedFormData.employeeId,
         other_deductions: recalculatedFormData.otherDeductions,
+        tds_percentage: toNumber(recalculatedFormData.tds),
         pf_enabled: Boolean(recalculatedFormData.pfEnabled),
         esi_enabled: Boolean(recalculatedFormData.esiEnabled),
         pf_percentage: toNumber(recalculatedFormData.pfPercentage),
@@ -1382,17 +1382,18 @@ export default function PayrollSetup() {
         setIsSavingStructure(false);
       }
     } else if (activeTab === "processing") {
+      const tdsAmount = calculateTdsAmount(formData.gross || 0, formData.tds || 0);
       const deductions = calculateTotalDeductions(
         formData.pf || 0,
         formData.esi || 0,
         formData.pt || 0,
-        formData.tds || 0,
+        tdsAmount,
         formData.otherDeductions || 0
       );
       const net = (formData.gross || 0) - deductions;
       if (editingId) {
         setPayrollProcessing((prev) =>
-          prev.map((p) => (p.id === editingId ? { ...formData, deductions, net } : p))
+          prev.map((p) => (p.id === editingId ? { ...formData, tdsAmount, deductions, net } : p))
         );
       } else {
         setPayrollProcessing((prev) => [
@@ -1400,6 +1401,7 @@ export default function PayrollSetup() {
           {
             id: `PP${String(prev.length + 1).padStart(3, "0")}`,
             ...formData,
+            tdsAmount,
             deductions,
             net,
             createdAt: new Date().toISOString().split("T")[0],
@@ -1548,17 +1550,61 @@ export default function PayrollSetup() {
   const processImageUrls = (html: string): string => {
     // Convert relative URLs to absolute URLs
     const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
-    
+
     return html.replace(/src="([^"]+)"/g, (match, src) => {
       // If it's already an absolute URL (starts with http or data:), leave it as is
       if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('//')) {
         return match;
       }
-      
+
       // Convert relative URL to absolute URL
       const absoluteSrc = src.startsWith('/') ? baseUrl + src : baseUrl + '/' + src;
       return `src="${absoluteSrc}"`;
     });
+  };
+
+  // CSV Export function for payroll processing
+  const handleExportPayrollToCSV = () => {
+    if (filteredProcessing.length === 0) {
+      toast.error("No payroll data available to export");
+      return;
+    }
+
+    try {
+      // Prepare CSV data
+      const csvData = filteredProcessing.map(process => ({
+        "Employee Name": process.employeeName,
+        "Employee ID": process.employeeId,
+        "Month": process.month,
+        "Payable Days": process.payableDays,
+        "LOP Amount": process.lopAmount || 0,
+        "Gross Salary": process.gross,
+        "TDS": process.tdsAmount || 0,
+        "Deductions": process.deductions,
+        "Net Salary": process.net,
+        "Status": process.status.charAt(0).toUpperCase() + process.status.slice(1),
+        "Reporting Manager": process.reportingManager || ""
+      }));
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(csvData);
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Payroll Processing");
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `Payroll_Processing_${currentDate}.csv`;
+
+      // Write file
+      XLSX.writeFile(wb, fileName);
+
+      toast.success("Payroll data exported successfully");
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      toast.error("Failed to export payroll data");
+    }
   };
 
   return (
@@ -1596,13 +1642,12 @@ export default function PayrollSetup() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full gap-2 bg-muted p-1 ${
-            canViewSalaryStructure && canViewProcessPayroll && canViewPayslips ? 'grid-cols-3' :
+          <TabsList className={`grid w-full gap-2 bg-muted p-1 ${canViewSalaryStructure && canViewProcessPayroll && canViewPayslips ? 'grid-cols-3' :
             (canViewSalaryStructure || canViewProcessPayroll || canViewPayslips) &&
-            ((canViewSalaryStructure && canViewProcessPayroll) ||
-             (canViewSalaryStructure && canViewPayslips) ||
-             (canViewProcessPayroll && canViewPayslips)) ? 'grid-cols-2' : 'grid-cols-1'
-          }`}>
+              ((canViewSalaryStructure && canViewProcessPayroll) ||
+                (canViewSalaryStructure && canViewPayslips) ||
+                (canViewProcessPayroll && canViewPayslips)) ? 'grid-cols-2' : 'grid-cols-1'
+            }`}>
             {canViewSalaryStructure && <TabsTrigger value="structure" className="text-xs md:text-sm">Salary Structure</TabsTrigger>}
             {canViewProcessPayroll && <TabsTrigger value="processing" className="text-xs md:text-sm">Processing</TabsTrigger>}
             {canViewPayslips && <TabsTrigger value="payslips" className="text-xs md:text-sm">Payslips</TabsTrigger>}
@@ -1610,448 +1655,481 @@ export default function PayrollSetup() {
 
           {/* Salary Structure Tab */}
           {canViewSalaryStructure && (
-          <TabsContent value="structure">
-            <Card>
-              <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
-                {/* Header with Add Button */}
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-slate-900">Salary Structures</h2>
-                  <Button
-                    onClick={() => handleOpenDialog()}
-                    className="bg-[#17c491] hover:bg-[#15b381] text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Salary Structure
-                  </Button>
-                </div>
-                
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-4">
-                  {filteredStructures.map((struct) => {
-                    const totalDeductions = struct.pf + struct.esi + struct.pt + struct.tds + struct.otherDeductions;
-                    return (
-                      <div key={struct.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <p className="font-bold text-base text-slate-900">{struct.employeeName}</p>
-                            <p className="text-xs text-slate-600 mt-1">ID: {struct.employeeId}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleOpenDialog(struct)}
-                              className="p-2 hover:bg-blue-200 text-blue-700 rounded transition-colors"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(struct.id)}
-                              className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Basic:</span>
-                            <span className="font-semibold text-slate-900">₹{struct.basic.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">HRA:</span>
-                            <span className="font-semibold text-slate-900">₹{struct.hra.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Allowances:</span>
-                            <span className="font-semibold text-slate-900">₹{struct.allowances.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Incentives:</span>
-                            <span className="font-semibold text-slate-900">₹{struct.incentives.toLocaleString()}</span>
-                          </div>
-                          <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-blue-50 -mx-4 px-4 py-2">
-                            <span className="font-bold text-slate-900">Gross:</span>
-                            <span className="font-bold text-slate-900">₹{struct.gross.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Deductions:</span>
-                            <span className="font-semibold text-slate-900">₹{totalDeductions.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            <TabsContent value="structure">
+              <Card>
+                <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
+                  {/* Header with Add Button */}
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-slate-900">Salary Structures</h2>
+                    <Button
+                      onClick={() => handleOpenDialog()}
+                      className="bg-[#17c491] hover:bg-[#15b381] text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Salary Structure
+                    </Button>
+                  </div>
 
-                {/* Desktop Table View */}
-                <div className="hidden md:block w-full overflow-x-auto border rounded-lg">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-slate-300 bg-slate-100">
-                        <th className="text-left px-6 py-4 font-bold text-slate-900">Employee</th>
-                        <th className="text-right px-4 py-4 font-bold text-slate-900">Basic</th>
-                        <th className="text-right px-4 py-4 font-bold text-slate-900">HRA</th>
-                        <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">Allowances</th>
-                        <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">Incentives</th>
-                        <th className="text-right px-4 py-4 font-bold text-slate-900">Gross</th>
-                        <th className="text-right px-4 py-4 font-bold text-slate-900">Deductions</th>
-                        <th className="text-center px-4 py-4 font-bold text-slate-900">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStructures.map((struct) => {
-                        const totalDeductions = struct.pf + struct.esi + struct.pt + struct.tds + struct.otherDeductions;
-                        return (
-                          <tr key={struct.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-semibold text-slate-900">{struct.employeeName}</td>
-                            <td className="px-4 py-4 text-slate-700 text-right">₹{struct.basic.toLocaleString()}</td>
-                            <td className="px-4 py-4 text-slate-700 text-right">₹{struct.hra.toLocaleString()}</td>
-                            <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">₹{struct.allowances.toLocaleString()}</td>
-                            <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">₹{struct.incentives.toLocaleString()}</td>
-                            <td className="px-4 py-4 text-slate-900 text-right font-bold bg-blue-100">₹{struct.gross.toLocaleString()}</td>
-                            <td className="px-4 py-4 text-slate-900 text-right font-bold bg-orange-100">₹{totalDeductions.toLocaleString()}</td>
-                            <td className="px-4 py-4">
-                              <div className="flex gap-2 justify-center">
-                                <button
-                                  onClick={() => handleOpenDialog(struct)}
-                                  className="p-2 hover:bg-blue-200 text-blue-700 rounded transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(struct.id)}
-                                  className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-4">
+                    {filteredStructures.map((struct) => {
+                      const tdsAmount = calculateTdsAmount(struct.gross, struct.tds);
+                      const totalDeductions = struct.pf + struct.esi + struct.pt + tdsAmount + struct.otherDeductions;
+                      return (
+                        <div key={struct.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <p className="font-bold text-base text-slate-900">{struct.employeeName}</p>
+                              <p className="text-xs text-slate-600 mt-1">ID: {struct.employeeId}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleOpenDialog(struct)}
+                                className="p-2 hover:bg-blue-200 text-blue-700 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(struct.id)}
+                                className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Basic:</span>
+                              <span className="font-semibold text-slate-900">₹{struct.basic.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">HRA:</span>
+                              <span className="font-semibold text-slate-900">₹{struct.hra.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Allowances:</span>
+                              <span className="font-semibold text-slate-900">₹{struct.allowances.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Incentives:</span>
+                              <span className="font-semibold text-slate-900">₹{struct.incentives.toLocaleString()}</span>
+                            </div>
+                            <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-blue-50 -mx-4 px-4 py-2">
+                              <span className="font-bold text-slate-900">Gross:</span>
+                              <span className="font-bold text-slate-900">₹{struct.gross.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Deductions:</span>
+                              <span className="font-semibold text-slate-900">₹{totalDeductions.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">TDS:</span>
+                              <span className="font-semibold text-slate-900">₹{tdsAmount.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block w-full overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-slate-300 bg-slate-100">
+                          <th className="text-left px-6 py-4 font-bold text-slate-900">Employee</th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">Basic</th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">HRA</th>
+                          <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">Allowances</th>
+                          <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">Incentives</th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">Gross</th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">TDS</th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">Deductions</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredStructures.map((struct) => {
+                          const tdsAmount = calculateTdsAmount(struct.gross, struct.tds);
+                          const totalDeductions = struct.pf + struct.esi + struct.pt + tdsAmount + struct.otherDeductions;
+                          return (
+                            <tr key={struct.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 font-semibold text-slate-900">{struct.employeeName}</td>
+                              <td className="px-4 py-4 text-slate-700 text-right">₹{struct.basic.toLocaleString()}</td>
+                              <td className="px-4 py-4 text-slate-700 text-right">₹{struct.hra.toLocaleString()}</td>
+                              <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">₹{struct.allowances.toLocaleString()}</td>
+                              <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">₹{struct.incentives.toLocaleString()}</td>
+                              <td className="px-4 py-4 text-slate-900 text-right font-bold bg-blue-100">₹{struct.gross.toLocaleString()}</td>
+                              <td className="px-4 py-4 text-slate-700 text-right">₹{tdsAmount.toLocaleString()}</td>
+                              <td className="px-4 py-4 text-slate-900 text-right font-bold bg-orange-100">₹{totalDeductions.toLocaleString()}</td>
+                              <td className="px-4 py-4">
+                                <div className="flex gap-2 justify-center">
+                                  <button
+                                    onClick={() => handleOpenDialog(struct)}
+                                    className="p-2 hover:bg-blue-200 text-blue-700 rounded transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(struct.id)}
+                                    className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
           )}
 
           {/* Processing Tab */}
           {canViewProcessPayroll && (
-          <TabsContent value="processing">
-            <Card>
-              <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
-                {/* Process Payroll Form */}
-                <div className="mb-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
-                  <h3 className="text-lg font-semibold mb-4 text-slate-900">Process Payroll</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="employee-select">Employee(s) *</Label>
-                      <Select
-                        value={formData.employeeId || ""}
-                        onValueChange={(employeeId) => {
-                          console.log('Employee selected:', employeeId);
-                          setFormData({ ...formData, employeeId });
-                        }}
-                      >
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Select employee..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">All employees</SelectItem>
-                          {processableEmployees.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id.toString()}>
-                              {emp.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-slate-500 mt-2">
-                        {/* {processableEmployees.length
+            <TabsContent value="processing">
+              <Card>
+                <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
+                  {/* Process Payroll Form */}
+                  <div className="mb-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <h3 className="text-lg font-semibold mb-4 text-slate-900">Process Payroll</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="employee-select">Employee(s) *</Label>
+                        <Select
+                          value={formData.employeeId || ""}
+                          onValueChange={(employeeId) => {
+                            console.log('Employee selected:', employeeId);
+                            setFormData({ ...formData, employeeId });
+                          }}
+                        >
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Select employee..." />
+                          </SelectTrigger>
+                          <SelectContent
+                            className="max-h-60"
+                            showScrollButtons={false}
+                            viewportClassName="h-auto max-h-52 overflow-y-scroll pr-2 [scrollbar-color:#64748b_#f1f5f9] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500"
+                          >
+                            <SelectItem value="__all__">All employees</SelectItem>
+                            {processableEmployees.map((emp) => (
+                              <SelectItem key={emp.id} value={emp.id.toString()}>
+                                {emp.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-slate-500 mt-2">
+                          {/* {processableEmployees.length
                           ? ` Selectd Employess ${processableEmployees.length}`
                           : ""} */}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="month-input">Month *</Label>
-                      <Input
-                        id="month-input"
-                        type="month"
-                        value={formData.month || ""}
-                        onChange={(e) => {
-                          console.log('Month selected:', e.target.value);
-                          setFormData({ ...formData, month: e.target.value });
-                        }}
-                        className="mt-2"
-                        placeholder="YYYY-MM"
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button 
-                        onClick={handleProcessPayroll}
-                        className="w-full gap-2 h-10"
-                        disabled={
-                          !formData.employeeId ||
-                          !formData.month ||
-                          loading ||
-                          (formData.employeeId === "__all__" && processableEmployees.length === 0) ||
-                          (formData.employeeId !== "__all__" &&
-                            isPayrollProcessed(formData.employeeId, formData.month))
-                        }
-                      >
-                        <Plus className="w-4 h-4" />
-                        {loading ? "Sending..." : formData.employeeId === "__all__" ? "Process All Payroll" : "Process Payroll"}
-                      </Button>
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="month-input">Month *</Label>
+                        <Input
+                          id="month-input"
+                          type="month"
+                          value={formData.month || ""}
+                          onChange={(e) => {
+                            console.log('Month selected:', e.target.value);
+                            setFormData({ ...formData, month: e.target.value });
+                          }}
+                          className="mt-2"
+                          placeholder="YYYY-MM"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          onClick={handleProcessPayroll}
+                          className="w-full gap-2 h-10"
+                          disabled={
+                            !formData.employeeId ||
+                            !formData.month ||
+                            loading ||
+                            (formData.employeeId === "__all__" && processableEmployees.length === 0)
+                          }
+                        >
+                          <Plus className="w-4 h-4" />
+                          {loading
+                            ? "Sending..."
+                            : formData.employeeId === "__all__"
+                              ? "Process All Payroll"
+                              : isPayrollProcessed(formData.employeeId, formData.month)
+                                ? "Reprocess Payroll"
+                                : "Process Payroll"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-4">
-                  {filteredProcessing.map((process) => {
-                    return (
-                      <div key={process.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <p className="font-bold text-base text-slate-900">{process.employeeName}</p>
-                            <p className="text-xs text-slate-600 mt-1">{process.month}</p>
+                  {/* Export Section */}
+                  {filteredProcessing.length > 0 && (
+                    <div className="mb-6 flex justify-end">
+                      <Button
+                        onClick={handleExportPayrollToCSV}
+                        className="gap-2 bg-green-600 hover:bg-green-700"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export to CSV
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-4">
+                    {filteredProcessing.map((process) => {
+                      return (
+                        <div key={process.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <p className="font-bold text-base text-slate-900">{process.employeeName}</p>
+                              <p className="text-xs text-slate-600 mt-1">{process.month}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleOpenDialog(process)}
+                                className="p-2 hover:bg-blue-200 text-blue-700 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(process.id)}
+                                className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleOpenDialog(process)}
-                              className="p-2 hover:bg-blue-200 text-blue-700 rounded transition-colors"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(process.id)}
-                              className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Payable Days:</span>
-                            <span className="font-semibold text-slate-900">{process.payableDays}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">LOP Amount:</span>
-                            <span className={`font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Gross:</span>
-                            <span className="font-semibold text-slate-900">₹{process.gross.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Deductions:</span>
-                            <span className="font-semibold text-slate-900">₹{process.deductions.toLocaleString()}</span>
-                          </div>
-                          <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-green-50 -mx-4 px-4 py-2">
-                            <span className="font-bold text-slate-900">Net:</span>
-                            <span className="font-bold text-slate-900">₹{process.net.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Status:</span>
-                            <span
-                              className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                                process.status === "paid"
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Payable Days:</span>
+                              <span className="font-semibold text-slate-900">{process.payableDays}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">LOP Amount:</span>
+                              <span className={`font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Gross:</span>
+                              <span className="font-semibold text-slate-900">₹{process.gross.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">TDS:</span>
+                              <span className="font-semibold text-slate-900">₹{(process.tdsAmount || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Deductions:</span>
+                              <span className="font-semibold text-slate-900">₹{process.deductions.toLocaleString()}</span>
+                            </div>
+                            <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-green-50 -mx-4 px-4 py-2">
+                              <span className="font-bold text-slate-900">Net:</span>
+                              <span className="font-bold text-slate-900">₹{process.net.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Status:</span>
+                              <span
+                                className={`text-xs font-semibold px-3 py-1 rounded-full ${process.status === "paid"
                                   ? "bg-green-100 text-green-800"
                                   : process.status === "final"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {process.status.charAt(0).toUpperCase() + process.status.slice(1)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden md:block w-full overflow-x-auto border rounded-lg">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-slate-300 bg-slate-100">
-                        <th className="text-left px-6 py-4 font-bold text-slate-900">Employee</th>
-                        <th className="text-center px-4 py-4 font-bold text-slate-900">Month</th>
-                        <th className="text-center px-4 py-4 font-bold text-slate-900">Days</th>
-                        <th className="text-right px-6 py-4 font-bold text-slate-900">LOP Amt</th>
-                        <th className="text-right px-6 py-4 font-bold text-slate-900">Gross</th>
-                        <th className="text-right px-6 py-4 font-bold text-slate-900">Deductions</th>
-                        <th className="text-right px-6 py-4 font-bold text-slate-900">Net</th>
-                        <th className="text-center px-4 py-4 font-bold text-slate-900">Status</th>
-                        <th className="text-center px-4 py-4 font-bold text-slate-900">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProcessing.map((process) => {
-                        return (
-                          <tr key={process.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-semibold text-slate-900">{process.employeeName}</td>
-                            <td className="px-4 py-4 text-slate-700 text-center">{process.month}</td>
-                            <td className="px-4 py-4 text-slate-700 text-center font-medium">{process.payableDays}</td>
-                            <td className={`px-6 py-4 text-right font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</td>
-                            <td className="px-6 py-4 text-slate-700 text-right">₹{process.gross.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-slate-700 text-right">₹{process.deductions.toLocaleString()}</td>
-                            <td className="px-6 py-4 text-slate-900 text-right font-bold bg-green-100">₹{process.net.toLocaleString()}</td>
-                            <td className="px-4 py-4 text-center">
-                              <span
-                                className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
-                                  process.status === "paid"
-                                    ? "bg-green-100 text-green-800"
-                                    : process.status === "final"
                                     ? "bg-blue-100 text-blue-800"
                                     : "bg-yellow-100 text-yellow-800"
-                                }`}
+                                  }`}
                               >
                                 {process.status.charAt(0).toUpperCase() + process.status.slice(1)}
                               </span>
-                            </td>
-                            <td className="px-4 py-4">
-                              <div className="flex gap-2 justify-center">
-                                <button
-                                  onClick={() => handleDelete(process.id)}
-                                  className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
-                                  title="Delete"
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block w-full overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-slate-300 bg-slate-100">
+                          <th className="text-left px-6 py-4 font-bold text-slate-900">Employee</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900">Month</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900">Payable Days</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900">LOP Amt</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900">Gross</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900">TDS</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900">Deductions</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900">Net</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900">Status</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProcessing.map((process) => {
+                          return (
+                            <tr key={process.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 font-semibold text-slate-900">{process.employeeName}</td>
+                              <td className="px-4 py-4 text-slate-700 text-center">{process.month}</td>
+                              <td className="px-4 py-4 text-slate-700 text-center font-medium">{process.payableDays}</td>
+                              <td className={`px-6 py-4 text-right font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</td>
+                              <td className="px-6 py-4 text-slate-700 text-right">₹{process.gross.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-700 text-right">₹{(process.tdsAmount || 0).toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-700 text-right">₹{process.deductions.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-900 text-right font-bold bg-green-100">₹{process.net.toLocaleString()}</td>
+                              <td className="px-4 py-4 text-center">
+                                <span
+                                  className={`text-xs font-semibold px-3 py-1.5 rounded-full ${process.status === "paid"
+                                    ? "bg-green-100 text-green-800"
+                                    : process.status === "final"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                    }`}
                                 >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                                  {process.status.charAt(0).toUpperCase() + process.status.slice(1)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="flex gap-2 justify-center">
+                                  <button
+                                    onClick={() => handleDelete(process.id)}
+                                    className="p-2 hover:bg-red-200 text-red-700 rounded transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
           )}
 
           {/* Payslips Tab */}
           {canViewPayslips && (
-          <TabsContent value="payslips">
-            <Card>
-              <CardContent className="pt-6">
-                {filteredPayslips.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-600 mb-2">No Payslips Found</h3>
-                    <p className="text-gray-500">
-                      {payslips.length === 0 
-                        ? "No payslips have been generated yet. Process payroll to create payslips."
-                        : "No payslips match your current filters or search criteria."
-                      }
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {filteredPayslips.map((payslip) => (
-                    <div key={payslip.id} className="border border-border rounded-lg p-6 hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <p className="font-bold text-lg text-slate-900">{payslip.employeeName}</p>
-                          <p className="text-sm text-slate-600 mt-1">Payslip #{payslip.number}</p>
-                        </div>
-                        <span className="text-sm font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-md whitespace-nowrap">
-                          {payslip.month}
-                        </span>
-                      </div>
-                      <div className="space-y-3 mb-4 pt-3 border-t border-border">
-                        <div className="flex justify-between items-center">
-                          <p className="text-sm text-slate-600">Generated On:</p>
-                          <p className="text-sm font-medium text-slate-900">{payslip.generatedOn}</p>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <p className="text-sm text-slate-600">Employee ID:</p>
-                          <p className="text-sm font-medium text-slate-900">{payslip.employeeCode || payslip.employeeId}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <button
-                          onClick={async () => {
-                            try {
-                              const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
-                              if (result.data) {
-                                setPayslipPreviewHtml(result.data);
-                                setIsViewPayslipOpen(true);
-                              } else if (result.error) {
-                                toast.error(result.error);
-                              }
-                            } catch (error) {
-                              console.error('Error fetching payslip preview:', error);
-                              toast.error('Failed to load payslip preview');
-                            }
-                          }}
-                          className="w-full inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
-                        >
-                          <FileText className="w-4 h-4" />
-                          View Payslip
-                        </button>
-                        {payslip.pdfUrl ? (
-                          <a
-                            href={payslip.pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
-                          >
-                            <Download className="w-4 h-4" />
-                            Download PDF
-                          </a>
-                        ) : (
-                          <button
-                            onClick={async () => {
-                              try {
-                                const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
-                                if (result.data) {
-                                  setPayslipPreviewHtml(result.data);
-                                  // Trigger download directly
-                                  setTimeout(() => {
-                                    handleDownloadPayslip();
-                                  }, 100);
-                                } else if (result.error) {
-                                  toast.error(result.error);
-                                }
-                              } catch (error) {
-                                console.error('Error downloading payslip:', error);
-                                toast.error('Failed to download payslip');
-                              }
-                            }}
-                            className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
-                          >
-                            <Download className="w-4 h-4" />
-                            Download PDF
-                          </button>
-                        )}
-                        {canDeletePayslips && (
-                          <button
-                            onClick={() => handleDelete(payslip.id)}
-                            className="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm border border-red-200"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete Payslip
-                          </button>
-                        )}
-                      </div>
+            <TabsContent value="payslips">
+              <Card>
+                <CardContent className="pt-6">
+                  {filteredPayslips.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-600 mb-2">No Payslips Found</h3>
+                      <p className="text-gray-500">
+                        {payslips.length === 0
+                          ? "No payslips have been generated yet. Process payroll to create payslips."
+                          : "No payslips match your current filters or search criteria."
+                        }
+                      </p>
                     </div>
-                  ))}
-                </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {filteredPayslips.map((payslip) => (
+                        <div key={payslip.id} className="border border-border rounded-lg p-6 hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <p className="font-bold text-lg text-slate-900">{payslip.employeeName}</p>
+                              <p className="text-sm text-slate-600 mt-1">Payslip #{payslip.number}</p>
+                            </div>
+                            <span className="text-sm font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-md whitespace-nowrap">
+                              {payslip.month}
+                            </span>
+                          </div>
+                          <div className="space-y-3 mb-4 pt-3 border-t border-border">
+                            <div className="flex justify-between items-center">
+                              <p className="text-sm text-slate-600">Generated On:</p>
+                              <p className="text-sm font-medium text-slate-900">{payslip.generatedOn}</p>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <p className="text-sm text-slate-600">Employee ID:</p>
+                              <p className="text-sm font-medium text-slate-900">{payslip.employeeCode || payslip.employeeId}</p>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
+                                  if (result.data) {
+                                    setPayslipPreviewHtml(result.data);
+                                    setIsViewPayslipOpen(true);
+                                  } else if (result.error) {
+                                    toast.error(result.error);
+                                  }
+                                } catch (error) {
+                                  console.error('Error fetching payslip preview:', error);
+                                  toast.error('Failed to load payslip preview');
+                                }
+                              }}
+                              className="w-full inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                            >
+                              <FileText className="w-4 h-4" />
+                              View Payslip
+                            </button>
+                            {payslip.pdfUrl ? (
+                              <a
+                                href={payslip.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download PDF
+                              </a>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
+                                    if (result.data) {
+                                      setPayslipPreviewHtml(result.data);
+                                      // Trigger download directly
+                                      setTimeout(() => {
+                                        handleDownloadPayslip();
+                                      }, 100);
+                                    } else if (result.error) {
+                                      toast.error(result.error);
+                                    }
+                                  } catch (error) {
+                                    console.error('Error downloading payslip:', error);
+                                    toast.error('Failed to download payslip');
+                                  }
+                                }}
+                                className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download PDF
+                              </button>
+                            )}
+                            {canDeletePayslips && (
+                              <button
+                                onClick={() => handleDelete(payslip.id)}
+                                className="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm border border-red-200"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete Payslip
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
           )}
         </Tabs>
       </div>
@@ -2068,8 +2146,8 @@ export default function PayrollSetup() {
           <div className="space-y-4">
             {activeTab === "structure" && (
               <>
-              
-<div>
+
+                <div>
                   <Label>Employee *</Label>
                   {editingId ? (
                     // Show as read-only input when editing
@@ -2282,11 +2360,12 @@ export default function PayrollSetup() {
                       />
                     </div>
                     <div>
-                      <Label>TDS</Label>
+                      <Label>TDS %</Label>
                       <Input
                         value={formData.tds || ""}
                         onChange={(e) => setFormData({ ...formData, tds: parseFloat(e.target.value) || 0 })}
                         type="number"
+                        placeholder="TDS %"
                         className="mt-2"
                       />
                     </div>
@@ -2414,7 +2493,7 @@ export default function PayrollSetup() {
 
             {activeTab === "payslips" && (
               <>
-                                <div>
+                <div>
                   <Label>Employee</Label>
                   <div className="mt-2 p-2 border rounded-md bg-gray-50">
                     {formData.employeeName ? (
@@ -2504,7 +2583,7 @@ export default function PayrollSetup() {
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
             <DialogTitle className="text-xl font-bold">Payslip Preview</DialogTitle>
             <div className="flex gap-2">
-              <Button 
+              <Button
                 onClick={handleDownloadPayslip}
                 className="bg-primary hover:bg-primary/90 text-white"
               >
@@ -2518,7 +2597,7 @@ export default function PayrollSetup() {
           </div>
           <div className="p-6">
             {payslipPreviewHtml && (
-              <div 
+              <div
                 dangerouslySetInnerHTML={{ __html: `${payslipStyles}${processImageUrls(payslipPreviewHtml)}` }}
                 className="w-full h-full"
               />

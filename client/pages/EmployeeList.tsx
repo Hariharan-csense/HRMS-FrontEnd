@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { employeeApi } from "@/components/helper/employee/employee";
 import { roleApi } from "@/components/helper/roles/roles";
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts";
+import { departmentApi, Department } from "@/components/helper/department/department";
+import { designationApi, Designation } from "@/components/helper/designation/designation";
 import { showToast } from "@/utils/toast";
 import {
   Dialog,
@@ -381,9 +383,8 @@ const FastDateInput = ({
               <button
                 key={year}
                 type="button"
-                className={`block w-full border-b px-3 py-2 text-left text-sm hover:bg-white ${
-                  year === selectedYear ? "bg-primary text-primary-foreground hover:bg-primary" : ""
-                }`}
+                className={`block w-full border-b px-3 py-2 text-left text-sm hover:bg-white ${year === selectedYear ? "bg-primary text-primary-foreground hover:bg-primary" : ""
+                  }`}
                 onClick={() => setDate(year, selectedMonth, clamp(selectedDay, 1, getDaysInMonth(year, selectedMonth)))}
               >
                 {year}
@@ -472,6 +473,13 @@ export default function EmployeeList() {
     checking: boolean;
     error: string | null;
   }>({ checking: false, error: null });
+
+  // Add-on dialog states
+  const [isAddOnDialogOpen, setIsAddOnDialogOpen] = useState(false);
+  const [addOnType, setAddOnType] = useState<"department" | "designation" | "role">("department");
+  const [addOnFormData, setAddOnFormData] = useState<{ name: string; costCenter?: string; headId?: string }>({ name: "" });
+  const [addOnSaving, setAddOnSaving] = useState(false);
+
   const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -548,10 +556,121 @@ export default function EmployeeList() {
     }
   };
 
-  // Load shifts on component mount
+  // Load departments, designations, and roles on component mount
   useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const result = await departmentApi.getdepartment();
+        if (result.data) {
+          setDepartments(result.data);
+        }
+      } catch (error) {
+        console.error("Error loading departments:", error);
+      }
+    };
+
+    const loadDesignations = async () => {
+      try {
+        const result = await designationApi.getDesignations();
+        if (result.data) {
+          setDesignations(result.data);
+        }
+      } catch (error) {
+        console.error("Error loading designations:", error);
+      }
+    };
+
+    const loadRoles = async () => {
+      try {
+        const result = await roleApi.getRoles();
+        if (result.data) {
+          setRoles(result.data.map(role => role.name));
+        }
+      } catch (error) {
+        console.error("Error loading roles:", error);
+      }
+    };
+
+    loadDepartments();
+    loadDesignations();
+    loadRoles();
     loadShifts();
   }, []);
+
+  // Add-on dialog handlers
+  const handleOpenAddOnDialog = (type: "department" | "designation" | "role") => {
+    setAddOnType(type);
+    setAddOnFormData({ name: "" });
+    setIsAddOnDialogOpen(true);
+  };
+
+  const handleCloseAddOnDialog = () => {
+    setIsAddOnDialogOpen(false);
+    setAddOnFormData({ name: "" });
+  };
+
+  const handleSaveAddOn = async () => {
+    if (!addOnFormData.name.trim()) {
+      showToast.error("Name is required");
+      return;
+    }
+
+    setAddOnSaving(true);
+    try {
+      let result;
+      if (addOnType === "department") {
+        result = await departmentApi.createDepartment({
+          name: addOnFormData.name,
+          costCenter: addOnFormData.costCenter || "",
+          headId: addOnFormData.headId
+        });
+        if (result.data) {
+          const deptResult = await departmentApi.getdepartment();
+          if (deptResult.data) {
+            setDepartments(deptResult.data);
+          }
+          showToast.success("Department created successfully");
+        }
+      } else if (addOnType === "designation") {
+        result = await designationApi.createDesignation({
+          name: addOnFormData.name
+        });
+        if (result.data) {
+          const desResult = await designationApi.getDesignations();
+          if (desResult.data) {
+            setDesignations(desResult.data);
+          }
+          showToast.success("Designation created successfully");
+        }
+      } else if (addOnType === "role") {
+        result = await roleApi.createRole({
+          name: addOnFormData.name,
+          modules: {},
+          approval_authority: "",
+          data_visibility: "",
+          description: ""
+        });
+        if (result.data) {
+          const roleResult = await roleApi.getRoles();
+          if (roleResult.data) {
+            setRoles(roleResult.data.map(role => role.name));
+          }
+          showToast.success("Role created successfully");
+        }
+      }
+
+      if (result.error) {
+        showToast.error(result.error);
+      }
+
+      handleCloseAddOnDialog();
+    } catch (error) {
+      console.error("Error creating add-on:", error);
+      showToast.error("Failed to create");
+    } finally {
+      setAddOnSaving(false);
+    }
+  };
 
   // Debug: Log shift-related data
   useEffect(() => {
@@ -671,8 +790,9 @@ export default function EmployeeList() {
       });
 
     } else {
-      // create mode – already correct
+      // create mode – reset to personal tab
       setEditingId(null);
+      setActiveTab("personal");
       setNewEmployeeId(`EMP${String(employees.length + 1).padStart(3, "0")}`);
       setFormData(initialFormData);
       setUploadedFiles({});
@@ -2437,7 +2557,7 @@ export default function EmployeeList() {
             <TabsContent value="employment" className="space-y-3 sm:space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                  <Label htmlFor="dateOfJoining">Date of Joining *</Label>
                   <Input
                     id="dateOfJoining"
                     type="date"
@@ -2513,81 +2633,117 @@ export default function EmployeeList() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="department">Department</Label>
-                  <Select
-                    value={formData.departmentId}
-                    onValueChange={(val) => handleFormChange("departmentId", val)}
-                  >
-                    <SelectTrigger id="department" className="mt-2">
-                      <SelectValue placeholder="Select Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments && departments.length > 0 ? (
-                        departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <p className="px-4 py-2 text-sm text-muted-foreground">
-                          No departments available
-                        </p>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 mt-2">
+                    <Select
+                      value={formData.departmentId}
+                      onValueChange={(val) => handleFormChange("departmentId", val)}
+                    >
+                      <SelectTrigger id="department" className="flex-1">
+                        <SelectValue placeholder="Select Department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments && departments.length > 0 ? (
+                          departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <p className="px-4 py-2 text-sm text-muted-foreground">
+                            No departments available
+                          </p>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenAddOnDialog("department")}
+                      className="px-3"
+                      title="Add New Department"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
                   <Label htmlFor="designation">Designation</Label>
-                  <Select
-                    value={formData.designationId}
-                    onValueChange={(val) => handleFormChange("designationId", val)}
-                  >
-                    <SelectTrigger id="designation" className="mt-2">
-                      <SelectValue placeholder="Select Designation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {designations && designations.length > 0 ? (
-                        designations.map((des) => (
-                          <SelectItem key={des.id} value={des.id}>
-                            {des.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <p className="px-4 py-2 text-sm text-muted-foreground">
-                          No designations available
-                        </p>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 mt-2">
+                    <Select
+                      value={formData.designationId}
+                      onValueChange={(val) => handleFormChange("designationId", val)}
+                    >
+                      <SelectTrigger id="designation" className="flex-1">
+                        <SelectValue placeholder="Select Designation" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {designations && designations.length > 0 ? (
+                          designations.map((des) => (
+                            <SelectItem key={des.id} value={des.id}>
+                              {des.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <p className="px-4 py-2 text-sm text-muted-foreground">
+                            No designations available
+                          </p>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenAddOnDialog("designation")}
+                      className="px-3"
+                      title="Add New Designation"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={formData.role || ""}
-                    onValueChange={(val) => handleFormChange("role", val)}
-                  >
-                    <SelectTrigger id="role" className="mt-2">
-                      <SelectValue placeholder="Select Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.role && !roles.includes(formData.role) && (
-                        <SelectItem value={formData.role}>{formData.role}</SelectItem>
-                      )}
-                      {roles.length > 0 ? (
-                        roles.map((roleName) => (
-                          <SelectItem key={roleName} value={roleName}>
-                            {roleName}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <p className="px-4 py-2 text-sm text-muted-foreground">
-                          No roles available
-                        </p>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 mt-2">
+                    <Select
+                      value={formData.role || ""}
+                      onValueChange={(val) => handleFormChange("role", val)}
+                    >
+                      <SelectTrigger id="role" className="flex-1">
+                        <SelectValue placeholder="Select Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.role && !roles.includes(formData.role) && (
+                          <SelectItem value={formData.role}>{formData.role}</SelectItem>
+                        )}
+                        {roles.length > 0 ? (
+                          roles.map((roleName) => (
+                            <SelectItem key={roleName} value={roleName}>
+                              {roleName}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <p className="px-4 py-2 text-sm text-muted-foreground">
+                            No roles available
+                          </p>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenAddOnDialog("role")}
+                      className="px-3"
+                      title="Add New Role"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="location">Location/Office</Label>
@@ -2892,6 +3048,94 @@ export default function EmployeeList() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add On Dialog */}
+      <Dialog open={isAddOnDialogOpen} onOpenChange={setIsAddOnDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Add New {addOnType === "department" ? "Department" : addOnType === "designation" ? "Designation" : "Role"}
+            </DialogTitle>
+            <DialogDescription>
+              Create a new {addOnType} for the organization.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="addOnName">
+                {addOnType === "department" ? "Department" : addOnType === "designation" ? "Designation" : "Role"} Name *
+              </Label>
+              <Input
+                id="addOnName"
+                value={addOnFormData.name}
+                onChange={(e) => setAddOnFormData({ ...addOnFormData, name: e.target.value })}
+                placeholder={`Enter ${addOnType} name`}
+                className="mt-2"
+              />
+            </div>
+
+            {addOnType === "department" && (
+              <>
+                <div>
+                  <Label htmlFor="costCenter">Cost Center</Label>
+                  <Input
+                    id="costCenter"
+                    value={addOnFormData.costCenter || ""}
+                    onChange={(e) => setAddOnFormData({ ...addOnFormData, costCenter: e.target.value })}
+                    placeholder="Enter cost center (optional)"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="headId">Department Head</Label>
+                  <Select
+                    value={addOnFormData.headId || ""}
+                    onValueChange={(val) => setAddOnFormData({ ...addOnFormData, headId: val })}
+                  >
+                    <SelectTrigger id="headId" className="mt-2">
+                      <SelectValue placeholder="Select department head (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees && employees.length > 0 ? (
+                        employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.firstName} {emp.lastName}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <p className="px-4 py-2 text-sm text-muted-foreground">
+                          No employees available
+                        </p>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={handleCloseAddOnDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAddOn}
+              disabled={addOnSaving || !addOnFormData.name.trim()}
+            >
+              {addOnSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                `Create ${addOnType === "department" ? "Department" : addOnType === "designation" ? "Designation" : "Role"}`
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

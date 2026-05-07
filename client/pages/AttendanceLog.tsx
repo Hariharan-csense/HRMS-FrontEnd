@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, AlertTriangle, CheckCircle2, Clock, Timer, ChevronLeft, ChevronRight, ChevronDown, RotateCcw } from "lucide-react";
+import { Search, Download, AlertTriangle, CheckCircle2, Clock, Timer, ChevronLeft, ChevronRight, ChevronDown, RotateCcw, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"
 import { holidayApi, Holiday, leaveTypeApi, type LeaveApplication, type LeaveType } from "@/components/helper/leave/leave"
@@ -530,6 +530,7 @@ export default function AttendanceLog() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
   const [calendarLeaveEntries, setCalendarLeaveEntries] = useState<CalendarLeaveEntry[]>([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const getEmployeeCode = (employee: any): string => {
     const directCode =
@@ -948,12 +949,28 @@ export default function AttendanceLog() {
           // Extract date from check_in, fallback to created_at
           const getDate = (isoString: string | null, fallbackString?: string | null) => {
             if (isoString) {
+              // If already in YYYY-MM-DD format, return as-is
+              if (/^\d{4}-\d{2}-\d{2}/.test(isoString)) {
+                return isoString.split('T')[0].split(' ')[0]; // Extract YYYY-MM-DD part
+              }
+              // Otherwise format the date without timezone conversion
               const d = new Date(isoString);
-              return d.toISOString().split("T")[0]; // YYYY-MM-DD
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
             }
             if (fallbackString) {
+              // If already in YYYY-MM-DD format, return as-is
+              if (/^\d{4}-\d{2}-\d{2}/.test(fallbackString)) {
+                return fallbackString.split('T')[0].split(' ')[0]; // Extract YYYY-MM-DD part
+              }
+              // Otherwise format the date without timezone conversion
               const d = new Date(fallbackString);
-              return d.toISOString().split("T")[0]; // YYYY-MM-DD
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
             }
             return null;
           };
@@ -987,7 +1004,10 @@ export default function AttendanceLog() {
           // Determine actual attendance status using shift-based calculation
           // IMPORTANT: Do not overwrite backend status='late' with frontend calculation.
           // Only allow upgrading present -> late for UI convenience.
-          let actualStatus = item.status;
+          let actualStatus = String(item.status || "").toLowerCase();
+          if (actualStatus === "half_day" || actualStatus === "half-day") {
+            actualStatus = "half";
+          }
           let calculatedLateBy = "";
 
           // If there's a check-in time, calculate lateBy and (optionally) upgrade present -> late
@@ -1027,7 +1047,7 @@ export default function AttendanceLog() {
             id: item.id.toString(),
             employeeId: getEmployeeCode(item),
             employeeName: `${item.first_name} ${item.last_name || ""}`.trim(),
-            date: getDate(item.check_in, item.created_at) || "",
+            date: item.attendance_date || getDate(item.check_in, item.created_at) || "",
             inTime: formatTime(item.check_in),
             outTime: formatTime(item.check_out),
             status: actualStatus,
@@ -1045,7 +1065,7 @@ export default function AttendanceLog() {
             inConfidence: undefined,
             outConfidence: undefined,
             reportingManager: undefined,
-            type: (item.status === "half" ? "half" : item.status === "absent" ? "absent" : item.status === "unmarked" ? "unmarked" : "full") as "full" | "half" | "absent" | "present" | "unmarked",
+            type: (actualStatus === "half" ? "half" : actualStatus === "absent" ? "absent" : actualStatus === "unmarked" ? "unmarked" : "full") as "full" | "half" | "absent" | "present" | "unmarked",
             lateBy: calculatedLateBy,
             // Also store the original employee_id for matching
             originalEmployeeId: item.employee_id,
@@ -1065,21 +1085,23 @@ export default function AttendanceLog() {
       ]);
 
       if (leaveApplicationsResult.status === "fulfilled" && Array.isArray(leaveApplicationsResult.value.data)) {
-        leaveApplicationsResult.value.data.forEach((application: LeaveApplication) => {
+        leaveApplicationsResult.value.data.forEach((application: any) => {
           if (application.status !== "approved") return;
 
-          const fromDate = normalizeDateOnly(application.fromDate);
-          const toDate = normalizeDateOnly(application.toDate);
+          const fromDate = normalizeDateOnly(application.from_date || application.fromDate);
+          const toDate = normalizeDateOnly(application.to_date || application.toDate);
           if (!fromDate || !toDate) return;
           if (toDate < startDate || fromDate > endDate) return;
 
+          const leaveTypeName = application.leave_type_name || application.leave_type || application.leaveType || "Unknown Leave Type";
+
           leaveEntries.push({
             id: `leave-app-${application.id}`,
-            employeeId: String(application.employeeId || ""),
-            employeeName: application.employeeName,
+            employeeId: String(application.employee_id || application.employeeId || ""),
+            employeeName: application.employee_name || application.employeeName,
             fromDate,
             toDate,
-            leaveTypeName: application.leaveType,
+            leaveTypeName: leaveTypeName,
             reason: application.reason,
             status: application.status,
             leaveMode: Number(application.days || 0) <= 0.5 ? "half" : "paid",
@@ -1147,6 +1169,23 @@ export default function AttendanceLog() {
     fetchShifts();
   }, []);
 
+  // Scroll to top functionality
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   // Shift-based attendance calculation
   const calculateAttendanceStatus = (checkInTime: string, shiftId: string, date: string): {
     status: "present" | "absent" | "half" | "late";
@@ -1210,7 +1249,13 @@ export default function AttendanceLog() {
     const text = String(value);
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
     const parsed = new Date(text);
-    return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().split("T")[0];
+    if (Number.isNaN(parsed.getTime())) return "";
+
+    // Format date without timezone conversion
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const isDateInRange = (date: string, from: string, to: string) => {
@@ -2631,6 +2676,17 @@ export default function AttendanceLog() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110"
+          aria-label="Scroll to top"
+        >
+          <ChevronUp className="w-5 h-5" />
+        </button>
+      )}
     </Layout>
   );
 }

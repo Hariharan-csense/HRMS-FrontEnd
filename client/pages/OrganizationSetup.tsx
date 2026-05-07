@@ -30,6 +30,8 @@ const mockCompany: Company = {
   industry: "Information Technology",
   address: "123 Tech Park, Bangalore, India",
   payrollCycle: "Monthly",
+  payrollStartDay: 1,
+  payrollEndDay: 31,
   timezone: "IST",
   createdAt: "2024-01-01",
 };
@@ -702,6 +704,12 @@ export default function OrganizationSetup() {
                       <div className="bg-[#17c491]/10 rounded-lg p-4">
                         <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Timezone</Label>
                         <p className="text-sm font-semibold text-[#0b6f53]">{company?.timezone}</p>
+                      </div>
+                      <div className="bg-[#17c491]/10 rounded-lg p-4 sm:col-span-2">
+                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Salary Calculation Period</Label>
+                        <p className="text-sm font-semibold text-[#0b6f53]">
+                          Day {company?.payrollStartDay || 1} to Day {company?.payrollEndDay || 31}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -1390,6 +1398,30 @@ export default function OrganizationSetup() {
                         <SelectItem value="EST">EST (US)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Salary Calculation From *</Label>
+                    <Input
+                      value={formData.payrollStartDay || ""}
+                      onChange={(e) => setFormData({ ...formData, payrollStartDay: parseInt(e.target.value, 10) || 1 })}
+                      type="number"
+                      min={1}
+                      max={31}
+                      className="mt-2"
+                    />
+                  </div>
+                  <div>
+                    <Label>Salary Calculation To *</Label>
+                    <Input
+                      value={formData.payrollEndDay || ""}
+                      onChange={(e) => setFormData({ ...formData, payrollEndDay: parseInt(e.target.value, 10) || 31 })}
+                      type="number"
+                      min={1}
+                      max={31}
+                      className="mt-2"
+                    />
                   </div>
                 </div>
                 <div>

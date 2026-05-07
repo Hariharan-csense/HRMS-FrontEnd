@@ -118,13 +118,13 @@ export const leaveTypeApi = {
   createLeaveType: async (data: any): Promise<{ data?: LeaveType; error?: string }> => {
     try {
       const response = await ENDPOINTS.createLeave(data);
-      
+
       console.log("Create Leave Type Response:", response);
-      
+
       // Handle different response formats
       if (response.data?.message || response.data?.leave_type_id) {
         // Success case: API returns message and ID
-        return { 
+        return {
           data: {
             id: response.data.leave_type_id || response.data.id || "",
             name: data.name,
@@ -161,13 +161,13 @@ export const leaveTypeApi = {
   updateLeaveType: async (id: string, data: any): Promise<{ data?: LeaveType; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateLeave(id, data);
-      
+
       console.log("Update Leave Type Response:", response);
-      
+
       // Handle different response formats
       if (response.data?.message || response.data?.success) {
         // Success case: API returns message or success flag
-        return { 
+        return {
           data: {
             id: id,
             name: data.name,
@@ -204,9 +204,9 @@ export const leaveTypeApi = {
   deleteLeaveType: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteLeave(id);
-      
+
       console.log("Delete Leave Type Response:", response);
-      
+
       // Handle different response formats
       if (response.data?.message || response.data?.success) {
         // Success case: API returns message or success flag
@@ -229,9 +229,9 @@ export const leaveTypeApi = {
   getLeaveBalances: async (): Promise<{ data?: LeaveBalance[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getLeaveBalance(); // /leave/balance
-      
+
       console.log("Leave Balance Response:", response);
-      
+
       let rawData: any[] = [];
 
       // Case 1: Wrapped response { success: true, leaveBalances: [...] }
@@ -306,9 +306,9 @@ export const leaveTypeApi = {
   getLeaveApplications: async (): Promise<{ data?: LeaveApplication[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getleaveapplications(); // /leave/applications
-      
+
       console.log("Leave Applications Response:", response);
-      
+
       let rawData: any[] = [];
 
       // Case 1: Wrapped response { success: true, applications: [...] }
@@ -332,7 +332,7 @@ export const leaveTypeApi = {
         id: la.id?.toString() || la._id?.toString() || "",
         employeeId: la.employee_id?.toString() || la.employeeId?.toString() || "",
         employeeName: la.employee_name || la.employeeName || "Unknown Employee",
-        leaveType: la.leave_type || la.leaveType || "Unknown Leave Type",
+        leaveType: la.leave_type_name || la.leave_type || la.leaveType || "Unknown Leave Type",
         fromDate: la.from_date || la.fromDate || "",
         toDate: la.to_date || la.toDate || "",
         days: Number(la.days || la.number_of_days || 0),
@@ -361,12 +361,12 @@ export const leaveTypeApi = {
   applyLeave: async (data: any): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.applyleave(data);
-      
+
       console.log("Apply Leave Response:", response);
-      
+
       // Handle different response formats
       if (response.data?.success || response.data?.message) {
-        return { 
+        return {
           data: response.data
         };
       } else {
@@ -387,9 +387,9 @@ export const leaveTypeApi = {
   getLeaveUsers: async (): Promise<{ data?: any[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getleaveusers();
-      
+
       console.log("Leave Users Response:", response);
-      
+
       let users: any[] = [];
 
       // Handle grouped response formats:
@@ -521,9 +521,9 @@ export const holidayApi = {
   getHolidays: async (): Promise<{ data?: Holiday[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getHolidays();
-      
+
       let rawData: any[] = [];
-      
+
       if (response.data?.success && Array.isArray(response.data?.holidays)) {
         rawData = response.data.holidays;
       } else if (Array.isArray(response.data)) {
@@ -661,7 +661,7 @@ export const holidayApi = {
   deleteHoliday: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteHoliday(id);
-      
+
       if (response.data?.message || response.data?.success) {
         return { success: true };
       } else {
@@ -687,9 +687,9 @@ export const fiscalYearApi = {
   getFiscalYears: async (): Promise<{ data?: FiscalYearConfig[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getFiscalYears();
-      
+
       let rawData: any[] = [];
-      
+
       if (response.data?.success && Array.isArray(response.data?.fiscalYears)) {
         rawData = response.data.fiscalYears;
       } else if (Array.isArray(response.data)) {
@@ -732,11 +732,11 @@ export const fiscalYearApi = {
         leave_cycle_start: data.leaveCycleStart,
         is_active: data.isActive ? 1 : 0
       };
-      
+
       const response = await ENDPOINTS.createFiscalYear(backendData);
-      
+
       if (response.data?.message || response.data?.id) {
-        return { 
+        return {
           data: {
             id: response.data.id || "",
             year: data.year,
@@ -773,11 +773,11 @@ export const fiscalYearApi = {
         leave_cycle_start: data.leaveCycleStart,
         is_active: data.isActive ? 1 : 0
       };
-      
+
       const response = await ENDPOINTS.updateFiscalYear(id, backendData);
-      
+
       if (response.data?.message || response.data?.success) {
-        return { 
+        return {
           data: {
             id: id,
             year: data.year,
@@ -807,7 +807,7 @@ export const fiscalYearApi = {
   deleteFiscalYear: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteFiscalYear(id);
-      
+
       if (response.data?.message || response.data?.success) {
         return { success: true };
       } else {
@@ -833,9 +833,9 @@ export const leavePolicyApi = {
   getLeavePolicies: async (): Promise<{ data?: LeavePolicy[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getLeavePolicies();
-      
+
       let rawData: any[] = [];
-      
+
       if (response.data?.success && Array.isArray(response.data?.leavePolicies)) {
         rawData = response.data.leavePolicies;
       } else if (Array.isArray(response.data)) {
@@ -874,11 +874,11 @@ export const leavePolicyApi = {
         description: data.description,
         status: data.status || "active"
       };
-      
+
       const response = await ENDPOINTS.createLeavePolicy(backendData);
-      
+
       if (response.data?.message || response.data?.id) {
-        return { 
+        return {
           data: {
             id: response.data.id || "",
             name: data.name,
@@ -911,12 +911,12 @@ export const leavePolicyApi = {
         description: data.description,
         status: data.status || "active"
       };
-      
+
       const response = await ENDPOINTS.updateLeavePolicy(id, backendData);
-      
+
       // Check if response contains data (successful update) or has an error
       if (response.data && !response.data.error) {
-        return { 
+        return {
           data: {
             id: id,
             name: data.name,
@@ -944,7 +944,7 @@ export const leavePolicyApi = {
   deleteLeavePolicy: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteLeavePolicy(id);
-      
+
       if (response.data?.message || response.data?.success) {
         return { success: true };
       } else {

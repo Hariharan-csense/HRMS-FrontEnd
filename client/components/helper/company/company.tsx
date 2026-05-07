@@ -9,6 +9,8 @@ export interface Company {
   industry: string;
   address: string;
   payrollCycle: string;
+  payrollStartDay?: number;
+  payrollEndDay?: number;
   timezone: string;
   logo?: string;
   logoFile?: File;
@@ -37,6 +39,8 @@ export const companyApi = {
             industry: companyData.industry,
             address: companyData.address,
             payrollCycle: companyData.payroll_cycle,
+            payrollStartDay: Number(companyData.payroll_start_day) || 1,
+            payrollEndDay: Number(companyData.payroll_end_day) || 31,
             timezone: companyData.timezone,
             logo: companyData.logo_url,
             esslEnabled: Boolean(companyData.essl_enabled),
@@ -66,6 +70,8 @@ export const companyApi = {
       if (payload.industry !== undefined) formData.append('industry', payload.industry);
       if (payload.timezone !== undefined) formData.append('timezone', payload.timezone);
       if (payload.payrollCycle !== undefined) formData.append('payrollCycle', payload.payrollCycle);
+      if (payload.payrollStartDay !== undefined) formData.append('payrollStartDay', String(payload.payrollStartDay));
+      if (payload.payrollEndDay !== undefined) formData.append('payrollEndDay', String(payload.payrollEndDay));
       if (payload.address !== undefined) formData.append('address', payload.address);
       if (payload.esslApiKey !== undefined) formData.append('esslApiKey', payload.esslApiKey);
       if (payload.esslEnabled !== undefined) formData.append('esslEnabled', String(payload.esslEnabled));
@@ -90,6 +96,8 @@ export const companyApi = {
             industry: companyData.industry,
             address: companyData.address,
             payrollCycle: companyData.payroll_cycle,
+            payrollStartDay: Number(companyData.payroll_start_day) || 1,
+            payrollEndDay: Number(companyData.payroll_end_day) || 31,
             timezone: companyData.timezone,
             logo: companyData.logo_url,
             esslEnabled: Boolean(companyData.essl_enabled),

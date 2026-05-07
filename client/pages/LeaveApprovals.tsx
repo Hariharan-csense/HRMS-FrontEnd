@@ -29,9 +29,9 @@ interface LeaveApplication {
 const getLeaveApplications = async (): Promise<{ data?: LeaveApplication[]; error?: string }> => {
   try {
     const response = await ENDPOINTS.getleaveapplications(); // /leave/applications
-    
+
     console.log("Leave Applications Response:", response);
-    
+
     let rawData: any[] = [];
 
     // Case 1: Wrapped response { success: true, applications: [...] }
@@ -52,11 +52,20 @@ const getLeaveApplications = async (): Promise<{ data?: LeaveApplication[]; erro
     }
 
     const mapped: LeaveApplication[] = rawData.map((la: any) => {
-      // Format date to show only YYYY-MM-DD
+      // Format date to show only YYYY-MM-DD without timezone conversion
       const formatDate = (dateString: string) => {
         if (!dateString) return '';
         try {
-          return new Date(dateString).toISOString().split('T')[0];
+          // If already in YYYY-MM-DD format, return as-is
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return dateString;
+          }
+          // Otherwise format the date without timezone conversion
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
         } catch (e) {
           return dateString;
         }
@@ -96,9 +105,9 @@ const getLeaveApplications = async (): Promise<{ data?: LeaveApplication[]; erro
 const updateLeaveApplicationStatus = async (id: string, status: "approved" | "rejected", comments?: string): Promise<{ success?: boolean; error?: string }> => {
   try {
     const response = await ENDPOINTS.updatestatusLeaveApplication(id, { status, comments });
-    
+
     console.log("Update Leave Status Response:", response);
-    
+
     // Handle different response formats
     if (response.data?.message || response.data?.success) {
       return { success: true };
@@ -190,7 +199,7 @@ export default function LeaveApprovals() {
     setProcessingId(id);
     setProcessingAction(approved ? "approved" : "rejected");
     const application = leaveApplications.find(la => la.id === id);
-    
+
     // Update local state first for immediate UI feedback
     setLeaveApplications((prev) =>
       prev.map((la) => (la.id === id ? { ...la, status: approved ? "approved" : "rejected" } : la))
@@ -199,7 +208,7 @@ export default function LeaveApprovals() {
     // Update status in backend
     const status = approved ? "approved" : "rejected";
     const result = await updateLeaveApplicationStatus(id, status);
-    
+
     if (result.error) {
       console.error("Failed to update leave application status:", result.error);
       // Revert local state if backend update fails
@@ -214,7 +223,7 @@ export default function LeaveApprovals() {
     // Trigger notification if application found and backend update succeeded
     if (application) {
       const notificationService = NotificationTriggerService.getInstance();
-      
+
       if (approved) {
         await notificationService.triggerLeaveApproved({
           employeeId: application.employeeId,
@@ -342,7 +351,7 @@ export default function LeaveApprovals() {
                         <div>
                           <Label className="text-sm text-muted-foreground">Employee</Label>
                           <p className="font-semibold text-lg">{la.employeeName}</p>
-                          
+
                         </div>
                         <div>
                           <Label className="text-sm text-muted-foreground">Leave Type</Label>

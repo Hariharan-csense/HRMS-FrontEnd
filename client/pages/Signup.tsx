@@ -254,7 +254,12 @@ export default function Signup() {
     !formData.email.trim() ||
     !formData.password ||
     !formData.confirmPassword ||
-    !formData.termsAccepted;
+    !formData.termsAccepted ||
+    formData.password.length < 8 ||
+    !(/[A-Z]/.test(formData.password) && /[a-z]/.test(formData.password)) ||
+    !/\d/.test(formData.password) ||
+    !/[^A-Za-z0-9]/.test(formData.password) ||
+    formData.password !== formData.confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

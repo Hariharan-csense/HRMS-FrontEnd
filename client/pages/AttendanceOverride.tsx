@@ -89,6 +89,14 @@ type AttendanceStatusOption = {
 
 type LeaveMode = "none" | "paid" | "half";
 
+const formatDateOnly = (value?: string | null) => {
+  if (!value) return "-";
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "-";
+  const [, year, month, day] = match;
+  return `${Number(day)}/${Number(month)}/${year}`;
+};
+
 const ATTENDANCE_STATUS_OPTIONS: AttendanceStatusOption[] = [
   {
     value: "absent",
@@ -495,7 +503,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                 <p className="text-sm text-muted-foreground">Attendance Date</p>
                 <p className="font-medium">
                   {override.override_date
-                    ? new Date(override.override_date).toLocaleDateString("en-IN")
+                    ? formatDateOnly(override.override_date)
                     : "-"}
                 </p>
               </div>
@@ -957,7 +965,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                     <div className="text-xs text-muted-foreground">
                       Date:{" "}
                       {override.override_date
-                        ? new Date(override.override_date).toLocaleDateString("en-IN")
+                        ? formatDateOnly(override.override_date)
                         : "-"}
                     </div>
 
@@ -1015,7 +1023,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
         {/* Date */}
         <TableCell>
           {override.override_date 
-            ? new Date(override.override_date).toLocaleDateString("en-IN")
+            ? formatDateOnly(override.override_date)
             : "-"}
         </TableCell>
 

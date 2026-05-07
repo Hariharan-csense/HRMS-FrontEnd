@@ -1103,6 +1103,8 @@ const ENDPOINTS = {
 
           gross: parseFloat(item.gross) || 0,
 
+          tdsAmount: parseFloat(item.tds_amount) || 0,
+
           deductions: parseFloat(item.deductions) || 0,
 
           net: parseFloat(item.net) || 0,
