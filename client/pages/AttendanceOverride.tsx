@@ -130,6 +130,9 @@ const ATTENDANCE_STATUS_OPTIONS: AttendanceStatusOption[] = [
   },
 ];
 
+const getAttendanceStatusLabel = (status: string) =>
+  ATTENDANCE_STATUS_OPTIONS.find((option) => option.value === status)?.label || status;
+
 export default function AttendanceOverride() {
   const { canPerformModuleAction, hasAnyRole } = useRole();
   const { user } = useAuth();
@@ -688,26 +691,9 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
 
                     <div className="space-y-2">
                       <Label>Current Status</Label>
-                      <Select
-                        value={overrideForm.originalStatus}
-                        onValueChange={(value) =>
-                          setOverrideForm((prev) => ({
-                            ...prev,
-                            originalStatus: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select current status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ATTENDANCE_STATUS_OPTIONS.map((statusOption) => (
-                            <SelectItem key={statusOption.value} value={statusOption.value}>
-                              {statusOption.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex h-12 items-center rounded-md border border-input bg-slate-50 px-3 text-sm text-foreground">
+                        {getAttendanceStatusLabel(overrideForm.originalStatus)}
+                      </div>
                     </div>
 
                     <div className="space-y-3">

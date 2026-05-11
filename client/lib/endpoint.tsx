@@ -10,7 +10,7 @@ export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
-// 
+  //
   if (
     path.startsWith("http://") ||
     path.startsWith("https://") ||
@@ -598,6 +598,12 @@ const ENDPOINTS = {
 
   getLiveLocationHistory: (employeeId: string, params?: any) =>
     api.get(`/attendance/locations/${employeeId}/history`, { params }),
+
+  exportLocationHistory: (employeeId: string, params?: any) =>
+    api.get(`/attendance/locations/${employeeId}/export`, {
+      params,
+      responseType: "blob",
+    }),
 
   //asset
 

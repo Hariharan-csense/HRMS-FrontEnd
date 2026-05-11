@@ -49,6 +49,7 @@ interface LeaveApplication {
   fromDate: string;
   toDate: string;
   days: number;
+  halfDaySession?: "first_half" | "second_half" | null;
   reason: string;
   attachment?: string;
   status: "applied" | "approved" | "rejected";
@@ -57,6 +58,13 @@ interface LeaveApplication {
   reportingManagerEmail?: string;
   createdAt: string;
 }
+
+const getLeaveDurationLabel = (days: number, halfDaySession?: string | null) => {
+  if (Number(days) === 0.5) {
+    return halfDaySession === "second_half" ? "0.5 (Second Half)" : "0.5 (First Half)";
+  }
+  return String(days);
+};
 
 const mockEmployees = [
   { id: "EMP001", name: "John Doe" },
@@ -799,6 +807,14 @@ useEffect(() => {
         errors.toDate = "To date cannot be earlier than from date";
       }
     }
+    if (formData.leaveDuration === "half_day") {
+      if (!formData.halfDaySession) {
+        errors.halfDaySession = "Please select first half or second half";
+      }
+      if (formData.fromDate && formData.toDate && formData.fromDate !== formData.toDate) {
+        errors.toDate = "Half-day leave must be for a single date";
+      }
+    }
 
     return errors;
   };
@@ -944,9 +960,11 @@ useEffect(() => {
         setFormData({
           employeeId,
           employeeName: user?.name || "",
+          leaveDuration: "full_day",
+          halfDaySession: "first_half",
         });
       } else {
-        setFormData({});
+        setFormData(dialogModeToUse === "applications" ? { leaveDuration: "full_day", halfDaySession: "first_half" } : {});
       }
     }
     setApplicationErrors({});
@@ -986,7 +1004,10 @@ useEffect(() => {
           return;
         }
 
-        const calculatedDays = Math.floor((parsedToDate.getTime() - parsedFromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const isHalfDay = formData.leaveDuration === "half_day";
+        const calculatedDays = isHalfDay
+          ? 0.5
+          : Math.floor((parsedToDate.getTime() - parsedFromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
         // Get reporting manager details from form or current user data
         const reportingManagerId =
@@ -1006,6 +1027,8 @@ useEffect(() => {
           employee_name: formData.employeeName || currentUserEmployee?.name || user?.name || '',
           status: 'applied',
           days: calculatedDays,
+          leave_duration: isHalfDay ? 'half_day' : 'full_day',
+          half_day_session: isHalfDay ? formData.halfDaySession : null,
           // Include reporting manager details for notification
           reporting_manager_id: reportingManagerId,
           reporting_manager_name: reportingManagerName,
@@ -1634,7 +1657,7 @@ useEffect(() => {
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground flex-shrink-0">Days:</span>
-                          <span className="font-medium text-right">{la.days}</span>
+                          <span className="font-medium text-right">{getLeaveDurationLabel(la.days, la.halfDaySession)}</span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground flex-shrink-0">Reason:</span>
@@ -1664,7 +1687,7 @@ useEffect(() => {
                           <td className="px-3 py-3 whitespace-nowrap">
                             {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''} → {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
                           </td>
-                          <td className="px-3 py-3 text-center">{la.days}</td>
+                          <td className="px-3 py-3 text-center">{getLeaveDurationLabel(la.days, la.halfDaySession)}</td>
                           <td className="px-3 py-3">{la.reason}</td>
                           <td className="px-3 py-3">
                             <span
@@ -1850,7 +1873,11 @@ useEffect(() => {
                     <Input
                       value={formData.fromDate || ""}
                       onChange={(e) => {
-                        setFormData({ ...formData, fromDate: e.target.value });
+                        setFormData({
+                          ...formData,
+                          fromDate: e.target.value,
+                          ...(formData.leaveDuration === "half_day" ? { toDate: e.target.value } : {}),
+                        });
                         if (applicationErrors.fromDate) {
                           setApplicationErrors(prev => ({ ...prev, fromDate: "" }));
                         }
@@ -1878,6 +1905,7 @@ useEffect(() => {
                         }
                       }}
                       type="date"
+                      disabled={formData.leaveDuration === "half_day"}
                       className={`h-12 text-base rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-sm ${
                         applicationErrors.toDate ? "border-red-500" : "border-gray-300"
                       }`}
@@ -1886,6 +1914,66 @@ useEffect(() => {
                       <p className="text-sm text-red-600">{applicationErrors.toDate}</p>
                     )}
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-cyan-600 rounded-full"></span>
+                      Leave Duration *
+                    </Label>
+                    <Select
+                      value={formData.leaveDuration || "full_day"}
+                      onValueChange={(val) => {
+                        setFormData({
+                          ...formData,
+                          leaveDuration: val,
+                          halfDaySession: val === "half_day" ? (formData.halfDaySession || "first_half") : null,
+                          toDate: val === "half_day" ? (formData.fromDate || formData.toDate || "") : formData.toDate,
+                        });
+                        setApplicationErrors(prev => ({ ...prev, halfDaySession: "", toDate: "" }));
+                      }}
+                    >
+                      <SelectTrigger className="h-12 text-base rounded-xl focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm border-gray-300">
+                        <SelectValue placeholder="Select duration..." />
+                      </SelectTrigger>
+                      <SelectContent className="z-50 border-gray-200 rounded-xl shadow-lg">
+                        <SelectItem value="full_day" className="text-base py-3">Full Day</SelectItem>
+                        <SelectItem value="half_day" className="text-base py-3">Half Day</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.leaveDuration === "half_day" && (
+                    <div className="space-y-3">
+                      <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-teal-600 rounded-full"></span>
+                        Half Day Session *
+                      </Label>
+                      <Select
+                        value={formData.halfDaySession || "first_half"}
+                        onValueChange={(val) => {
+                          setFormData({ ...formData, halfDaySession: val });
+                          if (applicationErrors.halfDaySession) {
+                            setApplicationErrors(prev => ({ ...prev, halfDaySession: "" }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger className={`h-12 text-base rounded-xl focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm ${
+                          applicationErrors.halfDaySession ? "border-red-500" : "border-gray-300"
+                        }`}>
+                          <SelectValue placeholder="Select half..." />
+                        </SelectTrigger>
+                        <SelectContent className="z-50 border-gray-200 rounded-xl shadow-lg">
+                          <SelectItem value="first_half" className="text-base py-3">First Half</SelectItem>
+                          <SelectItem value="second_half" className="text-base py-3">Second Half</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {applicationErrors.halfDaySession && (
+                        <p className="text-sm text-red-600">{applicationErrors.halfDaySession}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-3">

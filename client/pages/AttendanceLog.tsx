@@ -2472,34 +2472,9 @@ export default function AttendanceLog() {
 
                 <div className="space-y-2">
                   <Label className="text-base font-semibold">Current Status</Label>
-                  <Select
-                    value={overrideDraft.originalStatus}
-                    onValueChange={(value) =>
-                      setOverrideDraft((prev) =>
-                        prev
-                          ? {
-                            ...prev,
-                            originalStatus: value as "present" | "absent" | "half",
-                            overriddenStatus:
-                              prev.overriddenStatus === value
-                                ? value === "present"
-                                  ? "absent"
-                                  : "present"
-                                : prev.overriddenStatus,
-                          }
-                          : prev
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-12">
-                      <SelectValue placeholder="Select current status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="absent">Absent</SelectItem>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="half">Half Day</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex h-12 items-center rounded-md border border-input bg-slate-50 px-4 text-sm text-foreground">
+                    {getStatusLabel(overrideDraft.originalStatus)}
+                  </div>
                 </div>
 
                 <div className="space-y-3">

@@ -19,12 +19,20 @@ interface LeaveApplication {
   fromDate: string;
   toDate: string;
   days: number;
+  halfDaySession?: "first_half" | "second_half" | null;
   reason: string;
   attachment?: string;
   status: "applied" | "approved" | "rejected";
   reportingManagerName?: string;
   createdAt: string;
 }
+
+const getLeaveDurationLabel = (days: number, halfDaySession?: string | null) => {
+  if (Number(days) === 0.5) {
+    return halfDaySession === "second_half" ? "0.5 (Second Half)" : "0.5 (First Half)";
+  }
+  return `${days}`;
+};
 
 const getLeaveApplications = async (): Promise<{ data?: LeaveApplication[]; error?: string }> => {
   try {
@@ -79,6 +87,7 @@ const getLeaveApplications = async (): Promise<{ data?: LeaveApplication[]; erro
         fromDate: formatDate(la.from_date || la.fromDate),
         toDate: formatDate(la.to_date || la.toDate),
         days: Number(la.days || la.number_of_days || 0),
+        halfDaySession: la.half_day_session || la.halfDaySession || null,
         reason: la.reason || "No reason provided",
         attachment: la.attachment || la.document || "",
         status: la.status === "pending" ? "applied" : la.status || "applied",
@@ -370,7 +379,7 @@ export default function LeaveApprovals() {
                         </div>
                         <div>
                           <Label className="text-sm text-muted-foreground">Number of Days</Label>
-                          <p className="font-semibold text-lg text-primary">{la.days}</p>
+                          <p className="font-semibold text-lg text-primary">{getLeaveDurationLabel(la.days, la.halfDaySession)}</p>
                         </div>
                       </div>
 
@@ -436,7 +445,7 @@ export default function LeaveApprovals() {
                       <div>
                         <p className="font-semibold">{la.employeeName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {la.leaveType} • {la.fromDate} to {la.toDate} ({la.days} days)
+                          {la.leaveType} • {la.fromDate} to {la.toDate} ({getLeaveDurationLabel(la.days, la.halfDaySession)} days)
                         </p>
                       </div>
                       <Badge className="bg-green-100 text-green-800">Approved</Badge>
@@ -460,7 +469,7 @@ export default function LeaveApprovals() {
                       <div>
                         <p className="font-semibold">{la.employeeName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {la.leaveType} • {la.fromDate} to {la.toDate} ({la.days} days)
+                          {la.leaveType} • {la.fromDate} to {la.toDate} ({getLeaveDurationLabel(la.days, la.halfDaySession)} days)
                         </p>
                       </div>
                       <Badge className="bg-red-100 text-red-800">Rejected</Badge>

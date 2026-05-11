@@ -23,6 +23,7 @@ export interface LeaveApplication {
   fromDate: string;
   toDate: string;
   days: number;
+  halfDaySession?: "first_half" | "second_half" | null;
   reason: string;
   attachment?: string;
   status: "applied" | "approved" | "rejected";
@@ -336,6 +337,7 @@ export const leaveTypeApi = {
         fromDate: la.from_date || la.fromDate || "",
         toDate: la.to_date || la.toDate || "",
         days: Number(la.days || la.number_of_days || 0),
+        halfDaySession: la.half_day_session || la.halfDaySession || null,
         reason: la.reason || "No reason provided",
         attachment: la.attachment || la.document || "",
         status: la.status || "applied",

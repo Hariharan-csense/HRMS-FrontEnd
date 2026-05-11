@@ -1,17 +1,37 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { MapPin, CheckCircle2, Clock, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  MapPin,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
 import { toast } from "sonner";
 import { reverseGeocode } from "@/lib/locationUtils";
 import attendanceApi from "@/components/helper/attendance/attendance";
 import { useAuth } from "@/context/AuthContext";
-
+import ENDPOINTS from "@/lib/endpoint";
 
 interface AttendanceRecord {
   type: "check-in" | "check-out";
@@ -56,6 +76,7 @@ export default function AttendanceCapture() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
+  const [liveLocations, setLiveLocations] = useState<any[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -65,26 +86,39 @@ export default function AttendanceCapture() {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
-  const [pendingAttendance, setPendingAttendance] = useState<PendingAttendanceCapture | null>(null);
+  const [pendingAttendance, setPendingAttendance] =
+    useState<PendingAttendanceCapture | null>(null);
 
   useEffect(() => {
-      mountedRef.current = true;
-      startWebcam();
-      fetchAttendanceStatus();
+    mountedRef.current = true;
+    startWebcam();
+    fetchAttendanceStatus();
+    fetchLiveLocations();
 
-      const handlePageHide = () => stopWebcam();
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
+    // Refresh live locations every 2 minutes
+    const locationInterval = setInterval(
+      () => {
+        if (mountedRef.current) {
+          fetchLiveLocations();
+        }
+      },
+      2 * 60 * 1000,
+    );
+
+    const handlePageHide = () => stopWebcam();
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
         stopWebcam();
       }
     };
 
     window.addEventListener("pagehide", handlePageHide);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    
+
     // Cleanup live tracking on unmount
     return () => {
       mountedRef.current = false;
+      clearInterval(locationInterval);
       stopWebcam();
       window.removeEventListener("pagehide", handlePageHide);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -94,31 +128,42 @@ export default function AttendanceCapture() {
   // Fetch current attendance status
   const fetchAttendanceStatus = async () => {
     if (!user?.id) return;
-    
+
     try {
       const statusResponse = await attendanceApi.getAttendanceStatus();
       if (statusResponse.success) {
-        const activeSessionFromRecords = Array.isArray(statusResponse.todayRecords)
-          ? statusResponse.todayRecords.some((record: any) => Boolean(record?.check_in) && !record?.check_out)
+        const activeSessionFromRecords = Array.isArray(
+          statusResponse.todayRecords,
+        )
+          ? statusResponse.todayRecords.some(
+              (record: any) => Boolean(record?.check_in) && !record?.check_out,
+            )
           : false;
         setIsCheckedIn(
           typeof statusResponse.isCheckedIn === "boolean"
             ? statusResponse.isCheckedIn
-            : activeSessionFromRecords
+            : activeSessionFromRecords,
         );
         setHasCheckedInToday(
           typeof statusResponse.hasCheckedInToday === "boolean"
             ? statusResponse.hasCheckedInToday
             : Array.isArray(statusResponse.todayRecords) &&
-              statusResponse.todayRecords.some((record: any) => Boolean(record?.check_in))
+                statusResponse.todayRecords.some((record: any) =>
+                  Boolean(record?.check_in),
+                ),
         );
-        
+
         // Transform today's records to match the local format
-        if (statusResponse.todayRecords && statusResponse.todayRecords.length > 0) {
+        if (
+          statusResponse.todayRecords &&
+          statusResponse.todayRecords.length > 0
+        ) {
           const parseLocation = (rawLocation: any) => {
             if (!rawLocation) return null;
             try {
-              return typeof rawLocation === "string" ? JSON.parse(rawLocation) : rawLocation;
+              return typeof rawLocation === "string"
+                ? JSON.parse(rawLocation)
+                : rawLocation;
             } catch {
               return null;
             }
@@ -127,76 +172,113 @@ export default function AttendanceCapture() {
           const formatCoordsLabel = (latitude: any, longitude: any) => {
             const latNum = Number(latitude);
             const lngNum = Number(longitude);
-            if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return null;
+            if (!Number.isFinite(latNum) || !Number.isFinite(lngNum))
+              return null;
             // Use raw values (no rounding) for display.
             return `${String(latitude)},${String(longitude)}`;
           };
 
-          const transformedRecords = statusResponse.todayRecords.flatMap((record: any): AttendanceRecord[] => {
-            const records: AttendanceRecord[] = [];
+          const transformedRecords = statusResponse.todayRecords.flatMap(
+            (record: any): AttendanceRecord[] => {
+              const records: AttendanceRecord[] = [];
 
-            if (record.check_in) {
-              const parsedLocation = parseLocation(record.check_in_location);
-              const coordLabel = formatCoordsLabel(parsedLocation?.latitude, parsedLocation?.longitude);
-              const safeAddress = String(parsedLocation?.address || "")
-                .replace(/^zone\s*\d+\s*/i, "")
-                .trim();
-              records.push({
-                type: "check-in",
-                timestamp: record.check_in,
-                confidence: 95,
-                attendanceStatus: record.status,
-                location: {
-                  latitude: Number(parsedLocation?.latitude) || 0,
-                  longitude: Number(parsedLocation?.longitude) || 0,
-                  accuracy: Number(parsedLocation?.accuracy) || 0,
-                  address: safeAddress || coordLabel || "Office",
-                },
-                imageUrl: record.check_in_image_url || "/placeholder-avatar.jpg",
-                device: record.device_info || "Unknown",
-                status: "success",
-              });
-            }
+              if (record.check_in) {
+                const parsedLocation = parseLocation(record.check_in_location);
+                const coordLabel = formatCoordsLabel(
+                  parsedLocation?.latitude,
+                  parsedLocation?.longitude,
+                );
+                const safeAddress = String(parsedLocation?.address || "")
+                  .replace(/^zone\s*\d+\s*/i, "")
+                  .trim();
+                records.push({
+                  type: "check-in",
+                  timestamp: record.check_in,
+                  confidence: 95,
+                  attendanceStatus: record.status,
+                  location: {
+                    latitude: Number(parsedLocation?.latitude) || 0,
+                    longitude: Number(parsedLocation?.longitude) || 0,
+                    accuracy: Number(parsedLocation?.accuracy) || 0,
+                    address: safeAddress || coordLabel || "Office",
+                  },
+                  imageUrl:
+                    record.check_in_image_url || "/placeholder-avatar.jpg",
+                  device: record.device_info || "Unknown",
+                  status: "success",
+                });
+              }
 
-            if (record.check_out) {
-              const parsedLocation = parseLocation(record.check_out_location || record.check_in_location);
-              const coordLabel = formatCoordsLabel(parsedLocation?.latitude, parsedLocation?.longitude);
-              const safeAddress = String(parsedLocation?.address || "")
-                .replace(/^zone\s*\d+\s*/i, "")
-                .trim();
-              records.push({
-                type: "check-out",
-                timestamp: record.check_out,
-                confidence: 95,
-                attendanceStatus: record.status,
-                location: {
-                  latitude: Number(parsedLocation?.latitude) || 0,
-                  longitude: Number(parsedLocation?.longitude) || 0,
-                  accuracy: Number(parsedLocation?.accuracy) || 0,
-                  address: safeAddress || coordLabel || "Office",
-                },
-                imageUrl: record.check_out_image_url || record.check_in_image_url || "/placeholder-avatar.jpg",
-                device: record.device_info || "Unknown",
-                status: "success",
-              });
-            }
+              if (record.check_out) {
+                const parsedLocation = parseLocation(
+                  record.check_out_location || record.check_in_location,
+                );
+                const coordLabel = formatCoordsLabel(
+                  parsedLocation?.latitude,
+                  parsedLocation?.longitude,
+                );
+                const safeAddress = String(parsedLocation?.address || "")
+                  .replace(/^zone\s*\d+\s*/i, "")
+                  .trim();
+                records.push({
+                  type: "check-out",
+                  timestamp: record.check_out,
+                  confidence: 95,
+                  attendanceStatus: record.status,
+                  location: {
+                    latitude: Number(parsedLocation?.latitude) || 0,
+                    longitude: Number(parsedLocation?.longitude) || 0,
+                    accuracy: Number(parsedLocation?.accuracy) || 0,
+                    address: safeAddress || coordLabel || "Office",
+                  },
+                  imageUrl:
+                    record.check_out_image_url ||
+                    record.check_in_image_url ||
+                    "/placeholder-avatar.jpg",
+                  device: record.device_info || "Unknown",
+                  status: "success",
+                });
+              }
 
-            return records;
-          });
+              return records;
+            },
+          );
           setTodayRecords(transformedRecords);
         } else {
           setTodayRecords([]);
         }
       } else if (typeof window !== "undefined") {
-        setIsCheckedIn(localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true");
+        setIsCheckedIn(
+          localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true",
+        );
         setHasCheckedInToday(false);
       }
     } catch (error) {
-      console.error('Error fetching attendance status:', error);
+      console.error("Error fetching attendance status:", error);
       if (typeof window !== "undefined") {
-        setIsCheckedIn(localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true");
+        setIsCheckedIn(
+          localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true",
+        );
         setHasCheckedInToday(false);
       }
+    }
+  };
+
+  // Fetch live location history
+  const fetchLiveLocations = async () => {
+    if (!user?.id) return;
+
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const response = await ENDPOINTS.getLiveLocationHistory(user.id, {
+        startDate: today,
+        endDate: today,
+      });
+      if (response.data.success) {
+        setLiveLocations(response.data.points || []);
+      }
+    } catch (error) {
+      console.error("Error fetching live locations:", error);
     }
   };
 
@@ -206,33 +288,50 @@ export default function AttendanceCapture() {
       stopWebcam();
 
       // Check if we're on a secure context (required for camera access)
-      const isSecureOrigin = window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+      const isSecureOrigin =
+        window.isSecureContext ||
+        window.location.protocol === "https:" ||
+        window.location.hostname === "localhost";
       if (!isSecureOrigin) {
-        toast.error("Camera access requires a secure context (HTTPS or localhost).");
+        toast.error(
+          "Camera access requires a secure context (HTTPS or localhost).",
+        );
         return;
       }
 
       // Check if mediaDevices API is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         // Check if this is an iOS device
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        const isIOS =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+          !(window as any).MSStream;
         if (isIOS) {
-          toast.error("For iOS devices, please use Safari and ensure camera permissions are granted in Settings > Safari > Camera.");
+          toast.error(
+            "For iOS devices, please use Safari and ensure camera permissions are granted in Settings > Safari > Camera.",
+          );
         } else {
-          toast.error("Camera access is not supported on this device or browser. Please try using Chrome, Firefox, or Edge.");
+          toast.error(
+            "Camera access is not supported on this device or browser. Please try using Chrome, Firefox, or Edge.",
+          );
         }
         return;
       }
 
       // Check camera permissions
       try {
-        const permissionResult = await navigator.permissions.query({ name: 'camera' as PermissionName });
-        if (permissionResult.state === 'denied') {
-          toast.error("Camera access was denied. Please enable camera permissions in your browser settings and refresh the page.");
+        const permissionResult = await navigator.permissions.query({
+          name: "camera" as PermissionName,
+        });
+        if (permissionResult.state === "denied") {
+          toast.error(
+            "Camera access was denied. Please enable camera permissions in your browser settings and refresh the page.",
+          );
           return;
         }
       } catch (e) {
-        console.warn("Permissions API not supported, continuing with camera access");
+        console.warn(
+          "Permissions API not supported, continuing with camera access",
+        );
       }
 
       // Try to get user media with constraints
@@ -241,9 +340,9 @@ export default function AttendanceCapture() {
           facingMode: { ideal: "user" }, // Front-facing camera on mobile
           width: { ideal: 1920 },
           height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
+          frameRate: { ideal: 30 },
         },
-        audio: false
+        audio: false,
       };
 
       // Try with ideal constraints first
@@ -251,11 +350,13 @@ export default function AttendanceCapture() {
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err) {
-        console.warn("Couldn't get ideal camera, trying with basic constraints");
+        console.warn(
+          "Couldn't get ideal camera, trying with basic constraints",
+        );
         // Fallback to basic constraints
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: false
+          audio: false,
         });
       }
 
@@ -270,18 +371,18 @@ export default function AttendanceCapture() {
         // Ensure video element is ready before attaching stream
         videoRef.current.srcObject = stream;
         const videoTrack = stream.getVideoTracks?.()[0];
-        const facingMode = (videoTrack?.getSettings?.().facingMode || "").toLowerCase();
+        const facingMode = (
+          videoTrack?.getSettings?.().facingMode || ""
+        ).toLowerCase();
         setIsFrontCamera(facingMode === "user" || facingMode === "");
 
         // Wait for video metadata to load
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
-            videoRef.current
-              .play()
-              .catch((err: any) => {
-                console.error("Error playing video:", err);
-                toast.error("Failed to play video stream.");
-              });
+            videoRef.current.play().catch((err: any) => {
+              console.error("Error playing video:", err);
+              toast.error("Failed to play video stream.");
+            });
           }
         };
 
@@ -292,24 +393,36 @@ export default function AttendanceCapture() {
       }
     } catch (err: any) {
       console.error("Camera access error:", err);
-      
+
       let errorMessage = "Failed to access camera.";
       let showHelpLink = false;
 
       // Handle different error types
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        errorMessage = "Camera permission was denied. Please check your browser settings and grant camera access.";
+      if (
+        err.name === "NotAllowedError" ||
+        err.name === "PermissionDeniedError"
+      ) {
+        errorMessage =
+          "Camera permission was denied. Please check your browser settings and grant camera access.";
         showHelpLink = true;
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        errorMessage = "No camera found. Please ensure your device has a working camera.";
+      } else if (
+        err.name === "NotFoundError" ||
+        err.name === "DevicesNotFoundError"
+      ) {
+        errorMessage =
+          "No camera found. Please ensure your device has a working camera.";
       } else if (err.name === "NotReadableError") {
-        errorMessage = "Camera is in use by another application. Please close other apps using the camera and refresh the page.";
+        errorMessage =
+          "Camera is in use by another application. Please close other apps using the camera and refresh the page.";
       } else if (err.name === "SecurityError") {
-        errorMessage = "Camera access is blocked for security reasons. Please use HTTPS or localhost.";
+        errorMessage =
+          "Camera access is blocked for security reasons. Please use HTTPS or localhost.";
       } else if (err.name === "TypeError") {
-        errorMessage = "Invalid camera constraints. Please try a different device or browser.";
+        errorMessage =
+          "Invalid camera constraints. Please try a different device or browser.";
       } else if (err.name === "OverconstrainedError") {
-        errorMessage = "Unable to satisfy camera constraints. Please try different camera settings.";
+        errorMessage =
+          "Unable to satisfy camera constraints. Please try different camera settings.";
       }
 
       // Show error message with help link if needed
@@ -323,11 +436,12 @@ export default function AttendanceCapture() {
               rel="noopener noreferrer"
               className="text-blue-600 hover:underline text-sm inline-flex items-center"
             >
-              How to enable camera access <ExternalLink className="w-3 h-3 ml-1" />
+              How to enable camera access{" "}
+              <ExternalLink className="w-3 h-3 ml-1" />
             </a>
           )}
         </div>,
-        { duration: 10000 }
+        { duration: 10000 },
       );
     }
   };
@@ -388,10 +502,12 @@ export default function AttendanceCapture() {
           }
         },
         () => {
-          toast.error("Failed to get location. Please enable location services.");
+          toast.error(
+            "Failed to get location. Please enable location services.",
+          );
           setIsLoadingLocation(false);
           reject(new Error("Location not available"));
-        }
+        },
       );
     });
   };
@@ -445,15 +561,27 @@ export default function AttendanceCapture() {
       // so background/location context remains visible in the confirmation image.
       cropX = Math.max(0, Math.floor(offsetX * scaleX));
       cropY = Math.max(0, Math.floor(offsetY * scaleY));
-      cropWidth = Math.max(1, Math.min(frameWidth - cropX, Math.floor(previewRect.width * scaleX)));
-      cropHeight = Math.max(1, Math.min(frameHeight - cropY, Math.floor(previewRect.height * scaleY)));
+      cropWidth = Math.max(
+        1,
+        Math.min(frameWidth - cropX, Math.floor(previewRect.width * scaleX)),
+      );
+      cropHeight = Math.max(
+        1,
+        Math.min(frameHeight - cropY, Math.floor(previewRect.height * scaleY)),
+      );
 
       if (previewAspectRatio >= 1) {
         outputWidth = SELFIE_OUTPUT_SIZE;
-        outputHeight = Math.max(1, Math.round(SELFIE_OUTPUT_SIZE / previewAspectRatio));
+        outputHeight = Math.max(
+          1,
+          Math.round(SELFIE_OUTPUT_SIZE / previewAspectRatio),
+        );
       } else {
         outputHeight = SELFIE_OUTPUT_SIZE;
-        outputWidth = Math.max(1, Math.round(SELFIE_OUTPUT_SIZE * previewAspectRatio));
+        outputWidth = Math.max(
+          1,
+          Math.round(SELFIE_OUTPUT_SIZE * previewAspectRatio),
+        );
       }
     }
 
@@ -475,7 +603,7 @@ export default function AttendanceCapture() {
         0,
         0,
         outputWidth,
-        outputHeight
+        outputHeight,
       );
       context.restore();
     } else {
@@ -488,7 +616,7 @@ export default function AttendanceCapture() {
         0,
         0,
         outputWidth,
-        outputHeight
+        outputHeight,
       );
     }
 
@@ -520,7 +648,11 @@ export default function AttendanceCapture() {
       });
     } catch (err: any) {
       console.error("Attendance capture error:", err);
-      toast.error(err?.response?.data?.message || err?.message || "Failed to capture attendance");
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to capture attendance",
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -551,10 +683,19 @@ export default function AttendanceCapture() {
         accuracy: pendingAttendance.location.accuracy,
       };
 
-      formData.append("latitude", pendingAttendance.location.latitude.toString());
-      formData.append("longitude", pendingAttendance.location.longitude.toString());
+      formData.append(
+        "latitude",
+        pendingAttendance.location.latitude.toString(),
+      );
+      formData.append(
+        "longitude",
+        pendingAttendance.location.longitude.toString(),
+      );
       formData.append("address", pendingAttendance.location.address);
-      formData.append("accuracy", pendingAttendance.location.accuracy.toString());
+      formData.append(
+        "accuracy",
+        pendingAttendance.location.accuracy.toString(),
+      );
       formData.append("location", JSON.stringify(locationData));
       formData.append("employeeId", user.id.toString());
 
@@ -597,16 +738,19 @@ export default function AttendanceCapture() {
       await fetchAttendanceStatus();
 
       const statusLabel =
-        attendanceStatus === "half_day" ? "Half Day" :
-        attendanceStatus === "late" ? "Late" :
-        attendanceStatus === "present" ? "Present" :
-        "";
+        attendanceStatus === "half_day"
+          ? "Half Day"
+          : attendanceStatus === "late"
+            ? "Late"
+            : attendanceStatus === "present"
+              ? "Present"
+              : "";
 
       toast.success(
         `${pendingAttendance.type === "check-in" ? "Checked in" : "Checked out"} successfully!`,
         {
           description: `Confidence: ${pendingAttendance.confidence}% | Location: ${pendingAttendance.location.address}${statusLabel ? ` | Attendance: ${statusLabel}` : ""}`,
-        }
+        },
       );
 
       setTimeout(() => {
@@ -614,7 +758,11 @@ export default function AttendanceCapture() {
       }, 2000);
     } catch (err: any) {
       console.error("Attendance submit error:", err);
-      toast.error(err?.response?.data?.message || err?.message || "Failed to submit attendance");
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to submit attendance",
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -625,7 +773,9 @@ export default function AttendanceCapture() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Attendance Check-In/Out</h1>
-          <p className="text-muted-foreground mt-2">Use facial recognition and location for attendance</p>
+          <p className="text-muted-foreground mt-2">
+            Use facial recognition and location for attendance
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -634,7 +784,9 @@ export default function AttendanceCapture() {
             <Card>
               <CardHeader>
                 <CardTitle>Facial Recognition</CardTitle>
-                <CardDescription>Position your face in the center of the camera</CardDescription>
+                <CardDescription>
+                  Position your face in the center of the camera
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div
@@ -668,9 +820,12 @@ export default function AttendanceCapture() {
                       <MapPin className="w-4 h-4" />
                       <AlertDescription>
                         <div className="text-sm">
-                          <p className="font-medium">{currentLocation.address}</p>
+                          <p className="font-medium">
+                            {currentLocation.address}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            Lat: {currentLocation.latitude.toFixed(4)}, Lng: {currentLocation.longitude.toFixed(4)}
+                            Lat: {currentLocation.latitude.toFixed(4)}, Lng:{" "}
+                            {currentLocation.longitude.toFixed(4)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Accuracy: ±{Math.round(currentLocation.accuracy)}m
@@ -689,7 +844,9 @@ export default function AttendanceCapture() {
                     className={`gap-2 ${hasCheckedInToday ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-[#17c491] hover:bg-[#12a978] text-white"}`}
                     size="lg"
                   >
-                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isProcessing && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
                     <CheckCircle2 className="w-4 h-4" />
                     Check-In
                   </Button>
@@ -700,7 +857,9 @@ export default function AttendanceCapture() {
                     className={`gap-2 ${isCheckedIn ? "bg-[#17c491] hover:bg-[#12a978] text-white" : ""}`}
                     size="lg"
                   >
-                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isProcessing && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
                     <Clock className="w-4 h-4" />
                     Check-Out
                   </Button>
@@ -709,9 +868,7 @@ export default function AttendanceCapture() {
                 {isLoadingLocation && (
                   <Alert>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <AlertDescription>
-                      Fetching location...
-                    </AlertDescription>
+                    <AlertDescription>Fetching location...</AlertDescription>
                   </Alert>
                 )}
               </CardContent>
@@ -721,47 +878,67 @@ export default function AttendanceCapture() {
             <Card>
               <CardHeader>
                 <CardTitle>Today's Attendance</CardTitle>
-                <CardDescription>Your check-in and check-out records</CardDescription>
+                <CardDescription>
+                  Your check-in and check-out records
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {todayRecords.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No attendance records yet</p>
+                  <p className="text-muted-foreground text-center py-8">
+                    No attendance records yet
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {todayRecords.map((record, idx) => (
-                      <div key={idx} className="border rounded-lg p-4 space-y-2">
+                      <div
+                        key={idx}
+                        className="border rounded-lg p-4 space-y-2"
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            <Badge variant={record.type === "check-in" ? "default" : "outline"}>
+                            <Badge
+                              variant={
+                                record.type === "check-in"
+                                  ? "default"
+                                  : "outline"
+                              }
+                            >
                               {record.type === "check-in" ? "IN" : "OUT"}
                             </Badge>
-                          <div>
-                            <p className="font-medium">
-                              {new Date(record.timestamp).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                            {record.type === "check-in" && record.attendanceStatus && (
-                              <p
-                                className={`text-xs font-semibold ${
-                                  record.attendanceStatus === "half_day"
-                                    ? "text-amber-600"
-                                    : record.attendanceStatus === "late"
-                                    ? "text-orange-600"
-                                    : "text-green-600"
-                                }`}
-                              >
-                                {record.attendanceStatus === "half_day"
-                                  ? "Half Day"
-                                  : record.attendanceStatus === "late"
-                                  ? "Late"
-                                  : "Present"}
+                            <div>
+                              <p className="font-medium">
+                                {new Date(record.timestamp).toLocaleTimeString(
+                                  "en-IN",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
                               </p>
-                            )}
-                            <p className="text-sm text-muted-foreground">
-                              Confidence: <span className="font-semibold text-green-600">{record.confidence}%</span>
-                            </p>
+                              {record.type === "check-in" &&
+                                record.attendanceStatus && (
+                                  <p
+                                    className={`text-xs font-semibold ${
+                                      record.attendanceStatus === "half_day"
+                                        ? "text-amber-600"
+                                        : record.attendanceStatus === "late"
+                                          ? "text-orange-600"
+                                          : "text-green-600"
+                                    }`}
+                                  >
+                                    {record.attendanceStatus === "half_day"
+                                      ? "Half Day"
+                                      : record.attendanceStatus === "late"
+                                        ? "Late"
+                                        : "Present"}
+                                  </p>
+                                )}
+                              <p className="text-sm text-muted-foreground">
+                                Confidence:{" "}
+                                <span className="font-semibold text-green-600">
+                                  {record.confidence}%
+                                </span>
+                              </p>
                             </div>
                           </div>
                           <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -772,16 +949,83 @@ export default function AttendanceCapture() {
                             📍{" "}
                             {Number.isFinite(record.location.latitude) &&
                             Number.isFinite(record.location.longitude) &&
-                            (record.location.latitude !== 0 || record.location.longitude !== 0)
+                            (record.location.latitude !== 0 ||
+                              record.location.longitude !== 0)
                               ? `${record.location.latitude.toFixed(6)},${record.location.longitude.toFixed(6)}`
                               : "—"}
                           </p>
                           <p>
-                            🎯 ±{Math.round(record.location.accuracy)}m • {record.device}
+                            🎯 ±{Math.round(record.location.accuracy)}m •{" "}
+                            {record.device}
                           </p>
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Live Location History */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Live Location History</CardTitle>
+                <CardDescription>
+                  Locations tracked every 5 minutes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {liveLocations.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No location data yet
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {liveLocations
+                      .sort(
+                        (a, b) =>
+                          new Date(b.location_timestamp).getTime() -
+                          new Date(a.location_timestamp).getTime(),
+                      )
+                      .map((location, idx) => (
+                        <div
+                          key={idx}
+                          className="border rounded-lg p-4 space-y-2"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <MapPin className="w-5 h-5 text-blue-600" />
+                              <div>
+                                <p className="font-medium">
+                                  {new Date(
+                                    location.location_timestamp,
+                                  ).toLocaleTimeString("en-IN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Accuracy: ±
+                                  {Math.round(location.accuracy || 0)}m
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <p>🗺️ {location.address || "Unknown location"}</p>
+                            <p>
+                              📍{" "}
+                              {Number.isFinite(location.latitude) &&
+                              Number.isFinite(location.longitude) &&
+                              (location.latitude !== 0 ||
+                                location.longitude !== 0)
+                                ? `${location.latitude.toFixed(6)},${location.longitude.toFixed(6)}`
+                                : "—"}
+                            </p>
+                            <p>📱 {location.device_info || "Web"}</p>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </CardContent>
@@ -804,9 +1048,15 @@ export default function AttendanceCapture() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Current Status</p>
+                    <p className="text-sm text-muted-foreground">
+                      Current Status
+                    </p>
                     <p className="text-2xl font-bold">
-                      {isCheckedIn ? "Checked In" : hasCheckedInToday ? "Checked Out" : "Not Checked In"}
+                      {isCheckedIn
+                        ? "Checked In"
+                        : hasCheckedInToday
+                          ? "Checked Out"
+                          : "Not Checked In"}
                     </p>
                   </div>
                 </div>
@@ -817,7 +1067,8 @@ export default function AttendanceCapture() {
                     <p className="font-semibold">
                       {todayRecords.find((r) => r.type === "check-in")
                         ? new Date(
-                            todayRecords.find((r) => r.type === "check-in")!.timestamp
+                            todayRecords.find((r) => r.type === "check-in")!
+                              .timestamp,
                           ).toLocaleTimeString("en-IN")
                         : "Not yet"}
                     </p>
@@ -828,7 +1079,8 @@ export default function AttendanceCapture() {
                     <p className="font-semibold">
                       {todayRecords.find((r) => r.type === "check-out")
                         ? new Date(
-                            todayRecords.find((r) => r.type === "check-out")!.timestamp
+                            todayRecords.find((r) => r.type === "check-out")!
+                              .timestamp,
                           ).toLocaleTimeString("en-IN")
                         : "Not yet"}
                     </p>
@@ -860,7 +1112,10 @@ export default function AttendanceCapture() {
         <DialogContent className="w-[92vw] max-w-md max-h-[90vh] overflow-y-auto p-4 sm:grid sm:aspect-square sm:w-[32rem] sm:max-w-[32rem] sm:grid-rows-[auto_1fr_auto] sm:overflow-hidden sm:p-5">
           <DialogHeader>
             <DialogTitle>
-              Confirm {pendingAttendance?.type === "check-in" ? "Check-In" : "Check-Out"}
+              Confirm{" "}
+              {pendingAttendance?.type === "check-in"
+                ? "Check-In"
+                : "Check-Out"}
             </DialogTitle>
             <DialogDescription>
               Review the captured photo and confirm before marking attendance.
@@ -880,17 +1135,22 @@ export default function AttendanceCapture() {
               <div className="rounded-lg border bg-slate-50 p-3 text-sm text-slate-700 space-y-2">
                 <p>
                   <span className="font-medium">Action:</span>{" "}
-                  {pendingAttendance.type === "check-in" ? "Check-In" : "Check-Out"}
+                  {pendingAttendance.type === "check-in"
+                    ? "Check-In"
+                    : "Check-Out"}
                 </p>
                 <p>
-                  <span className="font-medium">Location:</span> {pendingAttendance.location.address}
+                  <span className="font-medium">Location:</span>{" "}
+                  {pendingAttendance.location.address}
                 </p>
                 <p>
                   <span className="font-medium">Coordinates:</span>{" "}
-                  {pendingAttendance.location.latitude.toFixed(6)}, {pendingAttendance.location.longitude.toFixed(6)}
+                  {pendingAttendance.location.latitude.toFixed(6)},{" "}
+                  {pendingAttendance.location.longitude.toFixed(6)}
                 </p>
                 <p>
-                  <span className="font-medium">Accuracy:</span> +/-{Math.round(pendingAttendance.location.accuracy)}m
+                  <span className="font-medium">Accuracy:</span> +/-
+                  {Math.round(pendingAttendance.location.accuracy)}m
                 </p>
               </div>
             </div>
@@ -902,7 +1162,9 @@ export default function AttendanceCapture() {
               disabled={isProcessing || !pendingAttendance}
               className="w-full bg-[#17c491] text-white hover:bg-[#12a978] sm:w-auto"
             >
-              {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isProcessing && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Confirm
             </Button>
             <Button
