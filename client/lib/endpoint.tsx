@@ -6,7 +6,7 @@ import axios from "axios";
 
 export const BASE_URL = "http://192.168.1.9:3000/backend";
 // 
-// export const BASE_URL="https://hrms.procease.co/backend";
+  // export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;

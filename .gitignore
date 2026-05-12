@@ -31,5 +31,6 @@ build/
 coverage/
 
 .env
+dist.zip/
 
 

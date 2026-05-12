@@ -6,13 +6,19 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, HashRouter } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  HashRouter,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { RoleProvider, useRole } from "@/context/RoleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { RoleBasedRoute } from "@/components/RoleBasedRoute";
 import { AutoLoginHandler } from "@/components/AutoLoginHandler";
-
 
 // Pages
 import Login from "./pages/Login";
@@ -222,10 +228,7 @@ function AppRoutes() {
         path="/login"
         element={<PublicRoute element={<LandingPage />} />}
       /> */}
-        <Route
-          path="/"
-          element={<PublicRoute element={<LandingPage />} />}
-        />
+        <Route path="/" element={<PublicRoute element={<LandingPage />} />} />
         <Route
           path="/features"
           element={<PublicRoute element={<FeaturesPage />} />}
@@ -254,18 +257,12 @@ function AppRoutes() {
           path="/refund-cancellation"
           element={<PublicRoute element={<RefundCancellation />} />}
         />
-        <Route
-          path="/login"
-          element={<PublicRoute element={<Login />} />}
-        />
+        <Route path="/login" element={<PublicRoute element={<Login />} />} />
         <Route
           path="/forgot-password"
           element={<PublicRoute element={<ForgotPassword />} />}
         />
-        <Route
-          path="/signup"
-          element={<PublicRoute element={<Signup />} />}
-        />
+        <Route path="/signup" element={<PublicRoute element={<Signup />} />} />
 
         {/* Protected Routes */}
         <Route
@@ -389,7 +386,10 @@ function AppRoutes() {
         <Route
           path="/attendance/live-tracking"
           element={
-            <RoleBasedRoute requiredModule="live_tracking" requiredAction="view">
+            <RoleBasedRoute
+              requiredModule="live_tracking"
+              requiredAction="view"
+            >
               <LiveTracking />
             </RoleBasedRoute>
           }
@@ -653,7 +653,6 @@ function AppRoutes() {
           }
         />
 
-
         {/* Client Attendance - Module-based access for Sales with fallback */}
         <Route
           path="/client-attendance"
@@ -868,7 +867,10 @@ function AppRoutes() {
           element={
             <ProtectedRoute
               element={
-                <RoleBasedRoute requiredModule="pulse_surveys" requiredAction="view">
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
                   <EmployeeFeedback />
                 </RoleBasedRoute>
               }
@@ -906,7 +908,6 @@ function AppRoutes() {
           }
         />
 
-
         {/* Root redirect - removed since we now have landing page at root */}
 
         {/* Catch-all 404 */}
@@ -920,9 +921,15 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>          {/* ✅ Auth FIRST */}
-          <RoleProvider>        {/* ✅ Role AFTER Auth */}
-            <SubscriptionProvider> {/* ✅ Subscription AFTER Role */}
+        <AuthProvider>
+          {" "}
+          {/* ✅ Auth FIRST */}
+          <RoleProvider>
+            {" "}
+            {/* ✅ Role AFTER Auth */}
+            <SubscriptionProvider>
+              {" "}
+              {/* ✅ Subscription AFTER Role */}
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
@@ -935,7 +942,6 @@ const App = () => {
     </QueryClientProvider>
   );
 };
-
 
 // Store root globally to prevent recreating during HMR
 declare global {

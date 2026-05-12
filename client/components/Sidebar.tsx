@@ -129,7 +129,6 @@ import {
   HelpCircle,
   BarChart3,
   Activity,
-
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -292,7 +291,6 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "hr_management",
       },
-
     ],
   },
   {
@@ -411,7 +409,6 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "employees",
       },
-
     ],
   },
 
@@ -696,8 +693,6 @@ const navigationItems: NavItem[] = [
     ],
   },
 
-
-
   {
     label: "Subscription",
     icon: <CreditCard className="w-5 h-5" />,
@@ -726,8 +721,6 @@ const navigationItems: NavItem[] = [
     moduleName: "tickets",
     path: "/tickets",
   },
-
-
 ];
 
 export const Sidebar: React.FC = () => {
@@ -743,10 +736,11 @@ export const Sidebar: React.FC = () => {
           item.submenu &&
           item.submenu.some(
             (subitem) =>
-              Boolean(subitem.path) && location.pathname.startsWith(subitem.path!)
-          )
+              Boolean(subitem.path) &&
+              location.pathname.startsWith(subitem.path!),
+          ),
       )
-      .map((item) => item.label)
+      .map((item) => item.label),
   );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
@@ -757,8 +751,9 @@ export const Sidebar: React.FC = () => {
 
     navigationItems.forEach((item) => {
       if (item.submenu && item.submenu.length > 0) {
-        const hasActiveSubmenu = item.submenu.some((subitem) =>
-          subitem.path && location.pathname.startsWith(subitem.path)
+        const hasActiveSubmenu = item.submenu.some(
+          (subitem) =>
+            subitem.path && location.pathname.startsWith(subitem.path),
         );
         if (hasActiveSubmenu) {
           activeItems.push(item.label);
@@ -767,22 +762,25 @@ export const Sidebar: React.FC = () => {
     });
 
     // Only update state if there are new items to add (prevents unnecessary re-renders)
-    setExpandedItems(prev => {
-      const newItems = activeItems.filter(item => !prev.includes(item));
+    setExpandedItems((prev) => {
+      const newItems = activeItems.filter((item) => !prev.includes(item));
       if (newItems.length === 0) return prev; // No change needed
       return [...prev, ...newItems];
     });
 
     // Restore page scroll position after navigation
-    const savedScrollPos = window.sessionStorage.getItem('PAGE_SCROLL_POSITION');
+    const savedScrollPos = window.sessionStorage.getItem(
+      "PAGE_SCROLL_POSITION",
+    );
     if (savedScrollPos) {
       setTimeout(() => {
         window.scrollTo(0, parseInt(savedScrollPos, 10));
-        window.sessionStorage.removeItem('PAGE_SCROLL_POSITION');
+        window.sessionStorage.removeItem("PAGE_SCROLL_POSITION");
       }, 50);
     }
 
-    const savedSidebarScroll = window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+    const savedSidebarScroll =
+      window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
 
     window.setTimeout(() => {
       const navElement = navRef.current;
@@ -794,7 +792,7 @@ export const Sidebar: React.FC = () => {
       }
 
       const activeElement = navElement.querySelector(
-        ".sidebar-submenu-item.active, .sidebar-nav-item.active"
+        ".sidebar-submenu-item.active, .sidebar-nav-item.active",
       );
 
       if (activeElement instanceof HTMLElement) {
@@ -828,7 +826,7 @@ export const Sidebar: React.FC = () => {
       scrollTimeoutRef.current = setTimeout(() => {
         window.sessionStorage.setItem(
           SIDEBAR_SCROLL_KEY,
-          String(navElement.scrollTop)
+          String(navElement.scrollTop),
         );
       }, 150); // Debounce scroll saves
     };
@@ -847,7 +845,7 @@ export const Sidebar: React.FC = () => {
   const toggleExpand = (label: string) => {
     const scrollTop = navRef.current?.scrollTop ?? 0;
     setExpandedItems((prev) =>
-      prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label]
+      prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label],
     );
     window.setTimeout(() => {
       if (navRef.current) {
@@ -860,13 +858,13 @@ export const Sidebar: React.FC = () => {
     if (navRef.current) {
       window.sessionStorage.setItem(
         SIDEBAR_SCROLL_KEY,
-        String(navRef.current.scrollTop)
+        String(navRef.current.scrollTop),
       );
     }
     // Save main content scroll position
-    const mainContent = document.querySelector('main') || window;
+    const mainContent = document.querySelector("main") || window;
     const scrollPos = window.scrollY || window.pageYOffset || 0;
-    window.sessionStorage.setItem('PAGE_SCROLL_POSITION', String(scrollPos));
+    window.sessionStorage.setItem("PAGE_SCROLL_POSITION", String(scrollPos));
     setIsMobileOpen(false);
   };
 
@@ -882,12 +880,12 @@ export const Sidebar: React.FC = () => {
 
   const allowedModulesForPlan = useMemo(() => {
     if (isSuperAdmin) return null;
-    return getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
-  }, [
-    isSuperAdmin,
-    subscription,
-    subscriptionLoading,
-  ]);
+    return getAllowedModulesFromSubscription(
+      subscription,
+      subscriptionLoading,
+      { trialEndingSoonDays: 2 },
+    );
+  }, [isSuperAdmin, subscription, subscriptionLoading]);
 
   const normalizeSubmoduleKey = (value: string) =>
     value.toLowerCase().replace(/[\s-]+/g, "_");
@@ -903,7 +901,8 @@ export const Sidebar: React.FC = () => {
         if (path.includes("/organization/branches")) return "branches";
         if (path.includes("/organization/departments")) return "departments";
         if (path.includes("/organization/designations")) return "designations";
-        if (path.includes("/organization/role-management")) return "role_management";
+        if (path.includes("/organization/role-management"))
+          return "role_management";
         return undefined;
       case "hr_management":
         if (path.includes("/hr/requirements")) return "requirements";
@@ -942,7 +941,8 @@ export const Sidebar: React.FC = () => {
         if (path.includes("/pulse-surveys/results")) return "results";
         if (path.includes("/pulse-surveys/create")) return "create";
         if (path.includes("/pulse-surveys/templates")) return "templates";
-        if (path.includes("/pulse-surveys/feedback-inbox")) return "feedback_inbox";
+        if (path.includes("/pulse-surveys/feedback-inbox"))
+          return "feedback_inbox";
         if (path.includes("/pulse-surveys/my-surveys")) return "my_surveys";
         if (path.includes("/pulse-surveys/feedback")) return "feedback";
         if (path.includes("/pulse-surveys/respond")) return "respond";
@@ -967,9 +967,11 @@ export const Sidebar: React.FC = () => {
       const roleSet = new Set(
         [...(Array.isArray(user.roles) ? user.roles : []), user.role || ""]
           .map((r) => String(r || "").toLowerCase())
-          .filter(Boolean)
+          .filter(Boolean),
       );
-      const allowed = item.roles.some((requiredRole) => roleSet.has(requiredRole.toLowerCase()));
+      const allowed = item.roles.some((requiredRole) =>
+        roleSet.has(requiredRole.toLowerCase()),
+      );
       if (!allowed) {
         return false;
       }
@@ -1020,15 +1022,22 @@ export const Sidebar: React.FC = () => {
     // Submodule-aware visibility: prefer submodule RBAC check when available.
     const inferredSubmodule = inferSubmoduleFromPath(item);
     if (item.moduleName && inferredSubmodule) {
-      const hasAccess = canPerformModuleAction(item.moduleName, "view", inferredSubmodule);
-      if (process.env.NODE_ENV === "development" && item.label === "ESSL Setup") {
+      const hasAccess = canPerformModuleAction(
+        item.moduleName,
+        "view",
+        inferredSubmodule,
+      );
+      if (
+        process.env.NODE_ENV === "development" &&
+        item.label === "ESSL Setup"
+      ) {
         console.log("ESSL Setup Permission Check:", {
           label: item.label,
           moduleName: item.moduleName,
           subModuleName: item.subModuleName,
           inferredSubmodule,
           hasAccess,
-          path: item.path
+          path: item.path,
         });
       }
       return hasAccess;
@@ -1048,11 +1057,13 @@ export const Sidebar: React.FC = () => {
     console.log("User Info:", {
       name: user.name,
       roles: user.roles,
-      email: user.email
+      email: user.email,
     });
     console.log("All Navigation Items:");
-    navigationItems.forEach(item => {
-      console.log(`- ${item.label}: moduleName=${item.moduleName}, hasAccess=${hasItemAccess(item)}`);
+    navigationItems.forEach((item) => {
+      console.log(
+        `- ${item.label}: moduleName=${item.moduleName}, hasAccess=${hasItemAccess(item)}`,
+      );
     });
     console.log("=== END SIDEBAR DEBUG ===");
   }
@@ -1065,7 +1076,9 @@ export const Sidebar: React.FC = () => {
   ]);
 
   const filteredItems = isSuperAdmin
-    ? navigationItems.filter((item) => item.path && superAdminAllowedPaths.has(item.path))
+    ? navigationItems.filter(
+        (item) => item.path && superAdminAllowedPaths.has(item.path),
+      )
     : navigationItems.filter((item) => hasItemAccess(item));
 
   // Debug: Log filtered items
@@ -1073,15 +1086,15 @@ export const Sidebar: React.FC = () => {
     console.log("Sidebar Debug - Filtered Items:", {
       totalItems: navigationItems.length,
       filteredCount: filteredItems.length,
-      filteredItems: filteredItems.map(item => ({
+      filteredItems: filteredItems.map((item) => ({
         label: item.label,
         moduleName: item.moduleName,
-        hasAccess: hasItemAccess(item)
+        hasAccess: hasItemAccess(item),
       })),
       userRoles: user.roles,
       userDepartment: user.department,
       roleLoading,
-      userRoleData: userRoles
+      userRoleData: userRoles,
     });
   }
 
@@ -1094,37 +1107,40 @@ export const Sidebar: React.FC = () => {
 
     let filteredSubmenu = hasSubmenu
       ? item.submenu.filter((sub) => {
-        const hasAccess = hasItemAccess(sub as NavItem);
-        if (process.env.NODE_ENV === "development" && sub.label === "ESSL Setup") {
-          console.log("ESSL Setup Submenu Filter:", {
-            label: sub.label,
-            hasAccess,
-            moduleName: sub.moduleName,
-            subModuleName: sub.subModuleName,
-            path: sub.path
-          });
-        }
-        return hasAccess;
-      })
+          const hasAccess = hasItemAccess(sub as NavItem);
+          if (
+            process.env.NODE_ENV === "development" &&
+            sub.label === "ESSL Setup"
+          ) {
+            console.log("ESSL Setup Submenu Filter:", {
+              label: sub.label,
+              hasAccess,
+              moduleName: sub.moduleName,
+              subModuleName: sub.subModuleName,
+              path: sub.path,
+            });
+          }
+          return hasAccess;
+        })
       : [];
 
     if (item.label === "Pulse Surveys" && isEmployeeUser) {
       filteredSubmenu = filteredSubmenu.filter(
         (subitem) =>
           subitem.path === "/pulse-surveys/my-surveys" ||
-          subitem.path === "/pulse-surveys/feedback"
+          subitem.path === "/pulse-surveys/feedback",
       );
     }
 
     const isItemActive = Boolean(
-      item.path && location.pathname.startsWith(item.path)
+      item.path && location.pathname.startsWith(item.path),
     );
 
     const isAnySubmenuActive = Boolean(
       hasSubmenu &&
       filteredSubmenu.some((subitem) =>
-        Boolean(subitem.path && location.pathname.startsWith(subitem.path))
-      )
+        Boolean(subitem.path && location.pathname.startsWith(subitem.path)),
+      ),
     );
 
     const isActive = isItemActive || isAnySubmenuActive;
@@ -1144,7 +1160,7 @@ export const Sidebar: React.FC = () => {
                 ? "active text-primary-foreground"
                 : isExpanded
                   ? "bg-primary/10 text-primary"
-                  : "text-sidebar-foreground hover:text-primary"
+                  : "text-sidebar-foreground hover:text-primary",
             )}
           >
             <span className="flex-shrink-0">{item.icon}</span>
@@ -1152,7 +1168,7 @@ export const Sidebar: React.FC = () => {
             <ChevronDown
               className={cn(
                 "w-4 h-4 transition-transform duration-300 flex-shrink-0",
-                isExpanded && "rotate-180"
+                isExpanded && "rotate-180",
               )}
             />
           </button>
@@ -1167,7 +1183,7 @@ export const Sidebar: React.FC = () => {
                     "sidebar-submenu-item flex items-center gap-3 px-3 py-2 text-xs rounded-md transition-all",
                     subitem.path && location.pathname.startsWith(subitem.path)
                       ? "active text-primary-foreground bg-primary/20 font-medium"
-                      : "text-sidebar-foreground hover:text-primary"
+                      : "text-sidebar-foreground hover:text-primary",
                   )}
                 >
                   <span>{subitem.label}</span>
@@ -1188,7 +1204,7 @@ export const Sidebar: React.FC = () => {
           "sidebar-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium",
           isActive
             ? "active text-primary-foreground"
-            : "text-sidebar-foreground hover:text-primary"
+            : "text-sidebar-foreground hover:text-primary",
         )}
       >
         <span className="flex-shrink-0">{item.icon}</span>
@@ -1223,12 +1239,15 @@ export const Sidebar: React.FC = () => {
           "transition-transform duration-300 ease-in-out",
           "lg:translate-x-0 lg:relative lg:z-0", // Desktop-ல எப்போதும் visible, relative positioning
           "fixed top-0 left-0 z-30", // Mobile-ல fixed
-          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         {/* Logo */}
         <div className="h-24 p-2 flex items-center justify-center border-b border-sidebar-border/50 transition-colors">
-          <Link to="/dashboard" className="flex items-center justify-center group">
+          <Link
+            to="/dashboard"
+            className="flex items-center justify-center group"
+          >
             <div className="w-28 h-28 flex items-center justify-center overflow-hidden transition-all duration-300 ">
               <img
                 src={logo}
