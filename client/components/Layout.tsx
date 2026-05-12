@@ -12,16 +12,14 @@ interface LayoutProps {
 }
 
 const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
+const LIVE_LOCATION_PING_MS = 5 * 60 * 1000;
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const liveWatchIdRef = useRef<number | null>(null);
   const lastSentAtRef = useRef<number>(0);
-  const [isCheckedIn, setIsCheckedIn] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
-  });
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -35,38 +33,59 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     let cancelled = false;
 
     const syncAttendanceStatus = async () => {
-      const localTrackingActive =
-        typeof window !== "undefined" &&
-        localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
-
-      const result = await attendanceApi.getAttendanceStatus();
+      const [result, fieldResult] = await Promise.allSettled([
+        attendanceApi.getAttendanceStatus(),
+        ENDPOINTS.getActiveClientAttendance(),
+      ]);
       if (cancelled) {
         return;
       }
 
-      if (result?.success) {
+      const attendanceResult =
+        result.status === "fulfilled" ? result.value : null;
+      const hasActiveFieldAttendance =
+        fieldResult.status === "fulfilled" && Boolean(fieldResult.value?.data?.data);
+
+      if (attendanceResult?.success || hasActiveFieldAttendance) {
         const checkedIn =
-          typeof result.isCheckedIn === "boolean"
-            ? result.isCheckedIn
-            : localTrackingActive;
-        setIsCheckedIn(checkedIn || localTrackingActive);
-        if (checkedIn) {
+          typeof attendanceResult?.isCheckedIn === "boolean"
+            ? attendanceResult.isCheckedIn
+            : false;
+        const shouldKeepTracking = checkedIn || hasActiveFieldAttendance;
+        setIsCheckedIn(shouldKeepTracking);
+        if (shouldKeepTracking) {
           localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
-        } else if (!localTrackingActive) {
+        } else {
           localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
         }
         return;
       }
 
-      setIsCheckedIn(localTrackingActive);
+      setIsCheckedIn(false);
+      localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
     };
 
     syncAttendanceStatus();
     const intervalId = window.setInterval(syncAttendanceStatus, 30000);
+    const handleTrackingStatusChanged = () => {
+      const localTrackingActive =
+        typeof window !== "undefined" &&
+        localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
+      setIsCheckedIn(localTrackingActive);
+      syncAttendanceStatus();
+    };
+    window.addEventListener(
+      "attendance:tracking-status-changed",
+      handleTrackingStatusChanged,
+    );
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+      window.removeEventListener(
+        "attendance:tracking-status-changed",
+        handleTrackingStatusChanged,
+      );
     };
   }, [isAuthenticated, user?.id]);
 
@@ -74,7 +93,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const localTrackingActive =
       typeof window !== "undefined" &&
       localStorage.getItem(LIVE_TRACKING_SESSION_KEY) === "true";
-    const shouldTrack = Boolean(isCheckedIn || localTrackingActive);
+    const shouldTrack = Boolean(isCheckedIn && localTrackingActive);
 
     if (!isAuthenticated || !user?.id || user?.type !== "employee" || !shouldTrack) {
       if (liveWatchIdRef.current !== null && navigator.geolocation) {
@@ -90,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     const sendLiveLocation = (coords: GeolocationCoordinates) => {
       const now = Date.now();
-      if (now - lastSentAtRef.current < 10000) {
+      if (now - lastSentAtRef.current < LIVE_LOCATION_PING_MS) {
         return;
       }
 
@@ -102,26 +121,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         accuracy: coords.accuracy,
         timestamp: new Date().toISOString(),
         device_info: "browser-live-tracker",
+        source: "attendance-live-tracker",
       }).catch((error) => {
         console.warn("Global live tracking ping failed", error?.message || error);
       });
     };
 
-    liveWatchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        sendLiveLocation(position.coords);
-      },
-      (error) => {
-        console.warn("Global live tracking watch failed", error?.message || error);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 15000,
-      }
+    const requestAndSendLiveLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          sendLiveLocation(position.coords);
+        },
+        (error) => {
+          console.warn("Global live tracking ping failed", error?.message || error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 60000,
+          timeout: 15000,
+        }
+      );
+    };
+
+    requestAndSendLiveLocation();
+    const intervalId = window.setInterval(
+      requestAndSendLiveLocation,
+      LIVE_LOCATION_PING_MS,
     );
 
     return () => {
+      window.clearInterval(intervalId);
       if (liveWatchIdRef.current !== null) {
         navigator.geolocation.clearWatch(liveWatchIdRef.current);
         liveWatchIdRef.current = null;

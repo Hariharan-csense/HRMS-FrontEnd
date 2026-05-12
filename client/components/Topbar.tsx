@@ -45,6 +45,35 @@ export const Topbar: React.FC = () => {
   if (!user) return null;
   const dashboardPath = hasRole(user, "superadmin") ? "/superadmin-dashboard" : "/dashboard";
 
+  const getCurrentPageTitle = () => {
+    const pathname = location.pathname;
+
+    if (pathname.startsWith("/tickets")) return "Ticket Management";
+    if (pathname.startsWith("/attendance")) return "Attendance Management";
+    if (pathname.startsWith("/organization")) return "Organization Setup";
+    if (pathname.startsWith("/debug/roles")) return "Roles & Permissions";
+    if (pathname.startsWith("/hr")) return "RMS & Recruitment";
+    if (pathname.startsWith("/client-attendance") || pathname.startsWith("/client-assignment") || pathname.startsWith("/client-geo-fence")) {
+      return "Field Attendance";
+    }
+    if (pathname.startsWith("/employees")) return "Employee Management";
+    if (pathname.startsWith("/leave")) return "Leave Management";
+    if (pathname.startsWith("/payroll")) return "Payroll";
+    if (pathname.startsWith("/expenses")) return "Expenses";
+    if (pathname.startsWith("/assets")) return "Assets";
+    if (pathname.startsWith("/exit")) return "Exit & Offboarding";
+    if (pathname.startsWith("/reports") || pathname.startsWith("/export")) return "Reports";
+    if (pathname.startsWith("/subscription")) return "Subscription";
+    if (pathname.startsWith("/my-clients")) return "My Clients";
+    if (pathname.startsWith("/my-analytics")) return "My Analytics";
+    if (pathname.startsWith("/pulse-surveys")) return "Employee Surveys";
+    if (pathname === "/superadmin-dashboard") return "Super Admin Dashboard";
+
+    return "Overview";
+  };
+
+  const currentPageTitle = getCurrentPageTitle();
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -134,10 +163,10 @@ export const Topbar: React.FC = () => {
               ? "bg-teal-100 text-teal-700"
               : "hover:bg-muted text-muted-foreground hover:text-foreground"
           }`}
-          title="Go to Dashboard"
+          title={location.pathname === dashboardPath ? "Overview" : "Go to Dashboard"}
         >
           <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="hidden sm:inline text-sm font-medium">Overview</span>
+          <span className="hidden sm:inline text-sm font-medium">{currentPageTitle}</span>
         </button>
       </div>
 

@@ -23,8 +23,6 @@ import {
   MapPin,
   Clock,
   AlertCircle,
-  Eye,
-  EyeOff,
   RefreshCw,
   Users,
   Search,
@@ -42,7 +40,6 @@ import {
   Car,
   Smartphone,
   Activity,
-  Zap,
   Route,
   Timer,
 } from "lucide-react";
@@ -118,6 +115,22 @@ const matchesEmployeeId = (left: unknown, right: unknown) => {
   return String(left) === String(right);
 };
 
+const formatLocalDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const isSameLocalDate = (value: unknown, date = new Date()) => {
+  if (!value) return false;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value).slice(0, 10) === formatLocalDate(date);
+  }
+  return formatLocalDate(parsed) === formatLocalDate(date);
+};
+
 const parseStoredLocation = (raw?: unknown) => {
   if (!raw) return null;
   if (typeof raw === "string") {
@@ -175,7 +188,7 @@ const hasOpenAttendanceSession = (attendance: any) => {
   if (!attendance) return false;
   const checkIn = attendance.check_in || attendance.checkIn;
   const checkOut = attendance.check_out || attendance.checkOut;
-  return Boolean(checkIn) && !checkOut;
+  return Boolean(checkIn) && !checkOut && isSameLocalDate(checkIn);
 };
 
 const buildStaySegments = (
@@ -564,7 +577,6 @@ export default function LiveTracking() {
     GOOGLE_MAPS_LOADER_OPTIONS,
   );
   const [searchTerm, setSearchTerm] = useState("");
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [showAll, setShowAll] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
@@ -594,8 +606,6 @@ export default function LiveTracking() {
   const [mapStyle, setMapStyle] = useState<
     "roadmap" | "satellite" | "hybrid" | "terrain"
   >("roadmap");
-  const [refreshInterval, setRefreshInterval] = useState<number>(5);
-  const [showMetrics, setShowMetrics] = useState(true);
   const [visitedLocations, setVisitedLocations] = useState<StopSegment[]>([]);
   const [visitDateRange, setVisitDateRange] = useState<
     "today" | "week" | "month" | "all"
@@ -676,16 +686,23 @@ export default function LiveTracking() {
       "Date",
       "Time",
       "Location Address",
+      "Duration",
       "Latitude",
       "Longitude",
-      "Duration",
     ];
     const rows = timeline.map((event) => {
       const date = new Date(event.time);
-      const dateStr = date.toLocaleDateString("en-IN");
+      // Ultra-compact date format (DD/MM/YYYY) - exactly 10 chars to avoid "######" in sheets
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      const dateStr = `${day}/${month}/${year}`;
+
+      // Compact time format (HH:MM) for better spreadsheet compatibility
       const timeStr = date.toLocaleTimeString("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
+        hour12: false,
       });
       const type =
         event.type === "checkin"
@@ -709,12 +726,19 @@ export default function LiveTracking() {
             : event.type === "checkout"
               ? "End"
               : "-";
-      return [type, dateStr, timeStr, address, lat, lng, duration];
+      return [type, dateStr, timeStr, address, duration, lat, lng];
     });
 
     const csvContent = [headers, ...rows]
-      .map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+      .map((row, rowIndex) =>
+        row
+          .map((cell, colIndex) => {
+            // Add apostrophe prefix to Date column (index 1) to force text formatting in Google Sheets
+            const cellValue =
+              rowIndex > 0 && colIndex === 1 ? `'${cell}` : cell;
+            return `"${String(cellValue).replace(/"/g, '""')}"`;
+          })
+          .join(","),
       )
       .join("\n");
 
@@ -881,32 +905,6 @@ export default function LiveTracking() {
     fetchBranchLocations();
   }, [canViewTracking]);
 
-  useEffect(() => {
-    if (!autoRefresh || !canViewTracking || connectionMode === "realtime")
-      return;
-
-    const interval = setInterval(async () => {
-      try {
-        const [employeesResponse, attendanceResponse] = await Promise.all([
-          liveApi.getEmployees(),
-          liveApi.getAttendanceLogs({ limit: 500 }),
-        ]);
-
-        if (!employeesResponse.error) {
-          setEmployees(employeesResponse.data || []);
-        }
-
-        if (!attendanceResponse.error) {
-          setAttendanceLogs(attendanceResponse.data || []);
-        }
-      } catch (error) {
-        console.error("Error refreshing data:", error);
-      }
-    }, refreshInterval * 1000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, canViewTracking, refreshInterval, connectionMode]);
-
   const trackedEmployees = useMemo(() => {
     if (!canViewTracking || employees.length === 0) {
       return [];
@@ -926,15 +924,14 @@ export default function LiveTracking() {
               new Date(a.check_in || a.checkIn).getTime(),
           )[0];
 
-        const hasRecentLivePing = Boolean(
-          (emp as any).locationTimestamp || (emp as any).timestamp,
+        const hasServerActiveSession = Boolean(
+          (emp as any).hasActiveAttendance ||
+          (emp as any).hasActiveFieldAttendance ||
+          (emp as any).has_active_attendance ||
+          (emp as any).has_active_field_attendance,
         );
-        const employeeMarkedActive =
-          String((emp as any).trackingStatus || "").toLowerCase() ===
-            "active" || Boolean((emp as any).isTracking);
         const isCheckedIn =
-          hasOpenAttendanceSession(latestAttendance) ||
-          (employeeMarkedActive && hasRecentLivePing);
+          hasOpenAttendanceSession(latestAttendance) || hasServerActiveSession;
         const parsedCheckInLocation = parseStoredLocation(
           latestAttendance?.check_in_location,
         );
@@ -1060,6 +1057,49 @@ export default function LiveTracking() {
 
     return trackedEmployees
       .filter((emp) => {
+        const employeeMatchesFilter =
+          !filterEmployeeId ||
+          matchesEmployeeId(emp.id, filterEmployeeId) ||
+          matchesEmployeeId(emp.dbEmployeeId, filterEmployeeId);
+
+        if (!employeeMatchesFilter) {
+          return false;
+        }
+
+        const dateMatchesFilter = (() => {
+          if (!filterDate) return true;
+
+          const attendanceEmployeeId = emp.dbEmployeeId ?? emp.id;
+          const hasAttendanceOnDate = attendanceLogs.some(
+            (log) =>
+              (matchesEmployeeId(log.employee_id, attendanceEmployeeId) ||
+                matchesEmployeeId(log.employeeId, attendanceEmployeeId) ||
+                matchesEmployeeId(log.employee_id, emp.id) ||
+                matchesEmployeeId(log.employeeId, emp.id)) &&
+              (isSameLocalDate(
+                log.check_in || log.checkIn,
+                new Date(filterDate),
+              ) ||
+                isSameLocalDate(
+                  log.check_out || log.checkOut,
+                  new Date(filterDate),
+                )),
+          );
+
+          const hasLocationOnDate = isSameLocalDate(
+            emp.currentLocation?.timestamp ||
+              (emp as any).locationTimestamp ||
+              (emp as any).timestamp,
+            new Date(filterDate),
+          );
+
+          return hasAttendanceOnDate || hasLocationOnDate;
+        })();
+
+        if (!dateMatchesFilter) {
+          return false;
+        }
+
         const firstName = String(emp.firstName || "");
         const lastName = String(emp.lastName || "");
         const email = String(emp.email || "");
@@ -1074,7 +1114,15 @@ export default function LiveTracking() {
         return matchesSearch;
       })
       .sort((a, b) => b.trackingStatus.localeCompare(a.trackingStatus));
-  }, [trackedEmployees, searchTerm, showAll, canViewTracking]);
+  }, [
+    trackedEmployees,
+    searchTerm,
+    showAll,
+    canViewTracking,
+    filterEmployeeId,
+    filterDate,
+    attendanceLogs,
+  ]);
 
   const exportRows = useMemo(() => {
     return filteredEmployees.map((emp) => {
@@ -1114,14 +1162,14 @@ export default function LiveTracking() {
   const mapCenter = useMemo(() => {
     if (!canViewTracking) return { lat: 13.0827, lng: 80.2707 };
 
-    const firstTrackedEmp = trackedEmployees.find((e) => e.currentLocation);
+    const firstTrackedEmp = filteredEmployees.find((e) => e.currentLocation);
     return firstTrackedEmp
       ? {
           lat: firstTrackedEmp.currentLocation!.latitude,
           lng: firstTrackedEmp.currentLocation!.longitude,
         }
       : { lat: 13.0827, lng: 80.2707 };
-  }, [trackedEmployees, canViewTracking]);
+  }, [filteredEmployees, canViewTracking]);
 
   const fallbackMapUrl = useMemo(() => {
     const lat = mapCenter.lat;
@@ -1245,7 +1293,9 @@ export default function LiveTracking() {
         ).toISOString();
 
         const selectedEmp = trackedEmployees.find(
-          (emp) => emp.id === filterEmployeeId,
+          (emp) =>
+            matchesEmployeeId(emp.id, filterEmployeeId) ||
+            matchesEmployeeId(emp.dbEmployeeId, filterEmployeeId),
         );
         const employeeDbId = selectedEmp?.dbEmployeeId ?? selectedEmp?.id;
 
@@ -1796,7 +1846,9 @@ export default function LiveTracking() {
 
     try {
       const selectedEmp = trackedEmployees.find(
-        (emp) => emp.id === filterEmployeeId,
+        (emp) =>
+          matchesEmployeeId(emp.id, filterEmployeeId) ||
+          matchesEmployeeId(emp.dbEmployeeId, filterEmployeeId),
       );
       const employeeDbId = selectedEmp?.dbEmployeeId ?? selectedEmp?.id;
 
@@ -2156,183 +2208,197 @@ export default function LiveTracking() {
     </Layout>
   );
 
+  const activeTrackedEmployees = trackedEmployees.filter(
+    (employee) => employee.trackingStatus === "checked-in",
+  );
+  const checkedOutEmployees = trackedEmployees.filter(
+    (employee) => employee.trackingStatus === "checked-out",
+  );
+  const selectedTrackedEmployee =
+    trackedEmployees.find(
+      (employee) => String(employee.id) === String(selectedEmployee || ""),
+    ) ||
+    activeTrackedEmployees[0] ||
+    trackedEmployees[0] ||
+    null;
+  const selectedRouteDistanceKm = (
+    (selectedRouteSummary?.totalDistanceMeters || 0) / 1000
+  ).toFixed(2);
+  const selectedTripDuration = formatDuration(
+    selectedRouteSummary?.tripDurationMinutes || 0,
+  );
+  const selectedTrackingTimeline = (() => {
+    if (!selectedTrackedEmployee) return [];
+
+    const employeeDbId =
+      selectedTrackedEmployee.dbEmployeeId ?? selectedTrackedEmployee.id;
+    const attendanceEvents = attendanceLogs
+      .filter(
+        (log) =>
+          matchesEmployeeId(log.employee_id, employeeDbId) ||
+          matchesEmployeeId(log.employeeId, employeeDbId),
+      )
+      .flatMap((log, index) => {
+        const events: Array<{
+          type: "checkin" | "checkout";
+          label: string;
+          time: string;
+          detail: string;
+          coords?: string;
+        }> = [];
+        const checkInLocation = parseStoredLocation(log.check_in_location);
+        const checkOutLocation = parseStoredLocation(log.check_out_location);
+
+        if (log.check_in || log.checkIn) {
+          events.push({
+            type: "checkin",
+            label: "Check-in",
+            time: log.check_in || log.checkIn,
+            detail:
+              String((checkInLocation as any)?.address || "").trim() ||
+              formatCoordinateLabel(
+                (checkInLocation as any)?.latitude,
+                (checkInLocation as any)?.longitude,
+              ),
+            coords: formatCoordinates(
+              (checkInLocation as any)?.latitude,
+              (checkInLocation as any)?.longitude,
+            ),
+          });
+        }
+
+        if (log.check_out || log.checkOut) {
+          events.push({
+            type: "checkout",
+            label: "Check-out",
+            time: log.check_out || log.checkOut,
+            detail:
+              String((checkOutLocation as any)?.address || "").trim() ||
+              formatCoordinateLabel(
+                (checkOutLocation as any)?.latitude,
+                (checkOutLocation as any)?.longitude,
+              ),
+            coords: formatCoordinates(
+              (checkOutLocation as any)?.latitude,
+              (checkOutLocation as any)?.longitude,
+            ),
+          });
+        }
+
+        return events.map((event) => ({
+          ...event,
+          id: `${event.type}-${index}-${event.time}`,
+        }));
+      });
+
+    const routeEvents = selectedRoutePoints.map((point, index) => ({
+      id: `route-${point.id || index}`,
+      type: "route" as const,
+      label:
+        index === selectedRoutePoints.length - 1 ? "Latest ping" : "Route ping",
+      time: point.location_timestamp,
+      detail:
+        extractLocationName(point.address) ||
+        formatCoordinateLabel(point.latitude, point.longitude),
+      coords: formatCoordinates(point.latitude, point.longitude),
+    }));
+
+    const stopEvents = visitedLocations.map((stop, index) => ({
+      id: `stop-${index}-${stop.startTime}`,
+      type: "stop" as const,
+      label: `Visit ${index + 1}`,
+      time: stop.startTime,
+      detail:
+        extractLocationName(stop.address) ||
+        formatCoordinateLabel(stop.latitude, stop.longitude),
+      coords: formatCoordinates(stop.latitude, stop.longitude),
+      duration: formatDuration(stop.durationMinutes),
+    }));
+
+    return [...attendanceEvents, ...routeEvents, ...stopEvents]
+      .filter((event) => event.time)
+      .sort(
+        (a, b) =>
+          new Date(a.time || 0).getTime() - new Date(b.time || 0).getTime(),
+      );
+  })();
+
   const trackingView = (
     <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-50">
-            <Navigation2 className="w-8 h-8 text-blue-600 flex-shrink-0" />
-            Live Tracking
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Real-time location tracking of employees with tracking enabled
-          </p>
-        </div>
+      <div className="space-y-5 bg-sky-50/60 p-3 sm:p-4 lg:p-5 rounded-lg">
+        <div className="rounded-lg border border-sky-100 bg-white/90 p-4 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-950">
+                <Navigation2 className="h-7 w-7 text-sky-600" />
+                Live Tracking
+              </h1>
+              <p className="mt-1 text-sm text-slate-600">
+                Location based task visibility, route history, and
+                attendance-aware tracking.
+              </p>
+            </div>
 
-        <Alert
-          className={
-            connectionMode === "realtime"
-              ? "border-green-200 bg-green-50"
-              : "border-amber-200 bg-amber-50"
-          }
-        >
-          <AlertDescription className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="font-medium">
-              {connectionMode === "realtime"
-                ? "Realtime socket connected"
-                : connectionMode === "polling"
-                  ? "Realtime unavailable. Using polling refresh"
-                  : "Connecting to live tracking..."}
-            </span>
-            {isConnected && <Badge className="bg-green-600">Live</Badge>}
-            {realtimeError && (
-              <span className="text-amber-700">{realtimeError}</span>
-            )}
-          </AlertDescription>
-        </Alert>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                className={
+                  connectionMode === "realtime"
+                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                    : "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                }
+              >
+                {connectionMode === "realtime"
+                  ? "Socket connected"
+                  : connectionMode === "polling"
+                    ? "Polling refresh"
+                    : "Connecting"}
+              </Badge>
+              {isConnected && (
+                <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                  Live
+                </Badge>
+              )}
+              {realtimeError && (
+                <span className="text-xs text-amber-700">{realtimeError}</span>
+              )}
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Tracked Employees
-              </div>
-              <div className="text-3xl font-bold mt-2">
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <div className="text-xs font-medium text-slate-500">Tracked</div>
+              <div className="mt-1 text-2xl font-bold text-slate-950">
                 {trackedEmployees.length}
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Currently Active
+            </div>
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+              <div className="text-xs font-medium text-emerald-700">
+                Active now
               </div>
-              <div className="text-3xl font-bold mt-2 text-green-600">
-                {
-                  trackedEmployees.filter(
-                    (e) => e.trackingStatus === "checked-in",
-                  ).length
-                }
+              <div className="mt-1 text-2xl font-bold text-emerald-700">
+                {activeTrackedEmployees.length}
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Checked Out
+            </div>
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <div className="text-xs font-medium text-slate-500">Offline</div>
+              <div className="mt-1 text-2xl font-bold text-slate-700">
+                {checkedOutEmployees.length}
               </div>
-              <div className="text-3xl font-bold mt-2 text-gray-600">
-                {
-                  trackedEmployees.filter(
-                    (e) => e.trackingStatus === "checked-out",
-                  ).length
-                }
+            </div>
+            <div className="rounded-lg border border-sky-100 bg-sky-50 p-3">
+              <div className="text-xs font-medium text-sky-700">
+                Last refresh
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Last Updated
-              </div>
-              <div className="text-lg font-bold mt-2">
+              <div className="mt-1 text-base font-bold text-slate-950">
                 {new Date().toLocaleTimeString("en-IN")}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {showMetrics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Gauge className="w-5 h-5 text-blue-600" />
-                  <div className="text-sm font-medium text-blue-900">
-                    Average Speed
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-blue-900">
-                  {(() => {
-                    const activeEmployees = trackedEmployees.filter(
-                      (e) =>
-                        e.trackingStatus === "checked-in" &&
-                        e.currentLocation?.speed,
-                    );
-                    if (activeEmployees.length === 0) return "0 km/h";
-                    const avgSpeed =
-                      activeEmployees.reduce(
-                        (sum, e) => sum + (e.currentLocation?.speed || 0),
-                        0,
-                      ) / activeEmployees.length;
-                    return `${avgSpeed.toFixed(1)} km/h`;
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Battery className="w-5 h-5 text-green-600" />
-                  <div className="text-sm font-medium text-green-900">
-                    Avg Battery Level
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-green-900">
-                  {(() => {
-                    const employeesWithBattery = trackedEmployees.filter(
-                      (e) => e.currentLocation?.batteryLevel,
-                    );
-                    if (employeesWithBattery.length === 0) return "N/A";
-                    const avgBattery =
-                      employeesWithBattery.reduce(
-                        (sum, e) =>
-                          sum + (e.currentLocation?.batteryLevel || 0),
-                        0,
-                      ) / employeesWithBattery.length;
-                    return `${avgBattery.toFixed(0)}%`;
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Route className="w-5 h-5 text-purple-600" />
-                  <div className="text-sm font-medium text-purple-900">
-                    Total Distance
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-purple-900">
-                  {(() => {
-                    const totalDistance = trackedEmployees.reduce(
-                      (sum, e) => sum + (e.totalDistanceTraveled || 0),
-                      0,
-                    );
-                    return `${(totalDistance / 1000).toFixed(2)} km`;
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Zap className="w-5 h-5 text-orange-600" />
-                  <div className="text-sm font-medium text-orange-900">
-                    Active Devices
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-orange-900">
-                  {trackedEmployees.filter((e) => e.deviceInfo).length}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        <Card>
+        <Card className="border-sky-100 bg-white/95 shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle>Map & Tracking Controls</CardTitle>
+            <CardTitle className="text-base">Tracking Controls</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2 items-center">
@@ -2340,7 +2406,7 @@ export default function LiveTracking() {
                 onClick={handleRefresh}
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 rounded-full"
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh Locations
@@ -2349,7 +2415,7 @@ export default function LiveTracking() {
                 onClick={handleExportCsv}
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 rounded-full"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
@@ -2359,7 +2425,7 @@ export default function LiveTracking() {
                   onClick={handleExportLocationData}
                   variant="default"
                   size="sm"
-                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  className="gap-2 rounded-full bg-green-600 hover:bg-green-700"
                 >
                   <Download className="w-4 h-4" />
                   Export Filtered Data
@@ -2370,7 +2436,7 @@ export default function LiveTracking() {
                   onClick={handleExportVisitedLocations}
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 rounded-full"
                   disabled={isReverseGeocoding || routeLoading}
                 >
                   <Route className="w-4 h-4" />
@@ -2378,61 +2444,24 @@ export default function LiveTracking() {
                 </Button>
               )}
               <Button
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                variant={autoRefresh ? "default" : "outline"}
-                size="sm"
-                className="gap-2"
-              >
-                {autoRefresh ? (
-                  <Eye className="w-4 h-4" />
-                ) : (
-                  <EyeOff className="w-4 h-4" />
-                )}
-                Auto Refresh {autoRefresh ? "ON" : "OFF"}
-              </Button>
-              <Button
                 onClick={() => setShowAll(!showAll)}
                 variant={showAll ? "default" : "outline"}
                 size="sm"
+                className="rounded-full"
               >
                 {showAll ? "All Employees" : "Checked In Only"}
               </Button>
-              <Button
-                onClick={() => setShowMetrics(!showMetrics)}
-                variant={showMetrics ? "default" : "outline"}
-                size="sm"
-                className="gap-2"
-              >
-                <Activity className="w-4 h-4" />
-                Metrics {showMetrics ? "ON" : "OFF"}
-              </Button>
-
               <div className="flex gap-2 border-l pl-2 ml-2 items-center">
                 <Layers className="w-4 h-4 text-muted-foreground" />
                 <select
                   value={mapStyle}
                   onChange={(e) => setMapStyle(e.target.value as any)}
-                  className="px-3 py-1.5 text-sm border rounded-md bg-background"
+                  className="rounded-full border bg-background px-3 py-1.5 text-sm"
                 >
                   <option value="roadmap">Roadmap</option>
                   <option value="satellite">Satellite</option>
                   <option value="hybrid">Hybrid</option>
                   <option value="terrain">Terrain</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 border-l pl-2 ml-2 items-center">
-                <Timer className="w-4 h-4 text-muted-foreground" />
-                <select
-                  value={refreshInterval}
-                  onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                  className="px-3 py-1.5 text-sm border rounded-md bg-background"
-                >
-                  <option value={5}>5s</option>
-                  <option value={10}>10s</option>
-                  <option value={30}>30s</option>
-                  <option value={60}>1min</option>
-                  <option value={300}>5min</option>
                 </select>
               </div>
 
@@ -2450,7 +2479,7 @@ export default function LiveTracking() {
                   }}
                   variant={isAnimating ? "default" : "outline"}
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 rounded-full"
                   disabled={isAnimating}
                 >
                   <Play className="w-4 h-4" />
@@ -2460,7 +2489,7 @@ export default function LiveTracking() {
                   onClick={() => setIsAnimating(false)}
                   variant={isAnimating ? "default" : "outline"}
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 rounded-full"
                   disabled={!isAnimating}
                 >
                   <Pause className="w-4 h-4" />
@@ -2473,7 +2502,7 @@ export default function LiveTracking() {
                   }}
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 rounded-full"
                 >
                   <Square className="w-4 h-4" />
                   Reset
@@ -2487,7 +2516,7 @@ export default function LiveTracking() {
                 placeholder="Search employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="rounded-full border-slate-200 bg-slate-50 pl-10"
               />
             </div>
 
@@ -2556,7 +2585,7 @@ export default function LiveTracking() {
                         }
                         onClick={() => {
                           const today = new Date();
-                          setFilterDate(today.toISOString().split("T")[0]);
+                          setFilterDate(formatLocalDate(today));
                           setVisitDateRange("today");
                         }}
                         className="flex-1"
@@ -2572,7 +2601,7 @@ export default function LiveTracking() {
                           const weekAgo = new Date(
                             Date.now() - 7 * 24 * 60 * 60 * 1000,
                           );
-                          setFilterDate(weekAgo.toISOString().split("T")[0]);
+                          setFilterDate(formatLocalDate(weekAgo));
                           setVisitDateRange("week");
                         }}
                         className="flex-1"
@@ -2588,7 +2617,7 @@ export default function LiveTracking() {
                           const monthAgo = new Date(
                             Date.now() - 30 * 24 * 60 * 60 * 1000,
                           );
-                          setFilterDate(monthAgo.toISOString().split("T")[0]);
+                          setFilterDate(formatLocalDate(monthAgo));
                           setVisitDateRange("month");
                         }}
                         className="flex-1"
@@ -2607,8 +2636,14 @@ export default function LiveTracking() {
                     <Badge variant="secondary" className="gap-1">
                       Employee:{" "}
                       {
-                        trackedEmployees.find((e) => e.id === filterEmployeeId)
-                          ?.firstName
+                        trackedEmployees.find(
+                          (employee) =>
+                            matchesEmployeeId(employee.id, filterEmployeeId) ||
+                            matchesEmployeeId(
+                              employee.dbEmployeeId,
+                              filterEmployeeId,
+                            ),
+                        )?.firstName
                       }
                       <button
                         onClick={() => setFilterEmployeeId(null)}
@@ -2646,17 +2681,20 @@ export default function LiveTracking() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="overflow-hidden border-sky-100 bg-white shadow-sm">
+          <CardHeader className="border-b border-sky-50 bg-white/95 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="w-5 h-5 text-blue-600" />
-              Real-Time Location Map (Google Maps)
+              Live Route Map
             </CardTitle>
-            <CardDescription>
+            <div className="text-xs text-slate-500">
+              Offices | Checked In | Checked Out
+            </div>
+            <CardDescription className="hidden">
               📍 Offices | 🟢 Checked In | ⭕ Checked Out
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative p-0">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -2692,7 +2730,7 @@ export default function LiveTracking() {
                 <iframe
                   title="Fallback Map"
                   src={fallbackMapUrl}
-                  className="w-full h-[500px] rounded-md border"
+                  className="h-[620px] w-full border"
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {filteredEmployees
@@ -2711,822 +2749,1032 @@ export default function LiveTracking() {
                 </div>
               </div>
             ) : !isMapLoaded ? (
-              <div className="flex items-center justify-center h-[500px] text-sm text-muted-foreground">
+              <div className="flex h-[620px] items-center justify-center text-sm text-muted-foreground">
                 Loading map...
               </div>
             ) : (
-              <GoogleMap
-                mapContainerStyle={{ height: "500px", width: "100%" }}
-                center={mapCenter}
-                zoom={12}
-                options={mapOptions}
-                onLoad={setMapInstance}
-                onUnmount={() => setMapInstance(null)}
-              >
-                {officeLocations.map((office) => (
-                  <Marker
-                    key={`office-${office.id}`}
-                    position={{ lat: office.latitude, lng: office.longitude }}
-                    title={office.name}
-                    icon={{
-                      path: 1,
-                      scale: 8,
-                      fillColor: "#0ea5e9",
-                      fillOpacity: 0.9,
-                      strokeColor: "white",
-                      strokeWeight: 2,
-                    }}
-                    onClick={() => setSelectedMarker(`office-${office.id}`)}
-                  >
-                    {selectedMarker === `office-${office.id}` && (
-                      <InfoWindow onCloseClick={() => setSelectedMarker(null)}>
-                        <div className="space-y-1">
-                          <div className="font-semibold text-sm">
-                            {office.name}
+              <>
+                <GoogleMap
+                  mapContainerStyle={{ height: "620px", width: "100%" }}
+                  center={mapCenter}
+                  zoom={12}
+                  options={mapOptions}
+                  onLoad={setMapInstance}
+                  onUnmount={() => setMapInstance(null)}
+                >
+                  {officeLocations.map((office) => (
+                    <Marker
+                      key={`office-${office.id}`}
+                      position={{ lat: office.latitude, lng: office.longitude }}
+                      title={office.name}
+                      icon={{
+                        path: 1,
+                        scale: 8,
+                        fillColor: "#0ea5e9",
+                        fillOpacity: 0.9,
+                        strokeColor: "white",
+                        strokeWeight: 2,
+                      }}
+                      onClick={() => setSelectedMarker(`office-${office.id}`)}
+                    >
+                      {selectedMarker === `office-${office.id}` && (
+                        <InfoWindow
+                          onCloseClick={() => setSelectedMarker(null)}
+                        >
+                          <div className="space-y-1">
+                            <div className="font-semibold text-sm">
+                              {office.name}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {office.address}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-600">
-                            {office.address}
-                          </div>
-                        </div>
-                      </InfoWindow>
-                    )}
-                  </Marker>
-                ))}
+                        </InfoWindow>
+                      )}
+                    </Marker>
+                  ))}
 
-                {Object.entries(travelPaths).map(([empId, pathPoints]) => {
-                  if (pathPoints.length < 2) return null;
-                  if (
-                    selectedEmployee &&
-                    String(selectedEmployee) === String(empId)
-                  )
-                    return null;
+                  {Object.entries(travelPaths).map(([empId, pathPoints]) => {
+                    if (pathPoints.length < 2) return null;
+                    if (
+                      selectedEmployee &&
+                      String(selectedEmployee) === String(empId)
+                    )
+                      return null;
 
-                  return (
-                    <Polyline
-                      key={`path-${empId}`}
-                      path={pathPoints.slice(-100)}
-                      options={{
-                        strokeColor: "#64748b",
-                        strokeOpacity: 0.45,
-                        strokeWeight: 3,
-                        geodesic: true,
-                        zIndex: 10,
-                      }}
-                    />
-                  );
-                })}
+                    return (
+                      <Polyline
+                        key={`path-${empId}`}
+                        path={pathPoints.slice(-100)}
+                        options={{
+                          strokeColor: "#64748b",
+                          strokeOpacity: 0.45,
+                          strokeWeight: 3,
+                          geodesic: true,
+                          zIndex: 10,
+                        }}
+                      />
+                    );
+                  })}
 
-                {selectedRoutePoints.length >= 2 && (
-                  <>
-                    <Polyline
-                      path={selectedRoutePoints.map((point) => ({
-                        lat: point.latitude,
-                        lng: point.longitude,
-                      }))}
-                      options={{
-                        strokeColor: "#312e81",
-                        strokeOpacity: 0.95,
-                        strokeWeight: 10,
-                        geodesic: true,
-                        zIndex: 20,
-                      }}
-                    />
-                    <Polyline
-                      path={selectedRoutePoints.map((point) => ({
-                        lat: point.latitude,
-                        lng: point.longitude,
-                      }))}
-                      options={{
-                        strokeColor: "#4f46e5",
-                        strokeOpacity: 1,
-                        strokeWeight: 6,
-                        geodesic: true,
-                        zIndex: 21,
-                        icons: [
-                          {
-                            icon: {
-                              path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                              scale: 3,
-                              fillColor: "#4f46e5",
-                              fillOpacity: 1,
-                              strokeOpacity: 1,
+                  {selectedRoutePoints.length >= 2 && (
+                    <>
+                      <Polyline
+                        path={selectedRoutePoints.map((point) => ({
+                          lat: point.latitude,
+                          lng: point.longitude,
+                        }))}
+                        options={{
+                          strokeColor: "#312e81",
+                          strokeOpacity: 0.95,
+                          strokeWeight: 10,
+                          geodesic: true,
+                          zIndex: 20,
+                        }}
+                      />
+                      <Polyline
+                        path={selectedRoutePoints.map((point) => ({
+                          lat: point.latitude,
+                          lng: point.longitude,
+                        }))}
+                        options={{
+                          strokeColor: "#4f46e5",
+                          strokeOpacity: 1,
+                          strokeWeight: 6,
+                          geodesic: true,
+                          zIndex: 21,
+                          icons: [
+                            {
+                              icon: {
+                                path: google.maps.SymbolPath
+                                  .FORWARD_CLOSED_ARROW,
+                                scale: 3,
+                                fillColor: "#4f46e5",
+                                fillOpacity: 1,
+                                strokeOpacity: 1,
+                              },
+                              offset: "0%",
+                              repeat: "90px",
                             },
-                            offset: "0%",
-                            repeat: "90px",
-                          },
-                        ],
+                          ],
+                        }}
+                      />
+                    </>
+                  )}
+
+                  {selectedRoutePoints[0] && (
+                    <Marker
+                      position={{
+                        lat: selectedRoutePoints[0].latitude,
+                        lng: selectedRoutePoints[0].longitude,
                       }}
-                    />
-                  </>
-                )}
-
-                {selectedRoutePoints[0] && (
-                  <Marker
-                    position={{
-                      lat: selectedRoutePoints[0].latitude,
-                      lng: selectedRoutePoints[0].longitude,
-                    }}
-                    title={`Check-in: ${selectedRouteSummary?.startAddress || "Start location"}`}
-                    label={{
-                      text: "IN",
-                      color: "white",
-                      fontWeight: "700",
-                    }}
-                    icon={{
-                      path: google.maps.SymbolPath.CIRCLE,
-                      scale: 12,
-                      fillColor: "#16a34a",
-                      fillOpacity: 1,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 3,
-                    }}
-                  />
-                )}
-
-                {selectedRoutePoints[selectedRoutePoints.length - 1] && (
-                  <Marker
-                    position={{
-                      lat: selectedRoutePoints[selectedRoutePoints.length - 1]
-                        .latitude,
-                      lng: selectedRoutePoints[selectedRoutePoints.length - 1]
-                        .longitude,
-                    }}
-                    title={`Latest location: ${selectedRouteSummary?.endAddress || "Latest location"}`}
-                    label={{
-                      text: selectedRouteSummary?.endedAt ? "OUT" : "NOW",
-                      color: "white",
-                      fontWeight: "700",
-                    }}
-                    icon={{
-                      path: google.maps.SymbolPath.CIRCLE,
-                      scale: 12,
-                      fillColor: selectedRouteSummary?.endedAt
-                        ? "#475569"
-                        : "#2563eb",
-                      fillOpacity: 1,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 3,
-                    }}
-                  />
-                )}
-
-                {visitedLocations.map((visit, index) => (
-                  <Marker
-                    key={`selected-stop-${index}`}
-                    position={{ lat: visit.latitude, lng: visit.longitude }}
-                    title={`${extractLocationName(visit.address)} - ${formatDuration(visit.durationMinutes)}`}
-                    label={{
-                      text: `${index + 1}`,
-                      color: "white",
-                      fontWeight: "700",
-                    }}
-                    icon={{
-                      path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                      scale: 6,
-                      fillColor: "#7c3aed",
-                      fillOpacity: 0.95,
-                      strokeColor: "#ffffff",
-                      strokeWeight: 2,
-                    }}
-                  />
-                ))}
-
-                {/* Hover Travel Path - shows when hovering employee */}
-                {hoveredMarker &&
-                  hoverTravelPath &&
-                  hoverTravelPath.empId === hoveredMarker &&
-                  hoverTravelPath.path.length >= 2 && (
-                    <Polyline
-                      path={hoverTravelPath.path}
-                      options={{
-                        strokeColor: "#f59e0b",
-                        strokeOpacity: 0.8,
+                      title={`Check-in: ${selectedRouteSummary?.startAddress || "Start location"}`}
+                      label={{
+                        text: "IN",
+                        color: "white",
+                        fontWeight: "700",
+                      }}
+                      icon={{
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: "#16a34a",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
                         strokeWeight: 3,
-                        geodesic: true,
-                        icons: [
-                          {
-                            icon: {
-                              path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                              scale: 2,
-                              fillColor: "#f59e0b",
-                              fillOpacity: 0.8,
-                            },
-                            offset: "0%",
-                            repeat: "100px",
-                          },
-                        ],
                       }}
                     />
                   )}
 
-                {/* Hover Stay Markers - locations where employee spent 30+ minutes */}
-                {hoveredMarker &&
-                  hoverStayMarkers &&
-                  hoverStayMarkers.empId === hoveredMarker &&
-                  hoverStayMarkers.markers.map((marker, idx) => (
+                  {selectedRoutePoints[selectedRoutePoints.length - 1] && (
                     <Marker
-                      key={`stay-${hoverStayMarkers.empId}-${idx}`}
-                      position={{ lat: marker.lat, lng: marker.lng }}
-                      title={`Stayed ${marker.duration} min: ${marker.address}`}
+                      position={{
+                        lat: selectedRoutePoints[selectedRoutePoints.length - 1]
+                          .latitude,
+                        lng: selectedRoutePoints[selectedRoutePoints.length - 1]
+                          .longitude,
+                      }}
+                      title={`Latest location: ${selectedRouteSummary?.endAddress || "Latest location"}`}
+                      label={{
+                        text: selectedRouteSummary?.endedAt ? "OUT" : "NOW",
+                        color: "white",
+                        fontWeight: "700",
+                      }}
                       icon={{
                         path: google.maps.SymbolPath.CIRCLE,
-                        scale: 10,
-                        fillColor: "#8b5cf6",
-                        fillOpacity: 0.9,
-                        strokeColor: "#fff",
+                        scale: 12,
+                        fillColor: selectedRouteSummary?.endedAt
+                          ? "#475569"
+                          : "#2563eb",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 3,
+                      }}
+                    />
+                  )}
+
+                  {visitedLocations.map((visit, index) => (
+                    <Marker
+                      key={`selected-stop-${index}`}
+                      position={{ lat: visit.latitude, lng: visit.longitude }}
+                      title={`${extractLocationName(visit.address)} - ${formatDuration(visit.durationMinutes)}`}
+                      label={{
+                        text: `${index + 1}`,
+                        color: "white",
+                        fontWeight: "700",
+                      }}
+                      icon={{
+                        path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                        scale: 6,
+                        fillColor: "#7c3aed",
+                        fillOpacity: 0.95,
+                        strokeColor: "#ffffff",
                         strokeWeight: 2,
                       }}
                     />
                   ))}
 
-                {/* Hover Check-in Location Marker */}
-                {hoveredMarker &&
-                  (() => {
-                    const empId = hoveredMarker.replace("emp-", "");
-                    const emp = filteredEmployees.find(
-                      (e) => String(e.id) === empId,
-                    );
-                    if (!emp) return null;
-                    // Find check-in location from attendance logs
-                    const checkInLog = attendanceLogs.find(
-                      (log) =>
-                        (matchesEmployeeId(log.employee_id, emp.dbEmployeeId) ||
-                          matchesEmployeeId(
-                            log.employeeId,
-                            emp.dbEmployeeId,
-                          )) &&
-                        (log.check_in || log.checkIn),
-                    );
-                    if (!checkInLog) return null;
-                    const checkInLoc = parseStoredLocation(
-                      checkInLog.check_in_location,
-                    );
-                    if (
-                      !checkInLoc ||
-                      !isValidLatLng(checkInLoc.latitude, checkInLoc.longitude)
-                    )
-                      return null;
-                    return (
-                      <Marker
-                        key={`checkin-${empId}`}
-                        position={{
-                          lat: checkInLoc.latitude,
-                          lng: checkInLoc.longitude,
-                        }}
-                        title={`Check-in: ${checkInLoc.address || formatCoordinateLabel(checkInLoc.latitude, checkInLoc.longitude)}`}
-                        icon={{
-                          path: google.maps.SymbolPath.CIRCLE,
-                          scale: 12,
-                          fillColor: "#10b981",
-                          fillOpacity: 0.9,
-                          strokeColor: "#fff",
+                  {/* Hover Travel Path - shows when hovering employee */}
+                  {hoveredMarker &&
+                    hoverTravelPath &&
+                    hoverTravelPath.empId === hoveredMarker &&
+                    hoverTravelPath.path.length >= 2 && (
+                      <Polyline
+                        path={hoverTravelPath.path}
+                        options={{
+                          strokeColor: "#f59e0b",
+                          strokeOpacity: 0.8,
                           strokeWeight: 3,
+                          geodesic: true,
+                          icons: [
+                            {
+                              icon: {
+                                path: google.maps.SymbolPath
+                                  .FORWARD_CLOSED_ARROW,
+                                scale: 2,
+                                fillColor: "#f59e0b",
+                                fillOpacity: 0.8,
+                              },
+                              offset: "0%",
+                              repeat: "100px",
+                            },
+                          ],
                         }}
                       />
-                    );
-                  })()}
+                    )}
 
-                {filteredEmployees.map((emp) => {
-                  if (!emp.currentLocation) return null;
-                  const empLat = toFiniteNumber(emp.currentLocation.latitude);
-                  const empLng = toFiniteNumber(emp.currentLocation.longitude);
-                  if (!isValidLatLng(empLat, empLng)) return null;
-                  const isCheckedIn = emp.trackingStatus === "checked-in";
-                  const isSelectedEmployee =
-                    String(selectedEmployee || "") === String(emp.id);
-                  const accuracyRadius = Math.max(
-                    1,
-                    toFiniteNumber(emp.currentLocation.accuracy) ?? 10,
-                  );
-
-                  return (
-                    <div key={`emp-${emp.id}`}>
-                      <Circle
-                        center={{
-                          lat: empLat,
-                          lng: empLng,
-                        }}
-                        radius={accuracyRadius}
-                        options={{
-                          fillColor: isCheckedIn ? "#10b981" : "#ef4444",
-                          fillOpacity: 0.15,
-                          strokeColor: isCheckedIn ? "#10b981" : "#ef4444",
-                          strokeOpacity: 0.5,
+                  {/* Hover Stay Markers - locations where employee spent 30+ minutes */}
+                  {hoveredMarker &&
+                    hoverStayMarkers &&
+                    hoverStayMarkers.empId === hoveredMarker &&
+                    hoverStayMarkers.markers.map((marker, idx) => (
+                      <Marker
+                        key={`stay-${hoverStayMarkers.empId}-${idx}`}
+                        position={{ lat: marker.lat, lng: marker.lng }}
+                        title={`Stayed ${marker.duration} min: ${marker.address}`}
+                        icon={{
+                          path: google.maps.SymbolPath.CIRCLE,
+                          scale: 10,
+                          fillColor: "#8b5cf6",
+                          fillOpacity: 0.9,
+                          strokeColor: "#fff",
                           strokeWeight: 2,
                         }}
                       />
+                    ))}
 
-                      <Marker
-                        position={{
-                          lat: empLat,
-                          lng: empLng,
-                        }}
-                        zIndex={5}
-                        icon={
-                          createNavigationPuckIcon(isSelectedEmployee) as any
-                        }
-                      />
+                  {/* Hover Check-in Location Marker */}
+                  {hoveredMarker &&
+                    (() => {
+                      const empId = hoveredMarker.replace("emp-", "");
+                      const emp = filteredEmployees.find(
+                        (e) => String(e.id) === empId,
+                      );
+                      if (!emp) return null;
+                      // Find check-in location from attendance logs
+                      const checkInLog = attendanceLogs.find(
+                        (log) =>
+                          (matchesEmployeeId(
+                            log.employee_id,
+                            emp.dbEmployeeId,
+                          ) ||
+                            matchesEmployeeId(
+                              log.employeeId,
+                              emp.dbEmployeeId,
+                            )) &&
+                          (log.check_in || log.checkIn),
+                      );
+                      if (!checkInLog) return null;
+                      const checkInLoc = parseStoredLocation(
+                        checkInLog.check_in_location,
+                      );
+                      if (
+                        !checkInLoc ||
+                        !isValidLatLng(
+                          checkInLoc.latitude,
+                          checkInLoc.longitude,
+                        )
+                      )
+                        return null;
+                      return (
+                        <Marker
+                          key={`checkin-${empId}`}
+                          position={{
+                            lat: checkInLoc.latitude,
+                            lng: checkInLoc.longitude,
+                          }}
+                          title={`Check-in: ${checkInLoc.address || formatCoordinateLabel(checkInLoc.latitude, checkInLoc.longitude)}`}
+                          icon={{
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 12,
+                            fillColor: "#10b981",
+                            fillOpacity: 0.9,
+                            strokeColor: "#fff",
+                            strokeWeight: 3,
+                          }}
+                        />
+                      );
+                    })()}
 
-                      <Marker
-                        position={{
-                          lat: empLat,
-                          lng: empLng,
-                        }}
-                        zIndex={10}
-                        title={`${emp.firstName} ${emp.lastName}`}
-                        icon={
-                          createEmployeeMarkerIcon(
-                            emp.firstName,
-                            emp.lastName,
-                            isCheckedIn,
-                          ) as any
-                        }
-                        onClick={() => {
-                          setSelectedMarker(`emp-${emp.id}`);
-                          setSelectedEmployee(String(emp.id));
-                          if (emp.dbEmployeeId) {
-                            fetchEmployeeLocationHistory(
-                              emp.dbEmployeeId,
-                              `emp-${emp.id}`,
-                            );
+                  {filteredEmployees.map((emp) => {
+                    if (!emp.currentLocation) return null;
+                    const empLat = toFiniteNumber(emp.currentLocation.latitude);
+                    const empLng = toFiniteNumber(
+                      emp.currentLocation.longitude,
+                    );
+                    if (!isValidLatLng(empLat, empLng)) return null;
+                    const isCheckedIn = emp.trackingStatus === "checked-in";
+                    const isSelectedEmployee =
+                      String(selectedEmployee || "") === String(emp.id);
+                    const accuracyRadius = Math.max(
+                      1,
+                      toFiniteNumber(emp.currentLocation.accuracy) ?? 10,
+                    );
+
+                    return (
+                      <div key={`emp-${emp.id}`}>
+                        <Circle
+                          center={{
+                            lat: empLat,
+                            lng: empLng,
+                          }}
+                          radius={accuracyRadius}
+                          options={{
+                            fillColor: isCheckedIn ? "#10b981" : "#ef4444",
+                            fillOpacity: 0.15,
+                            strokeColor: isCheckedIn ? "#10b981" : "#ef4444",
+                            strokeOpacity: 0.5,
+                            strokeWeight: 2,
+                          }}
+                        />
+
+                        <Marker
+                          position={{
+                            lat: empLat,
+                            lng: empLng,
+                          }}
+                          zIndex={5}
+                          icon={
+                            createNavigationPuckIcon(isSelectedEmployee) as any
                           }
-                        }}
-                        onMouseOver={() => {
-                          setHoveredMarker(`emp-${emp.id}`);
-                          // Fetch location history and travel path for this employee
-                          if (emp.dbEmployeeId) {
-                            fetchEmployeeLocationHistory(
-                              emp.dbEmployeeId,
-                              `emp-${emp.id}`,
-                            );
+                        />
+
+                        <Marker
+                          position={{
+                            lat: empLat,
+                            lng: empLng,
+                          }}
+                          zIndex={10}
+                          title={`${emp.firstName} ${emp.lastName}`}
+                          icon={
+                            createEmployeeMarkerIcon(
+                              emp.firstName,
+                              emp.lastName,
+                              isCheckedIn,
+                            ) as any
                           }
-                        }}
-                        onMouseOut={() => {
-                          setHoveredMarker(null);
-                          setHoverTravelPath(null);
-                          setHoverStayMarkers(null);
-                        }}
-                      >
-                        {selectedMarker === `emp-${emp.id}` && (
-                          <InfoWindow
-                            onCloseClick={() => setSelectedMarker(null)}
-                          >
-                            <div className="map-info-window space-y-3 text-sm min-w-[320px] max-w-[360px]">
-                              {/* Header - Employee Info */}
-                              <div className="border-b pb-3 flex items-center gap-3">
-                                {emp.photoUrl ? (
-                                  <img
-                                    src={emp.photoUrl}
-                                    alt={`${emp.firstName} ${emp.lastName}`}
-                                    className="w-12 h-12 rounded-full border-2 object-cover"
-                                    style={{
-                                      borderColor: isCheckedIn
-                                        ? "#10b981"
-                                        : "#ef4444",
-                                    }}
-                                  />
-                                ) : (
-                                  <div
-                                    className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-bold text-white"
-                                    style={{
-                                      backgroundColor: isCheckedIn
-                                        ? "#10b981"
-                                        : "#ef4444",
-                                      borderColor: isCheckedIn
-                                        ? "#10b981"
-                                        : "#ef4444",
-                                    }}
-                                  >
-                                    {emp.firstName?.[0] || ""}
-                                    {emp.lastName?.[0] || ""}
-                                  </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-bold text-base truncate">
-                                    {emp.firstName} {emp.lastName}
-                                  </div>
-                                  <div className="text-xs text-slate-500 flex items-center gap-1">
-                                    <span className="truncate">
-                                      {emp.department || "No Department"}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                        isCheckedIn
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
+                          onClick={() => {
+                            setSelectedMarker(`emp-${emp.id}`);
+                            setSelectedEmployee(String(emp.id));
+                            if (emp.dbEmployeeId) {
+                              fetchEmployeeLocationHistory(
+                                emp.dbEmployeeId,
+                                `emp-${emp.id}`,
+                              );
+                            }
+                          }}
+                          onMouseOver={() => {
+                            setHoveredMarker(`emp-${emp.id}`);
+                            // Fetch location history and travel path for this employee
+                            if (emp.dbEmployeeId) {
+                              fetchEmployeeLocationHistory(
+                                emp.dbEmployeeId,
+                                `emp-${emp.id}`,
+                              );
+                            }
+                          }}
+                          onMouseOut={() => {
+                            setHoveredMarker(null);
+                            setHoverTravelPath(null);
+                            setHoverStayMarkers(null);
+                          }}
+                        >
+                          {false && selectedMarker === `emp-${emp.id}` && (
+                            <InfoWindow
+                              onCloseClick={() => setSelectedMarker(null)}
+                            >
+                              <div className="map-info-window space-y-3 text-sm min-w-[320px] max-w-[360px]">
+                                {/* Header - Employee Info */}
+                                <div className="border-b pb-3 flex items-center gap-3">
+                                  {emp.photoUrl ? (
+                                    <img
+                                      src={emp.photoUrl}
+                                      alt={`${emp.firstName} ${emp.lastName}`}
+                                      className="w-12 h-12 rounded-full border-2 object-cover"
+                                      style={{
+                                        borderColor: isCheckedIn
+                                          ? "#10b981"
+                                          : "#ef4444",
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-bold text-white"
+                                      style={{
+                                        backgroundColor: isCheckedIn
+                                          ? "#10b981"
+                                          : "#ef4444",
+                                        borderColor: isCheckedIn
+                                          ? "#10b981"
+                                          : "#ef4444",
+                                      }}
                                     >
-                                      {isCheckedIn
-                                        ? "Checked In"
-                                        : "Checked Out"}
-                                    </span>
-                                    <span className="text-xs text-slate-400">
-                                      {formatMinutesAgo(emp.minutesSinceUpdate)}
-                                    </span>
+                                      {emp.firstName?.[0] || ""}
+                                      {emp.lastName?.[0] || ""}
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-base truncate">
+                                      {emp.firstName} {emp.lastName}
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-1">
+                                      <span className="truncate">
+                                        {emp.department || "No Department"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                          isCheckedIn
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-red-100 text-red-800"
+                                        }`}
+                                      >
+                                        {isCheckedIn
+                                          ? "Checked In"
+                                          : "Checked Out"}
+                                      </span>
+                                      <span className="text-xs text-slate-400">
+                                        {formatMinutesAgo(
+                                          emp.minutesSinceUpdate,
+                                        )}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
 
-                              {/* Stats Row */}
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-slate-50 rounded-lg p-2 text-center">
-                                  <Clock className="w-4 h-4 mx-auto mb-1 text-blue-500" />
-                                  <div className="text-xs text-slate-500">
-                                    Duration
+                                {/* Stats Row */}
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="bg-slate-50 rounded-lg p-2 text-center">
+                                    <Clock className="w-4 h-4 mx-auto mb-1 text-blue-500" />
+                                    <div className="text-xs text-slate-500">
+                                      Duration
+                                    </div>
+                                    <div className="text-sm font-semibold text-slate-900">
+                                      {emp.lastCheckTime || "--"}
+                                    </div>
                                   </div>
-                                  <div className="text-sm font-semibold text-slate-900">
-                                    {emp.lastCheckTime || "--"}
+                                  <div className="bg-slate-50 rounded-lg p-2 text-center">
+                                    <Route className="w-4 h-4 mx-auto mb-1 text-orange-500" />
+                                    <div className="text-xs text-slate-500">
+                                      Distance
+                                    </div>
+                                    <div className="text-sm font-semibold text-slate-900">
+                                      {emp.totalDistanceTraveled
+                                        ? `${(emp.totalDistanceTraveled / 1000).toFixed(1)} km`
+                                        : "--"}
+                                    </div>
+                                  </div>
+                                  <div className="bg-slate-50 rounded-lg p-2 text-center">
+                                    <MapPin className="w-4 h-4 mx-auto mb-1 text-purple-500" />
+                                    <div className="text-xs text-slate-500">
+                                      Check-ins
+                                    </div>
+                                    <div className="text-sm font-semibold text-slate-900">
+                                      {
+                                        attendanceLogs.filter(
+                                          (log) =>
+                                            matchesEmployeeId(
+                                              log.employee_id,
+                                              emp.dbEmployeeId,
+                                            ) ||
+                                            matchesEmployeeId(
+                                              log.employeeId,
+                                              emp.dbEmployeeId,
+                                            ),
+                                        ).length
+                                      }
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="bg-slate-50 rounded-lg p-2 text-center">
-                                  <Route className="w-4 h-4 mx-auto mb-1 text-orange-500" />
-                                  <div className="text-xs text-slate-500">
-                                    Distance
-                                  </div>
-                                  <div className="text-sm font-semibold text-slate-900">
-                                    {emp.totalDistanceTraveled
-                                      ? `${(emp.totalDistanceTraveled / 1000).toFixed(1)} km`
-                                      : "--"}
-                                  </div>
-                                </div>
-                                <div className="bg-slate-50 rounded-lg p-2 text-center">
-                                  <MapPin className="w-4 h-4 mx-auto mb-1 text-purple-500" />
-                                  <div className="text-xs text-slate-500">
-                                    Check-ins
-                                  </div>
-                                  <div className="text-sm font-semibold text-slate-900">
-                                    {
-                                      attendanceLogs.filter(
-                                        (log) =>
-                                          matchesEmployeeId(
-                                            log.employee_id,
-                                            emp.dbEmployeeId,
-                                          ) ||
-                                          matchesEmployeeId(
-                                            log.employeeId,
-                                            emp.dbEmployeeId,
-                                          ),
-                                      ).length
-                                    }
-                                  </div>
-                                </div>
-                              </div>
 
-                              {/* Activity Timeline - Check-ins + Visited Stops */}
-                              {(() => {
-                                const empAttendance = attendanceLogs
-                                  .filter(
-                                    (log) =>
-                                      matchesEmployeeId(
-                                        log.employee_id,
-                                        emp.dbEmployeeId,
-                                      ) ||
-                                      matchesEmployeeId(
-                                        log.employeeId,
-                                        emp.dbEmployeeId,
-                                      ),
-                                  )
-                                  .sort(
-                                    (a, b) =>
-                                      new Date(
-                                        b.check_in || b.checkIn,
-                                      ).getTime() -
-                                      new Date(
-                                        a.check_in || a.checkIn,
-                                      ).getTime(),
-                                  );
-
-                                const visitedStops =
-                                  employeeLocationHistories[
-                                    String(emp.dbEmployeeId)
-                                  ] || [];
-
-                                // Build a unified timeline of all events
-                                type TimelineEvent =
-                                  | {
-                                      type: "checkin";
-                                      time: string;
-                                      location: any;
-                                      id: string;
-                                    }
-                                  | {
-                                      type: "checkout";
-                                      time: string;
-                                      location: any;
-                                      id: string;
-                                    }
-                                  | {
-                                      type: "stop";
-                                      time: string;
-                                      endTime?: string;
-                                      address: string;
-                                      durationMinutes: number;
-                                      latitude: number;
-                                      longitude: number;
-                                      id: string;
-                                    };
-
-                                const timeline: TimelineEvent[] = [];
-
-                                // Add check-in/check-out events
-                                empAttendance.forEach((log, idx) => {
-                                  const checkInTime =
-                                    log.check_in || log.checkIn;
-                                  const checkOutTime =
-                                    log.check_out || log.checkOut;
-                                  const checkInLoc = parseStoredLocation(
-                                    log.check_in_location,
-                                  );
-                                  const checkOutLoc = parseStoredLocation(
-                                    log.check_out_location,
-                                  );
-
-                                  if (checkInTime) {
-                                    timeline.push({
-                                      type: "checkin",
-                                      time: checkInTime,
-                                      location: checkInLoc,
-                                      id: `in-${idx}`,
-                                    });
-                                  }
-                                  if (checkOutTime) {
-                                    timeline.push({
-                                      type: "checkout",
-                                      time: checkOutTime,
-                                      location: checkOutLoc,
-                                      id: `out-${idx}`,
-                                    });
-                                  }
-                                });
-
-                                // Add visited stops (places where they spent time)
-                                visitedStops.forEach((stop, idx) => {
-                                  if (stop.startTime) {
-                                    timeline.push({
-                                      type: "stop",
-                                      time: stop.startTime,
-                                      endTime: stop.endTime,
-                                      address:
-                                        stop.address ||
-                                        formatCoordinateLabel(
-                                          stop.latitude,
-                                          stop.longitude,
+                                {/* Activity Timeline - Check-ins + Visited Stops */}
+                                {(() => {
+                                  const empAttendance = attendanceLogs
+                                    .filter(
+                                      (log) =>
+                                        matchesEmployeeId(
+                                          log.employee_id,
+                                          emp.dbEmployeeId,
+                                        ) ||
+                                        matchesEmployeeId(
+                                          log.employeeId,
+                                          emp.dbEmployeeId,
                                         ),
-                                      durationMinutes:
-                                        stop.durationMinutes || 0,
-                                      latitude: stop.latitude,
-                                      longitude: stop.longitude,
-                                      id: `stop-${idx}`,
-                                    });
-                                  }
-                                });
+                                    )
+                                    .sort(
+                                      (a, b) =>
+                                        new Date(
+                                          b.check_in || b.checkIn,
+                                        ).getTime() -
+                                        new Date(
+                                          a.check_in || a.checkIn,
+                                        ).getTime(),
+                                    );
 
-                                // Sort by time (newest first)
-                                timeline.sort(
-                                  (a, b) =>
-                                    new Date(b.time).getTime() -
-                                    new Date(a.time).getTime(),
-                                );
+                                  const visitedStops =
+                                    employeeLocationHistories[
+                                      String(emp.dbEmployeeId)
+                                    ] || [];
 
-                                if (timeline.length === 0) return null;
+                                  // Build a unified timeline of all events
+                                  type TimelineEvent =
+                                    | {
+                                        type: "checkin";
+                                        time: string;
+                                        location: any;
+                                        id: string;
+                                      }
+                                    | {
+                                        type: "checkout";
+                                        time: string;
+                                        location: any;
+                                        id: string;
+                                      }
+                                    | {
+                                        type: "stop";
+                                        time: string;
+                                        endTime?: string;
+                                        address: string;
+                                        durationMinutes: number;
+                                        latitude: number;
+                                        longitude: number;
+                                        id: string;
+                                      };
 
-                                // Apply date filter
-                                const now = new Date();
-                                const filteredTimeline = timeline.filter(
-                                  (event) => {
-                                    const eventDate = new Date(event.time);
-                                    if (hoverDateRange === "today") {
-                                      return (
-                                        eventDate.toDateString() ===
-                                        now.toDateString()
-                                      );
-                                    } else if (hoverDateRange === "yesterday") {
-                                      const yesterday = new Date(now);
-                                      yesterday.setDate(
-                                        yesterday.getDate() - 1,
-                                      );
-                                      return (
-                                        eventDate.toDateString() ===
-                                        yesterday.toDateString()
-                                      );
-                                    } else if (hoverDateRange === "week") {
-                                      const weekAgo = new Date(now);
-                                      weekAgo.setDate(weekAgo.getDate() - 7);
-                                      return eventDate >= weekAgo;
-                                    } else if (hoverDateRange === "month") {
-                                      const monthAgo = new Date(now);
-                                      monthAgo.setDate(monthAgo.getDate() - 30);
-                                      return eventDate >= monthAgo;
+                                  const timeline: TimelineEvent[] = [];
+
+                                  // Add check-in/check-out events
+                                  empAttendance.forEach((log, idx) => {
+                                    const checkInTime =
+                                      log.check_in || log.checkIn;
+                                    const checkOutTime =
+                                      log.check_out || log.checkOut;
+                                    const checkInLoc = parseStoredLocation(
+                                      log.check_in_location,
+                                    );
+                                    const checkOutLoc = parseStoredLocation(
+                                      log.check_out_location,
+                                    );
+
+                                    if (checkInTime) {
+                                      timeline.push({
+                                        type: "checkin",
+                                        time: checkInTime,
+                                        location: checkInLoc,
+                                        id: `in-${idx}`,
+                                      });
                                     }
-                                    return true;
-                                  },
-                                );
+                                    if (checkOutTime) {
+                                      timeline.push({
+                                        type: "checkout",
+                                        time: checkOutTime,
+                                        location: checkOutLoc,
+                                        id: `out-${idx}`,
+                                      });
+                                    }
+                                  });
 
-                                if (filteredTimeline.length === 0)
-                                  return (
-                                    <div className="border-t pt-2 text-xs text-slate-500 text-center py-4">
-                                      No location data for selected date range
-                                    </div>
+                                  // Add visited stops (places where they spent time)
+                                  visitedStops.forEach((stop, idx) => {
+                                    if (stop.startTime) {
+                                      timeline.push({
+                                        type: "stop",
+                                        time: stop.startTime,
+                                        endTime: stop.endTime,
+                                        address:
+                                          stop.address ||
+                                          formatCoordinateLabel(
+                                            stop.latitude,
+                                            stop.longitude,
+                                          ),
+                                        durationMinutes:
+                                          stop.durationMinutes || 0,
+                                        latitude: stop.latitude,
+                                        longitude: stop.longitude,
+                                        id: `stop-${idx}`,
+                                      });
+                                    }
+                                  });
+
+                                  // Sort by time (newest first)
+                                  timeline.sort(
+                                    (a, b) =>
+                                      new Date(b.time).getTime() -
+                                      new Date(a.time).getTime(),
                                   );
 
-                                return (
-                                  <div className="border-t pt-2">
-                                    {/* Filter and Export Row */}
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                          <Download className="w-3 h-3" />
-                                          Location Report
-                                        </span>
-                                        <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                          {filteredTimeline.length} records
-                                        </span>
+                                  if (timeline.length === 0) return null;
+
+                                  // Apply date filter
+                                  const now = new Date();
+                                  const filteredTimeline = timeline.filter(
+                                    (event) => {
+                                      const eventDate = new Date(event.time);
+                                      if (hoverDateRange === "today") {
+                                        return (
+                                          eventDate.toDateString() ===
+                                          now.toDateString()
+                                        );
+                                      } else if (
+                                        hoverDateRange === "yesterday"
+                                      ) {
+                                        const yesterday = new Date(now);
+                                        yesterday.setDate(
+                                          yesterday.getDate() - 1,
+                                        );
+                                        return (
+                                          eventDate.toDateString() ===
+                                          yesterday.toDateString()
+                                        );
+                                      } else if (hoverDateRange === "week") {
+                                        const weekAgo = new Date(now);
+                                        weekAgo.setDate(weekAgo.getDate() - 7);
+                                        return eventDate >= weekAgo;
+                                      } else if (hoverDateRange === "month") {
+                                        const monthAgo = new Date(now);
+                                        monthAgo.setDate(
+                                          monthAgo.getDate() - 30,
+                                        );
+                                        return eventDate >= monthAgo;
+                                      }
+                                      return true;
+                                    },
+                                  );
+
+                                  if (filteredTimeline.length === 0)
+                                    return (
+                                      <div className="border-t pt-2 text-xs text-slate-500 text-center py-4">
+                                        No location data for selected date range
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <select
-                                          value={hoverDateRange}
-                                          onChange={(e) =>
-                                            setHoverDateRange(
-                                              e.target.value as any,
-                                            )
-                                          }
-                                          className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <option value="today">Today</option>
-                                          <option value="yesterday">
-                                            Yesterday
-                                          </option>
-                                          <option value="week">
-                                            This Week
-                                          </option>
-                                          <option value="month">
-                                            This Month
-                                          </option>
-                                        </select>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            exportLocationHistoryCSV(
-                                              `${emp.firstName} ${emp.lastName}`,
-                                              filteredTimeline,
-                                            );
-                                          }}
-                                          className="text-[10px] bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
-                                          title="Export to CSV"
-                                        >
-                                          <Download className="w-3 h-3" />
-                                          CSV
-                                        </button>
+                                    );
+
+                                  return (
+                                    <div className="border-t pt-2">
+                                      {/* Filter and Export Row */}
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                            <Download className="w-3 h-3" />
+                                            Location Report
+                                          </span>
+                                          <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                            {filteredTimeline.length} records
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <select
+                                            value={hoverDateRange}
+                                            onChange={(e) =>
+                                              setHoverDateRange(
+                                                e.target.value as any,
+                                              )
+                                            }
+                                            className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <option value="today">Today</option>
+                                            <option value="yesterday">
+                                              Yesterday
+                                            </option>
+                                            <option value="week">
+                                              This Week
+                                            </option>
+                                            <option value="month">
+                                              This Month
+                                            </option>
+                                          </select>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              exportLocationHistoryCSV(
+                                                `${emp.firstName} ${emp.lastName}`,
+                                                filteredTimeline,
+                                              );
+                                            }}
+                                            className="text-[10px] bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
+                                            title="Export to CSV"
+                                          >
+                                            <Download className="w-3 h-3" />
+                                            CSV
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* CSV Style Table Header */}
+                                      <div className="bg-slate-100 rounded-t-lg px-2 py-1.5 grid grid-cols-12 gap-1 text-[10px] font-bold text-slate-600 uppercase tracking-wider border border-slate-200">
+                                        <div className="col-span-2">Type</div>
+                                        <div className="col-span-3">Time</div>
+                                        <div className="col-span-5">
+                                          Location Address
+                                        </div>
+                                        <div className="col-span-2 text-right">
+                                          Duration
+                                        </div>
+                                      </div>
+
+                                      {/* CSV Style Table Body */}
+                                      <div className="max-h-[240px] overflow-y-auto border border-t-0 border-slate-200 rounded-b-lg">
+                                        {filteredTimeline.map((event, idx) => {
+                                          const isCheckIn =
+                                            event.type === "checkin";
+                                          const isCheckOut =
+                                            event.type === "checkout";
+                                          const isStop = event.type === "stop";
+
+                                          const typeLabel = isCheckIn
+                                            ? "CHECK-IN"
+                                            : isCheckOut
+                                              ? "CHECK-OUT"
+                                              : "VISIT";
+                                          const typeColor = isCheckIn
+                                            ? "text-green-700 bg-green-50"
+                                            : isCheckOut
+                                              ? "text-red-700 bg-red-50"
+                                              : "text-blue-700 bg-blue-50";
+                                          const time = new Date(
+                                            event.time,
+                                          ).toLocaleTimeString("en-IN", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          });
+                                          const address = isStop
+                                            ? event.address
+                                            : event.location?.address ||
+                                              formatCoordinateLabel(
+                                                event.location?.latitude,
+                                                event.location?.longitude,
+                                              );
+                                          const locationName =
+                                            extractLocationName(address);
+                                          const duration =
+                                            isStop && event.durationMinutes > 0
+                                              ? formatDuration(
+                                                  event.durationMinutes,
+                                                )
+                                              : isCheckIn
+                                                ? "Start"
+                                                : isCheckOut
+                                                  ? "End"
+                                                  : "-";
+
+                                          return (
+                                            <div
+                                              key={event.id}
+                                              className={`px-2 py-2 grid grid-cols-12 gap-1 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
+                                            >
+                                              {/* Type Badge */}
+                                              <div className="col-span-2">
+                                                <span
+                                                  className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${typeColor}`}
+                                                >
+                                                  {typeLabel}
+                                                </span>
+                                              </div>
+
+                                              {/* Time */}
+                                              <div className="col-span-3 text-slate-700 font-mono">
+                                                {time}
+                                              </div>
+
+                                              {/* Address */}
+                                              <div
+                                                className="col-span-5 min-w-0"
+                                                title={address}
+                                              >
+                                                <div className="truncate font-medium text-slate-800">
+                                                  {locationName || "N/A"}
+                                                </div>
+                                                <div className="truncate text-[10px] text-slate-500">
+                                                  {address || "N/A"}
+                                                </div>
+                                              </div>
+
+                                              {/* Duration */}
+                                              <div className="col-span-2 text-right text-slate-600">
+                                                {duration}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
+                                  );
+                                })()}
 
-                                    {/* CSV Style Table Header */}
-                                    <div className="bg-slate-100 rounded-t-lg px-2 py-1.5 grid grid-cols-12 gap-1 text-[10px] font-bold text-slate-600 uppercase tracking-wider border border-slate-200">
-                                      <div className="col-span-2">Type</div>
-                                      <div className="col-span-3">Time</div>
-                                      <div className="col-span-5">
-                                        Location Address
-                                      </div>
-                                      <div className="col-span-2 text-right">
-                                        Duration
-                                      </div>
+                                {/* Current Location */}
+                                <div className="border-t pt-2">
+                                  <div className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                                    <Navigation2 className="w-3 h-3" />
+                                    Current Location
+                                  </div>
+                                  <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2">
+                                    <div className="truncate font-medium text-slate-800">
+                                      {extractLocationName(
+                                        emp.currentLocation.address,
+                                      )}
                                     </div>
-
-                                    {/* CSV Style Table Body */}
-                                    <div className="max-h-[240px] overflow-y-auto border border-t-0 border-slate-200 rounded-b-lg">
-                                      {filteredTimeline.map((event, idx) => {
-                                        const isCheckIn =
-                                          event.type === "checkin";
-                                        const isCheckOut =
-                                          event.type === "checkout";
-                                        const isStop = event.type === "stop";
-
-                                        const typeLabel = isCheckIn
-                                          ? "CHECK-IN"
-                                          : isCheckOut
-                                            ? "CHECK-OUT"
-                                            : "VISIT";
-                                        const typeColor = isCheckIn
-                                          ? "text-green-700 bg-green-50"
-                                          : isCheckOut
-                                            ? "text-red-700 bg-red-50"
-                                            : "text-blue-700 bg-blue-50";
-                                        const time = new Date(
-                                          event.time,
-                                        ).toLocaleTimeString("en-IN", {
+                                    <div className="truncate">
+                                      {emp.currentLocation.address}
+                                    </div>
+                                    <div className="text-slate-400 mt-0.5 flex items-center gap-1">
+                                      <span>
+                                        Accuracy: ±
+                                        {Math.round(
+                                          emp.currentLocation.accuracy,
+                                        )}
+                                        m
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {new Date(
+                                          emp.currentLocation.timestamp,
+                                        ).toLocaleString("en-IN", {
+                                          month: "short",
+                                          day: "numeric",
                                           hour: "2-digit",
                                           minute: "2-digit",
-                                        });
-                                        const address = isStop
-                                          ? event.address
-                                          : event.location?.address ||
-                                            formatCoordinateLabel(
-                                              event.location?.latitude,
-                                              event.location?.longitude,
-                                            );
-                                        const locationName =
-                                          extractLocationName(address);
-                                        const duration =
-                                          isStop && event.durationMinutes > 0
-                                            ? formatDuration(
-                                                event.durationMinutes,
-                                              )
-                                            : isCheckIn
-                                              ? "Start"
-                                              : isCheckOut
-                                                ? "End"
-                                                : "-";
-
-                                        return (
-                                          <div
-                                            key={event.id}
-                                            className={`px-2 py-2 grid grid-cols-12 gap-1 text-xs border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
-                                          >
-                                            {/* Type Badge */}
-                                            <div className="col-span-2">
-                                              <span
-                                                className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${typeColor}`}
-                                              >
-                                                {typeLabel}
-                                              </span>
-                                            </div>
-
-                                            {/* Time */}
-                                            <div className="col-span-3 text-slate-700 font-mono">
-                                              {time}
-                                            </div>
-
-                                            {/* Address */}
-                                            <div
-                                              className="col-span-5 min-w-0"
-                                              title={address}
-                                            >
-                                              <div className="truncate font-medium text-slate-800">
-                                                {locationName || "N/A"}
-                                              </div>
-                                              <div className="truncate text-[10px] text-slate-500">
-                                                {address || "N/A"}
-                                              </div>
-                                            </div>
-
-                                            {/* Duration */}
-                                            <div className="col-span-2 text-right text-slate-600">
-                                              {duration}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
+                                        })}
+                                      </span>
                                     </div>
-                                  </div>
-                                );
-                              })()}
-
-                              {/* Current Location */}
-                              <div className="border-t pt-2">
-                                <div className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                                  <Navigation2 className="w-3 h-3" />
-                                  Current Location
-                                </div>
-                                <div className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2">
-                                  <div className="truncate font-medium text-slate-800">
-                                    {extractLocationName(
-                                      emp.currentLocation.address,
-                                    )}
-                                  </div>
-                                  <div className="truncate">
-                                    {emp.currentLocation.address}
-                                  </div>
-                                  <div className="text-slate-400 mt-0.5 flex items-center gap-1">
-                                    <span>
-                                      Accuracy: ±
-                                      {Math.round(emp.currentLocation.accuracy)}
-                                      m
-                                    </span>
-                                    <span>•</span>
-                                    <span>
-                                      {new Date(
-                                        emp.currentLocation.timestamp,
-                                      ).toLocaleString("en-IN", {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </span>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          </InfoWindow>
-                        )}
-                      </Marker>
+                            </InfoWindow>
+                          )}
+                        </Marker>
+                      </div>
+                    );
+                  })}
+                </GoogleMap>
+
+                <div className="pointer-events-none absolute left-4 top-4 hidden max-w-xs rounded-lg border border-amber-100 bg-white/95 p-3 shadow-lg md:block">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                      <MapPin className="h-5 w-5" />
                     </div>
-                  );
-                })}
-              </GoogleMap>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-950">
+                        Location based task assignment
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500">
+                        Assign work from live employee proximity and route
+                        history.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pointer-events-none absolute bottom-5 left-4 hidden rounded-lg border border-slate-100 bg-white/95 p-4 shadow-xl md:block">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                      <div className="text-2xl font-bold text-slate-950">
+                        {activeTrackedEmployees.length}
+                      </div>
+                      <div className="text-xs font-medium text-slate-500">
+                        Active Today
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-slate-950">
+                        {selectedRouteDistanceKm} KM
+                      </div>
+                      <div className="text-xs font-medium text-slate-500">
+                        Distance Travelled
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-slate-950">
+                        {selectedTripDuration}
+                      </div>
+                      <div className="text-xs font-medium text-slate-500">
+                        Trip Duration
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-slate-950">
+                        {visitedLocations.length}
+                      </div>
+                      <div className="text-xs font-medium text-slate-500">
+                        Check-ins / Stops
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedTrackedEmployee && (
+                  <div className="absolute right-4 top-4 hidden w-[320px] rounded-lg border border-slate-100 bg-white/95 p-4 shadow-xl xl:block">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                      {selectedTrackedEmployee.photoUrl ? (
+                        <img
+                          src={selectedTrackedEmployee.photoUrl}
+                          alt={`${selectedTrackedEmployee.firstName} ${selectedTrackedEmployee.lastName}`}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                          {selectedTrackedEmployee.firstName?.[0] || ""}
+                          {selectedTrackedEmployee.lastName?.[0] || ""}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-slate-950">
+                          {selectedTrackedEmployee.firstName}{" "}
+                          {selectedTrackedEmployee.lastName}
+                        </div>
+                        <div className="truncate text-xs text-slate-500">
+                          {selectedTrackedEmployee.department ||
+                            "No Department"}
+                        </div>
+                      </div>
+                      <Badge
+                        className={
+                          selectedTrackedEmployee.trackingStatus ===
+                          "checked-in"
+                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-100"
+                        }
+                      >
+                        {selectedTrackedEmployee.trackingStatus === "checked-in"
+                          ? "Checked-in"
+                          : "Offline"}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-3 text-center">
+                      <div className="rounded-lg bg-rose-50 p-2">
+                        <Clock className="mx-auto h-4 w-4 text-rose-500" />
+                        <div className="mt-1 text-xs font-semibold text-slate-900">
+                          {selectedTripDuration}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          Duration
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-emerald-50 p-2">
+                        <Route className="mx-auto h-4 w-4 text-emerald-500" />
+                        <div className="mt-1 text-xs font-semibold text-slate-900">
+                          {selectedRouteDistanceKm} KM
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          Distance
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-sky-50 p-2">
+                        <MapPin className="mx-auto h-4 w-4 text-sky-500" />
+                        <div className="mt-1 text-xs font-semibold text-slate-900">
+                          {visitedLocations.length}
+                        </div>
+                        <div className="text-[10px] text-slate-500">Stops</div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900">
+                          Check-in to check-out tracking
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="bg-slate-100 text-slate-600"
+                        >
+                          {selectedTrackingTimeline.length}
+                        </Badge>
+                      </div>
+
+                      {selectedTrackingTimeline.length > 0 ? (
+                        <div className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                          {selectedTrackingTimeline.map((item) => (
+                            <div key={item.id} className="flex gap-3">
+                              <div
+                                className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                                  item.type === "checkin"
+                                    ? "bg-emerald-500"
+                                    : item.type === "checkout"
+                                      ? "bg-rose-500"
+                                      : item.type === "stop"
+                                        ? "bg-amber-400"
+                                        : "bg-sky-500"
+                                }`}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-xs font-semibold text-slate-900">
+                                    {item.label}
+                                    {"duration" in item && item.duration
+                                      ? ` (${item.duration})`
+                                      : ""}
+                                  </div>
+                                  {item.type === "stop" && (
+                                    <Badge className="shrink-0 bg-amber-100 px-2 py-0 text-[10px] font-semibold text-amber-800 hover:bg-amber-100">
+                                      Visit
+                                    </Badge>
+                                  )}
+                                  <div className="shrink-0 text-[11px] text-slate-500">
+                                    {formatDateTime(item.time)}
+                                  </div>
+                                </div>
+                                <div className="mt-0.5 line-clamp-2 text-xs text-slate-500">
+                                  {item.detail}
+                                </div>
+                                {item.coords && (
+                                  <div className="mt-0.5 text-[11px] text-slate-400">
+                                    {item.coords}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                          No check-in to check-out route details found for this
+                          employee.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

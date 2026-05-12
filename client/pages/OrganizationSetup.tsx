@@ -531,7 +531,7 @@ export default function OrganizationSetup() {
     const file = event.target.files?.[0];
     if (file) {
       const previewUrl = URL.createObjectURL(file);
-      setFormData({ ...formData, logo: previewUrl, logoFile: file });
+      setFormData({ ...formData, logo: previewUrl, logoFile: file, removeLogo: false });
     }
   };
 
@@ -539,8 +539,26 @@ export default function OrganizationSetup() {
     const file = event.target.files?.[0];
     if (file) {
       const previewUrl = URL.createObjectURL(file);
-      setFormData({ ...formData, signature: previewUrl, signatureFile: file });
+      setFormData({ ...formData, signature: previewUrl, signatureFile: file, removeSignature: false });
     }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData({
+      ...formData,
+      logo: undefined,
+      logoFile: undefined,
+      removeLogo: true,
+    });
+  };
+
+  const handleRemoveSignature = () => {
+    setFormData({
+      ...formData,
+      signature: undefined,
+      signatureFile: undefined,
+      removeSignature: true,
+    });
   };
 
   const handleModulePermissionChange = (
@@ -1461,7 +1479,7 @@ export default function OrganizationSetup() {
                 <div>
                   <Label>Company Logo</Label>
                   <div className="mt-2">
-                    {(formData.logo || company?.logo) && (
+                    {(formData.logo || (!formData.removeLogo && company?.logo)) && (
                       <div className="flex items-center gap-2 mb-2">
                         <img
                           src={
@@ -1475,7 +1493,8 @@ export default function OrganizationSetup() {
                           }}
                         />
                         <button
-                          onClick={() => setFormData({ ...formData, logo: undefined, logoFile: undefined })}
+                          type="button"
+                          onClick={handleRemoveLogo}
                           className="p-1 hover:bg-red-100 text-red-600 rounded"
                         >
                           <X className="w-4 h-4" />
@@ -1497,7 +1516,7 @@ export default function OrganizationSetup() {
                 <div>
                   <Label>Authorized Signature</Label>
                   <div className="mt-2">
-                    {(formData.signature || company?.signature) && (
+                    {(formData.signature || (!formData.removeSignature && company?.signature)) && (
                       <div className="flex items-center gap-2 mb-2">
                         <div className="rounded border bg-white px-3 py-2">
                           <img
@@ -1511,7 +1530,8 @@ export default function OrganizationSetup() {
                           />
                         </div>
                         <button
-                          onClick={() => setFormData({ ...formData, signature: undefined, signatureFile: undefined })}
+                          type="button"
+                          onClick={handleRemoveSignature}
                           className="p-1 hover:bg-red-100 text-red-600 rounded"
                         >
                           <X className="w-4 h-4" />

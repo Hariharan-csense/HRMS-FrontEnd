@@ -4,9 +4,9 @@ import axios from "axios";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.9:3000/backend";
-
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.9:3000/backend";
+// 
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -594,6 +594,10 @@ const ENDPOINTS = {
     timestamp?: string;
 
     device_info?: string;
+
+    source?: string;
+
+    session_id?: string;
   }) => api.post("/attendance/locations", data),
 
   getLiveLocationHistory: (employeeId: string, params?: any) =>
@@ -1040,7 +1044,9 @@ const ENDPOINTS = {
 
   //clint attendance
 
-  getallattendance: () => api.get("/client-attendance/all"),
+  getallattendance: (params?: any) => api.get("/client-attendance/all", { params }),
+
+  getActiveClientAttendance: () => api.get("/client-attendance/active"),
 
   // Custom attendance and payslip functions
 

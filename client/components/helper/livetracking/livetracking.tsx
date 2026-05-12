@@ -11,9 +11,27 @@ type AttendanceLocation = {
   deviceInfo?: string | null;
   trackingStatus?: string | null;
   minutesSinceUpdate?: number | null;
+  hasActiveAttendance?: boolean | null;
+  hasActiveFieldAttendance?: boolean | null;
 };
 
 const normalizeEmployeeId = (value: unknown) => String(value ?? "").trim();
+
+const formatLocalDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const isSameLocalDate = (value: unknown, date = new Date()) => {
+  if (!value) return false;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value).slice(0, 10) === formatLocalDate(date);
+  }
+  return formatLocalDate(parsed) === formatLocalDate(date);
+};
 
 const normalizeTrackingStatus = (
   status?: string | null,
@@ -40,7 +58,15 @@ const hasOpenAttendanceSession = (attendance: any) => {
   if (!attendance) return false;
   const checkIn = attendance.check_in || attendance.checkIn;
   const checkOut = attendance.check_out || attendance.checkOut;
-  return Boolean(checkIn) && !checkOut;
+  return Boolean(checkIn) && !checkOut && isSameLocalDate(checkIn);
+};
+
+const hasOpenFieldAttendanceSession = (attendance: any) => {
+  if (!attendance) return false;
+  const checkIn = attendance.check_in_time || attendance.checkInTime;
+  const checkOut = attendance.check_out_time || attendance.checkOutTime;
+  const attendanceDate = attendance.date || checkIn;
+  return Boolean(checkIn) && !checkOut && isSameLocalDate(attendanceDate);
 };
 
 const parseCheckInLocation = (raw?: any): AttendanceLocation | null => {
@@ -90,6 +116,7 @@ export const liveApi = {
       console.log(`Total employees: ${employees.length}, Tracked employees: ${trackedEmployees.length}`);
 
       let latestAttendanceByEmployee = new Map<string, any>();
+      let activeFieldAttendanceByEmployee = new Map<string, any>();
       try {
         const logsResponse = await ENDPOINTS.getAttendanceLogs({ limit: 1000 });
         const logs = logsResponse?.data?.logs || logsResponse?.data?.data || logsResponse?.data || [];
@@ -111,14 +138,42 @@ export const liveApi = {
         console.warn("Failed to fetch attendance logs for live tracking status:", logsError);
       }
 
+      try {
+        const fieldResponse = await ENDPOINTS.getallattendance({
+          startDate: formatLocalDate(),
+          endDate: formatLocalDate(),
+        });
+        const fieldAttendance =
+          fieldResponse?.data?.data || fieldResponse?.data?.attendance || fieldResponse?.data || [];
+
+        activeFieldAttendanceByEmployee = [...fieldAttendance]
+          .filter(hasOpenFieldAttendanceSession)
+          .reduce((map: Map<string, any>, record: any) => {
+            const employeeId = String(record.employee_id || record.employeeId || "");
+            if (employeeId && !map.has(employeeId)) {
+              map.set(employeeId, record);
+            }
+            return map;
+          }, new Map<string, any>());
+      } catch (fieldError) {
+        console.warn("Failed to fetch field attendance for live tracking status:", fieldError);
+      }
+
       const attachLocations = (attendanceLocations: AttendanceLocation[]) => {
         const employeesWithLocation = trackedEmployees.map((employee) => {
           const employeeKey = normalizeEmployeeId(employee.id ?? employee.employee_id ?? employee.employeeId);
           const latestAttendance = latestAttendanceByEmployee.get(employeeKey);
-          const hasOpenSession = hasOpenAttendanceSession(latestAttendance);
+          const activeFieldAttendance = activeFieldAttendanceByEmployee.get(employeeKey);
           const attendanceRecord = attendanceLocations.find(
             (att) => normalizeEmployeeId(att.employeeId) === employeeKey
           );
+          const hasOpenSession =
+            hasOpenAttendanceSession(latestAttendance) ||
+            hasOpenFieldAttendanceSession(activeFieldAttendance) ||
+            Boolean(
+              attendanceRecord?.hasActiveAttendance ||
+                attendanceRecord?.hasActiveFieldAttendance,
+            );
           const liveLatitude = hasOpenSession ? attendanceRecord?.latitude ?? null : null;
           const liveLongitude = hasOpenSession ? attendanceRecord?.longitude ?? null : null;
           const liveTimestamp = hasOpenSession
@@ -141,6 +196,12 @@ export const liveApi = {
             locationTimestamp: liveTimestamp,
             isTracking: Boolean(hasOpenSession && attendanceRecord),
             trackingStatus: normalizedTrackingStatus,
+            hasActiveAttendance: Boolean(
+              attendanceRecord?.hasActiveAttendance,
+            ),
+            hasActiveFieldAttendance: Boolean(
+              attendanceRecord?.hasActiveFieldAttendance,
+            ),
             deviceInfo: attendanceRecord?.deviceInfo || (attendanceRecord as any)?.device_info || null,
             minutesSinceUpdate:
               hasOpenSession
@@ -169,6 +230,8 @@ export const liveApi = {
               deviceInfo: att.device_info || null,
               trackingStatus: att.tracking_status || null,
               minutesSinceUpdate: Number(att.minutes_since_update) || null,
+              hasActiveAttendance: Boolean(att.has_active_attendance),
+              hasActiveFieldAttendance: Boolean(att.has_active_field_attendance),
             }));
             const withLoc = attachLocations(mapped);
             return { data: withLoc };

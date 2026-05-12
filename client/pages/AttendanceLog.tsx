@@ -27,6 +27,7 @@ import { Search, Download, AlertTriangle, CheckCircle2, Clock, Timer, ChevronLef
 import { toast } from "sonner";
 import attendanceApi from "@/components/helper/attendance/attendance"
 import { holidayApi, Holiday, leaveTypeApi, type LeaveApplication, type LeaveType } from "@/components/helper/leave/leave"
+import { leavePermissionApi } from "@/components/helper/leavePermission/leavePermission";
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts"
 import { employeeApi } from "@/components/helper/employee/employee";
 import { BASE_URL } from "@/lib/endpoint";
@@ -71,9 +72,11 @@ export interface AttendanceLogRecord {
 
 export interface AttendanceLogRecord {
   isLeaveRecord?: boolean;
+  isPermissionRecord?: boolean;
   leaveTypeName?: string;
   leaveStatus?: string;
-  leaveSource?: "application" | "override";
+  leaveSource?: "application" | "override" | "permission";
+  permissionStatus?: string;
 }
 
 type CalendarLeaveEntry = {
@@ -85,8 +88,8 @@ type CalendarLeaveEntry = {
   leaveTypeName: string;
   reason?: string;
   status: string;
-  leaveMode: "paid" | "half";
-  source: "application" | "override";
+  leaveMode: "paid" | "half" | "permission";
+  source: "application" | "override" | "permission";
 };
 
 const mockData: AttendanceLogRecord[] = [
@@ -904,9 +907,11 @@ export default function AttendanceLog() {
       console.log("Final attendanceData:", attendanceData);
       console.log("attendanceData length:", attendanceData.length);
 
+      let mappedLogs: AttendanceLogRecord[] = [];
+
       if (attendanceData.length > 0) {
         // Map backend response → frontend interface
-        const mappedLogs: AttendanceLogRecord[] = attendanceData.map((item: any) => {
+        mappedLogs = attendanceData.map((item: any) => {
           const parseGeoLocation = (rawLocation: any): AttendanceGeoLocation => {
             const fallback: AttendanceGeoLocation = {
               latitude: 0,
@@ -1004,10 +1009,13 @@ export default function AttendanceLog() {
           // Determine actual attendance status using shift-based calculation
           // IMPORTANT: Do not overwrite backend status='late' with frontend calculation.
           // Only allow upgrading present -> late for UI convenience.
-          let actualStatus = String(item.status || "").toLowerCase();
-          if (actualStatus === "half_day" || actualStatus === "half-day") {
-            actualStatus = "half";
-          }
+          const normalizedBackendStatus = String(item.status || "").toLowerCase();
+          let actualStatus: AttendanceLogRecord["status"] =
+            normalizedBackendStatus === "half_day" || normalizedBackendStatus === "half-day"
+              ? "half"
+              : ["present", "absent", "half", "miss", "unmarked", "late", "leave"].includes(normalizedBackendStatus)
+                ? (normalizedBackendStatus as AttendanceLogRecord["status"])
+                : "miss";
           let calculatedLateBy = "";
 
           // If there's a check-in time, calculate lateBy and (optionally) upgrade present -> late
@@ -1072,16 +1080,15 @@ export default function AttendanceLog() {
           };
         });
 
-        setLogs(mappedLogs);
       } else {
         console.log("No attendance data found");
-        setLogs([]);
       }
 
       const leaveEntries: CalendarLeaveEntry[] = [];
-      const [leaveApplicationsResult, overridesResult] = await Promise.allSettled([
+      const [leaveApplicationsResult, overridesResult, permissionsResult] = await Promise.allSettled([
         leaveTypeApi.getLeaveApplications(),
         attendanceApi.getOverrides(),
+        leavePermissionApi.getLeavePermissionApplications(),
       ]);
 
       if (leaveApplicationsResult.status === "fulfilled" && Array.isArray(leaveApplicationsResult.value.data)) {
@@ -1139,7 +1146,63 @@ export default function AttendanceLog() {
         console.warn("Failed to fetch attendance overrides for leave calendar", overridesResult.reason);
       }
 
+      if (permissionsResult.status === "fulfilled" && Array.isArray(permissionsResult.value.data)) {
+        permissionsResult.value.data.forEach((permission: any) => {
+          const permissionStatus = String(permission.status || "").toLowerCase();
+          if (!["pending", "approved"].includes(permissionStatus)) return;
+
+          const permissionDate = normalizeDateOnly(permission.permission_date);
+          if (!permissionDate) return;
+          if (permissionDate < startDate || permissionDate > endDate) return;
+
+          leaveEntries.push({
+            id: `leave-permission-${permission.id}`,
+            employeeId: String(permission.employee_id || ""),
+            employeeName: permission.employee_name || "",
+            fromDate: permissionDate,
+            toDate: permissionDate,
+            leaveTypeName: "Permission",
+            reason: permission.reason,
+            status: permissionStatus,
+            leaveMode: "permission",
+            source: "permission",
+          });
+        });
+      } else if (permissionsResult.status === "rejected") {
+        console.warn("Failed to fetch leave permissions for attendance calendar", permissionsResult.reason);
+      }
+
+      const permissionEntries = leaveEntries.filter((entry) => entry.source === "permission");
+      if (permissionEntries.length) {
+        mappedLogs = mappedLogs.map((record) => {
+          const matchingPermission = permissionEntries.find((entry) => {
+            const entryEmployeeId = String(entry.employeeId || "");
+            return (
+              record.date === entry.fromDate &&
+              (entryEmployeeId === String(record.originalEmployeeId || "") ||
+                entryEmployeeId === record.employeeId)
+            );
+          });
+
+          if (!matchingPermission) return record;
+
+          return {
+            ...record,
+            status: "present",
+            type: "full",
+            isPermissionRecord: true,
+            leaveTypeName: "Permission",
+            leaveStatus: matchingPermission.status,
+            leaveSource: "permission",
+            permissionStatus: matchingPermission.status,
+            flagReason: matchingPermission.reason || "Permission",
+            lateBy: "",
+          };
+        });
+      }
+
       setCalendarLeaveEntries(leaveEntries);
+      setLogs(mappedLogs);
     } catch (err) {
       console.error("Fetch error:", err);
       setError("Failed to load attendance logs");
@@ -1328,8 +1391,13 @@ export default function AttendanceLog() {
           if (!isDateInRange(dateStr, from, to)) continue;
 
           const existingIndex = mergedData.findIndex((record) => record.date === dateStr);
-          const leaveStatus: AttendanceLogRecord["status"] = entry.leaveMode === "half" ? "half" : "leave";
-          const leaveType: AttendanceLogRecord["type"] = entry.leaveMode === "half" ? "half" : "leave";
+          const isPermissionEntry = entry.source === "permission";
+          const leaveStatus: AttendanceLogRecord["status"] = isPermissionEntry
+            ? "present"
+            : entry.leaveMode === "half" ? "half" : "leave";
+          const leaveType: AttendanceLogRecord["type"] = isPermissionEntry
+            ? "full"
+            : entry.leaveMode === "half" ? "half" : "leave";
 
           if (existingIndex >= 0) {
             const existing = mergedData[existingIndex];
@@ -1337,11 +1405,14 @@ export default function AttendanceLog() {
               ...existing,
               status: leaveStatus,
               type: leaveType,
-              isLeaveRecord: true,
+              isLeaveRecord: !isPermissionEntry,
+              isPermissionRecord: isPermissionEntry,
               leaveTypeName: entry.leaveTypeName,
               leaveStatus: entry.status,
               leaveSource: entry.source,
-              flagReason: entry.reason || `${entry.leaveTypeName} leave`,
+              permissionStatus: isPermissionEntry ? entry.status : existing.permissionStatus,
+              flagReason: entry.reason || (isPermissionEntry ? "Permission" : `${entry.leaveTypeName} leave`),
+              lateBy: isPermissionEntry ? "" : existing.lateBy,
             };
           } else {
             mergedData.push({
@@ -1355,23 +1426,27 @@ export default function AttendanceLog() {
               hoursWorked: 0,
               overtimeHours: 0,
               autoFlag: false,
-              flagReason: entry.reason || `${entry.leaveTypeName} leave`,
-              device: entry.source === "override" ? "Attendance Override" : "Leave Application",
+              flagReason: entry.reason || (isPermissionEntry ? "Permission" : `${entry.leaveTypeName} leave`),
+              device: isPermissionEntry
+                ? "Leave Permission"
+                : entry.source === "override" ? "Attendance Override" : "Leave Application",
               location: {
                 latitude: 0,
                 longitude: 0,
                 accuracy: 0,
-                address: `${entry.leaveTypeName} leave`,
+                address: isPermissionEntry ? "Permission" : `${entry.leaveTypeName} leave`,
               },
               imageUrl: "",
               imageIn: "",
               imageOut: "",
               type: leaveType,
               originalEmployeeId: Number(selectedEmployee.id),
-              isLeaveRecord: true,
+              isLeaveRecord: !isPermissionEntry,
+              isPermissionRecord: isPermissionEntry,
               leaveTypeName: entry.leaveTypeName,
               leaveStatus: entry.status,
               leaveSource: entry.source,
+              permissionStatus: isPermissionEntry ? entry.status : undefined,
             });
           }
         }
@@ -1537,7 +1612,9 @@ export default function AttendanceLog() {
       late: "secondary",
     };
     const displayText =
-      record?.isLeaveRecord
+      record?.isPermissionRecord
+        ? "PRESENT"
+        : record?.isLeaveRecord
         ? `${normalizeLeaveTypeName(record.leaveTypeName)}${status === "half" ? " - HALF" : ""}`.toUpperCase()
         : status === "unmarked" ? "NOT MARKED" : status === "late" ? "LATE" : status.toUpperCase();
     return <Badge variant={variants[status] || "outline"}>{displayText}</Badge>;
@@ -1546,6 +1623,7 @@ export default function AttendanceLog() {
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
       present: "bg-green-100 text-green-700 border-green-200",
+      permission: "bg-sky-100 text-sky-700 border-sky-200",
       absent: "bg-red-100 text-red-700 border-red-200",
       half: "bg-yellow-100 text-yellow-700 border-yellow-200",
       miss: "bg-gray-100 text-gray-700 border-gray-200",
@@ -1943,10 +2021,14 @@ export default function AttendanceLog() {
                       const hasAbsent = statuses.includes("absent");
                       const hasHalf = statuses.includes("half");
                       const hasLeave = statuses.includes("leave") || records.some((r) => r.isLeaveRecord);
+                      const hasPermission = records.some((r) => r.isPermissionRecord);
                       const hasLate = statuses.includes("late");
                       const hasUnmarked = statuses.includes("unmarked") || isTodayUnmarked;
                       const hasFlag = records.some((r) => r.autoFlag);
                       const leaveRecord = records.find((r) => r.isLeaveRecord);
+                      const leaveLabel = leaveRecord
+                        ? `${normalizeLeaveTypeName(leaveRecord.leaveTypeName)}${leaveRecord.status === "half" ? " - HALF" : ""}`.toUpperCase()
+                        : "LEAVE";
                       // Weekend/holiday should be shown only when there is no real attendance punch.
                       // Synthetic absent/unmarked records are excluded by hasRealRecords.
                       const hasAttendanceOnHoliday = isHolidayDate && hasRealRecords;
@@ -1968,7 +2050,8 @@ export default function AttendanceLog() {
 
                       let bgColor = "bg-white border-gray-200";
                       if (hasRecords || isTodayUnmarked) {
-                        if (hasLeave) bgColor = "bg-violet-50 border-violet-300";
+                        if (hasPermission) bgColor = "bg-sky-50 border-sky-300";
+                        else if (hasLeave) bgColor = "bg-violet-50 border-violet-300";
                         else if (hasPresent) bgColor = "bg-green-50 border-green-300";
                         else if (hasHalf) bgColor = "bg-yellow-50 border-yellow-300";
                         else if (hasAbsent) bgColor = "bg-red-50 border-red-300";
@@ -2079,6 +2162,9 @@ export default function AttendanceLog() {
                                   {hasLeave && (
                                     <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-violet-600 flex-shrink-0"></div>
                                   )}
+                                  {hasPermission && (
+                                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-sky-600 flex-shrink-0"></div>
+                                  )}
                                   {hasPresent && (
                                     <CheckCircle2 className="w-2 h-2 sm:w-3 sm:h-3 text-green-600 flex-shrink-0" />
                                   )}
@@ -2101,8 +2187,16 @@ export default function AttendanceLog() {
                                   </span>
                                 )}
                                 {hasLeave && leaveRecord && (
-                                  <span className="hidden sm:inline text-xs font-semibold text-violet-700">
-                                    {leaveRecord.status === "half" ? "HALF LEAVE" : "LEAVE"}
+                                  <span
+                                    className="hidden max-w-full truncate px-1 text-[10px] font-semibold leading-tight text-violet-700 sm:inline-block"
+                                    title={leaveLabel}
+                                  >
+                                    {leaveLabel}
+                                  </span>
+                                )}
+                                {hasPermission && (
+                                  <span className="hidden sm:inline text-xs font-semibold text-sky-700">
+                                    PERMISSION
                                   </span>
                                 )}
                               </div>
@@ -2134,6 +2228,10 @@ export default function AttendanceLog() {
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-violet-600 flex-shrink-0"></div>
                         <span className="text-xs sm:text-sm">Leave</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-sky-600 flex-shrink-0"></div>
+                        <span className="text-xs sm:text-sm">Permission</span>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <Timer className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600 flex-shrink-0" />

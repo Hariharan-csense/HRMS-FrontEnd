@@ -16,6 +16,8 @@ export interface Company {
   logoFile?: File;
   signature?: string;
   signatureFile?: File;
+  removeLogo?: boolean;
+  removeSignature?: boolean;
   esslEnabled?: boolean;
   esslApiKey?: string;
   esslApiKeyConfigured?: boolean;
@@ -56,8 +58,8 @@ export const companyApi = {
       return { error: 'No company data available' };
     } catch (error: any) {
       console.error('Error fetching company:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to fetch company data' 
+      return {
+        error: error.response?.data?.message || 'Failed to fetch company data'
       };
     }
   },
@@ -78,13 +80,15 @@ export const companyApi = {
       if (payload.address !== undefined) formData.append('address', payload.address);
       if (payload.esslApiKey !== undefined) formData.append('esslApiKey', payload.esslApiKey);
       if (payload.esslEnabled !== undefined) formData.append('esslEnabled', String(payload.esslEnabled));
+      if (payload.removeLogo !== undefined) formData.append('removeLogo', String(payload.removeLogo));
+      if (payload.removeSignature !== undefined) formData.append('removeSignature', String(payload.removeSignature));
 
       // Company logo must be uploaded as multipart file field: "logo"
-      if (payload.logoFile instanceof File) {
+      if (!payload.removeLogo && payload.logoFile instanceof File) {
         formData.append('logo', payload.logoFile);
       }
 
-      if (payload.signatureFile instanceof File) {
+      if (!payload.removeSignature && payload.signatureFile instanceof File) {
         formData.append('signature', payload.signatureFile);
       }
 
@@ -123,7 +127,7 @@ export const companyApi = {
       };
     }
   },
-  
+
   // You can add more company-related API functions here
   // createCompany, deleteCompany, etc.
 };

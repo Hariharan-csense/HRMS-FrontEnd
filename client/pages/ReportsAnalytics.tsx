@@ -1120,7 +1120,7 @@ export default function ReportsAnalytics() {
                           icon: "🏖️",
                           tooltip: (filters.month || filters.day) ? "Employees absent in selected period" : "Employees on leave today"
                         },
-                      ].map((item) => (
+                      ].map((item: any) => (
                         <Card key={item.label} className={`border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br ${item.gradient}`}>
                           <CardContent className="pt-6">
                             <div className="text-3xl mb-2">{item.icon}</div>
@@ -1207,7 +1207,7 @@ export default function ReportsAnalytics() {
                         { label: "Approved Leaves", value: (leaveSummary?.approvedLeaves ?? 0) > 0 ? leaveSummary?.approvedLeaves : 42, gradient: "from-green-500 via-green-600 to-green-700", icon: "✅" },
                         { label: "Pending Requests", value: (leaveSummary?.pendingRequests ?? 0) > 0 ? leaveSummary?.pendingRequests : 8, gradient: "from-orange-500 via-orange-600 to-orange-700", icon: "⏳" },
                         { label: "Avg Days Used", value: (leaveSummary?.avgDaysUsed ?? 0) > 0 ? leaveSummary?.avgDaysUsed : 6.5, gradient: "from-cyan-500 via-cyan-600 to-cyan-700", icon: "📅" },
-                      ].map((item) => (
+                      ].map((item: any) => (
                         <Card key={item.label} className={`border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br ${item.gradient}`}>
                           <CardContent className="pt-6">
                             <div className="text-3xl mb-2">{item.icon}</div>
@@ -1284,7 +1284,7 @@ export default function ReportsAnalytics() {
                         { label: "Avg Salary", value: payrollSummary.avgSalary || "₹0", gradient: "from-indigo-500 via-indigo-600 to-indigo-700", icon: "💰" },
                         { label: "Total Payroll", value: payrollSummary.totalPayroll || "₹0", gradient: "from-green-500 via-green-600 to-green-700", icon: "📊" },
                         { label: "YTD Amount", value: payrollSummary.ytdAmount || "₹0", gradient: "from-cyan-500 via-cyan-600 to-cyan-700", icon: "📈" },
-                      ].map((item) => (
+                      ].map((item: any) => (
                         <Card key={item.label} className={`border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-br ${item.gradient}`}>
                           <CardContent className="pt-6">
                             <div className="text-3xl mb-2">{item.icon}</div>

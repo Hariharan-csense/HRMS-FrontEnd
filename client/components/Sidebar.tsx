@@ -781,6 +781,37 @@ export const Sidebar: React.FC = () => {
         window.sessionStorage.removeItem('PAGE_SCROLL_POSITION');
       }, 50);
     }
+
+    const savedSidebarScroll = window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+
+    window.setTimeout(() => {
+      const navElement = navRef.current;
+      if (!navElement) return;
+
+      if (savedSidebarScroll !== null) {
+        navElement.scrollTop = parseInt(savedSidebarScroll, 10) || 0;
+        return;
+      }
+
+      const activeElement = navElement.querySelector(
+        ".sidebar-submenu-item.active, .sidebar-nav-item.active"
+      );
+
+      if (activeElement instanceof HTMLElement) {
+        const navRect = navElement.getBoundingClientRect();
+        const activeRect = activeElement.getBoundingClientRect();
+        const isOutsideView =
+          activeRect.top < navRect.top || activeRect.bottom > navRect.bottom;
+
+        if (isOutsideView) {
+          activeElement.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+            behavior: "smooth",
+          });
+        }
+      }
+    }, 100);
   }, [location.pathname]);
 
   // Debounced scroll persistence to prevent excessive updates
@@ -814,9 +845,15 @@ export const Sidebar: React.FC = () => {
   if (!user) return null;
 
   const toggleExpand = (label: string) => {
+    const scrollTop = navRef.current?.scrollTop ?? 0;
     setExpandedItems((prev) =>
       prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label]
     );
+    window.setTimeout(() => {
+      if (navRef.current) {
+        navRef.current.scrollTop = scrollTop;
+      }
+    }, 0);
   };
 
   const persistScrollAndHandleNav = () => {
@@ -1103,9 +1140,11 @@ export const Sidebar: React.FC = () => {
             onClick={() => toggleExpand(item.label)}
             className={cn(
               "sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium",
-              isExpanded || isActive
+              isActive
                 ? "active text-primary-foreground"
-                : "text-sidebar-foreground hover:text-primary"
+                : isExpanded
+                  ? "bg-primary/10 text-primary"
+                  : "text-sidebar-foreground hover:text-primary"
             )}
           >
             <span className="flex-shrink-0">{item.icon}</span>

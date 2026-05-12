@@ -133,6 +133,7 @@ const SubscriptionManagement: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [isPaying, setIsPaying] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState(25);
+  const [selectedUsersInput, setSelectedUsersInput] = useState("25");
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
@@ -509,10 +510,26 @@ const SubscriptionManagement: React.FC = () => {
                   <Input
                     type="number"
                     min="1"
-                    value={selectedUsers}
+                    value={selectedUsersInput}
                     onChange={(e) => {
-                      const nextValue = parseInt(e.target.value, 10);
-                      setSelectedUsers(Number.isNaN(nextValue) ? 1 : Math.max(1, nextValue));
+                      const rawValue = e.target.value;
+                      setSelectedUsersInput(rawValue);
+
+                      if (rawValue === "") return;
+
+                      const nextValue = parseInt(rawValue, 10);
+                      if (!Number.isNaN(nextValue)) {
+                        setSelectedUsers(Math.max(1, nextValue));
+                      }
+                    }}
+                    onBlur={() => {
+                      const nextValue = parseInt(selectedUsersInput, 10);
+                      const normalizedValue = Number.isNaN(nextValue)
+                        ? 1
+                        : Math.max(1, nextValue);
+
+                      setSelectedUsers(normalizedValue);
+                      setSelectedUsersInput(String(normalizedValue));
                     }}
                   />
                 </div>

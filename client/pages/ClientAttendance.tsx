@@ -24,6 +24,7 @@ import { clientApi, Client } from "@/components/helper/client/client";
 import { clientAttendanceApi, type ClientAttendance, CheckInData, CheckOutData, getCurrentLocation, getAddressFromCoordinates } from "@/components/helper/clientAttendance/clientAttendance";
 import { showToast } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
+import ENDPOINTS from "@/lib/endpoint";
 
 const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
 
@@ -37,7 +38,7 @@ export default function ClientAttendance() {
   const [isCheckInDialogOpen, setIsCheckInDialogOpen] = useState(false);
   const [isCheckOutDialogOpen, setIsCheckOutDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; accuracy?: number; address?: string } | null>(null);
   const [checkInNotes, setCheckInNotes] = useState("");
   const [checkOutNotes, setCheckOutNotes] = useState("");
   const [workCompleted, setWorkCompleted] = useState("");
@@ -101,6 +102,33 @@ export default function ClientAttendance() {
     }
   };
 
+  const notifyTrackingStatusChanged = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("attendance:tracking-status-changed"));
+    }
+  };
+
+  const postFieldAttendanceLocation = async (source: string) => {
+    if (!currentLocation) return;
+
+    try {
+      await ENDPOINTS.postLiveLocation({
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        accuracy: currentLocation.accuracy,
+        address:
+          currentLocation.address ||
+          `${currentLocation.latitude}, ${currentLocation.longitude}`,
+        timestamp: new Date().toISOString(),
+        device_info: "browser-field-attendance",
+        source,
+        session_id: activeCheckIn ? `field-attendance-${activeCheckIn.id}` : undefined,
+      });
+    } catch (error) {
+      console.warn("Field attendance live location ping failed", error);
+    }
+  };
+
   const handleCheckIn = async () => {
     if (!selectedClient || !currentLocation) {
       showToast.error("Please select a client and enable location");
@@ -139,6 +167,8 @@ export default function ClientAttendance() {
         if (typeof window !== "undefined") {
           localStorage.setItem(LIVE_TRACKING_SESSION_KEY, "true");
         }
+        await postFieldAttendanceLocation("field-attendance-check-in");
+        notifyTrackingStatusChanged();
         await loadData();
         setIsCheckInDialogOpen(false);
         setSelectedClient(null);
@@ -194,9 +224,11 @@ export default function ClientAttendance() {
       const result = await clientAttendanceApi.checkOut(activeCheckIn.id, checkOutData);
       
       if (result.success) {
+        await postFieldAttendanceLocation("field-attendance-check-out");
         if (typeof window !== "undefined") {
           localStorage.removeItem(LIVE_TRACKING_SESSION_KEY);
         }
+        notifyTrackingStatusChanged();
         await loadData();
         setActiveCheckIn(null);
         setIsCheckOutDialogOpen(false);
