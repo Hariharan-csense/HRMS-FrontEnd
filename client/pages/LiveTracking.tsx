@@ -796,22 +796,18 @@ export default function LiveTracking() {
         address: "Current Location",
       };
 
-      const response = await fetch("/api/attendance/checkin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(locationData),
+      await ENDPOINTS.postLiveLocation({
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        accuracy: locationData.accuracy,
+        address: locationData.address,
+        timestamp: locationData.timestamp,
+        source: "live-tracking-check-in",
       });
 
-      if (response.ok) {
-        toast.success("Successfully checked in!", {
-          description: "Your location has been recorded for tracking.",
-        });
-      } else {
-        throw new Error("Failed to check in");
-      }
+      toast.success("Successfully checked in!", {
+        description: "Your location has been recorded for tracking.",
+      });
     } catch (error) {
       console.error("Check-in error:", error);
       toast.error("Failed to check in", {

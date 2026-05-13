@@ -104,8 +104,7 @@ export default function UserProfile() {
   useEffect(() => {
     const loadProfileData = async () => {
       try {
-        const profileResponse = await profileHelper.getProfile();
-        const profileData = profileResponse.data || profileResponse;
+        const profileData = await profileHelper.getProfile();
 
         setFormData({
           first_name: profileData.first_name || user?.name || "",
@@ -223,10 +222,7 @@ export default function UserProfile() {
         designation_id: formData.designation_id,
       };
 
-      const updatedProfileResponse =
-        await profileHelper.updateProfile(profileData);
-      const updatedProfile =
-        updatedProfileResponse.data || updatedProfileResponse;
+      const updatedProfile = await profileHelper.updateProfile(profileData);
 
       // Update user context with new data
       setUser({
@@ -306,16 +302,35 @@ export default function UserProfile() {
 
         try {
           // Upload avatar using helper function
-          const updatedProfileResponse = await profileHelper.updateAvatar(file);
-          const updatedProfile =
-            updatedProfileResponse.data || updatedProfileResponse;
+          const updatedProfile = await profileHelper.updateAvatar(file);
 
-          // Update user context with new avatar
+          const rawUpdatedAvatarUrl = resolveProfilePhotoUrl(
+            updatedProfile.profile_photo,
+          );
+          const updatedAvatarUrl = rawUpdatedAvatarUrl
+            ? `${rawUpdatedAvatarUrl}${rawUpdatedAvatarUrl.includes("?") ? "&" : "?"}v=${Date.now()}`
+            : result;
+
+          setAvatarPreview(updatedAvatarUrl);
           setUser({
             ...user,
-            avatar:
-              resolveProfilePhotoUrl(updatedProfile.profile_photo) || result,
+            avatar: updatedAvatarUrl,
           });
+
+          // Refresh profile from server to ensure any backend-managed URL changes are reflected
+          const refreshedProfile = await profileHelper.getProfile();
+          if (refreshedProfile) {
+            const rawRefreshedAvatarUrl = resolveProfilePhotoUrl(
+              refreshedProfile.profile_photo,
+            );
+            const refreshedAvatarUrl = rawRefreshedAvatarUrl
+              ? `${rawRefreshedAvatarUrl}${rawRefreshedAvatarUrl.includes("?") ? "&" : "?"}v=${Date.now()}`
+              : updatedAvatarUrl;
+            setAvatarPreview(refreshedAvatarUrl);
+            setUser((prev) =>
+              prev ? { ...prev, avatar: refreshedAvatarUrl } : prev,
+            );
+          }
 
           // Log activity
           await activityHelper.logActivity("Updated Profile Picture");

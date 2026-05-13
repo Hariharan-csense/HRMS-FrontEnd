@@ -345,12 +345,13 @@ export const liveApi = {
     address?: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await ENDPOINTS.saveEmployeeLocation({
-        employeeId,
+      await ENDPOINTS.postLiveLocation({
         latitude,
         longitude,
-        accuracy: accuracy || null,
-        address: address || null,
+        accuracy: accuracy || undefined,
+        address: address || undefined,
+        timestamp: new Date().toISOString(),
+        source: "live-tracking",
       });
       return { success: true };
     } catch (error: any) {
@@ -367,9 +368,9 @@ export const liveApi = {
     error?: string;
   }> => {
     try {
-      const response = await ENDPOINTS.getEmployeeLocations();
+      const response = await ENDPOINTS.getLiveLocations();
       return {
-        data: response.data?.data || response.data || [],
+        data: response.data?.locations || response.data?.data || response.data || [],
       };
     } catch (error: any) {
       console.error("Error fetching employee locations:", error);
@@ -389,13 +390,13 @@ export const liveApi = {
     error?: string;
   }> => {
     try {
-      const response = await ENDPOINTS.getLocationHistory(String(employeeId), {
+      const response = await ENDPOINTS.getLiveLocationHistory(String(employeeId), {
         startDate,
         endDate,
         limit: limit || 100,
       });
       return {
-        data: response.data?.data || response.data || [],
+        data: response.data?.points || response.data?.data || response.data || [],
       };
     } catch (error: any) {
       console.error("Error fetching location history:", error);
@@ -410,7 +411,9 @@ export const liveApi = {
     error?: string;
   }> => {
     try {
-      const response = await ENDPOINTS.stopTracking(String(employeeId));
+      console.warn("stopTracking is handled by stopping live location pings", {
+        employeeId,
+      });
       return { success: true };
     } catch (error: any) {
       console.error("Error stopping tracking:", error);

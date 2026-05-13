@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import io, { Socket } from "socket.io-client";
-import { BASE_URL } from "@/lib/endpoint";
+import ENDPOINTS, { BASE_URL } from "@/lib/endpoint";
 
 type LocationUpdate = {
   id: number;
@@ -232,26 +232,14 @@ export const useSendLocation = (options: UseSendLocationOptions): UseSendLocatio
     setError(null);
 
     try {
-      const response = await fetch("/backend/api/locations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("accessToken") || localStorage.getItem("token") || ""}`,
-        },
-        body: JSON.stringify({
-          employeeId,
-          latitude,
-          longitude,
-          accuracy: accuracy || null,
-          address: address || null,
-        }),
-        credentials: "include",
+      await ENDPOINTS.postLiveLocation({
+        latitude,
+        longitude,
+        accuracy: accuracy || undefined,
+        address: address || undefined,
+        timestamp: new Date().toISOString(),
+        source: "live-tracking",
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to send location");
-      }
 
       setIsLoading(false);
       return true;
