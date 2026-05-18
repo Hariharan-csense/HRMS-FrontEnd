@@ -1768,14 +1768,23 @@ useEffect(() => {
                   <div className="space-y-3">
                     <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                      Annual Limit (days) *
+                      Annual Limit (days)
                     </Label>
                     <Input
                       value={formData.annualLimit || ""}
-                      onChange={(e) => setFormData({ ...formData, annualLimit: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          annualLimit:
+                            e.target.value === ""
+                              ? 0
+                              : parseInt(e.target.value, 10) || 0,
+                        })
+                      }
                       type="number"
+                      min="0"
                       className="h-12 text-base border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm"
-                      placeholder="12"
+                      placeholder="Optional"
                     />
                   </div>
                   <div className="space-y-3">

@@ -37,7 +37,7 @@ const parseCoords = (coordinates?: string): LatLngLiteral | null => {
   return null;
 };
 
-const buildIcon = (emp: TrackedEmployee) => {
+const buildIcon = (emp: TrackedEmployee): google.maps.Icon => {
   const name = emp.name || `${emp.first_name || ""} ${emp.last_name || ""}`.trim() || "EMP";
   const initials = name
     .split(" ")
@@ -60,8 +60,8 @@ const buildIcon = (emp: TrackedEmployee) => {
 
   return {
     url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`,
-    scaledSize: { width: 64, height: 80 },
-    anchor: { x: 32, y: 80 },
+    scaledSize: new google.maps.Size(64, 80),
+    anchor: new google.maps.Point(32, 80),
   };
 };
 
@@ -122,8 +122,7 @@ export default function AdminRealTimeMap() {
     const coords = parseCoords(branch.coordinates);
     if (coords) {
       setOfficeLocation(coords);
-      const radiusValue = Number(branch.radius) || 0;
-      const radiusMeters = radiusValue > 1000 ? radiusValue : radiusValue * 1000;
+      const radiusMeters = Number(branch.radius) || 0;
       setRadius(radiusMeters || FALLBACK_RADIUS);
     } else {
       setOfficeLocation(null);

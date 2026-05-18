@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -61,6 +68,16 @@ interface PendingAttendanceCapture {
   confidence: number;
 }
 
+interface AssignedClient {
+  id: number;
+  client_id?: string;
+  client_name: string;
+  address?: string | null;
+  geo_latitude?: number | string | null;
+  geo_longitude?: number | string | null;
+  geo_radius?: number | string | null;
+}
+
 const SELFIE_OUTPUT_SIZE = 1080;
 const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
 
@@ -88,12 +105,16 @@ export default function AttendanceCapture() {
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [pendingAttendance, setPendingAttendance] =
     useState<PendingAttendanceCapture | null>(null);
+  const [assignedClients, setAssignedClients] = useState<AssignedClient[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     startWebcam();
     fetchAttendanceStatus();
     fetchLiveLocations();
+    fetchAssignedClients();
 
     // Refresh live locations every 2 minutes
     const locationInterval = setInterval(
@@ -279,6 +300,22 @@ export default function AttendanceCapture() {
       }
     } catch (error) {
       console.error("Error fetching live locations:", error);
+    }
+  };
+
+  const fetchAssignedClients = async () => {
+    if (!user?.id) return;
+
+    setIsLoadingClients(true);
+    try {
+      const response = await ENDPOINTS.getAttendanceAssignedClients();
+      const rawClients = response.data?.data || response.data || [];
+      setAssignedClients(Array.isArray(rawClients) ? rawClients : []);
+    } catch (error) {
+      console.warn("Unable to load assigned clients:", error);
+      setAssignedClients([]);
+    } finally {
+      setIsLoadingClients(false);
     }
   };
 
@@ -638,6 +675,18 @@ export default function AttendanceCapture() {
 
     try {
       const location = await getLocation();
+
+      if (type === "check-in") {
+        await ENDPOINTS.validateCheckInLocation({
+          clientId: selectedClientId ?? undefined,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: location.accuracy,
+          address: location.address,
+          location,
+        });
+      }
+
       const imageUrl = captureSelfiePreview();
 
       setPendingAttendance({
@@ -697,6 +746,9 @@ export default function AttendanceCapture() {
         pendingAttendance.location.accuracy.toString(),
       );
       formData.append("location", JSON.stringify(locationData));
+      if (selectedClientId) {
+        formData.append("clientId", selectedClientId.toString());
+      }
       formData.append("employeeId", user.id.toString());
 
       const apiResponse =
@@ -1094,6 +1146,100 @@ export default function AttendanceCapture() {
                       Location services active
                     </AlertDescription>
                   </Alert>
+                )}
+
+                {(isLoadingClients || assignedClients.length > 0) && (
+                  <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
+                    <div>
+                      <p className="font-medium">Assigned Clients</p>
+                      <p className="text-sm text-muted-foreground">
+                        Select a client to mark attendance (optional for work
+                        from home)
+                      </p>
+                    </div>
+
+                    {isLoadingClients ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading clients...
+                      </div>
+                    ) : assignedClients.length > 0 ? (
+                      <div className="space-y-3">
+                        <Select
+                          value={selectedClientId?.toString() || ""}
+                          onValueChange={(value) =>
+                            setSelectedClientId(value ? Number(value) : null)
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a client..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assignedClients.map((client) => (
+                              <SelectItem
+                                key={client.id}
+                                value={client.id.toString()}
+                              >
+                                {client.client_name} (
+                                {client.client_id || `Client #${client.id}`})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {selectedClientId && (
+                          <div className="rounded-md border border-green-200 bg-green-50 p-3 space-y-2">
+                            {(() => {
+                              const selected = assignedClients.find(
+                                (c) => c.id === selectedClientId,
+                              );
+                              if (!selected) return null;
+                              const hasLocation =
+                                Number.isFinite(
+                                  Number(selected.geo_latitude),
+                                ) &&
+                                Number.isFinite(Number(selected.geo_longitude));
+                              return (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold text-green-900">
+                                      {selected.client_name}
+                                    </p>
+                                    <Badge
+                                      variant={
+                                        hasLocation ? "default" : "outline"
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {hasLocation
+                                        ? "Location Set"
+                                        : "No Location"}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-green-800">
+                                    {selected.client_id ||
+                                      `Client #${selected.id}`}
+                                    {selected.geo_radius
+                                      ? ` | Radius: ${selected.geo_radius}m`
+                                      : ""}
+                                  </p>
+                                  {selected.address && (
+                                    <p className="text-sm text-green-900">
+                                      📍 {selected.address}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No assigned clients
+                      </p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

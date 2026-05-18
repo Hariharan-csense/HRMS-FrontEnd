@@ -5,7 +5,7 @@ import axios from "axios";
 // // //Export the base URL for use in other components
 
 // export const BASE_URL = "http://192.168.1.9:3000/backend";
-// 
+// // 
   export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -551,6 +551,17 @@ const ENDPOINTS = {
   // attendance
 
   getAttendanceStatus: () => api.get("/attendance/status"),
+
+  getAttendanceAssignedClients: () => api.get("/attendance/assigned-clients"),
+
+  validateCheckInLocation: (data: {
+    clientId?: number | string;
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    address?: string;
+    location?: any;
+  }) => api.post("/attendance/validate-check-in-location", data),
 
   checkIn: (data: FormData) =>
     api.post("/attendance/check-in", data, {

@@ -42,6 +42,7 @@ import {
   Activity,
   Route,
   Timer,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Employee } from "@/lib/employees";
@@ -456,6 +457,16 @@ type StopSegment = {
   pointCount: number;
 };
 
+type AssignedClient = {
+  id: number;
+  client_id?: string | null;
+  client_name: string;
+  address?: string | null;
+  geo_latitude?: number | string | null;
+  geo_longitude?: number | string | null;
+  geo_radius?: number | string | null;
+};
+
 const formatMinutesAgo = (minutes?: number | null) => {
   if (minutes == null) return "Unknown";
   if (minutes <= 0) return "Just now";
@@ -586,7 +597,6 @@ export default function LiveTracking() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checkingIn, setCheckingIn] = useState(false);
   const [travelPaths, setTravelPaths] = useState<
     Record<string, Array<{ lat: number; lng: number }>>
   >({});
@@ -645,7 +655,7 @@ export default function LiveTracking() {
 
   const canViewTracking =
     hasModuleAccess("live_tracking") || hasModuleAccess("attendance");
-  const companyId = user?.company_id || user?.companyId;
+  const companyId = (user as any)?.companyId || (user as any)?.company_id;
 
   const {
     isConnected,
@@ -769,55 +779,6 @@ export default function LiveTracking() {
       setMapLoadError("GOOGLE_MAP_BLOCKED");
     }
   }, [loadError]);
-
-  const handleCheckIn = async () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
-      return;
-    }
-
-    setCheckingIn(true);
-    try {
-      const position = await new Promise<GeolocationPosition>(
-        (resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
-          });
-        },
-      );
-
-      const locationData = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        timestamp: new Date().toISOString(),
-        address: "Current Location",
-      };
-
-      await ENDPOINTS.postLiveLocation({
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        accuracy: locationData.accuracy,
-        address: locationData.address,
-        timestamp: locationData.timestamp,
-        source: "live-tracking-check-in",
-      });
-
-      toast.success("Successfully checked in!", {
-        description: "Your location has been recorded for tracking.",
-      });
-    } catch (error) {
-      console.error("Check-in error:", error);
-      toast.error("Failed to check in", {
-        description:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setCheckingIn(false);
-    }
-  };
 
   useEffect(() => {
     if (!canViewTracking) return;
@@ -2160,42 +2121,23 @@ export default function LiveTracking() {
               <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <UserCheck className="w-8 h-8 text-blue-600" />
               </div>
-              <CardTitle className="text-2xl">Employee Check-In</CardTitle>
+              <CardTitle className="text-2xl">Live Tracking Access</CardTitle>
               <CardDescription>
-                Check in to start location tracking for your travel
+                Live tracking is available once your session is active.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert>
                 <MapPin className="w-4 h-4" />
                 <AlertDescription>
-                  Location tracking will start after you check in. Your movement
-                  will be monitored while you travel.
+                  Live tracking is available once your session is active.
                 </AlertDescription>
               </Alert>
 
-              <Button
-                onClick={handleCheckIn}
-                disabled={checkingIn}
-                className="w-full"
-                size="lg"
-              >
-                {checkingIn ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Checking In...
-                  </>
-                ) : (
-                  <>
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    Check In Now
-                  </>
-                )}
-              </Button>
-
-              <div className="text-center text-sm text-muted-foreground">
-                <p>After check-in, your location will be tracked</p>
-                <p>when you travel to places like Egmore</p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Contact your administrator if live tracking is not available.
+                </p>
               </div>
             </CardContent>
           </Card>

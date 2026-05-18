@@ -23,11 +23,7 @@ export function useOfficeLocation() {
             .split(",")
             .map((v: string) => Number(v.trim()));
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            const radiusValue = Number(primary.radius) || 0;
-            const radiusMeters =
-              radiusValue > 1000
-                ? radiusValue // already in meters
-                : radiusValue * 1000; // treat small numbers as km -> meters
+            const radiusMeters = Number(primary.radius) || 0;
             setOffice({
               coordinates: { lat, lng },
               name: primary.name || "Office",
