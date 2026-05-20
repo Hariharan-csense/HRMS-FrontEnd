@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, Star, Zap, Shield, Crown, ChevronRight, Check } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, Star, Zap, Shield, Crown, ChevronRight, Check, PackagePlus, ChevronDown } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
@@ -52,6 +52,26 @@ interface CompanySubscription {
   is_trial_active: boolean;
   trial_days_remaining: number;
   storage_usage_percentage?: number;
+  addons?: Array<{
+    id: number;
+    addon_id?: number;
+    name: string;
+    module_key?: string;
+    users_count: number;
+    total_price?: number;
+    assigned_employee_ids?: number[];
+  }>;
+}
+
+interface SubscriptionAddon {
+  id: number;
+  name: string;
+  description?: string;
+  module_key?: string;
+  price_upto25: number;
+  price_upto50: number;
+  price_above50: number;
+  is_active: boolean;
 }
 
 interface Payment {
@@ -63,6 +83,43 @@ interface Payment {
   status: string;
   payment_date: string;
 }
+
+interface EmployeeOption {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  employee_id?: string;
+  email?: string;
+}
+
+interface AddonAssignment {
+  id: number;
+  addon_id: number;
+  name: string;
+  module_key?: string;
+  users_count: number;
+  assignments: Array<{
+    employee_id: number;
+    name?: string;
+    employee_code?: string;
+    email?: string;
+  }>;
+}
+
+const buildAddonAssignmentsFromSubscription = (
+  subscription: CompanySubscription | null
+): AddonAssignment[] =>
+  (subscription?.addons || []).map((addon) => ({
+    id: Number(addon.id),
+    addon_id: Number(addon.addon_id || addon.id),
+    name: addon.name,
+    module_key: addon.module_key,
+    users_count: Number(addon.users_count || 0),
+    assignments: (addon.assigned_employee_ids || []).map((employeeId) => ({
+      employee_id: Number(employeeId),
+    })),
+  }));
 
 
 const getStorageForPlan = (plan: SubscriptionPlan): string => {
@@ -114,6 +171,25 @@ const getPricingSummary = (
   };
 };
 
+const getAddonPricingSummary = (
+  addon: SubscriptionAddon,
+  usersCount: number,
+  billingCycle: 'monthly' | 'yearly'
+) => {
+  const pricePerUser =
+    usersCount <= 25
+      ? Number(addon.price_upto25 || 0)
+      : usersCount <= 50
+        ? Number(addon.price_upto50 || addon.price_upto25 || 0)
+        : Number(addon.price_above50 || addon.price_upto50 || addon.price_upto25 || 0);
+  const totalPrice = pricePerUser * usersCount * (billingCycle === 'yearly' ? 12 : 1);
+
+  return {
+    pricePerUser,
+    totalPrice
+  };
+};
+
 const formatPrice = (price: number): string => {
   return `₹${price.toLocaleString('en-IN')}`;
 };
@@ -126,15 +202,27 @@ const SubscriptionManagement: React.FC = () => {
   const navigate = useNavigate();
   const { checkSubscriptionStatus } = useSubscription();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [addons, setAddons] = useState<SubscriptionAddon[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<CompanySubscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [addonAssignments, setAddonAssignments] = useState<AddonAssignment[]>([]);
+  const [assignmentSelections, setAssignmentSelections] = useState<Record<number, number[]>>({});
+  const [expandedAddonAssignments, setExpandedAddonAssignments] = useState<Record<number, boolean>>({});
+  const [savingAssignmentId, setSavingAssignmentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [selectedAddon, setSelectedAddon] = useState<SubscriptionAddon | null>(null);
+  const [showAddonPaymentModal, setShowAddonPaymentModal] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [isAddonPaying, setIsAddonPaying] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState(25);
   const [selectedUsersInput, setSelectedUsersInput] = useState("25");
+  const [selectedAddonUsers, setSelectedAddonUsers] = useState(8);
+  const [selectedAddonUsersInput, setSelectedAddonUsersInput] = useState("8");
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [selectedAddonBillingCycle, setSelectedAddonBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     fetchSubscriptionData();
@@ -144,28 +232,66 @@ const SubscriptionManagement: React.FC = () => {
     console.log('fetchSubscriptionData called');
     try {
       console.log('Making API calls...');
-      const [plansRes, subscriptionRes, paymentsRes] = await Promise.all([
+      const [plansRes, subscriptionRes, paymentsRes, addonsRes] = await Promise.all([
         ENDPOINTS.getSubscriptionPlans(),
         ENDPOINTS.getCurrentSubscription(),
-        ENDPOINTS.getSubscriptionPayments()
+        ENDPOINTS.getSubscriptionPayments(),
+        ENDPOINTS.getAvailableSubscriptionAddons()
       ]);
 
-      console.log('API responses received:', { plansRes, subscriptionRes, paymentsRes });
+      console.log('API responses received:', { plansRes, subscriptionRes, paymentsRes, addonsRes });
 
       setPlans(plansRes.data?.data || []);
+      setAddons(addonsRes.data?.data || []);
       if (!selectedPlan && (plansRes.data?.data || []).length > 0) {
         setSelectedPlan((plansRes.data?.data || [])[0]);
       }
-      setCurrentSubscription(subscriptionRes.data?.data || null);
+      const subscriptionData = subscriptionRes.data?.data || null;
+      setCurrentSubscription(subscriptionData);
       setPayments(paymentsRes.data?.data || []);
+
+      const [employeesRes, assignmentsRes] = await Promise.allSettled([
+        ENDPOINTS.getEmployee(),
+        ENDPOINTS.getSubscriptionAddonAssignments(),
+      ]);
+
+      if (employeesRes.status === 'fulfilled') {
+        setEmployees(employeesRes.value.data?.data || employeesRes.value.data?.employees || []);
+      }
+
+      if (assignmentsRes.status === 'fulfilled') {
+        const fetchedAssignments = assignmentsRes.value.data?.data || [];
+        const resolvedAssignments = fetchedAssignments.length > 0
+          ? fetchedAssignments
+          : buildAddonAssignmentsFromSubscription(subscriptionData);
+        setAddonAssignments(resolvedAssignments);
+        setAssignmentSelections(
+          resolvedAssignments.reduce((acc: Record<number, number[]>, addon: AddonAssignment) => {
+            acc[addon.id] = (addon.assignments || []).map((assignment) => Number(assignment.employee_id));
+            return acc;
+          }, {})
+        );
+      } else {
+        const fallbackAssignments = buildAddonAssignmentsFromSubscription(subscriptionData);
+        setAddonAssignments(fallbackAssignments);
+        setAssignmentSelections(
+          fallbackAssignments.reduce((acc: Record<number, number[]>, addon: AddonAssignment) => {
+            acc[addon.id] = (addon.assignments || []).map((assignment) => Number(assignment.employee_id));
+            return acc;
+          }, {})
+        );
+      }
     } catch (error) {
       console.error('Error fetching subscription data:', error);
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
       // Set default values to prevent undefined errors
       setPlans([]);
+      setAddons([]);
       setCurrentSubscription(null);
       setPayments([]);
+      setAddonAssignments([]);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -269,6 +395,131 @@ const SubscriptionManagement: React.FC = () => {
     } finally {
       setIsPaying(false);
     }
+  };
+
+  const handleBuyAddon = async () => {
+    if (!selectedAddon) return;
+
+    setIsAddonPaying(true);
+    try {
+      const scriptOk = await loadRazorpayScript();
+      if (!scriptOk) {
+        showToast.error('Failed to load Razorpay. Please check your internet connection.');
+        return;
+      }
+
+      const orderRes = await ENDPOINTS.createSubscriptionAddonOrder({
+        addon_id: selectedAddon.id,
+        users_count: selectedAddonUsers,
+        billing_cycle: selectedAddonBillingCycle
+      });
+      const orderData = orderRes.data?.data;
+
+      if (!orderData?.order_id || !orderData?.key_id) {
+        showToast.error('Failed to create add-on payment order');
+        return;
+      }
+
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const options: any = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'HRMS',
+        description: `Buy add-on: ${selectedAddon.name}`,
+        order_id: orderData.order_id,
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await ENDPOINTS.verifySubscriptionAddonPayment({
+              addon_id: selectedAddon.id,
+              users_count: selectedAddonUsers,
+              billing_cycle: selectedAddonBillingCycle,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            showToast.success(verifyRes.data?.message || 'Add-on purchased successfully');
+            setShowAddonPaymentModal(false);
+            setSelectedAddon(null);
+            await Promise.all([
+              fetchSubscriptionData(),
+              checkSubscriptionStatus(),
+            ]);
+          } catch (e: any) {
+            showToast.error(e.response?.data?.message || 'Add-on payment verification failed');
+          }
+        },
+        prefill: {
+          name: user?.name || user?.username || '',
+          email: user?.email || ''
+        },
+        theme: { color: '#16a34a' }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (resp: any) {
+        showToast.error(resp?.error?.description || 'Payment failed');
+      });
+      rzp.open();
+    } catch (error: any) {
+      showToast.error(error.response?.data?.message || 'Failed to start add-on payment');
+    } finally {
+      setIsAddonPaying(false);
+    }
+  };
+
+  const getEmployeeDisplayName = (employee: EmployeeOption) => {
+    const fullName = `${employee.first_name || ''} ${employee.last_name || ''}`.trim();
+    return fullName || employee.name || employee.email || `Employee ${employee.id}`;
+  };
+
+  const toggleAddonEmployee = (subscriptionAddonId: number, employeeId: number, maxUsers: number) => {
+    setAssignmentSelections((prev) => {
+      const current = prev[subscriptionAddonId] || [];
+      const isSelected = current.includes(employeeId);
+      if (isSelected) {
+        return {
+          ...prev,
+          [subscriptionAddonId]: current.filter((id) => id !== employeeId),
+        };
+      }
+
+      if (current.length >= maxUsers) {
+        showToast.error(`This add-on allows only ${maxUsers} users`);
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [subscriptionAddonId]: [...current, employeeId],
+      };
+    });
+  };
+
+  const handleSaveAddonUsers = async (subscriptionAddonId: number) => {
+    setSavingAssignmentId(subscriptionAddonId);
+    try {
+      await ENDPOINTS.updateSubscriptionAddonUsers(subscriptionAddonId, {
+        employee_ids: assignmentSelections[subscriptionAddonId] || [],
+      });
+      showToast.success('Add-on users updated');
+      await Promise.all([
+        fetchSubscriptionData(),
+        checkSubscriptionStatus(),
+      ]);
+    } catch (error: any) {
+      showToast.error(error.response?.data?.message || 'Failed to update add-on users');
+    } finally {
+      setSavingAssignmentId(null);
+    }
+  };
+
+  const toggleAddonAssignmentPanel = (subscriptionAddonId: number) => {
+    setExpandedAddonAssignments((prev) => ({
+      ...prev,
+      [subscriptionAddonId]: !prev[subscriptionAddonId],
+    }));
   };
 
   const getPlanIcon = (planName: string) => {
@@ -429,6 +680,94 @@ const SubscriptionManagement: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              {currentSubscription.addons && currentSubscription.addons.length > 0 && (
+                <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-sm font-semibold text-emerald-900">Active Add-ons</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {currentSubscription.addons.map((addon) => (
+                      <span
+                        key={addon.id}
+                        className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-200"
+                      >
+                        {addon.name} - {addon.users_count} seats
+                      </span>
+                    ))}
+                  </div>
+
+                  {addonAssignments.length > 0 && (
+                    <div className="mt-5 space-y-4">
+                      {addonAssignments.map((addon) => {
+                        const selectedIds = assignmentSelections[addon.id] || [];
+                        const isExpanded = Boolean(expandedAddonAssignments[addon.id]);
+                        return (
+                          <div key={addon.id} className="rounded-lg border border-emerald-200 bg-white p-4">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <button
+                                type="button"
+                                className="flex flex-1 items-center justify-between gap-3 text-left"
+                                onClick={() => toggleAddonAssignmentPanel(addon.id)}
+                              >
+                                <span>
+                                  <span className="block text-sm font-semibold text-gray-900">{addon.name}</span>
+                                  <span className="block text-xs text-gray-500">
+                                    {selectedIds.length}/{addon.users_count} users assigned
+                                  </span>
+                                </span>
+                                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                              {isExpanded && (
+                                <Button
+                                  size="sm"
+                                  className="bg-[#17c491] hover:bg-[#0fa372]"
+                                  disabled={savingAssignmentId === addon.id}
+                                  onClick={() => handleSaveAddonUsers(addon.id)}
+                                >
+                                  {savingAssignmentId === addon.id ? 'Saving...' : 'Save Users'}
+                                </Button>
+                              )}
+                            </div>
+
+                            {isExpanded && employees.length > 0 ? (
+                              <div className="mt-3 grid max-h-56 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+                                {employees.map((employee) => {
+                                  const employeeId = Number(employee.id);
+                                  const checked = selectedIds.includes(employeeId);
+                                  return (
+                                    <label
+                                      key={employee.id}
+                                      className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${
+                                        checked ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-white'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="mt-1"
+                                        checked={checked}
+                                        onChange={() => toggleAddonEmployee(addon.id, employeeId, addon.users_count)}
+                                      />
+                                      <span>
+                                        <span className="block font-medium text-gray-900">{getEmployeeDisplayName(employee)}</span>
+                                        <span className="block text-xs text-gray-500">
+                                          {employee.employee_id || employee.email || '-'}
+                                        </span>
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            ) : isExpanded ? (
+                              <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                                Employee list is not available for this login. Please use an admin/HR account to assign add-on users.
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {currentSubscription.is_trial_active && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
@@ -740,6 +1079,226 @@ const SubscriptionManagement: React.FC = () => {
           )}
         </div>
 
+        {currentSubscription && addons.length > 0 && (
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Add-on Packages</h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Buy only the extra modules you need on top of your current plan.
+              </p>
+            </div>
+
+            <Card className="border border-gray-200 shadow-sm mb-8">
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">Add-on Seats</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={selectedAddonUsersInput}
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+                        setSelectedAddonUsersInput(rawValue);
+
+                        if (rawValue === "") return;
+
+                        const nextValue = parseInt(rawValue, 10);
+                        if (!Number.isNaN(nextValue)) {
+                          setSelectedAddonUsers(Math.max(1, nextValue));
+                        }
+                      }}
+                      onBlur={() => {
+                        const nextValue = parseInt(selectedAddonUsersInput, 10);
+                        const normalizedValue = Number.isNaN(nextValue)
+                          ? 1
+                          : Math.max(1, nextValue);
+
+                        setSelectedAddonUsers(normalizedValue);
+                        setSelectedAddonUsersInput(String(normalizedValue));
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">Add-on Billing Cycle</Label>
+                    <Select
+                      value={selectedAddonBillingCycle}
+                      onValueChange={(value) => setSelectedAddonBillingCycle(value as 'monthly' | 'yearly')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select billing cycle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {addons.map((addon) => {
+                const pricing = getAddonPricingSummary(addon, selectedAddonUsers, selectedAddonBillingCycle);
+                const activeAssignment = addonAssignments.find(
+                  (assignment) =>
+                    assignment.addon_id === addon.id ||
+                    assignment.module_key === addon.module_key ||
+                    assignment.name?.toLowerCase() === addon.name.toLowerCase()
+                );
+                const alreadyActive = currentSubscription.addons?.some(
+                  (activeAddon) =>
+                    activeAddon.addon_id === addon.id ||
+                    activeAddon.module_key === addon.module_key ||
+                    activeAddon.name?.toLowerCase() === addon.name.toLowerCase()
+                );
+
+                return (
+                  <div
+                    key={addon.id}
+                    className={`relative rounded-2xl border bg-white shadow-lg overflow-hidden transition-all duration-300 ${
+                      alreadyActive ? 'border-emerald-300 bg-emerald-50/40' : 'border-gray-200 hover:shadow-xl hover:scale-105'
+                    }`}
+                  >
+                    {alreadyActive && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <Badge className="bg-emerald-600 text-white">Active Add-on</Badge>
+                      </div>
+                    )}
+
+                    <div className="p-6 sm:p-8">
+                      <div className="flex justify-center mb-6">
+                        <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center shadow-md">
+                          <PackagePlus className="w-8 h-8 text-[#17c491]" />
+                        </div>
+                      </div>
+
+                      <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-2">
+                        {addon.name}
+                      </h3>
+                      <p className="text-center text-xs font-medium uppercase text-gray-500 mb-5">
+                        {addon.module_key || 'module add-on'}
+                      </p>
+
+                      <div className="text-center mb-6">
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-4xl sm:text-5xl font-bold text-[#17c491]">
+                            {formatCurrency(pricing.pricePerUser)}
+                          </span>
+                          <span className="text-gray-600 text-lg">/user/month</span>
+                        </div>
+                        <span className="text-gray-500 text-sm block mt-2">
+                          Total {selectedAddonBillingCycle}: {formatCurrency(pricing.totalPrice)} for {selectedAddonUsers} seats
+                        </span>
+                      </div>
+
+                      {addon.description && (
+                        <div className="flex items-center justify-between py-2 mb-6">
+                          <span className="text-gray-700 text-sm flex-1">{addon.description}</span>
+                          <div className="flex items-center justify-center w-6 h-6">
+                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <Button
+                        className={`w-full py-3 px-4 font-semibold text-sm sm:text-base whitespace-normal text-center ${
+                          alreadyActive
+                            ? 'bg-gray-200 text-gray-700 cursor-not-allowed'
+                            : 'bg-[#17c491] hover:bg-[#0fa372] text-white'
+                        }`}
+                        disabled={alreadyActive}
+                        onClick={() => {
+                          setSelectedAddon(addon);
+                          setShowAddonPaymentModal(true);
+                        }}
+                      >
+                        {alreadyActive ? 'Already Active' : 'Buy Add-on'}
+                        {!alreadyActive && <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />}
+                      </Button>
+
+                      {alreadyActive && activeAssignment && (
+                        <div className="mt-5 rounded-lg border border-emerald-200 bg-white p-4 text-left">
+                          {(() => {
+                            const selectedIds = assignmentSelections[activeAssignment.id] || [];
+                            const isExpanded = Boolean(expandedAddonAssignments[activeAssignment.id]);
+                            return (
+                              <>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <button
+                              type="button"
+                              className="flex flex-1 items-center justify-between gap-3 text-left"
+                              onClick={() => toggleAddonAssignmentPanel(activeAssignment.id)}
+                            >
+                              <span>
+                                <span className="block text-sm font-semibold text-gray-900">Assign Employees</span>
+                                <span className="block text-xs text-gray-500">
+                                  {selectedIds.length}/{activeAssignment.users_count} users assigned
+                                </span>
+                              </span>
+                              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isExpanded && (
+                              <Button
+                                size="sm"
+                                className="bg-[#17c491] hover:bg-[#0fa372]"
+                                disabled={savingAssignmentId === activeAssignment.id}
+                                onClick={() => handleSaveAddonUsers(activeAssignment.id)}
+                              >
+                                {savingAssignmentId === activeAssignment.id ? 'Saving...' : 'Save Users'}
+                              </Button>
+                            )}
+                          </div>
+
+                          {isExpanded && employees.length > 0 ? (
+                            <div className="mt-3 grid max-h-56 grid-cols-1 gap-2 overflow-y-auto pr-1">
+                              {employees.map((employee) => {
+                                const employeeId = Number(employee.id);
+                                const checked = selectedIds.includes(employeeId);
+                                return (
+                                  <label
+                                    key={employee.id}
+                                    className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${
+                                      checked ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-white'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="mt-1"
+                                      checked={checked}
+                                      onChange={() => toggleAddonEmployee(activeAssignment.id, employeeId, activeAssignment.users_count)}
+                                    />
+                                    <span>
+                                      <span className="block font-medium text-gray-900">{getEmployeeDisplayName(employee)}</span>
+                                      <span className="block text-xs text-gray-500">
+                                        {employee.employee_id || employee.email || '-'}
+                                      </span>
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : isExpanded ? (
+                            <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                              Employee list is not available. Login as admin/HR to assign users.
+                            </div>
+                          ) : null}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
 
         {/* Payment History */}
         {payments && payments.length > 0 && (
@@ -869,6 +1428,64 @@ const SubscriptionManagement: React.FC = () => {
                       setSelectedPlan(null);
                     }}
                     disabled={isPaying}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {showAddonPaymentModal && selectedAddon && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Complete Add-on Payment</CardTitle>
+                <p className="text-sm text-gray-600">
+                  Buy {selectedAddon.name}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="font-semibold">{selectedAddon.name}</p>
+                  <div className="flex items-baseline gap-2">
+                    {(() => {
+                      const pricing = getAddonPricingSummary(selectedAddon, selectedAddonUsers, selectedAddonBillingCycle);
+                      return (
+                        <>
+                          <span className="text-2xl font-bold">{formatCurrency(pricing.pricePerUser)}</span>
+                          <span className="text-gray-600">/user/month</span>
+                          <span className="text-sm text-gray-500 ml-auto">
+                            Total {selectedAddonBillingCycle}: {formatCurrency(pricing.totalPrice)}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {selectedAddonUsers} add-on seats for this module.
+                  </p>
+                  {selectedAddon.description && (
+                    <p className="text-sm text-gray-600">{selectedAddon.description}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleBuyAddon}
+                    className="flex-1"
+                    disabled={isAddonPaying}
+                  >
+                    {isAddonPaying ? 'Starting Payment...' : 'Pay with Razorpay'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddonPaymentModal(false);
+                      setSelectedAddon(null);
+                    }}
+                    disabled={isAddonPaying}
                   >
                     Cancel
                   </Button>

@@ -20,6 +20,25 @@ export interface AdminDashboardData {
   recentJoinings?: Array<{ name: string; role: string; dept: string; joinDate: string }>;
   upcomingBirthdays?: Array<{ name: string; date: string; emoji: string }>;
   upcomingHolidays?: Array<any>;
+  presentTodayEmployees?: Array<{
+    id: number;
+    employeeId: string;
+    name: string;
+    email: string;
+    department: string;
+    status: string;
+    checkIn: string | null;
+  }>;
+  onLeaveEmployees?: Array<{
+    id: number;
+    employeeId: string;
+    name: string;
+    email: string;
+    department: string;
+    leaveType: string;
+    fromDate: string | null;
+    toDate: string | null;
+  }>;
   teamHealth?: {
     overallScore: number;
     status: string;
@@ -153,6 +172,8 @@ export const getAdminDashboardData = async (): Promise<{
       recentJoinings: payload.recentJoinings || [],
       upcomingBirthdays: payload.upcomingBirthdays || [],
       upcomingHolidays: payload.upcomingHolidays || [],
+      presentTodayEmployees: payload.presentTodayEmployees || [],
+      onLeaveEmployees: payload.onLeaveEmployees || [],
       teamHealth: payload.teamHealth || {
         overallScore: 0,
         status: '',
@@ -287,7 +308,8 @@ export const getManagerDashboardData = async (): Promise<{
         date: 1,
         present: payload.monthlyAttendance.present || 0,
         absent: payload.monthlyAttendance.absent || 0,
-        half: 0
+        half: 0,
+        late: payload.monthlyAttendance.late || 0
       }] : []
     };
 

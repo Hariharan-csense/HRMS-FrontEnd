@@ -75,7 +75,7 @@ export const reverseGeocode = async (
   try {
     // Prefer backend proxy (Mappls / MapmyIndia). Keeps API tokens off the client.
     const response = await api.get("/geocode/reverse", {
-      params: { lat: latitude, lng: longitude },
+      params: { lat: latitude, lng: longitude, fallback: 1 },
     });
 
     if (response.data?.success && response.data?.address) {

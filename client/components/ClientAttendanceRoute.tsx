@@ -2,6 +2,8 @@ import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRole } from '@/context/RoleContext';
 import { Layout } from '@/components/Layout';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { hasSubscriptionAddonModule } from '@/utils/subscriptionModules';
 
 interface ClientAttendanceRouteProps {
   children: React.ReactNode;
@@ -10,8 +12,9 @@ interface ClientAttendanceRouteProps {
 const ClientAttendanceRoute: React.FC<ClientAttendanceRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
   const { canPerformModuleAction, loading: roleLoading } = useRole();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
 
-  if (isLoading || roleLoading) {
+  if (isLoading || roleLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -32,7 +35,18 @@ const ClientAttendanceRoute: React.FC<ClientAttendanceRouteProps> = ({ children 
     );
   }
 
-  const hasClientAttendanceAccess = canPerformModuleAction("client_attendance", "view");
+  const allUserRoles = [
+    ...(Array.isArray(user.roles) ? user.roles : []),
+    user.role,
+  ]
+    .map((role) => String(role || "").trim().toLowerCase())
+    .filter(Boolean);
+  const hasClientAttendanceAccess =
+    canPerformModuleAction("client_attendance", "view") ||
+    hasSubscriptionAddonModule(subscription, "client_attendance", {
+      currentEmployeeId: Number(user.employee_id || user.employeeId || user.id || 0) || null,
+      addonAdminBypass: allUserRoles.includes("admin") || allUserRoles.includes("ceo"),
+    });
 
   if (!hasClientAttendanceAccess) {
     return (

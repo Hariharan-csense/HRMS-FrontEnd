@@ -1796,18 +1796,17 @@ export default function LiveTracking() {
   ]);
 
   const handleExportLocationData = async () => {
-    if (!filterEmployeeId) {
-      toast.error("Please select an employee to export");
-      return;
-    }
-
     try {
-      const selectedEmp = trackedEmployees.find(
-        (emp) =>
-          matchesEmployeeId(emp.id, filterEmployeeId) ||
-          matchesEmployeeId(emp.dbEmployeeId, filterEmployeeId),
-      );
-      const employeeDbId = selectedEmp?.dbEmployeeId ?? selectedEmp?.id;
+      const selectedEmp = filterEmployeeId
+        ? trackedEmployees.find(
+            (emp) =>
+              matchesEmployeeId(emp.id, filterEmployeeId) ||
+              matchesEmployeeId(emp.dbEmployeeId, filterEmployeeId),
+          )
+        : null;
+      const employeeDbId = filterEmployeeId
+        ? (selectedEmp?.dbEmployeeId ?? selectedEmp?.id)
+        : "all";
 
       if (!employeeDbId) {
         toast.error("Invalid employee");
@@ -1840,7 +1839,9 @@ export default function LiveTracking() {
         link.href = url;
         link.setAttribute(
           "download",
-          `location-history-${selectedEmp?.firstName}_${selectedEmp?.lastName}-${dateLabel}.csv`,
+          filterEmployeeId
+            ? `location-history-${selectedEmp?.firstName}_${selectedEmp?.lastName}-${dateLabel}.csv`
+            : `location-history-all-employees-${dateLabel}.csv`,
         );
         document.body.appendChild(link);
         link.click();
@@ -2358,17 +2359,15 @@ export default function LiveTracking() {
                 <Download className="w-4 h-4" />
                 Export CSV
               </Button>
-              {filterEmployeeId && (
-                <Button
-                  onClick={handleExportLocationData}
-                  variant="default"
-                  size="sm"
-                  className="gap-2 rounded-full bg-green-600 hover:bg-green-700"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Filtered Data
-                </Button>
-              )}
+              <Button
+                onClick={handleExportLocationData}
+                variant="default"
+                size="sm"
+                className="gap-2 rounded-full bg-green-600 hover:bg-green-700"
+              >
+                <Download className="w-4 h-4" />
+                Export Filtered Data
+              </Button>
               {selectedEmployee && (
                 <Button
                   onClick={handleExportVisitedLocations}

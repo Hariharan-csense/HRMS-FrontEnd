@@ -2,6 +2,8 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useRole } from '@/context/RoleContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { hasSubscriptionAddonModule } from '@/utils/subscriptionModules';
 
 interface AdminOnlyRouteProps {
   children: React.ReactNode;
@@ -10,9 +12,10 @@ interface AdminOnlyRouteProps {
 const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
   const { canPerformModuleAction, loading: roleLoading } = useRole();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
   const location = useLocation();
 
-  if (isLoading || roleLoading) {
+  if (isLoading || roleLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -43,10 +46,6 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     return null;
   })();
 
-  const hasAccess = moduleForPath
-    ? canPerformModuleAction(moduleForPath, "view")
-    : false;
-
   // Special handling: Admin users should always access Client Attendance Admin
   const allUserRoles = [
     ...(Array.isArray(user.roles) ? user.roles : []),
@@ -55,7 +54,17 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     .map((role) => String(role || "").trim().toLowerCase())
     .filter(Boolean);
   const isAdmin = allUserRoles.includes("admin");
+  const isCeo = allUserRoles.includes("ceo");
   const isClientAttendanceAdmin = location.pathname.startsWith("/client-attendance-admin");
+  const hasAddonAccess = moduleForPath
+    ? hasSubscriptionAddonModule(subscription, moduleForPath, {
+        currentEmployeeId: Number(user.employee_id || user.employeeId || user.id || 0) || null,
+        addonAdminBypass: isAdmin || isCeo,
+      })
+    : false;
+  const hasAccess = moduleForPath
+    ? canPerformModuleAction(moduleForPath, "view") || hasAddonAccess
+    : false;
 
   // Debug logging
   if (process.env.NODE_ENV === "development") {

@@ -9,6 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Eye, Shield, Trash2, Search } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { ENDPOINTS } from '@/lib/endpoint';
@@ -41,6 +48,7 @@ export const Organizations: React.FC = () => {
   const [planFilter, setPlanFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
 
   // Mock data for plans
   const plans = [
@@ -233,7 +241,10 @@ export const Organizations: React.FC = () => {
 
   // Handle view organization details
   const handleViewOrganization = (orgId: string) => {
-    navigate(`/organizations/${orgId}`);
+    const organization = organizations.find((org) => org.id === orgId);
+    if (organization) {
+      setSelectedOrganization(organization);
+    }
   };
 
   // Handle manage organization access
@@ -275,7 +286,7 @@ export const Organizations: React.FC = () => {
               setOrganizations(transformedData);
             }
           };
-          fetchOrganizations();
+          await fetchOrganizations();
           alert('Organization deleted successfully');
         }
       } catch (error) {
@@ -728,6 +739,61 @@ export const Organizations: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      <Dialog
+        open={!!selectedOrganization}
+        onOpenChange={(open) => !open && setSelectedOrganization(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedOrganization?.name || 'Organization Details'}</DialogTitle>
+            <DialogDescription>
+              Subscription and usage details for this organization.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrganization && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Owner</p>
+                <p className="mt-1 font-semibold">{selectedOrganization.owner || '-'}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Email</p>
+                <p className="mt-1 font-semibold">{selectedOrganization.email || '-'}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Status</p>
+                <p className="mt-1 font-semibold capitalize">{selectedOrganization.status}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Plan</p>
+                <p className="mt-1 font-semibold">{selectedOrganization.plan}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Users</p>
+                <p className="mt-1 font-semibold">{selectedOrganization.users}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Storage</p>
+                <p className="mt-1 font-semibold">
+                  {selectedOrganization.storage} / {selectedOrganization.totalStorage}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Days Left</p>
+                <p className="mt-1 font-semibold">{formatDaysLeft(selectedOrganization.daysLeft)}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Revenue</p>
+                <p className="mt-1 font-semibold">{selectedOrganization.revenue}</p>
+              </div>
+              <div className="rounded-lg border p-3 sm:col-span-2">
+                <p className="text-xs font-medium text-muted-foreground">Created</p>
+                <p className="mt-1 font-semibold">{formatDate(selectedOrganization.createdAt)}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
     </Layout>
   );

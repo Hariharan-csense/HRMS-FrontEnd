@@ -2,6 +2,8 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { hasSubscriptionAddonModule } from "@/utils/subscriptionModules";
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
@@ -21,6 +23,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   const location = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
   const { hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading } = useRole();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
 
   const inferSubmoduleFromPath = (moduleName?: string, pathname?: string): string | undefined => {
     const normalizedModule = String(moduleName || "").toLowerCase();
@@ -101,7 +104,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   };
 
   // Show loading while checking authentication
-  if (isLoading || roleLoading) {
+  if (isLoading || roleLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -120,10 +123,17 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   // Check module-based access control
   if (requiredModule) {
     const inferredSubmodule = inferSubmoduleFromPath(requiredModule, location.pathname);
+    const currentEmployeeId = Number(user.employee_id || user.employeeId || user.id || 0) || null;
+    const addonUnlocksModule =
+      hasSubscriptionAddonModule(subscription, requiredModule, {
+        currentEmployeeId,
+        addonAdminBypass: hasAnyRole(["admin", "ceo"]),
+      });
 
     // If specific action is required, check for that action
     if (requiredAction) {
       const hasRequiredAccess =
+        addonUnlocksModule ||
         canPerformModuleAction(requiredModule, requiredAction) ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, requiredAction, inferredSubmodule)
@@ -143,6 +153,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     } else {
       // Otherwise, just check for view access
       const hasViewAccess =
+        addonUnlocksModule ||
         hasModuleAccess(requiredModule) ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, "view", inferredSubmodule)

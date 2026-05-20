@@ -133,7 +133,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
+import { getAllowedModulesFromSubscription, hasSubscriptionAddonModule } from "@/utils/subscriptionModules";
 import { Button } from "@/components/ui/button";
 
 type NavItem = {
@@ -876,6 +876,7 @@ export const Sidebar: React.FC = () => {
     .filter(Boolean);
   const isSuperAdmin = normalizedUserRoles.includes("superadmin");
   const isCeo = normalizedUserRoles.includes("ceo");
+  const isAdmin = normalizedUserRoles.includes("admin");
   const isEmployeeUser = normalizedUserRoles.includes("employee");
 
   const allowedModulesForPlan = useMemo(() => {
@@ -883,9 +884,13 @@ export const Sidebar: React.FC = () => {
     return getAllowedModulesFromSubscription(
       subscription,
       subscriptionLoading,
-      { trialEndingSoonDays: 2 },
+      {
+        trialEndingSoonDays: 2,
+        currentEmployeeId: Number(user.employee_id || user.employeeId || user.id || 0) || null,
+        addonAdminBypass: isAdmin || isCeo,
+      },
     );
-  }, [isSuperAdmin, subscription, subscriptionLoading]);
+  }, [isSuperAdmin, subscription, subscriptionLoading, user.employee_id, user.employeeId, user.id, isAdmin, isCeo]);
 
   const normalizeSubmoduleKey = (value: string) =>
     value.toLowerCase().replace(/[\s-]+/g, "_");
@@ -1017,6 +1022,16 @@ export const Sidebar: React.FC = () => {
     // While role permissions are loading, hide permission-bound items to avoid showing unauthorized modules.
     if (roleLoading) {
       return item.moduleName === undefined;
+    }
+
+    // Add-on purchases are company entitlements. Admin/CEO should see purchased add-on modules
+    // even if the saved role template was created before the add-on existed.
+    if (
+      item.moduleName &&
+      (isAdmin || isCeo) &&
+      hasSubscriptionAddonModule(subscription, item.moduleName)
+    ) {
+      return true;
     }
 
     // Submodule-aware visibility: prefer submodule RBAC check when available.

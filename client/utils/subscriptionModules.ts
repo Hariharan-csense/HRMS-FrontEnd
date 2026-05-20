@@ -4,17 +4,91 @@ type SubscriptionLike = {
   status?: string;
   is_trial_active?: boolean;
   trial_days_remaining?: number;
+  addons?: Array<{
+    module_key?: string | null;
+    name?: string | null;
+    description?: string | null;
+    users_count?: number;
+    assigned_employee_ids?: number[];
+  }>;
 };
 
 const normalizeLine = (line: string) => line.trim().toLowerCase();
+
+const normalizeModuleKey = (value: string) =>
+  normalizeLine(value).replace(/[\s-]+/g, "_");
+
+export const getAddonModuleAliases = (moduleKey?: string | null, name?: string | null, description?: string | null) => {
+  const key = normalizeModuleKey(moduleKey || "");
+  const text = `${name || ""} ${description || ""}`.toLowerCase();
+  const modules = new Set<string>();
+
+  if (key) modules.add(key);
+
+  if (
+    key === "live_tracking" ||
+    key === "tracking_management" ||
+    key === "tracking" ||
+    (text.includes("tracking") && !text.includes("applicant"))
+  ) {
+    modules.add("live_tracking");
+  }
+
+  if (key === "client_attendance" || text.includes("client attendance") || text.includes("field attendance")) {
+    modules.add("client_attendance");
+    modules.add("client_attendance_admin");
+    modules.add("my_clients");
+    modules.add("my_analytics");
+  }
+
+  if (key === "expenses" || text.includes("expense")) modules.add("expenses");
+  if (key === "tickets" || text.includes("ticket")) modules.add("tickets");
+  if (key === "assets" || text.includes("asset")) modules.add("assets");
+  if (key === "payroll" || text.includes("payroll")) modules.add("payroll");
+  if (key === "hr_management" || text.includes("recruitment") || text.includes("rms")) modules.add("hr_management");
+  if (key === "exit" || text.includes("offboarding")) modules.add("exit");
+
+  return modules;
+};
+
+export const hasSubscriptionAddonModule = (
+  subscription: SubscriptionLike | null | undefined,
+  moduleName: string,
+  options?: { currentEmployeeId?: number | null; addonAdminBypass?: boolean }
+) => {
+  const wanted = normalizeModuleKey(moduleName);
+  return (subscription?.addons || []).some((addon) => {
+    if (!getAddonModuleAliases(addon.module_key, addon.name, addon.description).has(wanted)) {
+      return false;
+    }
+
+    if (!options) return true;
+    if (options.addonAdminBypass) return true;
+
+    const assignedIds = Array.isArray(addon.assigned_employee_ids)
+      ? addon.assigned_employee_ids.map((id) => Number(id))
+      : [];
+
+    return options.currentEmployeeId
+      ? assignedIds.includes(Number(options.currentEmployeeId))
+      : false;
+  });
+};
 
 const addAll = (set: Set<string>, items: string[]) => {
   for (const item of items) set.add(item);
 };
 
-const BASIC_MODULES = [
+const FREE_FOREVER_MODULES = [
+  "subscription",
   "organization",
+  "role_access",
   "employees",
+  "pulse_surveys",
+];
+
+const BASIC_MODULES = [
+  ...FREE_FOREVER_MODULES,
   "attendance",
   "shift management",
   "leave",
@@ -58,13 +132,13 @@ const inferTierFromPlanName = (planName?: string | null) => {
 export const getAllowedModulesFromSubscription = (
   subscription: SubscriptionLike | null | undefined,
   subscriptionLoading?: boolean,
-  options?: { trialEndingSoonDays?: number }
+  options?: { trialEndingSoonDays?: number; currentEmployeeId?: number | null; addonAdminBypass?: boolean }
 ): Set<string> | null => {
   // While loading, be conservative to avoid showing modules incorrectly.
-  if (subscriptionLoading) return new Set<string>(["subscription"]);
+  if (subscriptionLoading) return new Set<string>(FREE_FOREVER_MODULES);
 
-  // No subscription: only allow subscription management (Dashboard is handled separately by caller).
-  if (!subscription) return new Set<string>(["subscription"]);
+  // No subscription: keep free-forever modules available.
+  if (!subscription) return new Set<string>(FREE_FOREVER_MODULES);
 
   const status = (subscription.status || "").toLowerCase();
   const isTrialActive = Boolean(subscription.is_trial_active);
@@ -83,9 +157,9 @@ export const getAllowedModulesFromSubscription = (
     status === "cancelled" ||
     (status === "trial" && !isTrialActive);
 
-  if (isInactive) return new Set<string>(["subscription"]);
+  if (isInactive) return new Set<string>(FREE_FOREVER_MODULES);
 
-  const modules = new Set<string>(["subscription"]);
+  const modules = new Set<string>(FREE_FOREVER_MODULES);
 
   // Plan inheritance: allow base modules for the current plan tier, even if the description uses legacy text
   // like "All in Standard + ...". Description parsing below will still add any extra modules mentioned.
@@ -136,6 +210,21 @@ export const getAllowedModulesFromSubscription = (
 
     if (line.includes("ticket")) modules.add("tickets");
     if (line.includes("pulse") || line.includes("survey")) modules.add("pulse_surveys");
+  }
+
+  for (const addon of subscription.addons || []) {
+    const assignedIds = Array.isArray(addon.assigned_employee_ids)
+      ? addon.assigned_employee_ids.map((id) => Number(id))
+      : [];
+    const shouldIncludeAddon =
+      options?.addonAdminBypass ||
+      (options?.currentEmployeeId ? assignedIds.includes(Number(options.currentEmployeeId)) : false);
+
+    if (!shouldIncludeAddon) continue;
+
+    for (const moduleKey of getAddonModuleAliases(addon.module_key, addon.name, addon.description)) {
+      modules.add(moduleKey);
+    }
   }
 
   return modules;

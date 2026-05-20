@@ -1670,28 +1670,39 @@ useEffect(() => {
 
                 {/* Desktop Table View */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-[150px]" />
+                      <col className="w-[220px]" />
+                      <col className="w-[90px]" />
+                      <col />
+                      <col className="w-[120px]" />
+                    </colgroup>
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
                         <th className="text-left px-3 py-3 font-semibold">Employee</th>
                         <th className="text-left px-3 py-3 font-semibold">From - To</th>
                         <th className="text-center px-3 py-3 font-semibold">Days</th>
                         <th className="text-left px-3 py-3 font-semibold">Reason</th>
-                        <th className="text-left px-3 py-3 font-semibold">Status</th>
+                        <th className="text-center px-3 py-3 font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredLeaveApplications.map((la) => (
                         <tr key={la.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-3 font-medium">{la.employeeName }</td>
+                          <td className="px-3 py-3 font-medium break-words">{la.employeeName }</td>
                           <td className="px-3 py-3 whitespace-nowrap">
                             {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''} → {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
                           </td>
                           <td className="px-3 py-3 text-center">{getLeaveDurationLabel(la.days, la.halfDaySession)}</td>
-                          <td className="px-3 py-3">{la.reason}</td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-3 align-middle">
+                            <p className="line-clamp-2 whitespace-normal break-words leading-5" title={la.reason}>
+                              {la.reason || "-"}
+                            </p>
+                          </td>
+                          <td className="px-3 py-3 text-center align-middle">
                             <span
-                              className={`text-sm px-2 py-1 rounded font-medium ${
+                              className={`inline-flex min-w-[82px] items-center justify-center whitespace-nowrap rounded px-2 py-1 text-sm font-medium ${
                                 la.status === "applied"
                                   ? "bg-yellow-100 text-yellow-800"
                                   : la.status === "approved"

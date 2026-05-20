@@ -2,15 +2,28 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
 import { useRole } from "@/context/RoleContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { employeeApi } from "@/components/helper/employee/employee";
 import { roleApi } from "@/components/helper/roles/roles";
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts";
-import { departmentApi, Department } from "@/components/helper/department/department";
-import { designationApi, Designation } from "@/components/helper/designation/designation";
+import {
+  departmentApi,
+  Department,
+} from "@/components/helper/department/department";
+import {
+  designationApi,
+  Designation,
+} from "@/components/helper/designation/designation";
+import branchApi, { Branch } from "@/components/helper/branch/branch";
 import { showToast } from "@/utils/toast";
 import {
   Dialog,
@@ -19,12 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,18 +71,21 @@ import {
   Download,
   FileSpreadsheet,
   FileUp,
-  Calendar
+  Calendar,
 } from "lucide-react";
 import {
   Employee,
   EmploymentType,
   EmployeeStatus,
-
   getEmploymentTypeLabel,
   getStatusLabel,
   getStatusBadgeClass,
 } from "@/lib/employees";
-import { isValidEmail, normalizeEmail, sanitizePhoneInput } from "@/lib/validation";
+import {
+  isValidEmail,
+  normalizeEmail,
+  sanitizePhoneInput,
+} from "@/lib/validation";
 
 // Extend the Employee type to include shift_id from the API
 interface EmployeeWithShiftId extends Employee {
@@ -83,6 +94,7 @@ interface EmployeeWithShiftId extends Employee {
 
 type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
   employeeId: string;
+  branchId?: string;
   shift: string;
   enableLiveTracking: boolean;
   officePhone?: string;
@@ -96,6 +108,7 @@ const initialFormData: FormData = {
   lastName: "",
   email: "",
   phone: "",
+  branchId: "",
   officePhone: "",
   officeEmail: "",
   dateOfBirth: "",
@@ -132,7 +145,14 @@ const initialFormData: FormData = {
   enableLiveTracking: false,
 };
 
-const departments = ["Engineering", "Sales", "HR", "Finance", "Operations", "Marketing"];
+const departments = [
+  "Engineering",
+  "Sales",
+  "HR",
+  "Finance",
+  "Operations",
+  "Marketing",
+];
 const designations = [
   "Junior Developer",
   "Senior Developer",
@@ -165,8 +185,8 @@ const extractDatePart = (dateString: string | null | undefined): string => {
 
     // Get the date parts in local timezone
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
   } catch (error) {
@@ -223,7 +243,20 @@ const formatDateForDisplay = (value?: string) => {
   return `${day}-${month}-${year}`;
 };
 
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 const YEAR_WHEEL_SPEED = 6;
 
 const normalizeManualDateInput = (value: string) => {
@@ -260,8 +293,12 @@ const FastDateInput = ({
   const selectedMonth = Number(parsed.month) || 1;
   const selectedDay = Number(parsed.day) || 1;
   const years = useMemo(
-    () => Array.from({ length: currentYear - 1899 }, (_, index) => currentYear - index),
-    [currentYear]
+    () =>
+      Array.from(
+        { length: currentYear - 1899 },
+        (_, index) => currentYear - index,
+      ),
+    [currentYear],
   );
   const daysInSelectedMonth = getDaysInMonth(selectedYear, selectedMonth);
 
@@ -269,7 +306,12 @@ const FastDateInput = ({
     setDisplayValue(formatDateForDisplay(value));
   }, [value]);
 
-  const setDate = (year: number, month: number, day: number, closePicker = false) => {
+  const setDate = (
+    year: number,
+    month: number,
+    day: number,
+    closePicker = false,
+  ) => {
     onChange(buildISODate(String(year), String(month), String(day)));
     if (closePicker) {
       setOpen(false);
@@ -327,7 +369,15 @@ const FastDateInput = ({
               value={String(selectedMonth).padStart(2, "0")}
               onValueChange={(month) => {
                 const nextMonth = Number(month);
-                setDate(selectedYear, nextMonth, clamp(selectedDay, 1, getDaysInMonth(selectedYear, nextMonth)));
+                setDate(
+                  selectedYear,
+                  nextMonth,
+                  clamp(
+                    selectedDay,
+                    1,
+                    getDaysInMonth(selectedYear, nextMonth),
+                  ),
+                );
               }}
             >
               <SelectTrigger className="h-9">
@@ -357,14 +407,19 @@ const FastDateInput = ({
               }).map((_, index) => (
                 <div key={`blank-${index}`} />
               ))}
-              {Array.from({ length: daysInSelectedMonth }, (_, index) => index + 1).map((day) => (
+              {Array.from(
+                { length: daysInSelectedMonth },
+                (_, index) => index + 1,
+              ).map((day) => (
                 <Button
                   key={day}
                   type="button"
                   variant={day === selectedDay ? "default" : "ghost"}
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={() => setDate(selectedYear, selectedMonth, day, true)}
+                  onClick={() =>
+                    setDate(selectedYear, selectedMonth, day, true)
+                  }
                 >
                   {day}
                 </Button>
@@ -383,9 +438,18 @@ const FastDateInput = ({
               <button
                 key={year}
                 type="button"
-                className={`block w-full border-b px-3 py-2 text-left text-sm hover:bg-white ${year === selectedYear ? "bg-primary text-primary-foreground hover:bg-primary" : ""
-                  }`}
-                onClick={() => setDate(year, selectedMonth, clamp(selectedDay, 1, getDaysInMonth(year, selectedMonth)))}
+                className={`block w-full border-b px-3 py-2 text-left text-sm hover:bg-white ${
+                  year === selectedYear
+                    ? "bg-primary text-primary-foreground hover:bg-primary"
+                    : ""
+                }`}
+                onClick={() =>
+                  setDate(
+                    year,
+                    selectedMonth,
+                    clamp(selectedDay, 1, getDaysInMonth(year, selectedMonth)),
+                  )
+                }
               >
                 {year}
               </button>
@@ -396,7 +460,6 @@ const FastDateInput = ({
     </Popover>
   );
 };
-
 
 const isLocationTrackingEnabled = (value: unknown): boolean =>
   value === 1 || value === "1" || value === true;
@@ -426,7 +489,9 @@ const excelDateToISO = (value: unknown): string => {
 };
 
 const normalizeImportedEmploymentType = (value: unknown): EmploymentType => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized.includes("part")) return "part-time";
   if (normalized.includes("contract")) return "contract";
   if (normalized.includes("intern")) return "intern";
@@ -434,7 +499,9 @@ const normalizeImportedEmploymentType = (value: unknown): EmploymentType => {
 };
 
 const normalizeImportedStatus = (value: unknown): EmployeeStatus => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "inactive") return "inactive";
   if (normalized === "terminated") return "terminated";
   if (normalized === "on leave" || normalized === "on-leave") return "on-leave";
@@ -446,22 +513,33 @@ export default function EmployeeList() {
   //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDept, setFilterDept] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<EmployeeStatus | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<EmployeeStatus | "all">(
+    "all",
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newEmployeeId, setNewEmployeeId] = useState<string>("");
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [empToDelete, setEmpToDelete] = useState<string | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>(
+    {},
+  );
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [designations, setDesignations] = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [designations, setDesignations] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
-  const [uploadedFileObjects, setUploadedFileObjects] = useState<Record<string, File>>({});
+  const [uploadedFileObjects, setUploadedFileObjects] = useState<
+    Record<string, File>
+  >({});
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loadingShifts, setLoadingShifts] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("personal");
@@ -476,8 +554,14 @@ export default function EmployeeList() {
 
   // Add-on dialog states
   const [isAddOnDialogOpen, setIsAddOnDialogOpen] = useState(false);
-  const [addOnType, setAddOnType] = useState<"department" | "designation" | "role">("department");
-  const [addOnFormData, setAddOnFormData] = useState<{ name: string; costCenter?: string; headId?: string }>({ name: "" });
+  const [addOnType, setAddOnType] = useState<
+    "department" | "designation" | "role"
+  >("department");
+  const [addOnFormData, setAddOnFormData] = useState<{
+    name: string;
+    costCenter?: string;
+    headId?: string;
+  }>({ name: "" });
   const [addOnSaving, setAddOnSaving] = useState(false);
 
   const tabOrder = ["personal", "employment", "statutory", "bank", "documents"];
@@ -525,8 +609,6 @@ export default function EmployeeList() {
     };
   }, [formData.email, editingId, isDialogOpen]);
 
-
-
   // Load shifts from backend
   const loadShifts = async () => {
     setLoadingShifts(true);
@@ -536,7 +618,7 @@ export default function EmployeeList() {
         showToast.error(error);
       } else if (data) {
         // Transform the shift data to ensure consistent property names
-        const transformedShifts = data.map(shift => ({
+        const transformedShifts = data.map((shift) => ({
           ...shift,
           id: shift.id.toString(), // Ensure ID is always a string
           startTime: shift.startTime || shift.start_time,
@@ -544,7 +626,7 @@ export default function EmployeeList() {
           gracePeriod: shift.gracePeriod || shift.grace_period,
           halfDayThreshold: shift.halfDayThreshold || shift.half_day_threshold,
           otEligible: shift.otEligible || shift.ot_eligible,
-          createdAt: shift.createdAt || shift.created_at
+          createdAt: shift.createdAt || shift.created_at,
         }));
         setShifts(transformedShifts);
       }
@@ -580,11 +662,22 @@ export default function EmployeeList() {
       }
     };
 
+    const loadBranches = async () => {
+      try {
+        const result = await branchApi.getBranches();
+        if (result.data) {
+          setBranches(result.data);
+        }
+      } catch (error) {
+        console.error("Error loading branches:", error);
+      }
+    };
+
     const loadRoles = async () => {
       try {
         const result = await roleApi.getRoles();
         if (result.data) {
-          setRoles(result.data.map(role => role.name));
+          setRoles(result.data.map((role) => role.name));
         }
       } catch (error) {
         console.error("Error loading roles:", error);
@@ -593,12 +686,15 @@ export default function EmployeeList() {
 
     loadDepartments();
     loadDesignations();
+    loadBranches();
     loadRoles();
     loadShifts();
   }, []);
 
   // Add-on dialog handlers
-  const handleOpenAddOnDialog = (type: "department" | "designation" | "role") => {
+  const handleOpenAddOnDialog = (
+    type: "department" | "designation" | "role",
+  ) => {
     setAddOnType(type);
     setAddOnFormData({ name: "" });
     setIsAddOnDialogOpen(true);
@@ -622,7 +718,7 @@ export default function EmployeeList() {
         result = await departmentApi.createDepartment({
           name: addOnFormData.name,
           costCenter: addOnFormData.costCenter || "",
-          headId: addOnFormData.headId
+          headId: addOnFormData.headId,
         });
         if (result.data) {
           const deptResult = await departmentApi.getdepartment();
@@ -633,7 +729,7 @@ export default function EmployeeList() {
         }
       } else if (addOnType === "designation") {
         result = await designationApi.createDesignation({
-          name: addOnFormData.name
+          name: addOnFormData.name,
         });
         if (result.data) {
           const desResult = await designationApi.getDesignations();
@@ -648,12 +744,12 @@ export default function EmployeeList() {
           modules: {},
           approval_authority: "",
           data_visibility: "",
-          description: ""
+          description: "",
         });
         if (result.data) {
           const roleResult = await roleApi.getRoles();
           if (roleResult.data) {
-            setRoles(roleResult.data.map(role => role.name));
+            setRoles(roleResult.data.map((role) => role.name));
           }
           showToast.success("Role created successfully");
         }
@@ -675,10 +771,12 @@ export default function EmployeeList() {
   // Debug: Log shift-related data
   useEffect(() => {
     if (isDialogOpen && editingId) {
-      console.log('Current formData.shift:', formData.shift);
-      console.log('Available shifts:', shifts);
-      const selectedShift = shifts.find(s => s.id.toString() === formData.shift);
-      console.log('Selected shift:', selectedShift);
+      console.log("Current formData.shift:", formData.shift);
+      console.log("Available shifts:", shifts);
+      const selectedShift = shifts.find(
+        (s) => s.id.toString() === formData.shift,
+      );
+      console.log("Selected shift:", selectedShift);
     }
   }, [formData.shift, shifts, isDialogOpen, editingId]);
 
@@ -693,12 +791,15 @@ export default function EmployeeList() {
       const searchLower = searchTerm.toLowerCase();
 
       const matchesSearch =
+        (emp.employeeId?.toLowerCase() || "").includes(searchLower) ||
         (emp.firstName?.toLowerCase() || "").includes(searchLower) ||
         (emp.lastName?.toLowerCase() || "").includes(searchLower) ||
         (emp.email?.toLowerCase() || "").includes(searchLower);
 
-      const matchesDept = filterDept === "all" || emp.departmentId === filterDept;
-      const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
+      const matchesDept =
+        filterDept === "all" || emp.departmentId === filterDept;
+      const matchesStatus =
+        filterStatus === "all" || emp.status === filterStatus;
 
       return matchesSearch && matchesDept && matchesStatus;
     });
@@ -706,7 +807,10 @@ export default function EmployeeList() {
     return finalFiltered;
   }, [employees, searchTerm, filterDept, filterStatus]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / itemsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredEmployees.length / itemsPerPage),
+  );
   const paginatedEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
@@ -729,9 +833,9 @@ export default function EmployeeList() {
     }
 
     if (employee) {
-      console.log('Opening dialog with employee:', employee);
-      console.log('Employee shift_id:', (employee as any).shift_id);
-      console.log('Employee shift:', employee.shift);
+      console.log("Opening dialog with employee:", employee);
+      console.log("Employee shift_id:", (employee as any).shift_id);
+      console.log("Employee shift:", employee.shift);
       setEditingId(employee.id.toString());
       setFormData({
         employeeId: employee.employeeId || "",
@@ -748,6 +852,10 @@ export default function EmployeeList() {
         emergencyContact: employee.emergencyContact || "",
         emergencyPhone: employee.emergencyPhone || "",
         departmentId: employee.departmentId || "",
+        branchId:
+          (employee as any).branchId?.toString() ||
+          (employee as any).branch_id?.toString() ||
+          "",
         // Handle shift from the API response
         shift: employee?.shift?.toString() || "",
         designationId: employee.designationId || "",
@@ -775,8 +883,9 @@ export default function EmployeeList() {
         bankProofUrl: employee.bankProofUrl || "",
         // Map location_tracking_enabled from the API to enableLiveTracking in the form
         // Handle number (1/0), string ("1"/login"0"), and boolean values safely
-        enableLiveTracking:
-          isLocationTrackingEnabled(employee.location_tracking_enabled),
+        enableLiveTracking: isLocationTrackingEnabled(
+          employee.location_tracking_enabled,
+        ),
       });
 
       // Log the form data for debugging
@@ -786,9 +895,8 @@ export default function EmployeeList() {
         lastName: employee.lastName,
         department: employee.department,
         designation: employee.designation,
-        status: employee.status
+        status: employee.status,
       });
-
     } else {
       // create mode – reset to personal tab
       setEditingId(null);
@@ -818,7 +926,7 @@ export default function EmployeeList() {
 
   const handlePhoneInputChange = (
     field: "phone" | "emergencyPhone" | "officePhone",
-    value: string
+    value: string,
   ) => {
     const rawDigits = value.replace(/\D/g, "");
     const digitsOnly = sanitizePhoneInput(value);
@@ -840,7 +948,7 @@ export default function EmployeeList() {
   const handleDigitsOnlyChange = (
     field: "aadhaar" | "uan" | "esic" | "accountNumber",
     value: string,
-    maxLength: number
+    maxLength: number,
   ) => {
     const digits = value.replace(/\D/g, "").slice(0, maxLength);
     handleFormChange(field, digits);
@@ -849,15 +957,18 @@ export default function EmployeeList() {
   const handleUpperAlphaNumericChange = (
     field: "pan" | "ifscCode",
     value: string,
-    maxLength: number
+    maxLength: number,
   ) => {
-    const sanitized = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, maxLength);
+    const sanitized = value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, maxLength);
     handleFormChange(field, sanitized);
   };
 
   const handleAlphabeticNameChange = (
     field: "bankAccountHolder",
-    value: string
+    value: string,
   ) => {
     const sanitized = value
       .replace(/[^A-Za-z\s]/g, "")
@@ -874,14 +985,19 @@ export default function EmployeeList() {
     handleFormChange("bankName", sanitized);
   };
 
-  const isValidAadhaar = (value?: string) => !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
+  const isValidAadhaar = (value?: string) =>
+    !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
   const isValidPan = (value?: string) =>
-    !value || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(String(value).trim().toUpperCase());
-  const isValidUan = (value?: string) => !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
-  const isValidEsic = (value?: string) => !value || /^\d{10}$/.test(value.replace(/\D/g, ""));
+    !value ||
+    /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(String(value).trim().toUpperCase());
+  const isValidUan = (value?: string) =>
+    !value || /^\d{12}$/.test(value.replace(/\D/g, ""));
+  const isValidEsic = (value?: string) =>
+    !value || /^\d{10}$/.test(value.replace(/\D/g, ""));
   const isValidIfsc = (value?: string) =>
     !value || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(value).trim().toUpperCase());
-  const isValidAccountNumber = (value?: string) => !value || /^\d{9,18}$/.test(value.replace(/\D/g, ""));
+  const isValidAccountNumber = (value?: string) =>
+    !value || /^\d{9,18}$/.test(value.replace(/\D/g, ""));
 
   const validateStatutoryAndBank = (): string | null => {
     if (!isValidAadhaar(formData.aadhaar)) {
@@ -903,19 +1019,29 @@ export default function EmployeeList() {
       formData.accountNumber,
       formData.ifscCode,
     ];
-    const isAnyBankFieldFilled = bankFields.some((f) => String(f || "").trim() !== "");
+    const isAnyBankFieldFilled = bankFields.some(
+      (f) => String(f || "").trim() !== "",
+    );
 
     if (isAnyBankFieldFilled) {
       if (!String(formData.bankAccountHolder || "").trim()) {
         return "Account Holder Name is required when bank details are entered";
       }
-      if (!/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(String(formData.bankAccountHolder || "").trim())) {
+      if (
+        !/^[A-Za-z]+(?:\s+[A-Za-z]+)*$/.test(
+          String(formData.bankAccountHolder || "").trim(),
+        )
+      ) {
         return "Account Holder Name must contain only alphabets";
       }
       if (!String(formData.bankName || "").trim()) {
         return "Bank Name is required when bank details are entered";
       }
-      if (!/^[A-Za-z][A-Za-z\s.&'-]*$/.test(String(formData.bankName || "").trim())) {
+      if (
+        !/^[A-Za-z][A-Za-z\s.&'-]*$/.test(
+          String(formData.bankName || "").trim(),
+        )
+      ) {
         return "Bank Name must contain only alphabets";
       }
       if (!String(formData.accountNumber || "").trim()) {
@@ -935,7 +1061,10 @@ export default function EmployeeList() {
     return null;
   };
 
-  const handleFileUpload = (field: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (
+    field: string,
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       // For UI preview - filename
@@ -1091,7 +1220,6 @@ export default function EmployeeList() {
   //   }
   // };
 
-
   const handleSave = async () => {
     if (!formData.firstName || !formData.email) {
       showToast.error("First Name and Email are required!");
@@ -1114,15 +1242,21 @@ export default function EmployeeList() {
       return;
     }
     if (!isOptionalTenDigitPhoneValid(formData.phone)) {
-      showToast.error("Mobile number must be 10 digits and start with 6, 7, 8, or 9");
+      showToast.error(
+        "Mobile number must be 10 digits and start with 6, 7, 8, or 9",
+      );
       return;
     }
     if (!isOptionalTenDigitPhoneValid(formData.officePhone)) {
-      showToast.error("Office phone must be 10 digits and start with 6, 7, 8, or 9");
+      showToast.error(
+        "Office phone must be 10 digits and start with 6, 7, 8, or 9",
+      );
       return;
     }
     if (!isOptionalTenDigitPhoneValid(formData.emergencyPhone)) {
-      showToast.error("Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9");
+      showToast.error(
+        "Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9",
+      );
       return;
     }
 
@@ -1136,10 +1270,10 @@ export default function EmployeeList() {
       return;
     }
 
-    if (!formData.shift) {
-      showToast.error("Shift is required!");
-      return;
-    }
+    // if (!formData.shift) {
+    //   showToast.error("Shift is required!");
+    //   return;
+    // }
 
     const statutoryBankError = validateStatutoryAndBank();
     if (statutoryBankError) {
@@ -1160,7 +1294,10 @@ export default function EmployeeList() {
         }
       } else {
         // Create mode - MUST have employee_id
-        formDataToSend.append("employee_id", newEmployeeId.trim().toUpperCase());
+        formDataToSend.append(
+          "employee_id",
+          newEmployeeId.trim().toUpperCase(),
+        );
       }
 
       // Basic fields
@@ -1169,7 +1306,9 @@ export default function EmployeeList() {
       formDataToSend.append("email", normalizeEmail(formData.email));
 
       // Ensure dates are sent in YYYY-MM-DD format
-      const dojToSend = formData.dateOfJoining ? extractDatePart(formData.dateOfJoining) : "";
+      const dojToSend = formData.dateOfJoining
+        ? extractDatePart(formData.dateOfJoining)
+        : "";
       formDataToSend.append("doj", dojToSend);
       console.log("Sending DOJ:", dojToSend); // Debug
 
@@ -1177,45 +1316,84 @@ export default function EmployeeList() {
       formDataToSend.append("status", formData.status);
 
       // Optional fields
-      if (formData.phone) formDataToSend.append("mobile", formData.phone.trim());
-      if (formData.officeEmail) formDataToSend.append("office_email", normalizeEmail(formData.officeEmail));
-      if (formData.officePhone) formDataToSend.append("office_phone", formData.officePhone.trim());
+      if (formData.phone)
+        formDataToSend.append("mobile", formData.phone.trim());
+      if (formData.officeEmail)
+        formDataToSend.append(
+          "office_email",
+          normalizeEmail(formData.officeEmail),
+        );
+      if (formData.officePhone)
+        formDataToSend.append("office_phone", formData.officePhone.trim());
       if (formData.dateOfBirth) {
         const dobToSend = extractDatePart(formData.dateOfBirth);
         console.log("Sending DOB:", dobToSend); // Debug
         formDataToSend.append("dob", dobToSend);
       }
       if (formData.gender) formDataToSend.append("gender", formData.gender);
-      if (formData.bloodGroup) formDataToSend.append("blood_group", formData.bloodGroup);
-      if (formData.maritalStatus) formDataToSend.append("marital_status", formData.maritalStatus);
-      if (formData.emergencyContact) formDataToSend.append("emergency_contact_name", formData.emergencyContact);
-      if (formData.emergencyPhone) formDataToSend.append("emergency_contact_phone", formData.emergencyPhone.trim());
+      if (formData.bloodGroup)
+        formDataToSend.append("blood_group", formData.bloodGroup);
+      if (formData.maritalStatus)
+        formDataToSend.append("marital_status", formData.maritalStatus);
+      if (formData.emergencyContact)
+        formDataToSend.append(
+          "emergency_contact_name",
+          formData.emergencyContact,
+        );
+      if (formData.emergencyPhone)
+        formDataToSend.append(
+          "emergency_contact_phone",
+          formData.emergencyPhone.trim(),
+        );
 
-      if (formData.departmentId) formDataToSend.append("department_id", formData.departmentId);
-      if (formData.designationId) formDataToSend.append("designation_id", formData.designationId);
+      if (formData.departmentId)
+        formDataToSend.append("department_id", formData.departmentId);
+      if (formData.designationId)
+        formDataToSend.append("designation_id", formData.designationId);
+      if (formData.branchId)
+        formDataToSend.append("branch_id", formData.branchId);
       if (formData.shift) {
         formDataToSend.append("shift_id", formData.shift.toString());
       }
-      if (formData.location) formDataToSend.append("location_office", formData.location);
+      if (formData.location)
+        formDataToSend.append("location_office", formData.location);
       if (formData.role) formDataToSend.append("role", formData.role);
 
       // Statutory
-      if (formData.aadhaar) formDataToSend.append("aadhaar", formData.aadhaar.replace(/\D/g, ""));
-      if (formData.pan) formDataToSend.append("pan", formData.pan.trim().toUpperCase());
-      if (formData.uan) formDataToSend.append("uan", formData.uan.replace(/\D/g, ""));
-      if (formData.esic) formDataToSend.append("esic", formData.esic.replace(/\D/g, ""));
+      if (formData.aadhaar)
+        formDataToSend.append("aadhaar", formData.aadhaar.replace(/\D/g, ""));
+      if (formData.pan)
+        formDataToSend.append("pan", formData.pan.trim().toUpperCase());
+      if (formData.uan)
+        formDataToSend.append("uan", formData.uan.replace(/\D/g, ""));
+      if (formData.esic)
+        formDataToSend.append("esic", formData.esic.replace(/\D/g, ""));
 
       // Bank
       if (formData.bankAccountHolder) {
-        formDataToSend.append("account_holder_name", formData.bankAccountHolder.trim());
+        formDataToSend.append(
+          "account_holder_name",
+          formData.bankAccountHolder.trim(),
+        );
       }
-      if (formData.bankName) formDataToSend.append("bank_name", formData.bankName);
-      if (formData.accountNumber) formDataToSend.append("account_number", formData.accountNumber.replace(/\D/g, ""));
-      if (formData.ifscCode) formDataToSend.append("ifsc_code", formData.ifscCode.trim().toUpperCase());
+      if (formData.bankName)
+        formDataToSend.append("bank_name", formData.bankName);
+      if (formData.accountNumber)
+        formDataToSend.append(
+          "account_number",
+          formData.accountNumber.replace(/\D/g, ""),
+        );
+      if (formData.ifscCode)
+        formDataToSend.append(
+          "ifsc_code",
+          formData.ifscCode.trim().toUpperCase(),
+        );
 
       // Live location tracking
-      formDataToSend.append("location_tracking_enabled", formData.enableLiveTracking ? "1" : "0");
-
+      formDataToSend.append(
+        "location_tracking_enabled",
+        formData.enableLiveTracking ? "1" : "0",
+      );
 
       Object.keys(uploadedFileObjects).forEach((field) => {
         const file = uploadedFileObjects[field];
@@ -1235,7 +1413,11 @@ export default function EmployeeList() {
 
       if (result.data) {
         await refreshEmployees();
-        showToast.success(editingId ? "Employee updated successfully!" : "New employee created successfully!");
+        showToast.success(
+          editingId
+            ? "Employee updated successfully!"
+            : "New employee created successfully!",
+        );
         handleCloseDialog();
       } else {
         showToast.error(result.error || "Failed to save employee");
@@ -1243,7 +1425,9 @@ export default function EmployeeList() {
       }
     } catch (err) {
       console.error("Save error:", err);
-      showToast.error("An unexpected error occurred. Check console for details.");
+      showToast.error(
+        "An unexpected error occurred. Check console for details.",
+      );
     } finally {
       setSaving(false);
     }
@@ -1276,11 +1460,15 @@ export default function EmployeeList() {
         return false;
       }
       if (!isOptionalTenDigitPhoneValid(formData.phone)) {
-        showToast.error("Mobile number must be 10 digits and start with 6, 7, 8, or 9");
+        showToast.error(
+          "Mobile number must be 10 digits and start with 6, 7, 8, or 9",
+        );
         return false;
       }
       if (!isOptionalTenDigitPhoneValid(formData.emergencyPhone)) {
-        showToast.error("Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9");
+        showToast.error(
+          "Emergency contact phone must be 10 digits and start with 6, 7, 8, or 9",
+        );
         return false;
       }
       if (!editingId && !newEmployeeId.trim()) {
@@ -1294,16 +1482,18 @@ export default function EmployeeList() {
         showToast.error("Date of Joining is required!");
         return false;
       }
-      if (!formData.shift) {
-        showToast.error("Shift is required!");
-        return false;
-      }
+      // if (!formData.shift) {
+      //   showToast.error("Shift is required!");
+      //   return false;
+      // }
       if (formData.officeEmail && !isValidEmail(formData.officeEmail)) {
         showToast.error("Please enter a valid office email address");
         return false;
       }
       if (!isOptionalTenDigitPhoneValid(formData.officePhone)) {
-        showToast.error("Office phone must be 10 digits and start with 6, 7, 8, or 9");
+        showToast.error(
+          "Office phone must be 10 digits and start with 6, 7, 8, or 9",
+        );
         return false;
       }
     }
@@ -1334,15 +1524,22 @@ export default function EmployeeList() {
   };
 
   const buildImportedEmployeeFormData = (row: Record<string, unknown>) => {
-    const normalizedRow = Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
-      acc[normalizeExcelHeader(key)] = value;
-      return acc;
-    }, {});
+    const normalizedRow = Object.entries(row).reduce<Record<string, unknown>>(
+      (acc, [key, value]) => {
+        acc[normalizeExcelHeader(key)] = value;
+        return acc;
+      },
+      {},
+    );
 
     const get = (...keys: string[]) => {
       for (const key of keys) {
         const value = normalizedRow[normalizeExcelHeader(key)];
-        if (value !== undefined && value !== null && String(value).trim() !== "") {
+        if (
+          value !== undefined &&
+          value !== null &&
+          String(value).trim() !== ""
+        ) {
           return value;
         }
       }
@@ -1350,66 +1547,98 @@ export default function EmployeeList() {
     };
 
     const departmentName = String(
-      get("department", "department_name", "dept", "departmentname")
+      get("department", "department_name", "dept", "departmentname"),
     ).trim();
     const designationName = String(
-      get("designation", "designation_name", "designationname")
+      get("designation", "designation_name", "designationname"),
     ).trim();
-    const shiftName = String(
-      get("shift", "shift_name", "shiftname")
-    ).trim();
+    const shiftName = String(get("shift", "shift_name", "shiftname")).trim();
 
     const matchedDepartment = departments.find(
-      (dept) => dept.name.trim().toLowerCase() === departmentName.toLowerCase()
+      (dept) => dept.name.trim().toLowerCase() === departmentName.toLowerCase(),
     );
     const matchedDesignation = designations.find(
-      (designation) => designation.name.trim().toLowerCase() === designationName.toLowerCase()
+      (designation) =>
+        designation.name.trim().toLowerCase() === designationName.toLowerCase(),
     );
     const matchedShift = shifts.find(
-      (shift) => String(shift.name || "").trim().toLowerCase() === shiftName.toLowerCase()
+      (shift) =>
+        String(shift.name || "")
+          .trim()
+          .toLowerCase() === shiftName.toLowerCase(),
     );
 
     return {
-      employeeId: String(get("employee_id", "employeeid", "employee_code", "emp_id")).trim().toUpperCase(),
+      employeeId: String(
+        get("employee_id", "employeeid", "employee_code", "emp_id"),
+      )
+        .trim()
+        .toUpperCase(),
       firstName: String(get("first_name", "firstname", "first name")).trim(),
       lastName: String(get("last_name", "lastname", "last name")).trim(),
       email: normalizeEmail(String(get("email", "personal_email")).trim()),
-      phone: sanitizePhoneInput(String(get("mobile", "phone", "mobile_number", "personal_phone")).trim()).slice(0, 10),
-      officePhone: sanitizePhoneInput(String(get("office_phone", "officephone")).trim()).slice(0, 10),
+      phone: sanitizePhoneInput(
+        String(
+          get("mobile", "phone", "mobile_number", "personal_phone"),
+        ).trim(),
+      ).slice(0, 10),
+      officePhone: sanitizePhoneInput(
+        String(get("office_phone", "officephone")).trim(),
+      ).slice(0, 10),
       officeEmail: String(get("office_email", "officeemail")).trim(),
       dateOfBirth: excelDateToISO(get("dob", "date_of_birth", "birth_date")),
       gender: String(get("gender")).trim(),
       bloodGroup: String(get("blood_group", "bloodgroup")).trim(),
       maritalStatus: String(get("marital_status", "maritalstatus")).trim(),
-      emergencyContact: String(get("emergency_contact_name", "emergency_contact", "emergency_contact_person")).trim(),
-      emergencyPhone: sanitizePhoneInput(String(get("emergency_contact_phone", "emergency_phone")).trim()).slice(0, 10),
+      emergencyContact: String(
+        get(
+          "emergency_contact_name",
+          "emergency_contact",
+          "emergency_contact_person",
+        ),
+      ).trim(),
+      emergencyPhone: sanitizePhoneInput(
+        String(get("emergency_contact_phone", "emergency_phone")).trim(),
+      ).slice(0, 10),
       departmentId: matchedDepartment?.id || "",
       departmentName,
       designationId: matchedDesignation?.id || "",
       designationName,
       shiftId: matchedShift?.id?.toString() || "",
       shiftName,
-      dateOfJoining: excelDateToISO(get("doj", "date_of_joining", "joining_date")),
-      employmentType: normalizeImportedEmploymentType(get("employment_type", "employmenttype")),
+      dateOfJoining: excelDateToISO(
+        get("doj", "date_of_joining", "joining_date"),
+      ),
+      employmentType: normalizeImportedEmploymentType(
+        get("employment_type", "employmenttype"),
+      ),
       status: normalizeImportedStatus(get("status")),
       role: String(get("role")).trim().toLowerCase(),
-      location: String(get("location", "location_office", "office_location")).trim(),
+      location: String(
+        get("location", "location_office", "office_location"),
+      ).trim(),
       salary: String(get("salary")).trim(),
       aadhaar: String(get("aadhaar")).replace(/\D/g, "").slice(0, 12),
       pan: String(get("pan")).trim().toUpperCase(),
       uan: String(get("uan")).replace(/\D/g, "").slice(0, 12),
       esic: String(get("esic")).replace(/\D/g, "").slice(0, 10),
-      bankAccountHolder: String(get("account_holder_name", "bank_account_holder", "bank_accountholder")).trim(),
+      bankAccountHolder: String(
+        get("account_holder_name", "bank_account_holder", "bank_accountholder"),
+      ).trim(),
       bankName: String(get("bank_name")).trim(),
       accountNumber: String(get("account_number")).replace(/\D/g, ""),
       ifscCode: String(get("ifsc_code", "ifsc")).trim().toUpperCase(),
       enableLiveTracking: ["1", "true", "yes", "enabled"].includes(
-        String(get("enable_live_tracking", "location_tracking_enabled")).trim().toLowerCase()
+        String(get("enable_live_tracking", "location_tracking_enabled"))
+          .trim()
+          .toLowerCase(),
       ),
     };
   };
 
-  const createEmployeePayloadFromImport = (employee: ReturnType<typeof buildImportedEmployeeFormData>) => {
+  const createEmployeePayloadFromImport = (
+    employee: ReturnType<typeof buildImportedEmployeeFormData>,
+  ) => {
     const payload = new globalThis.FormData();
 
     payload.append("employee_id", employee.employeeId);
@@ -1420,19 +1649,29 @@ export default function EmployeeList() {
     payload.append("employment_type", employee.employmentType);
     payload.append("status", employee.status);
     payload.append("shift_id", employee.shiftId);
-    payload.append("location_tracking_enabled", employee.enableLiveTracking ? "1" : "0");
+    payload.append(
+      "location_tracking_enabled",
+      employee.enableLiveTracking ? "1" : "0",
+    );
 
     if (employee.phone) payload.append("mobile", employee.phone);
-    if (employee.officePhone) payload.append("office_phone", employee.officePhone);
-    if (employee.officeEmail) payload.append("office_email", normalizeEmail(employee.officeEmail));
+    if (employee.officePhone)
+      payload.append("office_phone", employee.officePhone);
+    if (employee.officeEmail)
+      payload.append("office_email", normalizeEmail(employee.officeEmail));
     if (employee.dateOfBirth) payload.append("dob", employee.dateOfBirth);
     if (employee.gender) payload.append("gender", employee.gender);
     if (employee.bloodGroup) payload.append("blood_group", employee.bloodGroup);
-    if (employee.maritalStatus) payload.append("marital_status", employee.maritalStatus);
-    if (employee.emergencyContact) payload.append("emergency_contact_name", employee.emergencyContact);
-    if (employee.emergencyPhone) payload.append("emergency_contact_phone", employee.emergencyPhone);
-    if (employee.departmentId) payload.append("department_id", employee.departmentId);
-    if (employee.designationId) payload.append("designation_id", employee.designationId);
+    if (employee.maritalStatus)
+      payload.append("marital_status", employee.maritalStatus);
+    if (employee.emergencyContact)
+      payload.append("emergency_contact_name", employee.emergencyContact);
+    if (employee.emergencyPhone)
+      payload.append("emergency_contact_phone", employee.emergencyPhone);
+    if (employee.departmentId)
+      payload.append("department_id", employee.departmentId);
+    if (employee.designationId)
+      payload.append("designation_id", employee.designationId);
     if (employee.location) payload.append("location_office", employee.location);
     if (employee.role) payload.append("role", employee.role);
     if (employee.salary) payload.append("salary", employee.salary);
@@ -1440,28 +1679,44 @@ export default function EmployeeList() {
     if (employee.pan) payload.append("pan", employee.pan);
     if (employee.uan) payload.append("uan", employee.uan);
     if (employee.esic) payload.append("esic", employee.esic);
-    if (employee.bankAccountHolder) payload.append("account_holder_name", employee.bankAccountHolder);
+    if (employee.bankAccountHolder)
+      payload.append("account_holder_name", employee.bankAccountHolder);
     if (employee.bankName) payload.append("bank_name", employee.bankName);
-    if (employee.accountNumber) payload.append("account_number", employee.accountNumber);
+    if (employee.accountNumber)
+      payload.append("account_number", employee.accountNumber);
     if (employee.ifscCode) payload.append("ifsc_code", employee.ifscCode);
 
     return payload;
   };
 
-  const importEmployeesFromRows = async (rows: Record<string, unknown>[], fileName: string) => {
+  const importEmployeesFromRows = async (
+    rows: Record<string, unknown>[],
+    fileName: string,
+  ) => {
     setImportingExcel(true);
     setError(null);
 
     try {
       const failures: string[] = [];
-      const importPayloads: { rowNumber: number; payload: globalThis.FormData }[] = [];
+      const importPayloads: {
+        rowNumber: number;
+        payload: globalThis.FormData;
+      }[] = [];
 
       rows.forEach((row, index) => {
         const rowNumber = index + 2;
         const employee = buildImportedEmployeeFormData(row);
 
-        if (!employee.employeeId || !employee.firstName || !employee.lastName || !employee.email || !employee.dateOfJoining) {
-          failures.push(`Row ${rowNumber}: employee_id, first_name, last_name, email, doj required`);
+        if (
+          !employee.employeeId ||
+          !employee.firstName ||
+          !employee.lastName ||
+          !employee.email ||
+          !employee.dateOfJoining
+        ) {
+          failures.push(
+            `Row ${rowNumber}: employee_id, first_name, last_name, email, doj required`,
+          );
           return;
         }
 
@@ -1475,26 +1730,38 @@ export default function EmployeeList() {
           return;
         }
 
-        if (employee.officePhone && !isOptionalTenDigitPhoneValid(employee.officePhone)) {
+        if (
+          employee.officePhone &&
+          !isOptionalTenDigitPhoneValid(employee.officePhone)
+        ) {
           failures.push(`Row ${rowNumber}: invalid office phone`);
           return;
         }
 
-        if (employee.emergencyPhone && !isOptionalTenDigitPhoneValid(employee.emergencyPhone)) {
+        if (
+          employee.emergencyPhone &&
+          !isOptionalTenDigitPhoneValid(employee.emergencyPhone)
+        ) {
           failures.push(`Row ${rowNumber}: invalid emergency phone`);
           return;
         }
 
         if (!employee.departmentId && employee.departmentName) {
-          console.warn(`Row ${rowNumber}: department "${employee.departmentName}" not found. Importing without department.`);
+          console.warn(
+            `Row ${rowNumber}: department "${employee.departmentName}" not found. Importing without department.`,
+          );
         }
 
         if (!employee.designationId && employee.designationName) {
-          console.warn(`Row ${rowNumber}: designation "${employee.designationName}" not found. Importing without designation.`);
+          console.warn(
+            `Row ${rowNumber}: designation "${employee.designationName}" not found. Importing without designation.`,
+          );
         }
 
         if (!employee.shiftId && employee.shiftName) {
-          console.warn(`Row ${rowNumber}: shift "${employee.shiftName}" not found. Importing without shift.`);
+          console.warn(
+            `Row ${rowNumber}: shift "${employee.shiftName}" not found. Importing without shift.`,
+          );
         }
 
         importPayloads.push({
@@ -1509,7 +1776,9 @@ export default function EmployeeList() {
         if (result.data) {
           successCount += 1;
         } else {
-          failures.push(`Row ${item.rowNumber}: ${result.error || "failed to create employee"}`);
+          failures.push(
+            `Row ${item.rowNumber}: ${result.error || "failed to create employee"}`,
+          );
         }
       }
 
@@ -1520,7 +1789,9 @@ export default function EmployeeList() {
       }
 
       if (successCount > 0 && failures.length === 0) {
-        showToast.success(`${successCount} employee${successCount > 1 ? "s" : ""} imported successfully`);
+        showToast.success(
+          `${successCount} employee${successCount > 1 ? "s" : ""} imported successfully`,
+        );
         return;
       }
 
@@ -1531,7 +1802,9 @@ export default function EmployeeList() {
         return;
       }
 
-      const failureMessage = failures.slice(0, 4).join(" | ") || "No valid employee rows found in Excel";
+      const failureMessage =
+        failures.slice(0, 4).join(" | ") ||
+        "No valid employee rows found in Excel";
       setError(failureMessage);
       showToast.error(failureMessage);
     } finally {
@@ -1539,7 +1812,9 @@ export default function EmployeeList() {
     }
   };
 
-  const handleEmployeeExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEmployeeExcelUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     event.target.value = "";
 
@@ -1561,9 +1836,12 @@ export default function EmployeeList() {
         throw new Error("No worksheet found in the uploaded Excel file");
       }
 
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" });
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+        worksheet,
+        { defval: "" },
+      );
       const nonEmptyRows = rows.filter((row) =>
-        Object.values(row).some((value) => String(value ?? "").trim() !== "")
+        Object.values(row).some((value) => String(value ?? "").trim() !== ""),
       );
 
       if (!nonEmptyRows.length) {
@@ -1572,7 +1850,10 @@ export default function EmployeeList() {
 
       await importEmployeesFromRows(nonEmptyRows, file.name);
     } catch (uploadError) {
-      const message = uploadError instanceof Error ? uploadError.message : "Failed to import Excel file";
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Failed to import Excel file";
       setError(message);
       showToast.error(message);
     }
@@ -1581,92 +1862,97 @@ export default function EmployeeList() {
   // Export all employees to Excel with all CSV fields
   const handleExportToExcel = () => {
     if (employees.length === 0) {
-      showToast.error('No employees to export');
+      showToast.error("No employees to export");
       return;
     }
 
-    const exportData = employees.map(emp => ({
-      'employee_id': emp.employeeId || '',
-      'first_name': emp.firstName || '',
-      'last_name': emp.lastName || '',
-      'email': emp.email || '',
-      'mobile': emp.phone || '',
-      'office_email': (emp as any).officeEmail || '',
-      'office_phone': (emp as any).officePhone || '',
-      'dob': emp.dateOfBirth || '',
-      'gender': emp.gender || '',
-      'blood_group': emp.bloodGroup || '',
-      'marital_status': emp.maritalStatus || '',
-      'emergency_contact_name': emp.emergencyContact || '',
-      'emergency_contact_phone': emp.emergencyPhone || '',
-      'department': emp.department || '',
-      'designation': emp.designation || '',
-      'shift': emp.shift || '',
-      'doj': emp.dateOfJoining || '',
-      'employment_type': emp.employmentType || '',
-      'status': emp.status || '',
-      'role': emp.role || '',
-      'location': emp.location || '',
-      'salary': String((emp as any).salary || ''),
-      'aadhaar': emp.aadhaar || '',
-      'pan': emp.pan || '',
-      'uan': emp.uan || '',
-      'esic': emp.esic || '',
-      'account_holder_name': emp.bankAccountHolder || '',
-      'bank_name': emp.bankName || '',
-      'account_number': emp.accountNumber || '',
-      'ifsc_code': emp.ifscCode || '',
-      'enable_live_tracking': String((emp as any).location_tracking_enabled || 0)
+    const exportData = employees.map((emp) => ({
+      employee_id: emp.employeeId || "",
+      first_name: emp.firstName || "",
+      last_name: emp.lastName || "",
+      email: emp.email || "",
+      mobile: emp.phone || "",
+      office_email: (emp as any).officeEmail || "",
+      office_phone: (emp as any).officePhone || "",
+      dob: emp.dateOfBirth || "",
+      gender: emp.gender || "",
+      blood_group: emp.bloodGroup || "",
+      marital_status: emp.maritalStatus || "",
+      emergency_contact_name: emp.emergencyContact || "",
+      emergency_contact_phone: emp.emergencyPhone || "",
+      department: emp.department || "",
+      designation: emp.designation || "",
+      shift: emp.shift || "",
+      doj: emp.dateOfJoining || "",
+      employment_type: emp.employmentType || "",
+      status: emp.status || "",
+      role: emp.role || "",
+      location: emp.location || "",
+      salary: String((emp as any).salary || ""),
+      aadhaar: emp.aadhaar || "",
+      pan: emp.pan || "",
+      uan: emp.uan || "",
+      esic: emp.esic || "",
+      account_holder_name: emp.bankAccountHolder || "",
+      bank_name: emp.bankName || "",
+      account_number: emp.accountNumber || "",
+      ifsc_code: emp.ifscCode || "",
+      enable_live_tracking: String((emp as any).location_tracking_enabled || 0),
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Employees');
-    XLSX.writeFile(wb, `Employees_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Employees");
+    XLSX.writeFile(
+      wb,
+      `Employees_${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
     showToast.success(`Exported ${employees.length} employees to Excel`);
   };
 
   // Download empty template with all CSV fields
   const handleDownloadTemplate = () => {
-    const templateData = [{
-      'employee_id': '',
-      'first_name': '',
-      'last_name': '',
-      'email': '',
-      'mobile': '',
-      'office_email': '',
-      'office_phone': '',
-      'dob': 'YYYY-MM-DD',
-      'gender': 'Male/Female',
-      'blood_group': '',
-      'marital_status': 'Single/Married',
-      'emergency_contact_name': '',
-      'emergency_contact_phone': '',
-      'department': '',
-      'designation': '',
-      'shift': '',
-      'doj': 'YYYY-MM-DD',
-      'employment_type': 'full-time/part-time/contract/intern',
-      'status': 'active/inactive',
-      'role': 'employee/hr/manager/admin',
-      'location': '',
-      'salary': '',
-      'aadhaar': '12 digits',
-      'pan': 'ABCDE1234F',
-      'uan': '',
-      'esic': '',
-      'account_holder_name': '',
-      'bank_name': '',
-      'account_number': '',
-      'ifsc_code': 'HDFC0001234',
-      'enable_live_tracking': '0 or 1'
-    }];
+    const templateData = [
+      {
+        employee_id: "",
+        first_name: "",
+        last_name: "",
+        email: "",
+        mobile: "",
+        office_email: "",
+        office_phone: "",
+        dob: "YYYY-MM-DD",
+        gender: "Male/Female",
+        blood_group: "",
+        marital_status: "Single/Married",
+        emergency_contact_name: "",
+        emergency_contact_phone: "",
+        department: "",
+        designation: "",
+        shift: "",
+        doj: "YYYY-MM-DD",
+        employment_type: "full-time/part-time/contract/intern",
+        status: "active/inactive",
+        role: "employee/hr/manager/admin",
+        location: "",
+        salary: "",
+        aadhaar: "12 digits",
+        pan: "ABCDE1234F",
+        uan: "",
+        esic: "",
+        account_holder_name: "",
+        bank_name: "",
+        account_number: "",
+        ifsc_code: "HDFC0001234",
+        enable_live_tracking: "0 or 1",
+      },
+    ];
 
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Employee Template');
-    XLSX.writeFile(wb, 'Employee_Import_Template.xlsx');
-    showToast.success('Template downloaded successfully');
+    XLSX.utils.book_append_sheet(wb, ws, "Employee Template");
+    XLSX.writeFile(wb, "Employee_Import_Template.xlsx");
+    showToast.success("Template downloaded successfully");
   };
 
   // Import handler that uses the existing handleEmployeeExcelUpload
@@ -1760,21 +2046,35 @@ export default function EmployeeList() {
             pan: emp.pan || "",
             uan: emp.uan || "",
             esic: emp.esic || "",
+            branchId: emp.branch_id?.toString() || "",
+            branchName: emp.branch_name || emp.branch || "",
             // Bank
             bankAccountHolder: emp.bankDetails?.account_holder_name || "",
             bankName: emp.bankDetails?.bank_name || "",
             accountNumber: emp.bankDetails?.account_number || "",
             ifscCode: emp.bankDetails?.ifsc_code || "",
             // Documents
-            photoUrl: emp.documents?.find((d: any) => d.fieldname === "photo")?.file_path || "",
-            idProofUrl: emp.documents?.find((d: any) => d.fieldname === "id_proof")?.file_path || "",
-            addressProofUrl: emp.documents?.find((d: any) => d.fieldname === "address_proof")?.file_path || "",
-            offerLetterUrl: emp.documents?.find((d: any) => d.fieldname === "offer_letter")?.file_path || "",
+            photoUrl:
+              emp.documents?.find((d: any) => d.fieldname === "photo")
+                ?.file_path || "",
+            idProofUrl:
+              emp.documents?.find((d: any) => d.fieldname === "id_proof")
+                ?.file_path || "",
+            addressProofUrl:
+              emp.documents?.find((d: any) => d.fieldname === "address_proof")
+                ?.file_path || "",
+            offerLetterUrl:
+              emp.documents?.find((d: any) => d.fieldname === "offer_letter")
+                ?.file_path || "",
             certificatesUrl: "",
             bankProofUrl: "",
             createdAt: emp.created_at || new Date().toISOString(),
             updatedAt: emp.updated_at || new Date().toISOString(),
-            location_tracking_enabled: isLocationTrackingEnabled(emp.location_tracking_enabled) ? 1 : 0,
+            location_tracking_enabled: isLocationTrackingEnabled(
+              emp.location_tracking_enabled,
+            )
+              ? 1
+              : 0,
           };
 
           return transformed;
@@ -1849,8 +2149,8 @@ export default function EmployeeList() {
         const deptData: any = deptResult.data;
         if (deptData?.departments && Array.isArray(deptData.departments)) {
           const formattedDepts = deptData.departments.map((dept: any) => ({
-            id: dept.id.toString(),  // number → string
-            name: dept.name || "Unknown"
+            id: dept.id.toString(), // number → string
+            name: dept.name || "Unknown",
           }));
           setDepartments(formattedDepts);
         } else {
@@ -1861,7 +2161,7 @@ export default function EmployeeList() {
         if (desigData?.designations && Array.isArray(desigData.designations)) {
           const formattedDesigs = desigData.designations.map((desig: any) => ({
             id: desig.id.toString(),
-            name: desig.name || "Unknown"
+            name: desig.name || "Unknown",
           }));
           setDesignations(formattedDesigs);
         } else {
@@ -1902,11 +2202,17 @@ export default function EmployeeList() {
         <div className="bg-gradient-to-r from-[#17c491] to-[#17c491] rounded-xl p-4 text-white">
           <div className="flex items-center gap-3 mb-2">
             <Users className="w-6 h-6" />
-            <h1 className="text-xl sm:text-2xl font-bold">Employee Management</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">
+              Employee Management
+            </h1>
           </div>
-          <p className="text-white text-xs sm:text-sm">Manage employee records and information</p>
+          <p className="text-white text-xs sm:text-sm">
+            Manage employee records and information
+          </p>
           {excelFileName && (
-            <p className="text-white/90 text-xs mt-2">Last imported file: {excelFileName}</p>
+            <p className="text-white/90 text-xs mt-2">
+              Last imported file: {excelFileName}
+            </p>
           )}
         </div>
 
@@ -1915,18 +2221,24 @@ export default function EmployeeList() {
           <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-3 pb-2">
               <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-muted-foreground">Total</div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Total
+                </div>
                 <div className="w-6 h-6 rounded-full bg-[#17c491]/10 flex items-center justify-center">
                   <Users className="w-3 h-3 text-[#17c491]" />
                 </div>
               </div>
-              <div className="text-xl sm:text-2xl font-bold text-[#17c491]">{employees.length}</div>
+              <div className="text-xl sm:text-2xl font-bold text-[#17c491]">
+                {employees.length}
+              </div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-3 pb-2">
               <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-muted-foreground">Active</div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Active
+                </div>
                 <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-600"></div>
                 </div>
@@ -1939,24 +2251,35 @@ export default function EmployeeList() {
           <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-3 pb-2">
               <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-muted-foreground">Departments</div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Departments
+                </div>
                 <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
                   <div className="w-3 h-0.5 bg-purple-600 rounded"></div>
                 </div>
               </div>
-              <div className="text-xl sm:text-2xl font-bold text-purple-600">{new Set(employees.map((e) => e.department)).size}</div>
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">
+                {new Set(employees.map((e) => e.department)).size}
+              </div>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-3 pb-2">
               <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-medium text-muted-foreground">Total Payroll</div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Total Payroll
+                </div>
                 <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
                   <div className="w-0 h-0 border-l-6 border-r-6 border-b-6 border-transparent border-b-orange-600"></div>
                 </div>
               </div>
               <div className="text-xl sm:text-2xl font-bold text-orange-600">
-                ₹{(employees.reduce((sum, e) => sum + (e.salary || 0), 0) / 100000).toFixed(1)}L
+                ₹
+                {(
+                  employees.reduce((sum, e) => sum + (e.salary || 0), 0) /
+                  100000
+                ).toFixed(1)}
+                L
               </div>
             </CardContent>
           </Card>
@@ -1986,7 +2309,7 @@ export default function EmployeeList() {
                   <Search className="absolute left-2 top-3.5 w-3 h-3 text-muted-foreground" />
                   <Input
                     id="search"
-                    placeholder="Search by name or email..."
+                    placeholder="Search by employee ID, name, or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-7 text-sm"
@@ -1996,7 +2319,10 @@ export default function EmployeeList() {
 
               <div className="col-span-1">
                 <Label htmlFor="department">Department</Label>
-                <Select value={filterDept} onValueChange={(val: any) => setFilterDept(val)}>
+                <Select
+                  value={filterDept}
+                  onValueChange={(val: any) => setFilterDept(val)}
+                >
                   <SelectTrigger id="department" className="mt-2">
                     <SelectValue placeholder="All Departments" />
                   </SelectTrigger>
@@ -2019,7 +2345,10 @@ export default function EmployeeList() {
 
               <div className="col-span-1">
                 <Label htmlFor="status">Status</Label>
-                <Select value={filterStatus} onValueChange={(val: any) => setFilterStatus(val)}>
+                <Select
+                  value={filterStatus}
+                  onValueChange={(val: any) => setFilterStatus(val)}
+                >
                   <SelectTrigger id="status" className="mt-2">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
@@ -2035,7 +2364,10 @@ export default function EmployeeList() {
 
               <div className="col-span-1 flex items-end">
                 {canCreateEmployee && (
-                  <Button onClick={() => handleOpenDialog()} className="w-full gap-2 text-sm">
+                  <Button
+                    onClick={() => handleOpenDialog()}
+                    className="w-full gap-2 text-sm"
+                  >
                     <Plus className="w-3 h-3" />
                     Add Employee
                   </Button>
@@ -2048,10 +2380,11 @@ export default function EmployeeList() {
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
                 <Label
                   htmlFor="employee-excel-upload"
-                  className={`inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition ${importingExcel
-                    ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                    : "cursor-pointer border-[#17c491]/30 bg-white text-[#12956f] hover:bg-[#17c491]/5"
-                    }`}
+                  className={`inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition ${
+                    importingExcel
+                      ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                      : "cursor-pointer border-[#17c491]/30 bg-white text-[#12956f] hover:bg-[#17c491]/5"
+                  }`}
                 >
                   {importingExcel ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2108,12 +2441,18 @@ export default function EmployeeList() {
         {/* Table */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Employees ({filteredEmployees.length})</CardTitle>
+            <CardTitle className="text-base">
+              Employees ({filteredEmployees.length})
+            </CardTitle>
             <CardDescription className="text-xs">
-              Showing {filteredEmployees.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
-              {" "}to{" "}
-              {Math.min(currentPage * itemsPerPage, filteredEmployees.length)}
-              {" "}of {filteredEmployees.length} filtered employees ({employees.length} total)
+              Showing{" "}
+              {filteredEmployees.length === 0
+                ? 0
+                : (currentPage - 1) * itemsPerPage + 1}{" "}
+              to{" "}
+              {Math.min(currentPage * itemsPerPage, filteredEmployees.length)}{" "}
+              of {filteredEmployees.length} filtered employees (
+              {employees.length} total)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -2129,15 +2468,33 @@ export default function EmployeeList() {
                   <table className="w-full min-w-[600px]">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">ID</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Name</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Email</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Department</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Designation</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Shift</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Tracking</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Status</th>
-                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">Actions</th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          ID
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Name
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Email
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Department
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Designation
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Shift
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Tracking
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Status
+                        </th>
+                        <th className="text-left px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2146,30 +2503,47 @@ export default function EmployeeList() {
                           key={emp.id}
                           className="border-b border-border hover:bg-muted/30 transition-colors"
                         >
-                          <td className="px-3 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">{emp.employeeId || emp.id}</td>
+                          <td className="px-3 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                            {emp.employeeId || emp.id}
+                          </td>
                           <td className="px-3 py-3 font-medium text-xs whitespace-nowrap">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-[#17c491] flex items-center justify-center text-white text-xs font-bold">
-                                {emp.firstName?.charAt(0)?.toUpperCase()}{emp.lastName?.charAt(0)?.toUpperCase()}
+                                {emp.firstName?.charAt(0)?.toUpperCase()}
+                                {emp.lastName?.charAt(0)?.toUpperCase()}
                               </div>
-                              <span className="font-semibold text-xs">{emp.firstName} {emp.lastName}</span>
+                              <span className="font-semibold text-xs">
+                                {emp.firstName} {emp.lastName}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-xs truncate" title={emp.email}>{emp.email}</td>
-                          <td className="px-3 py-3 text-xs whitespace-nowrap">{emp.department}</td>
-                          <td className="px-3 py-3 text-xs whitespace-nowrap">{emp.designation}</td>
+                          <td
+                            className="px-3 py-3 text-xs truncate"
+                            title={emp.email}
+                          >
+                            {emp.email}
+                          </td>
                           <td className="px-3 py-3 text-xs whitespace-nowrap">
-                            {emp.shift ?
-                              (shifts.find(s => s.id.toString() === emp.shift)?.name || emp.shift)
-                              : 'N/A'}
+                            {emp.department}
+                          </td>
+                          <td className="px-3 py-3 text-xs whitespace-nowrap">
+                            {emp.designation}
+                          </td>
+                          <td className="px-3 py-3 text-xs whitespace-nowrap">
+                            {emp.shift
+                              ? shifts.find(
+                                  (s) => s.id.toString() === emp.shift,
+                                )?.name || emp.shift
+                              : "N/A"}
                           </td>
                           <td className="px-3 py-3">
-                            {isLocationTrackingEnabled(emp.location_tracking_enabled) ? (
+                            {isLocationTrackingEnabled(
+                              emp.location_tracking_enabled,
+                            ) ? (
                               <span className="text-xs px-2 py-1 rounded-full border inline-flex items-center gap-1 whitespace-nowrap bg-green-100 text-green-800 border-green-200 font-medium">
                                 <MapPin className="w-3 h-3" />
                                 Enabled
                               </span>
-
                             ) : (
                               <span className="text-xs px-2 py-1 rounded-full border inline-flex items-center gap-1 whitespace-nowrap bg-gray-100 text-gray-600 border-gray-200 font-medium">
                                 Disabled
@@ -2177,7 +2551,9 @@ export default function EmployeeList() {
                             )}
                           </td>
                           <td className="px-3 py-3">
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium inline-block ${getStatusBadgeClass(emp.status)}`}>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full font-medium inline-block ${getStatusBadgeClass(emp.status)}`}
+                            >
                               {getStatusLabel(emp.status)}
                             </span>
                           </td>
@@ -2222,7 +2598,8 @@ export default function EmployeeList() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <div className="w-8 h-8 rounded-full bg-[#17c491] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                              {emp.firstName?.charAt(0)?.toUpperCase()}{emp.lastName?.charAt(0)?.toUpperCase()}
+                              {emp.firstName?.charAt(0)?.toUpperCase()}
+                              {emp.lastName?.charAt(0)?.toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -2230,8 +2607,12 @@ export default function EmployeeList() {
                                   {emp.employeeId || emp.id}
                                 </span>
                               </div>
-                              <h3 className="font-bold text-sm truncate">{emp.firstName} {emp.lastName}</h3>
-                              <p className="text-xs text-muted-foreground truncate">{emp.email}</p>
+                              <h3 className="font-bold text-sm truncate">
+                                {emp.firstName} {emp.lastName}
+                              </h3>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {emp.email}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -2261,27 +2642,42 @@ export default function EmployeeList() {
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <label className="text-xs text-muted-foreground font-medium block mb-1">Department</label>
-                          <p className="font-medium truncate">{emp.department}</p>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">
+                            Department
+                          </label>
+                          <p className="font-medium truncate">
+                            {emp.department}
+                          </p>
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground font-medium block mb-1">Designation</label>
-                          <p className="font-medium truncate">{emp.designation}</p>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">
+                            Designation
+                          </label>
+                          <p className="font-medium truncate">
+                            {emp.designation}
+                          </p>
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground font-medium block mb-1">Status</label>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium inline-block ${getStatusBadgeClass(emp.status)}`}>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">
+                            Status
+                          </label>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full font-medium inline-block ${getStatusBadgeClass(emp.status)}`}
+                          >
                             {getStatusLabel(emp.status)}
                           </span>
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground font-medium block mb-1">Tracking</label>
-                          {isLocationTrackingEnabled(emp.location_tracking_enabled) ? (
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">
+                            Tracking
+                          </label>
+                          {isLocationTrackingEnabled(
+                            emp.location_tracking_enabled,
+                          ) ? (
                             <span className="text-xs px-2 py-1 rounded-full border inline-flex items-center gap-1 whitespace-nowrap bg-green-100 text-green-800 border-green-200 font-medium">
                               <MapPin className="w-3 h-3" />
                               Enabled
                             </span>
-
                           ) : (
                             <span className="text-xs px-2 py-1 rounded-full border inline-flex items-center gap-1 whitespace-nowrap bg-gray-100 text-gray-600 border-gray-200 font-medium">
                               Disabled
@@ -2296,12 +2692,19 @@ export default function EmployeeList() {
                 {filteredEmployees.length > 0 && (
                   <div className="flex flex-col gap-3 border-t border-border pt-4 mt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-muted-foreground">
-                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                      {Math.min(
+                        currentPage * itemsPerPage,
+                        filteredEmployees.length,
+                      )}{" "}
+                      of {filteredEmployees.length} employees
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium whitespace-nowrap">Rows per page</span>
+                        <span className="text-xs font-medium whitespace-nowrap">
+                          Rows per page
+                        </span>
                         <Select
                           value={itemsPerPage.toString()}
                           onValueChange={(value) => {
@@ -2314,7 +2717,10 @@ export default function EmployeeList() {
                           </SelectTrigger>
                           <SelectContent side="top">
                             {[5, 10, 20, 30, 50].map((pageSize) => (
-                              <SelectItem key={pageSize} value={pageSize.toString()}>
+                              <SelectItem
+                                key={pageSize}
+                                value={pageSize.toString()}
+                              >
                                 {pageSize}
                               </SelectItem>
                             ))}
@@ -2327,7 +2733,9 @@ export default function EmployeeList() {
                           variant="outline"
                           size="sm"
                           className="h-8 px-3 text-xs"
-                          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                          onClick={() =>
+                            setCurrentPage((prev) => Math.max(prev - 1, 1))
+                          }
                           disabled={currentPage === 1}
                         >
                           Previous
@@ -2341,7 +2749,11 @@ export default function EmployeeList() {
                           variant="outline"
                           size="sm"
                           className="h-8 px-3 text-xs"
-                          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                          onClick={() =>
+                            setCurrentPage((prev) =>
+                              Math.min(prev + 1, totalPages),
+                            )
+                          }
                           disabled={currentPage === totalPages}
                         >
                           Next
@@ -2360,35 +2772,57 @@ export default function EmployeeList() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">{editingId ? "Edit Employee" : "Add New Employee"}</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
+              {editingId ? "Edit Employee" : "Add New Employee"}
+            </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
-              {editingId ? "Update employee information" : "Fill in all employee details"}
+              {editingId
+                ? "Update employee information"
+                : "Fill in all employee details"}
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 h-auto gap-1 md:gap-0 bg-muted p-1">
               <TabsTrigger value="personal" className="text-xs sm:text-sm py-2">
                 <span className="hidden sm:inline">Personal</span>
                 <span className="sm:hidden">Person</span>
               </TabsTrigger>
-              <TabsTrigger value="employment" className="text-xs sm:text-sm py-2">
+              <TabsTrigger
+                value="employment"
+                className="text-xs sm:text-sm py-2"
+              >
                 <span className="hidden sm:inline">Employment</span>
                 <span className="sm:hidden">Employ</span>
               </TabsTrigger>
-              <TabsTrigger value="statutory" className="text-xs sm:text-sm py-2">
+              <TabsTrigger
+                value="statutory"
+                className="text-xs sm:text-sm py-2"
+              >
                 <span className="hidden md:inline">Statutory</span>
                 <span className="md:hidden">Stat</span>
               </TabsTrigger>
-              <TabsTrigger value="bank" className="text-xs sm:text-sm py-2">Bank</TabsTrigger>
-              <TabsTrigger value="documents" className="text-xs sm:text-sm py-2">
+              <TabsTrigger value="bank" className="text-xs sm:text-sm py-2">
+                Bank
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="text-xs sm:text-sm py-2"
+              >
                 <span className="hidden md:inline">Documents</span>
                 <span className="md:hidden">Docs</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Personal Details Tab */}
-            <TabsContent value="personal" className="space-y-3 sm:space-y-4 mt-4">
+            <TabsContent
+              value="personal"
+              className="space-y-3 sm:space-y-4 mt-4"
+            >
               <div>
                 <Label htmlFor="employeeId">Employee ID *</Label>
                 <Input
@@ -2399,14 +2833,19 @@ export default function EmployeeList() {
                     if (!editingId) {
                       setNewEmployeeId(e.target.value.toUpperCase());
                     } else {
-                      handleFormChange("employeeId", e.target.value.toUpperCase());
+                      handleFormChange(
+                        "employeeId",
+                        e.target.value.toUpperCase(),
+                      );
                     }
                   }}
-                  disabled={!!editingId}  // edit mode-ல change பண்ண வேண்டாம்
-                  className={`mt-2 ${editingId ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
+                  // disabled={!!editingId}
+                  // className={`mt-2 ${editingId ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
                 />
                 {!editingId && (
-                  <p className="text-xs text-muted-foreground mt-1">Enter Employee ID (e.g., EMP001, EMP002)</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enter Employee ID (e.g., EMP001, EMP002)
+                  </p>
                 )}
               </div>
 
@@ -2416,7 +2855,9 @@ export default function EmployeeList() {
                   <Input
                     id="firstName"
                     value={formData.firstName}
-                    onChange={(e) => handleFormChange("firstName", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("firstName", e.target.value)
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -2425,7 +2866,9 @@ export default function EmployeeList() {
                   <Input
                     id="lastName"
                     value={formData.lastName}
-                    onChange={(e) => handleFormChange("lastName", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("lastName", e.target.value)
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -2434,7 +2877,10 @@ export default function EmployeeList() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="gender">Gender</Label>
-                  <Select value={formData.gender || ""} onValueChange={(val) => handleFormChange("gender", val)}>
+                  <Select
+                    value={formData.gender || ""}
+                    onValueChange={(val) => handleFormChange("gender", val)}
+                  >
                     <SelectTrigger id="gender" className="mt-2">
                       <SelectValue placeholder="Select Gender" />
                     </SelectTrigger>
@@ -2458,7 +2904,10 @@ export default function EmployeeList() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="bloodGroup">Blood Group</Label>
-                  <Select value={formData.bloodGroup || ""} onValueChange={(val) => handleFormChange("bloodGroup", val)}>
+                  <Select
+                    value={formData.bloodGroup || ""}
+                    onValueChange={(val) => handleFormChange("bloodGroup", val)}
+                  >
                     <SelectTrigger id="bloodGroup" className="mt-2">
                       <SelectValue placeholder="Select Blood Group" />
                     </SelectTrigger>
@@ -2477,11 +2926,12 @@ export default function EmployeeList() {
                 <div>
                   <Label htmlFor="maritalStatus">Marital Status</Label>
                   <div>
-
                     <Input
                       id="maritalStatus"
                       value={formData.maritalStatus || ""}
-                      onChange={(e) => handleFormChange("maritalStatus", e.target.value)}
+                      onChange={(e) =>
+                        handleFormChange("maritalStatus", e.target.value)
+                      }
                       placeholder="e.g., Married, Single, Divorced"
                       className="mt-2"
                     />
@@ -2519,7 +2969,9 @@ export default function EmployeeList() {
                     inputMode="numeric"
                     maxLength={10}
                     value={formData.phone}
-                    onChange={(e) => handlePhoneInputChange("phone", e.target.value)}
+                    onChange={(e) =>
+                      handlePhoneInputChange("phone", e.target.value)
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -2533,7 +2985,9 @@ export default function EmployeeList() {
                     <Input
                       id="emergencyContact"
                       value={formData.emergencyContact || ""}
-                      onChange={(e) => handleFormChange("emergencyContact", e.target.value)}
+                      onChange={(e) =>
+                        handleFormChange("emergencyContact", e.target.value)
+                      }
                       className="mt-2"
                     />
                   </div>
@@ -2545,7 +2999,9 @@ export default function EmployeeList() {
                       inputMode="numeric"
                       maxLength={10}
                       value={formData.emergencyPhone || ""}
-                      onChange={(e) => handlePhoneInputChange("emergencyPhone", e.target.value)}
+                      onChange={(e) =>
+                        handlePhoneInputChange("emergencyPhone", e.target.value)
+                      }
                       className="mt-2"
                     />
                   </div>
@@ -2554,7 +3010,10 @@ export default function EmployeeList() {
             </TabsContent>
 
             {/* Employment Tab */}
-            <TabsContent value="employment" className="space-y-3 sm:space-y-4 mt-4">
+            <TabsContent
+              value="employment"
+              className="space-y-3 sm:space-y-4 mt-4"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="dateOfJoining">Date of Joining *</Label>
@@ -2562,7 +3021,9 @@ export default function EmployeeList() {
                     id="dateOfJoining"
                     type="date"
                     value={formData.dateOfJoining}
-                    onChange={(e) => handleFormChange("dateOfJoining", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("dateOfJoining", e.target.value)
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -2570,7 +3031,9 @@ export default function EmployeeList() {
                   <Label htmlFor="employmentType">Employment Type</Label>
                   <Select
                     value={formData.employmentType}
-                    onValueChange={(val) => handleFormChange("employmentType", val)}
+                    onValueChange={(val) =>
+                      handleFormChange("employmentType", val)
+                    }
                   >
                     <SelectTrigger id="employmentType" className="mt-2">
                       <SelectValue placeholder="Select Type" />
@@ -2585,22 +3048,28 @@ export default function EmployeeList() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="shift">Shift *</Label>
+                  <Label htmlFor="shift">Shift</Label>
                   <Select
                     value={formData.shift}
                     onValueChange={(val) => handleFormChange("shift", val)}
                     disabled={loadingShifts}
                   >
                     <SelectTrigger id="shift" className="mt-2">
-                      <SelectValue placeholder={
-                        loadingShifts ? "Loading shifts..." :
-                          shifts.length === 0 ? "No shifts available" : "Select a shift *"
-                      }>
+                      <SelectValue
+                        placeholder={
+                          loadingShifts
+                            ? "Loading shifts..."
+                            : shifts.length === 0
+                              ? "No shifts available"
+                              : "Select a shift"
+                        }
+                      >
                         {formData.shift && shifts.length > 0 && (
-                          <span>{
-                            shifts.find(s => s.id.toString() === formData.shift)?.name ||
-                            `Shift ${formData.shift}`
-                          }</span>
+                          <span>
+                            {shifts.find(
+                              (s) => s.id.toString() === formData.shift,
+                            )?.name || `Shift ${formData.shift}`}
+                          </span>
                         )}
                       </SelectValue>
                     </SelectTrigger>
@@ -2608,8 +3077,9 @@ export default function EmployeeList() {
                       {shifts.length > 0 ? (
                         shifts.map((shift) => {
                           // Use the correct property names based on the Shift interface
-                          const startTime = shift.startTime || shift.start_time || '';
-                          const endTime = shift.endTime || shift.end_time || '';
+                          const startTime =
+                            shift.startTime || shift.start_time || "";
+                          const endTime = shift.endTime || shift.end_time || "";
 
                           return (
                             <SelectItem
@@ -2636,7 +3106,9 @@ export default function EmployeeList() {
                   <div className="flex gap-2 mt-2">
                     <Select
                       value={formData.departmentId}
-                      onValueChange={(val) => handleFormChange("departmentId", val)}
+                      onValueChange={(val) =>
+                        handleFormChange("departmentId", val)
+                      }
                     >
                       <SelectTrigger id="department" className="flex-1">
                         <SelectValue placeholder="Select Department" />
@@ -2673,7 +3145,9 @@ export default function EmployeeList() {
                   <div className="flex gap-2 mt-2">
                     <Select
                       value={formData.designationId}
-                      onValueChange={(val) => handleFormChange("designationId", val)}
+                      onValueChange={(val) =>
+                        handleFormChange("designationId", val)
+                      }
                     >
                       <SelectTrigger id="designation" className="flex-1">
                         <SelectValue placeholder="Select Designation" />
@@ -2707,6 +3181,30 @@ export default function EmployeeList() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <Label htmlFor="branch">Branch</Label>
+                  <Select
+                    value={formData.branchId || ""}
+                    onValueChange={(val) => handleFormChange("branchId", val)}
+                  >
+                    <SelectTrigger id="branch" className="mt-2">
+                      <SelectValue placeholder="Select Branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.length > 0 ? (
+                        branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <p className="px-4 py-2 text-sm text-muted-foreground">
+                          No branches available
+                        </p>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="role">Role</Label>
                   <div className="flex gap-2 mt-2">
                     <Select
@@ -2718,7 +3216,9 @@ export default function EmployeeList() {
                       </SelectTrigger>
                       <SelectContent>
                         {formData.role && !roles.includes(formData.role) && (
-                          <SelectItem value={formData.role}>{formData.role}</SelectItem>
+                          <SelectItem value={formData.role}>
+                            {formData.role}
+                          </SelectItem>
                         )}
                         {roles.length > 0 ? (
                           roles.map((roleName) => (
@@ -2750,7 +3250,9 @@ export default function EmployeeList() {
                   <Input
                     id="location"
                     value={formData.location || ""}
-                    onChange={(e) => handleFormChange("location", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("location", e.target.value)
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -2763,7 +3265,9 @@ export default function EmployeeList() {
                     id="officeEmail"
                     type="email"
                     value={formData.officeEmail || ""}
-                    onChange={(e) => handleFormChange("officeEmail", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("officeEmail", e.target.value)
+                    }
                     placeholder="employee@company.com"
                     className="mt-2"
                   />
@@ -2776,7 +3280,9 @@ export default function EmployeeList() {
                     inputMode="numeric"
                     maxLength={10}
                     value={formData.officePhone || ""}
-                    onChange={(e) => handlePhoneInputChange("officePhone", e.target.value)}
+                    onChange={(e) =>
+                      handlePhoneInputChange("officePhone", e.target.value)
+                    }
                     placeholder="Office extension or direct line"
                     className="mt-2"
                   />
@@ -2785,7 +3291,10 @@ export default function EmployeeList() {
 
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(val: any) => handleFormChange("status", val)}>
+                <Select
+                  value={formData.status}
+                  onValueChange={(val: any) => handleFormChange("status", val)}
+                >
                   <SelectTrigger id="status" className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
@@ -2815,21 +3324,27 @@ export default function EmployeeList() {
                     Enable Live Location Tracking
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    When enabled, employee location will be captured during attendance check-in/check-out
+                    When enabled, employee location will be captured during
+                    attendance check-in/check-out
                   </p>
                 </div>
               </div>
             </TabsContent>
 
             {/* Statutory Tab */}
-            <TabsContent value="statutory" className="space-y-3 sm:space-y-4 mt-4">
+            <TabsContent
+              value="statutory"
+              className="space-y-3 sm:space-y-4 mt-4"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="aadhaar">Aadhaar Number</Label>
                   <Input
                     id="aadhaar"
                     value={formData.aadhaar || ""}
-                    onChange={(e) => handleDigitsOnlyChange("aadhaar", e.target.value, 12)}
+                    onChange={(e) =>
+                      handleDigitsOnlyChange("aadhaar", e.target.value, 12)
+                    }
                     inputMode="numeric"
                     maxLength={12}
                     placeholder="XXXX-XXXX-XXXX"
@@ -2841,7 +3356,9 @@ export default function EmployeeList() {
                   <Input
                     id="pan"
                     value={formData.pan || ""}
-                    onChange={(e) => handleUpperAlphaNumericChange("pan", e.target.value, 10)}
+                    onChange={(e) =>
+                      handleUpperAlphaNumericChange("pan", e.target.value, 10)
+                    }
                     maxLength={10}
                     placeholder="XXXXX0000X"
                     className="mt-2"
@@ -2855,7 +3372,9 @@ export default function EmployeeList() {
                   <Input
                     id="uan"
                     value={formData.uan || ""}
-                    onChange={(e) => handleDigitsOnlyChange("uan", e.target.value, 12)}
+                    onChange={(e) =>
+                      handleDigitsOnlyChange("uan", e.target.value, 12)
+                    }
                     inputMode="numeric"
                     maxLength={12}
                     placeholder="XXXXXXXXXXXX"
@@ -2867,7 +3386,9 @@ export default function EmployeeList() {
                   <Input
                     id="esic"
                     value={formData.esic || ""}
-                    onChange={(e) => handleDigitsOnlyChange("esic", e.target.value, 10)}
+                    onChange={(e) =>
+                      handleDigitsOnlyChange("esic", e.target.value, 10)
+                    }
                     inputMode="numeric"
                     maxLength={10}
                     placeholder="XXXXXXXXXX"
@@ -2885,7 +3406,12 @@ export default function EmployeeList() {
                   <Input
                     id="bankAccountHolder"
                     value={formData.bankAccountHolder || ""}
-                    onChange={(e) => handleAlphabeticNameChange("bankAccountHolder", e.target.value)}
+                    onChange={(e) =>
+                      handleAlphabeticNameChange(
+                        "bankAccountHolder",
+                        e.target.value,
+                      )
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -2906,7 +3432,13 @@ export default function EmployeeList() {
                   <Input
                     id="accountNumber"
                     value={formData.accountNumber || ""}
-                    onChange={(e) => handleDigitsOnlyChange("accountNumber", e.target.value, 18)}
+                    onChange={(e) =>
+                      handleDigitsOnlyChange(
+                        "accountNumber",
+                        e.target.value,
+                        18,
+                      )
+                    }
                     inputMode="numeric"
                     maxLength={18}
                     className="mt-2"
@@ -2917,7 +3449,13 @@ export default function EmployeeList() {
                   <Input
                     id="ifscCode"
                     value={formData.ifscCode || ""}
-                    onChange={(e) => handleUpperAlphaNumericChange("ifscCode", e.target.value, 11)}
+                    onChange={(e) =>
+                      handleUpperAlphaNumericChange(
+                        "ifscCode",
+                        e.target.value,
+                        11,
+                      )
+                    }
                     maxLength={11}
                     placeholder="XXXXX0000XXX"
                     className="mt-2"
@@ -2928,20 +3466,52 @@ export default function EmployeeList() {
 
             {/* Documents Tab */}
             {/* Documents Tab */}
-            <TabsContent value="documents" className="space-y-4 sm:space-y-6 mt-4">
+            <TabsContent
+              value="documents"
+              className="space-y-4 sm:space-y-6 mt-4"
+            >
               {[
-                { field: "photo", label: "Photo", description: "Employee profile photo (JPG/PNG)" },
-                { field: "id_proof", label: "ID Proof", description: "Aadhaar, PAN, Passport, etc." },
-                { field: "address_proof", label: "Address Proof", description: "Utility bill, rental agreement, etc." },
-                { field: "offer_letter", label: "Offer Letter", description: "Original joining offer letter" },
-                { field: "certificates", label: "Educational Certificates", description: "Degree, diploma certificates (multiple allowed)" },
-                { field: "bank_proof", label: "Bank Proof", description: "Cancelled cheque or passbook front page" },
+                {
+                  field: "photo",
+                  label: "Photo",
+                  description: "Employee profile photo (JPG/PNG)",
+                },
+                {
+                  field: "id_proof",
+                  label: "ID Proof",
+                  description: "Aadhaar, PAN, Passport, etc.",
+                },
+                {
+                  field: "address_proof",
+                  label: "Address Proof",
+                  description: "Utility bill, rental agreement, etc.",
+                },
+                {
+                  field: "offer_letter",
+                  label: "Offer Letter",
+                  description: "Original joining offer letter",
+                },
+                {
+                  field: "certificates",
+                  label: "Educational Certificates",
+                  description:
+                    "Degree, diploma certificates (multiple allowed)",
+                },
+                {
+                  field: "bank_proof",
+                  label: "Bank Proof",
+                  description: "Cancelled cheque or passbook front page",
+                },
               ].map((doc) => (
                 <div key={doc.field} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <Label className="text-base font-semibold">{doc.label}</Label>
-                      <p className="text-sm text-muted-foreground mt-1">{doc.description}</p>
+                      <Label className="text-base font-semibold">
+                        {doc.label}
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {doc.description}
+                      </p>
                     </div>
                     {uploadedFiles[doc.field] && (
                       <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
@@ -2983,7 +3553,11 @@ export default function EmployeeList() {
           </Tabs>
 
           <div className="flex gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 border-t pt-3 sm:pt-4 flex-col-reverse sm:flex-row">
-            <Button variant="outline" onClick={handleCloseDialog} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={handleCloseDialog}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
 
@@ -2998,7 +3572,8 @@ export default function EmployeeList() {
                 }}
                 disabled={
                   activeTab === "personal" &&
-                  (emailDuplicateCheck.checking || Boolean(emailDuplicateCheck.error))
+                  (emailDuplicateCheck.checking ||
+                    Boolean(emailDuplicateCheck.error))
                 }
                 className="w-full sm:w-auto"
               >
@@ -3019,8 +3594,10 @@ export default function EmployeeList() {
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     {editingId ? "Updating..." : "Adding..."}
                   </>
+                ) : editingId ? (
+                  "Update Employee"
                 ) : (
-                  editingId ? "Update Employee" : "Add Employee"
+                  "Add Employee"
                 )}
               </Button>
             )}
@@ -3029,7 +3606,10 @@ export default function EmployeeList() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Employee</AlertDialogTitle>
@@ -3054,7 +3634,12 @@ export default function EmployeeList() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Add New {addOnType === "department" ? "Department" : addOnType === "designation" ? "Designation" : "Role"}
+              Add New{" "}
+              {addOnType === "department"
+                ? "Department"
+                : addOnType === "designation"
+                  ? "Designation"
+                  : "Role"}
             </DialogTitle>
             <DialogDescription>
               Create a new {addOnType} for the organization.
@@ -3064,12 +3649,19 @@ export default function EmployeeList() {
           <div className="space-y-4 py-4">
             <div>
               <Label htmlFor="addOnName">
-                {addOnType === "department" ? "Department" : addOnType === "designation" ? "Designation" : "Role"} Name *
+                {addOnType === "department"
+                  ? "Department"
+                  : addOnType === "designation"
+                    ? "Designation"
+                    : "Role"}{" "}
+                Name *
               </Label>
               <Input
                 id="addOnName"
                 value={addOnFormData.name}
-                onChange={(e) => setAddOnFormData({ ...addOnFormData, name: e.target.value })}
+                onChange={(e) =>
+                  setAddOnFormData({ ...addOnFormData, name: e.target.value })
+                }
                 placeholder={`Enter ${addOnType} name`}
                 className="mt-2"
               />
@@ -3082,7 +3674,12 @@ export default function EmployeeList() {
                   <Input
                     id="costCenter"
                     value={addOnFormData.costCenter || ""}
-                    onChange={(e) => setAddOnFormData({ ...addOnFormData, costCenter: e.target.value })}
+                    onChange={(e) =>
+                      setAddOnFormData({
+                        ...addOnFormData,
+                        costCenter: e.target.value,
+                      })
+                    }
                     placeholder="Enter cost center (optional)"
                     className="mt-2"
                   />
@@ -3092,7 +3689,9 @@ export default function EmployeeList() {
                   <Label htmlFor="headId">Department Head</Label>
                   <Select
                     value={addOnFormData.headId || ""}
-                    onValueChange={(val) => setAddOnFormData({ ...addOnFormData, headId: val })}
+                    onValueChange={(val) =>
+                      setAddOnFormData({ ...addOnFormData, headId: val })
+                    }
                   >
                     <SelectTrigger id="headId" className="mt-2">
                       <SelectValue placeholder="Select department head (optional)" />

@@ -289,6 +289,13 @@ const dashboardStyles = `
 `;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Users,
   Clock,
   Calendar,
@@ -308,8 +315,13 @@ const StatCard: React.FC<{
   trend?: string;
   description?: string;
   colorClass?: string;
-}> = ({ title, value, icon, trend, description, colorClass = "gradient-bg-blue" }) => (
-  <div className="modern-card hover-scale p-6">
+  onClick?: () => void;
+}> = ({ title, value, icon, trend, description, colorClass = "gradient-bg-blue", onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`modern-card hover-scale w-full p-6 text-left ${onClick ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#17c491] focus:ring-offset-2" : "cursor-default"}`}
+  >
     <div className="flex items-start justify-between">
       <div className="flex-1">
         <div className="flex items-center gap-3 mb-2">
@@ -332,8 +344,42 @@ const StatCard: React.FC<{
         )}
       </div>
     </div>
-  </div>
+  </button>
 );
+
+type MetricEmployee = {
+  id?: number;
+  employeeId?: string;
+  name: string;
+  email?: string;
+  department?: string;
+  status?: string;
+  checkIn?: string | null;
+  leaveType?: string;
+  fromDate?: string | null;
+  toDate?: string | null;
+};
+
+const formatMetricTime = (value?: string | null) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatMetricDate = (value?: string | null) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
 type DashboardModuleCard = {
   label: string;
@@ -480,6 +526,12 @@ const DashboardAccessPlaceholder = ({
 
 const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [metricDialog, setMetricDialog] = useState<{
+    title: string;
+    description: string;
+    type: "present" | "leave";
+    employees: MetricEmployee[];
+  } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -621,6 +673,8 @@ const AdminDashboard = () => {
   const trialBannerText = isTrialExpired
     ? "Trial ended. Subscribe now."
     : `Trial ends in ${subscription?.trial_days_remaining || 0} days. Subscribe now.`;
+  const presentTodayEmployees = dashboardData?.presentTodayEmployees || [];
+  const onLeaveEmployees = dashboardData?.onLeaveEmployees || [];
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-8">
@@ -685,6 +739,14 @@ const AdminDashboard = () => {
             trend={kpis.presentTrend || ''}
             description="Current attendance"
             colorClass="gradient-bg-green"
+            onClick={() =>
+              setMetricDialog({
+                title: "Present Today",
+                description: "Employees who have checked in today",
+                type: "present",
+                employees: presentTodayEmployees,
+              })
+            }
           />
           <StatCard
             title="On Leave"
@@ -693,6 +755,14 @@ const AdminDashboard = () => {
             trend={kpis.onLeaveTrend || ''}
             description="Approved leaves"
             colorClass="gradient-bg-orange"
+            onClick={() =>
+              setMetricDialog({
+                title: "On Leave Today",
+                description: "Employees with approved leave today",
+                type: "leave",
+                employees: onLeaveEmployees,
+              })
+            }
           />
           <StatCard
             title="Pending Approvals"
@@ -1140,6 +1210,60 @@ const AdminDashboard = () => {
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!metricDialog} onOpenChange={(open) => !open && setMetricDialog(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{metricDialog?.title}</DialogTitle>
+            <DialogDescription>{metricDialog?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {metricDialog?.employees?.length ? (
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                {metricDialog.employees.map((employee, index) => (
+                  <div
+                    key={`${employee.id || employee.employeeId || employee.name}-${index}`}
+                    className="grid gap-3 p-4 sm:grid-cols-[1fr_auto]"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">{employee.name}</p>
+                      <p className="text-sm text-slate-500">
+                        {employee.employeeId || "No ID"} · {employee.department || "Unassigned"}
+                      </p>
+                      {employee.email && (
+                        <p className="text-sm text-slate-500">{employee.email}</p>
+                      )}
+                    </div>
+                    <div className="text-left text-sm text-slate-600 sm:text-right">
+                      {metricDialog.type === "present" ? (
+                        <>
+                          <p className="font-medium capitalize text-emerald-700">
+                            {employee.status || "present"}
+                          </p>
+                          <p>Check-in: {formatMetricTime(employee.checkIn)}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-amber-700">
+                            {employee.leaveType || "Leave"}
+                          </p>
+                          <p>
+                            {formatMetricDate(employee.fromDate)} - {formatMetricDate(employee.toDate)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                No employees found for this metric today.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

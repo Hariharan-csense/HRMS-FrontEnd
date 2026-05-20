@@ -22,6 +22,15 @@ interface CompanySubscription {
   days_remaining: number;
   is_trial_active: boolean;
   trial_days_remaining: number;
+  addons?: Array<{
+    id: number;
+    addon_id: number;
+    name: string;
+    description?: string;
+    module_key?: string;
+    users_count: number;
+    assigned_employee_ids?: number[];
+  }>;
 }
 
 interface SubscriptionContextType {

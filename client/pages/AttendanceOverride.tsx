@@ -62,9 +62,9 @@ interface OverrideRecord {
   employeeId: string;
   employee_id?: string;
   employeeName: string;
-  originalStatus: "present" | "absent" | "half";
+  originalStatus: string;
   original_status?: string;
-  overriddenStatus: "present" | "absent" | "half";
+  overriddenStatus: string;
   overridden_status?: string;
   reason: string;
   requested_check_in?: string | null;
@@ -117,6 +117,12 @@ const ATTENDANCE_STATUS_OPTIONS: AttendanceStatusOption[] = [
       "border-emerald-200 text-emerald-700 hover:bg-emerald-50 data-[active=true]:border-emerald-300 data-[active=true]:bg-emerald-100 data-[active=true]:text-emerald-900",
   },
   {
+    value: "late",
+    label: "Late",
+    className:
+      "border-orange-200 text-orange-700 hover:bg-orange-50 data-[active=true]:border-orange-300 data-[active=true]:bg-orange-100 data-[active=true]:text-orange-900",
+  },
+  {
     value: "week_off",
     label: "Week Off",
     className:
@@ -132,6 +138,9 @@ const ATTENDANCE_STATUS_OPTIONS: AttendanceStatusOption[] = [
 
 const getAttendanceStatusLabel = (status: string) =>
   ATTENDANCE_STATUS_OPTIONS.find((option) => option.value === status)?.label || status;
+
+const getStatusDisplayText = (status?: string | null) =>
+  getAttendanceStatusLabel(String(status || "-")).toUpperCase();
 
 export default function AttendanceOverride() {
   const { canPerformModuleAction, hasAnyRole } = useRole();
@@ -214,11 +223,13 @@ const fetchOverrides = async () => {
   try {
     const result = await attendanceApi.getOverrides();
 
-    if (result.data) {
+    const responseData: any = result.data;
+
+    if (responseData) {
       // Backend response-ல data array இருக்கு → அதை extract பண்ணுங்க
-      const overrideList = Array.isArray(result.data) 
-        ? result.data 
-        : result.data.data || result.data.overrides || [];
+      const overrideList = Array.isArray(responseData) 
+        ? responseData 
+        : responseData.data || responseData.overrides || [];
 
       setOverrides(overrideList);
     } else {
@@ -244,7 +255,9 @@ useEffect(() => {
   const fetchLeaveTypes = async () => {
     setLeaveTypesLoading(true);
     const result = await leaveTypeApi.getLeaveTypes();
-    if (result.data) {
+    const responseData: any = result.data;
+
+    if (responseData) {
       setLeaveTypes(result.data.filter((leaveType) => leaveType.isActive !== false));
     }
     setLeaveTypesLoading(false);
@@ -308,6 +321,14 @@ const handleStatusSelection = (value: string) => {
 
     return nextForm;
   });
+};
+
+const handleOriginalStatusSelection = (value: string) => {
+  setOverrideForm((prev) => ({
+    ...prev,
+    originalStatus: value,
+    overriddenStatus: prev.overriddenStatus === value ? "present" : prev.overriddenStatus,
+  }));
 };
 
 const handleLeaveModeSelection = (leaveMode: LeaveMode) => {
@@ -691,8 +712,21 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
 
                     <div className="space-y-2">
                       <Label>Current Status</Label>
-                      <div className="flex h-12 items-center rounded-md border border-input bg-slate-50 px-3 text-sm text-foreground">
-                        {getAttendanceStatusLabel(overrideForm.originalStatus)}
+                      <div className="flex flex-wrap gap-2">
+                        {ATTENDANCE_STATUS_OPTIONS.map((statusOption) => (
+                          <button
+                            key={statusOption.value}
+                            type="button"
+                            data-active={overrideForm.originalStatus === statusOption.value}
+                            onClick={() => handleOriginalStatusSelection(statusOption.value)}
+                            className={cn(
+                              "rounded-full border px-3 py-2 text-sm font-semibold transition-colors",
+                              statusOption.className
+                            )}
+                          >
+                            {statusOption.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
@@ -968,7 +1002,17 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
               </div>
 
               <div className="hidden md:block overflow-x-auto">
-                <Table>
+                <Table className="table-fixed">
+                  <colgroup>
+                    <col className="w-[86px]" />
+                    <col className="w-[110px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[220px]" />
+                    <col />
+                    <col className="w-[130px]" />
+                    <col className="w-[190px]" />
+                    <col className="w-[220px]" />
+                  </colgroup>
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
@@ -992,7 +1036,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
     filteredOverrides.map((override) => (
       <TableRow key={override.id}>
         {/* ID */}
-        <TableCell className="font-mono text-sm">
+        <TableCell className="font-mono text-sm whitespace-nowrap">
           OVR{String(override.id).padStart(3, "0")}
         </TableCell>
 
@@ -1000,14 +1044,14 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
         <TableCell>
           <div>
             {/* <p className="font-medium">Unknown Employee</p> employee_name இல்லை → backend-ல join பண்ணி அனுப்புங்க அல்லது fallback */}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground whitespace-nowrap">
               {String(override.employee_id).padStart(3, "0")}
             </p>
           </div>
         </TableCell>
 
         {/* Date */}
-        <TableCell>
+        <TableCell className="whitespace-nowrap">
           {override.override_date 
             ? formatDateOnly(override.override_date)
             : "-"}
@@ -1015,25 +1059,28 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
 
         {/* Status Change */}
         <TableCell>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {override.original_status.toUpperCase()}
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <Badge variant="secondary" className="inline-flex min-w-[78px] justify-center whitespace-nowrap rounded-full px-3 py-1">
+              {getStatusDisplayText(override.original_status)}
             </Badge>
             <span className="text-muted-foreground">→</span>
-            <Badge variant="default">
-              {override.overridden_status.toUpperCase()}
+            <Badge variant="default" className="inline-flex min-w-[78px] justify-center whitespace-nowrap rounded-full px-3 py-1">
+              {getStatusDisplayText(override.overridden_status)}
             </Badge>
           </div>
         </TableCell>
 
         {/* Reason */}
-        <TableCell className="max-w-xs">
-          <p className="truncate">{override.reason || "-"}</p>
+        <TableCell>
+          <p className="line-clamp-2 break-words leading-5" title={override.reason || ""}>
+            {override.reason || "-"}
+          </p>
         </TableCell>
 
         {/* Status */}
         <TableCell>
-          <Badge 
+          <Badge
+            className="inline-flex min-w-[92px] justify-center whitespace-nowrap rounded-full px-3 py-1"
             variant={
               override.status === "approved" ? "default" :
               override.status === "rejected" ? "destructive" :

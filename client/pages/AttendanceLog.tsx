@@ -61,7 +61,7 @@ export interface AttendanceLogRecord {
   location: AttendanceGeoLocation;
   checkInLocation?: AttendanceGeoLocation;
   checkOutLocation?: AttendanceGeoLocation;
-  status: "present" | "absent" | "half" | "miss" | "unmarked" | "late" | "leave";
+  status: "present" | "absent" | "half" | "miss" | "unmarked" | "late" | "leave" | "week_off" | "holiday";
   hoursWorked: number;
   overtimeHours: number;
   autoFlag: boolean;
@@ -463,6 +463,12 @@ const OVERRIDE_STATUS_OPTIONS = [
       "border-emerald-200 text-emerald-700 hover:bg-emerald-50 data-[active=true]:border-emerald-300 data-[active=true]:bg-emerald-100 data-[active=true]:text-emerald-900",
   },
   {
+    value: "late",
+    label: "Late",
+    className:
+      "border-orange-200 text-orange-700 hover:bg-orange-50 data-[active=true]:border-orange-300 data-[active=true]:bg-orange-100 data-[active=true]:text-orange-900",
+  },
+  {
     value: "week_off",
     label: "Week Off",
     className:
@@ -508,7 +514,7 @@ export default function AttendanceLog() {
     attendanceId?: string;
     employeeId: string;
     date: string;
-    originalStatus: "present" | "absent" | "half";
+    originalStatus: string;
     overriddenStatus: string;
     requestedCheckIn: string;
     requestedCheckOut: string;
@@ -567,11 +573,7 @@ export default function AttendanceLog() {
       record.id.startsWith("absent-fallback-");
 
     const normalizedOriginalStatus =
-      record.status === "present" || record.status === "half"
-        ? record.status
-        : record.status === "late"
-          ? "present"
-          : "absent";
+      record.status === "miss" ? "absent" : record.status;
 
     setOverrideDraft({
       attendanceId: isPlaceholder ? undefined : record.id,
@@ -1013,7 +1015,7 @@ export default function AttendanceLog() {
           let actualStatus: AttendanceLogRecord["status"] =
             normalizedBackendStatus === "half_day" || normalizedBackendStatus === "half-day"
               ? "half"
-              : ["present", "absent", "half", "miss", "unmarked", "late", "leave"].includes(normalizedBackendStatus)
+              : ["present", "absent", "half", "miss", "unmarked", "late", "leave", "week_off", "holiday"].includes(normalizedBackendStatus)
                 ? (normalizedBackendStatus as AttendanceLogRecord["status"])
                 : "miss";
           let calculatedLateBy = "";
@@ -1091,6 +1093,23 @@ export default function AttendanceLog() {
         leavePermissionApi.getLeavePermissionApplications(),
       ]);
 
+      const suppressedLeaveDates = new Set<string>();
+      if (overridesResult.status === "fulfilled" && Array.isArray(overridesResult.value.data)) {
+        overridesResult.value.data.forEach((override: any) => {
+          if (String(override.status || "").toLowerCase() !== "approved") return;
+
+          const overrideDate = normalizeDateOnly(override.override_date);
+          if (!overrideDate || overrideDate < startDate || overrideDate > endDate) return;
+
+          const reason = String(override.reason || "");
+          const isLeaveOverride = /^\[(Paid Leave|Half Day Leave)\s+-\s+([^\]]+)\]/i.test(reason);
+          const overriddenStatus = String(override.overridden_status || "").toLowerCase();
+          if (isLeaveOverride || overriddenStatus === "leave") return;
+
+          suppressedLeaveDates.add(`${String(override.employee_id || "")}|${overrideDate}`);
+        });
+      }
+
       if (leaveApplicationsResult.status === "fulfilled" && Array.isArray(leaveApplicationsResult.value.data)) {
         leaveApplicationsResult.value.data.forEach((application: any) => {
           if (application.status !== "approved") return;
@@ -1101,18 +1120,34 @@ export default function AttendanceLog() {
           if (toDate < startDate || fromDate > endDate) return;
 
           const leaveTypeName = application.leave_type_name || application.leave_type || application.leaveType || "Unknown Leave Type";
+          const employeeId = String(application.employee_id || application.employeeId || "");
+          const clippedFromDate = fromDate < startDate ? startDate : fromDate;
+          const clippedToDate = toDate > endDate ? endDate : toDate;
+          const leaveDates: string[] = [];
+          const cursor = new Date(`${clippedFromDate}T00:00:00`);
+          const end = new Date(`${clippedToDate}T00:00:00`);
 
-          leaveEntries.push({
-            id: `leave-app-${application.id}`,
-            employeeId: String(application.employee_id || application.employeeId || ""),
-            employeeName: application.employee_name || application.employeeName,
-            fromDate,
-            toDate,
-            leaveTypeName: leaveTypeName,
-            reason: application.reason,
-            status: application.status,
-            leaveMode: Number(application.days || 0) <= 0.5 ? "half" : "paid",
-            source: "application",
+          while (cursor <= end) {
+            const dateStr = formatDateString(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+            if (!suppressedLeaveDates.has(`${employeeId}|${dateStr}`)) {
+              leaveDates.push(dateStr);
+            }
+            cursor.setDate(cursor.getDate() + 1);
+          }
+
+          leaveDates.forEach((dateStr) => {
+            leaveEntries.push({
+              id: `leave-app-${application.id}-${dateStr}`,
+              employeeId,
+              employeeName: application.employee_name || application.employeeName,
+              fromDate: dateStr,
+              toDate: dateStr,
+              leaveTypeName: leaveTypeName,
+              reason: application.reason,
+              status: application.status,
+              leaveMode: Number(application.days || 0) <= 0.5 ? "half" : "paid",
+              source: "application",
+            });
           });
         });
       } else if (leaveApplicationsResult.status === "rejected") {
@@ -1401,6 +1436,21 @@ export default function AttendanceLog() {
 
           if (existingIndex >= 0) {
             const existing = mergedData[existingIndex];
+            const existingId = String(existing.id || "");
+            const existingIsSynthetic =
+              existingId.startsWith("absent-") ||
+              existingId.startsWith("unmarked-") ||
+              existing.device === "Leave Application" ||
+              existing.device === "Leave Permission";
+            const existingIsRealNonLeaveAttendance =
+              !existingIsSynthetic &&
+              !existing.isLeaveRecord &&
+              !["leave"].includes(String(existing.status || "").toLowerCase());
+
+            if (entry.source === "application" && existingIsRealNonLeaveAttendance) {
+              continue;
+            }
+
             mergedData[existingIndex] = {
               ...existing,
               status: leaveStatus,
@@ -1823,62 +1873,7 @@ export default function AttendanceLog() {
           <EmployeeListView />
         ) : (
           <>
-            {/* Filters - Only show for users with edit access */}
-            {canEditAttendanceLog && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg sm:text-xl">Filters</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    className={`grid gap-2 sm:gap-4 grid-cols-1 ${canPerformModuleAction("attendance", "approve") ? "sm:grid-cols-2" : "sm:grid-cols-2 md:grid-cols-3"
-                      }`}
-                  >
-                    {canPerformModuleAction("attendance", "approve") && (
-                      <div className="space-y-1.5 sm:space-y-2">
-                        <Label className="text-xs sm:text-sm">Search</Label>
-                        <div className="relative">
-                          <Search className="absolute left-2 top-2.5 w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Name or ID"
-                            className="pl-8 text-xs sm:text-sm h-8 sm:h-10"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <Label className="text-xs sm:text-sm">Status</Label>
-                      <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="h-8 sm:h-10 text-xs sm:text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="present">Present</SelectItem>
-                          <SelectItem value="absent">Absent</SelectItem>
-                          <SelectItem value="half">Half Day</SelectItem>
-                          <SelectItem value="leave">Leave</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex items-end gap-1 sm:gap-2">
-                      <Button
-                        onClick={handleExport}
-                        variant="outline"
-                        className="w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm"
-                      >
-                        <Download className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="ml-1 sm:ml-2">Export</span>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            
 
             {/* Loading State */}
             {loading && (
@@ -1891,7 +1886,6 @@ export default function AttendanceLog() {
                 </CardContent>
               </Card>
             )}
-
             {/* Error State */}
             {error && !loading && (
               <Card>
@@ -2022,6 +2016,7 @@ export default function AttendanceLog() {
                       const hasHalf = statuses.includes("half");
                       const hasLeave = statuses.includes("leave") || records.some((r) => r.isLeaveRecord);
                       const hasPermission = records.some((r) => r.isPermissionRecord);
+                      const hasWeekOff = statuses.includes("week_off") || statuses.includes("holiday");
                       const hasLate = statuses.includes("late");
                       const hasUnmarked = statuses.includes("unmarked") || isTodayUnmarked;
                       const hasFlag = records.some((r) => r.autoFlag);
@@ -2052,6 +2047,7 @@ export default function AttendanceLog() {
                       if (hasRecords || isTodayUnmarked) {
                         if (hasPermission) bgColor = "bg-sky-50 border-sky-300";
                         else if (hasLeave) bgColor = "bg-violet-50 border-violet-300";
+                        else if (hasWeekOff) bgColor = "bg-gray-100 border-gray-300";
                         else if (hasPresent) bgColor = "bg-green-50 border-green-300";
                         else if (hasHalf) bgColor = "bg-yellow-50 border-yellow-300";
                         else if (hasAbsent) bgColor = "bg-red-50 border-red-300";
@@ -2165,6 +2161,9 @@ export default function AttendanceLog() {
                                   {hasPermission && (
                                     <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-sky-600 flex-shrink-0"></div>
                                   )}
+                                  {hasWeekOff && (
+                                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-500 flex-shrink-0"></div>
+                                  )}
                                   {hasPresent && (
                                     <CheckCircle2 className="w-2 h-2 sm:w-3 sm:h-3 text-green-600 flex-shrink-0" />
                                   )}
@@ -2197,6 +2196,11 @@ export default function AttendanceLog() {
                                 {hasPermission && (
                                   <span className="hidden sm:inline text-xs font-semibold text-sky-700">
                                     PERMISSION
+                                  </span>
+                                )}
+                                {hasWeekOff && (
+                                  <span className="hidden sm:inline text-xs font-semibold text-gray-600">
+                                    {statuses.includes("holiday") ? "HOLIDAY" : "WEEK OFF"}
                                   </span>
                                 )}
                               </div>

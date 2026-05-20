@@ -4,8 +4,7 @@ import axios from "axios";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.9:3000/backend";
-// // 
+// export const BASE_URL = "http://192.168.1.8:3000/backend";
   export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -986,7 +985,10 @@ const ENDPOINTS = {
       console.error("Error fetching organization:", error);
 
       return {
-        error: error.response?.data?.message || "Organization not found",
+        error:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Organization not found",
       };
     }
   },
@@ -1048,7 +1050,10 @@ const ENDPOINTS = {
       console.error("Error deleting organization:", error);
 
       return {
-        error: error.response?.data?.message || "Failed to delete organization",
+        error:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Failed to delete organization",
       };
     }
   },
@@ -1246,6 +1251,37 @@ const ENDPOINTS = {
 
   patchSubscriptionPlan: (planId: number, data: any) =>
     api.patch(`/subscription/plans/${planId}`, data),
+
+  getSubscriptionAddons: () => api.get("/subscription/addons"),
+
+  getAvailableSubscriptionAddons: () =>
+    api.get("/subscription/addons/available"),
+
+  createSubscriptionAddon: (data: any) => api.post("/subscription/addons", data),
+
+  updateSubscriptionAddon: (addonId: number, data: any) =>
+    api.put(`/subscription/addons/${addonId}`, data),
+
+  deleteSubscriptionAddon: (addonId: number) =>
+    api.delete(`/subscription/addons/${addonId}`),
+
+  assignSubscriptionAddon: (data: any) =>
+    api.post("/subscription/addons/assign", data),
+
+  createSubscriptionAddonOrder: (data: any) =>
+    api.post("/subscription/addons/create-order", data),
+
+  verifySubscriptionAddonPayment: (data: any) =>
+    api.post("/subscription/addons/verify-payment", data),
+
+  getSubscriptionAddonAssignments: () =>
+    api.get("/subscription/addons/assignments"),
+
+  updateSubscriptionAddonUsers: (subscriptionAddonId: number, data: any) =>
+    api.put(`/subscription/addons/assignments/${subscriptionAddonId}/users`, data),
+
+  removeSubscriptionAddonAssignment: (assignmentId: number) =>
+    api.delete(`/subscription/addons/assignments/${assignmentId}`),
 
   getAllSubscriptions: () => api.get("/subscription/all"),
 
