@@ -68,6 +68,9 @@ interface SubscriptionAddon {
   name: string;
   description?: string;
   module_key?: string;
+  price_upto5?: number;
+  price_upto10?: number;
+  price_upto15?: number;
   price_upto25: number;
   price_upto50: number;
   price_above50: number;
@@ -176,12 +179,15 @@ const getAddonPricingSummary = (
   usersCount: number,
   billingCycle: 'monthly' | 'yearly'
 ) => {
+  const priceUpto5 = Number(addon.price_upto5 ?? addon.price_upto25 ?? 0);
+  const priceUpto10 = Number(addon.price_upto10 ?? addon.price_upto50 ?? priceUpto5);
+  const priceUpto15 = Number(addon.price_upto15 ?? addon.price_above50 ?? priceUpto10);
   const pricePerUser =
-    usersCount <= 25
-      ? Number(addon.price_upto25 || 0)
-      : usersCount <= 50
-        ? Number(addon.price_upto50 || addon.price_upto25 || 0)
-        : Number(addon.price_above50 || addon.price_upto50 || addon.price_upto25 || 0);
+    usersCount <= 5
+      ? priceUpto5
+      : usersCount <= 10
+        ? priceUpto10
+        : priceUpto15;
   const totalPrice = pricePerUser * usersCount * (billingCycle === 'yearly' ? 12 : 1);
 
   return {

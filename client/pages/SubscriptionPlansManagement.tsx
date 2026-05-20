@@ -30,9 +30,9 @@ interface SubscriptionAddon {
   name: string;
   description?: string;
   module_key: string;
-  price_upto25: number;
-  price_upto50: number;
-  price_above50: number;
+  price_upto5: number;
+  price_upto10: number;
+  price_upto15: number;
   is_active: boolean;
 }
 
@@ -82,9 +82,9 @@ const SubscriptionPlansManagement: React.FC = () => {
     name: '',
     description: '',
     module_key: 'live_tracking',
-    price_upto25: '100',
-    price_upto50: '100',
-    price_above50: '100',
+    price_upto5: '100',
+    price_upto10: '100',
+    price_upto15: '100',
     is_active: true
   });
 
@@ -158,9 +158,9 @@ const SubscriptionPlansManagement: React.FC = () => {
       const response = await ENDPOINTS.getSubscriptionAddons();
       setAddons((response.data?.data || []).map((addon: any) => ({
         ...addon,
-        price_upto25: Number(addon.price_upto25 || 0),
-        price_upto50: Number(addon.price_upto50 || 0),
-        price_above50: Number(addon.price_above50 || 0),
+        price_upto5: Number(addon.price_upto5 ?? addon.price_upto25 ?? 0),
+        price_upto10: Number(addon.price_upto10 ?? addon.price_upto50 ?? 0),
+        price_upto15: Number(addon.price_upto15 ?? addon.price_above15 ?? addon.price_above50 ?? 0),
       })));
     } catch (fetchError: any) {
       console.error('Error fetching add-ons:', fetchError);
@@ -226,9 +226,9 @@ const SubscriptionPlansManagement: React.FC = () => {
       name: '',
       description: '',
       module_key: 'live_tracking',
-      price_upto25: '100',
-      price_upto50: '100',
-      price_above50: '100',
+      price_upto5: '100',
+      price_upto10  : '100',
+      price_upto15: '100',
       is_active: true
     });
     setEditingAddon(null);
@@ -242,9 +242,9 @@ const SubscriptionPlansManagement: React.FC = () => {
       name: addon.name || '',
       description: addon.description || '',
       module_key: addon.module_key || 'live_tracking',
-      price_upto25: String(addon.price_upto25 || 0),
-      price_upto50: String(addon.price_upto50 || 0),
-      price_above50: String(addon.price_above50 || 0),
+      price_upto5: String(addon.price_upto5 || 0),
+      price_upto10: String(addon.price_upto10 || 0),
+      price_upto15: String(addon.price_upto15 || 0),
       is_active: addon.is_active
     });
   };
@@ -257,9 +257,9 @@ const SubscriptionPlansManagement: React.FC = () => {
         name: addonForm.name,
         description: addonForm.description,
         module_key: addonForm.module_key,
-        price_upto25: Number(addonForm.price_upto25),
-        price_upto50: Number(addonForm.price_upto50),
-        price_above50: Number(addonForm.price_above50),
+        price_upto5: Number(addonForm.price_upto5),
+        price_upto10: Number(addonForm.price_upto10),
+        price_upto15: Number(addonForm.price_upto15),
         is_active: addonForm.is_active
       };
 
@@ -657,32 +657,32 @@ const SubscriptionPlansManagement: React.FC = () => {
                           </select>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price/User up to 25</Label>
+                          <Label className="text-gray-700 font-medium">Price/User up to 5</Label>
                           <Input
                             type="number"
                             min="0"
-                            value={addonForm.price_upto25}
-                            onChange={(e) => setAddonForm({ ...addonForm, price_upto25: e.target.value })}
+                            value={addonForm.price_upto5}
+                            onChange={(e) => setAddonForm({ ...addonForm, price_upto5: e.target.value })}
                             required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price/User up to 50</Label>
+                          <Label className="text-gray-700 font-medium">Price/User up to 10</Label>
                           <Input
                             type="number"
                             min="0"
-                            value={addonForm.price_upto50}
-                            onChange={(e) => setAddonForm({ ...addonForm, price_upto50: e.target.value })}
+                            value={addonForm.price_upto10}
+                            onChange={(e) => setAddonForm({ ...addonForm, price_upto10: e.target.value })}
                             required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price/User above 50</Label>
+                          <Label className="text-gray-700 font-medium">Price/User above 15</Label>
                           <Input
                             type="number"
                             min="0"
-                            value={addonForm.price_above50}
-                            onChange={(e) => setAddonForm({ ...addonForm, price_above50: e.target.value })}
+                            value={addonForm.price_upto15}
+                            onChange={(e) => setAddonForm({ ...addonForm, price_upto15: e.target.value })}
                             required
                           />
                         </div>
@@ -807,16 +807,16 @@ const SubscriptionPlansManagement: React.FC = () => {
                       )}
                       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                         <div className="rounded-lg bg-gray-50 p-3">
-                          <p className="text-[10px] uppercase text-gray-500">&lt;=25</p>
-                          <p className="font-semibold">{formatPrice(addon.price_upto25)}</p>
+                          <p className="text-[10px] uppercase text-gray-500">&lt;5</p>
+                          <p className="font-semibold">{formatPrice(addon.price_upto5)}</p>
                         </div>
                         <div className="rounded-lg bg-gray-50 p-3">
-                          <p className="text-[10px] uppercase text-gray-500">&lt;=50</p>
-                          <p className="font-semibold">{formatPrice(addon.price_upto50)}</p>
+                          <p className="text-[10px] uppercase text-gray-500">&lt;10</p>
+                          <p className="font-semibold">{formatPrice(addon.price_upto10)}</p>
                         </div>
                         <div className="rounded-lg bg-gray-50 p-3">
-                          <p className="text-[10px] uppercase text-gray-500">&gt;50</p>
-                          <p className="font-semibold">{formatPrice(addon.price_above50)}</p>
+                          <p className="text-[10px] uppercase text-gray-500">&gt;15</p>
+                          <p className="font-semibold">{formatPrice(addon.price_upto15)}</p>
                         </div>
                       </div>
                       <div className="mt-5 flex gap-2">

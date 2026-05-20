@@ -744,7 +744,7 @@ export default function LeavePermission() {
                 </div>
                 <div className="flex-1">
                   <DialogTitle className="text-2xl font-bold tracking-tight text-white">
-                    Review Permission Request
+                    Review Request
                   </DialogTitle>
                   <DialogDescription className="text-emerald-100 text-base mt-1 font-medium">
                     Approve or reject this leave permission request
@@ -815,7 +815,7 @@ export default function LeavePermission() {
                       : 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white'
                   }`}
                 >
-                  {loading ? "Updating..." : `${statusFormData.status.charAt(0).toUpperCase() + statusFormData.status.slice(1)} Request`}
+                  {loading ? "Updating..." : `${statusFormData.status.charAt(0).toUpperCase() + statusFormData.status.slice(1)} `}
                 </Button>
               </div>
             </div>
