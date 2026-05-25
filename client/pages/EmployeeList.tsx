@@ -508,6 +508,12 @@ const normalizeImportedStatus = (value: unknown): EmployeeStatus => {
   return "active";
 };
 
+const getDocumentByField = (documents: any[] | undefined, field: string) =>
+  (documents || []).find(
+    (document: any) =>
+      document?.fieldname === field || document?.type === field,
+  );
+
 export default function EmployeeList() {
   const { canPerformModuleAction } = useRole();
   //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
@@ -897,6 +903,22 @@ export default function EmployeeList() {
         designation: employee.designation,
         status: employee.status,
       });
+
+      setUploadedFiles(
+        {
+          photo: employee.photoUrl ? "Existing photo" : "",
+          id_proof: employee.idProofUrl ? "Existing ID proof" : "",
+          address_proof: employee.addressProofUrl
+            ? "Existing address proof"
+            : "",
+          offer_letter: employee.offerLetterUrl ? "Existing offer letter" : "",
+          certificates: employee.certificatesUrl
+            ? "Existing certificates"
+            : "",
+          bank_proof: employee.bankProofUrl ? "Existing bank proof" : "",
+        },
+      );
+      setUploadedFileObjects({});
     } else {
       // create mode – reset to personal tab
       setEditingId(null);
@@ -915,6 +937,7 @@ export default function EmployeeList() {
     setNewEmployeeId("");
     setFormData(initialFormData);
     setUploadedFiles({});
+    setUploadedFileObjects({});
   };
 
   const handleFormChange = (field: keyof FormData, value: any) => {
@@ -1267,6 +1290,12 @@ export default function EmployeeList() {
 
     if (!formData.dateOfJoining) {
       showToast.error("Date of Joining is required!");
+      return;
+    }
+
+    if (!uploadedFiles.photo && !uploadedFileObjects.photo) {
+      showToast.error("Employee photo is required for facial recognition");
+      setActiveTab("documents");
       return;
     }
 
@@ -2054,18 +2083,15 @@ export default function EmployeeList() {
             accountNumber: emp.bankDetails?.account_number || "",
             ifscCode: emp.bankDetails?.ifsc_code || "",
             // Documents
-            photoUrl:
-              emp.documents?.find((d: any) => d.fieldname === "photo")
-                ?.file_path || "",
+            photoUrl: getDocumentByField(emp.documents, "photo")?.file_path || "",
             idProofUrl:
-              emp.documents?.find((d: any) => d.fieldname === "id_proof")
-                ?.file_path || "",
+              getDocumentByField(emp.documents, "id_proof")?.file_path || "",
             addressProofUrl:
-              emp.documents?.find((d: any) => d.fieldname === "address_proof")
-                ?.file_path || "",
+              getDocumentByField(emp.documents, "address_proof")?.file_path ||
+              "",
             offerLetterUrl:
-              emp.documents?.find((d: any) => d.fieldname === "offer_letter")
-                ?.file_path || "",
+              getDocumentByField(emp.documents, "offer_letter")?.file_path ||
+              "",
             certificatesUrl: "",
             bankProofUrl: "",
             createdAt: emp.created_at || new Date().toISOString(),
@@ -3473,7 +3499,7 @@ export default function EmployeeList() {
               {[
                 {
                   field: "photo",
-                  label: "Photo",
+                  label: "Photo *",
                   description: "Employee profile photo (JPG/PNG)",
                 },
                 {
@@ -3528,7 +3554,11 @@ export default function EmployeeList() {
                         type="file"
                         className="hidden"
                         onChange={(e) => handleFileUpload(doc.field, e)}
-                        accept=".jpg,.jpeg,.png,.pdf"
+                        accept={
+                          doc.field === "photo"
+                            ? ".jpg,.jpeg,.png"
+                            : ".jpg,.jpeg,.png,.pdf"
+                        }
                       />
                     </label>
 

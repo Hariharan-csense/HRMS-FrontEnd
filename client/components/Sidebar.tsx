@@ -356,6 +356,14 @@ const navigationItems: NavItem[] = [
         moduleName: "attendance",
       },
       {
+        label: "Facial Recognition",
+        path: "/attendance/facial-recognition",
+        roles: [],
+        icon: <div />,
+        moduleName: "attendance",
+        subModuleName: "facial_recognition",
+      },
+      {
         label: "Attendance Log",
         path: "/attendance/log",
         roles: [],
@@ -917,6 +925,8 @@ export const Sidebar: React.FC = () => {
         return undefined;
       case "attendance":
         if (path.includes("/attendance/capture")) return "capture";
+        if (path.includes("/attendance/facial-recognition"))
+          return "facial_recognition";
         if (path.includes("/attendance/log")) return "log";
         if (path.includes("/attendance/override")) return "override";
         if (path.includes("/attendance/setup")) return "setup";

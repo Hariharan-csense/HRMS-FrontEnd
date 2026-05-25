@@ -11,6 +11,10 @@ import ENDPOINTS, {
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import {
+  registerWebPushNotifications,
+  unregisterStoredWebPushToken,
+} from "@/services/firebaseMessaging";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -244,6 +248,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(normalizeUserAvatar(user)));
+      registerWebPushNotifications().catch((error) => {
+        console.warn("Web push registration skipped:", error);
+      });
     }
   }, [user]);
 
@@ -459,6 +466,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         error
       );
     } finally {
+      await unregisterStoredWebPushToken();
       clearAuthData();
       storeLogoutFeedback(message);
       setUser(null);

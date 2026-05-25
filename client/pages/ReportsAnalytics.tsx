@@ -422,6 +422,10 @@ export default function ReportsAnalytics() {
             }
             return "";
           };
+          const isLeaveRow =
+            normalizeString(get("leaveTaken", "leave_taken")).toLowerCase() === "yes" ||
+            normalizeString(get("status", "attendance_status")).toLowerCase().includes("leave") ||
+            Boolean(get("leaveType", "leave_type", "leave_type_name"));
 
           const row = {
             // Prefer business code over numeric id
@@ -449,15 +453,15 @@ export default function ReportsAnalytics() {
             "Permission To": fmtTime(get("permissionToTime", "permission_to_time", "permission_time_to")),
             "Permission Duration": get("permissionDuration", "permission_duration"),
             "Permission Reason": get("permissionReason", "permission_reason"),
-            "Punch in time": fmtTime(get("inTime", "checkInTime", "check_in_time", "punch_in_time", "check_in")),
-            "Punch out time": fmtTime(get("outTime", "checkOutTime", "check_out_time", "punch_out_time", "check_out")),
+            "Punch in time": isLeaveRow ? "" : fmtTime(get("inTime", "checkInTime", "check_in_time", "punch_in_time", "check_in")),
+            "Punch out time": isLeaveRow ? "" : fmtTime(get("outTime", "checkOutTime", "check_out_time", "punch_out_time", "check_out")),
             "Punch Type": get("punchType", "punch_type", "check_in_type") || "Shift",
             "Name": get("shiftName", "shift_name", "shift_type") || "Regular",
             "Paid": get("paid", "paid_status", "isPaid") ? "Yes" : "",
             "Scheduled Start Time": fmtTime(get("scheduledStartTime", "shift_start_time", "shift_start")),
             "Scheduled End Time": fmtTime(get("scheduledEndTime", "shift_end_time", "shift_end")),
-            "Punch in location": normalizeString(get("punchInLocation", "check_in_location", "location_in", "location")),
-            "Punch out location": normalizeString(get("punchOutLocation", "check_out_location", "location_out")),
+            "Punch in location": isLeaveRow ? "" : normalizeString(get("punchInLocation", "check_in_location", "location_in", "location")),
+            "Punch out location": isLeaveRow ? "" : normalizeString(get("punchOutLocation", "check_out_location", "location_out")),
           };
 
           // If locations are objects/JSON strings, stringify gracefully

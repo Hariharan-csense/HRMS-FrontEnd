@@ -39,6 +39,7 @@ import MyAssets from "./pages/MyAssets";
 import EmployeeList from "./pages/EmployeeList";
 import AttendanceLog from "./pages/AttendanceLog";
 import AttendanceCapture from "./pages/AttendanceCapture";
+import AttendanceFacialRecognition from "./pages/AttendanceFacialRecognition";
 import AttendanceOverride from "./pages/AttendanceOverride";
 import AttendanceSetup from "./pages/AttendanceSetup";
 //import LiveLocationDashboard from "./pages/LiveLocationDashboard";
@@ -354,6 +355,17 @@ function AppRoutes() {
           element={
             <RoleBasedRoute requiredModule="attendance" requiredAction="create">
               <AttendanceCapture />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/attendance/facial-recognition"
+          element={
+            <RoleBasedRoute
+              requiredModule="attendance"
+              requiredAction="create"
+            >
+              <AttendanceFacialRecognition />
             </RoleBasedRoute>
           }
         />

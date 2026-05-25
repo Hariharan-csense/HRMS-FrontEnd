@@ -12,11 +12,22 @@ export interface AttendanceRecord {
 export interface LeaveRecord {
   id: string;
   employeeId: string;
-  leaveType: "paid" | "unpaid" | "lwp" | "sick" | "casual";
+  leaveType: string;
+  isPaid?: boolean | number | string;
+  days?: number | string;
   startDate: string;
   endDate: string;
   status: "approved" | "pending" | "rejected";
 }
+
+const isPaidLeave = (leave: LeaveRecord): boolean => {
+  if (leave.isPaid !== undefined && leave.isPaid !== null) {
+    return leave.isPaid === true || leave.isPaid === 1 || String(leave.isPaid).toLowerCase() === "true" || String(leave.isPaid) === "1";
+  }
+
+  const type = String(leave.leaveType || "").toLowerCase().trim();
+  return type !== "unpaid" && type !== "lwp" && !type.includes("unpaid") && !type.includes("loss of pay");
+};
 
 /**
  * Calculate payable days for an employee in a given month
@@ -96,9 +107,9 @@ export function calculatePayableDays(
       
       // Only count if in current month and not already marked as present/absent
       if (`${leaveYear}-${leaveMonth}` === monthYear && !attendedDates.has(dateStr)) {
-        if (leave.leaveType === "paid" || leave.leaveType === "sick" || leave.leaveType === "casual") {
+        if (isPaidLeave(leave)) {
           paidLeaveDays += 1;
-        } else if (leave.leaveType === "unpaid" || leave.leaveType === "lwp") {
+        } else {
           unpaidLeaveDays += 1;
         }
       }

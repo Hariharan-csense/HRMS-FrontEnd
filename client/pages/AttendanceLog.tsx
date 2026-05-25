@@ -570,7 +570,9 @@ export default function AttendanceLog() {
     const isPlaceholder =
       record.id.startsWith("absent-") ||
       record.id.startsWith("unmarked-") ||
-      record.id.startsWith("absent-fallback-");
+      record.id.startsWith("absent-fallback-") ||
+      record.id.startsWith("weekend-") ||
+      record.id.startsWith("holiday-");
 
     const normalizedOriginalStatus =
       record.status === "miss" ? "absent" : record.status;
@@ -1520,31 +1522,35 @@ export default function AttendanceLog() {
         const isPastOrToday = dateStr <= today;
         if (!isPastOrToday) continue;
         if (existingDates.has(dateStr)) continue;
-        if (isWeekendDate(dateStr)) continue;
-        if (isHoliday(dateStr)) continue;
+        const isWeekendDay = isWeekendDate(dateStr);
+        const isHolidayDay = isHoliday(dateStr);
+        const isNonWorkingDay = isWeekendDay || isHolidayDay;
 
         placeholders.push({
-          id: `absent-${selectedEmployee.id}-${dateStr}`,
+          id: `${isHolidayDay ? "holiday" : isWeekendDay ? "weekend" : "absent"}-${selectedEmployee.id}-${dateStr}`,
           employeeId: selectedEmployee.employeeId,
           employeeName: selectedEmployee.name,
           date: dateStr,
           inTime: null,
           outTime: null,
-          status: "absent",
+          status: isNonWorkingDay ? (isHolidayDay ? "holiday" : "week_off") : "absent",
           hoursWorked: 0,
           overtimeHours: 0,
           autoFlag: false,
-          device: "No Attendance",
+          device: isNonWorkingDay ? (isHolidayDay ? "Holiday" : "Weekend") : "No Attendance",
           location: {
             latitude: 0,
             longitude: 0,
             accuracy: 0,
-            address: "No attendance marked",
+            address: isNonWorkingDay
+              ? isHolidayDay ? getHolidayName(dateStr) || "Holiday" : "Weekend"
+              : "No attendance marked",
           },
           imageUrl: "",
           imageIn: "",
           imageOut: "",
-          type: "absent",
+          type: isNonWorkingDay ? "present" : "absent",
+          originalEmployeeId: Number(selectedEmployee.id),
         });
       }
 

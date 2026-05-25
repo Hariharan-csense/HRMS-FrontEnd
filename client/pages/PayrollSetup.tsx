@@ -683,6 +683,8 @@ export default function PayrollSetup() {
   const [viewingPayslipId, setViewingPayslipId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedPayslipIds, setSelectedPayslipIds] = useState<string[]>([]);
+  const [isBulkPayslipDelete, setIsBulkPayslipDelete] = useState(false);
   // Updated to include name field for display
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
@@ -1017,6 +1019,36 @@ export default function PayrollSetup() {
 
     return finalFiltered;
   }, [payslips, searchTerm, user]);
+
+  useEffect(() => {
+    setSelectedPayslipIds((current) =>
+      current.filter((id) => filteredPayslips.some((payslip) => payslip.id === id))
+    );
+  }, [filteredPayslips]);
+
+  const allFilteredPayslipsSelected =
+    filteredPayslips.length > 0 && selectedPayslipIds.length === filteredPayslips.length;
+
+  const togglePayslipSelection = (id: string, checked: boolean) => {
+    setSelectedPayslipIds((current) => {
+      if (checked) return current.includes(id) ? current : [...current, id];
+      return current.filter((selectedId) => selectedId !== id);
+    });
+  };
+
+  const handleSelectAllPayslips = () => {
+    setSelectedPayslipIds(allFilteredPayslipsSelected ? [] : filteredPayslips.map((payslip) => payslip.id));
+  };
+
+  const handleBulkDeletePayslips = () => {
+    if (selectedPayslipIds.length === 0) {
+      toast.error("Please select at least one payslip to delete");
+      return;
+    }
+    setIsBulkPayslipDelete(true);
+    setDeleteId(null);
+    setIsDeleteDialogOpen(true);
+  };
 
   const filteredProcessing = useMemo(() => {
     let filtered = payrollProcessing;
@@ -1430,6 +1462,7 @@ export default function PayrollSetup() {
   };
 
   const handleDelete = (id: string) => {
+    setIsBulkPayslipDelete(false);
     setDeleteId(id);
     setIsDeleteDialogOpen(true);
   };
@@ -1453,23 +1486,50 @@ export default function PayrollSetup() {
         setSalaryStructures((prev) => prev.filter((s) => s.id !== deleteId));
       }
     } else if (activeTab === "processing") {
-      setPayrollProcessing((prev) => prev.filter((p) => p.id !== deleteId));
-    } else if (activeTab === "payslips") {
       try {
-        if (deleteId && /^\d+$/.test(String(deleteId))) {
-          const result = await payrollApi.deletePayslip(deleteId);
+        if (deleteId) {
+          const result = await payrollApi.deletePayrollProcessing(deleteId);
           if (result.error) {
             toast.error(result.error);
             return;
           }
+          toast.success("Payroll processing record deleted successfully");
         }
-        setPayslips((prev) => prev.filter((p) => p.id !== deleteId));
-        toast.success("Payslip deleted successfully");
+        setPayrollProcessing((prev) => prev.filter((p) => p.id !== deleteId));
+      } catch (error) {
+        console.error('Error deleting payroll processing record:', error);
+        toast.error("Failed to delete payroll processing record");
+      }
+    } else if (activeTab === "payslips") {
+      try {
+        const idsToDelete = isBulkPayslipDelete ? selectedPayslipIds : (deleteId ? [deleteId] : []);
+        if (idsToDelete.length === 0) {
+          setIsDeleteDialogOpen(false);
+          return;
+        }
+
+        const failedIds: string[] = [];
+        for (const id of idsToDelete) {
+          if (/^\d+$/.test(String(id))) {
+            const result = await payrollApi.deletePayslip(id);
+            if (result.error) failedIds.push(id);
+          }
+        }
+
+        if (failedIds.length > 0) {
+          toast.error(`Failed to delete ${failedIds.length} payslip${failedIds.length === 1 ? "" : "s"}`);
+          return;
+        }
+
+        setPayslips((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
+        setSelectedPayslipIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
+        toast.success(`${idsToDelete.length} payslip${idsToDelete.length === 1 ? "" : "s"} deleted successfully`);
       } catch (error) {
         console.error('Error deleting payslip:', error);
         toast.error("Failed to delete payslip");
       }
     }
+    setIsBulkPayslipDelete(false);
     setIsDeleteDialogOpen(false);
   };
 
@@ -2035,9 +2095,43 @@ export default function PayrollSetup() {
                       </p>
                     </div>
                   ) : (
+                    <>
+                      {canDeletePayslips && (
+                        <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleSelectAllPayslips}
+                            className="gap-2"
+                          >
+                            <Checkbox checked={allFilteredPayslipsSelected} className="pointer-events-none" />
+                            {allFilteredPayslipsSelected ? "Clear Selection" : "Select All"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleBulkDeletePayslips}
+                            disabled={selectedPayslipIds.length === 0}
+                            className="gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Selected ({selectedPayslipIds.length})
+                          </Button>
+                        </div>
+                      )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {filteredPayslips.map((payslip) => (
                         <div key={payslip.id} className="border border-border rounded-lg p-6 hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50">
+                          {canDeletePayslips && (
+                            <div className="mb-3 flex items-center gap-2">
+                              <Checkbox
+                                checked={selectedPayslipIds.includes(payslip.id)}
+                                onCheckedChange={(checked) => togglePayslipSelection(payslip.id, checked === true)}
+                                aria-label={`Select payslip ${payslip.number || payslip.id}`}
+                              />
+                              <span className="text-sm text-slate-600">Select</span>
+                            </div>
+                          )}
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex-1">
                               <p className="font-bold text-lg text-slate-900">{payslip.employeeName}</p>
@@ -2126,6 +2220,7 @@ export default function PayrollSetup() {
                         </div>
                       ))}
                     </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -2559,10 +2654,10 @@ export default function PayrollSetup() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {activeTab === "structure" ? "Salary Structure" : activeTab === "processing" ? "Payroll Record" : "Payslip"}
+              Delete {activeTab === "structure" ? "Salary Structure" : activeTab === "processing" ? "Payroll Record" : isBulkPayslipDelete ? "Selected Payslips" : "Payslip"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this {activeTab === "structure" ? "salary structure" : activeTab === "processing" ? "payroll record" : "payslip"}? This action cannot be undone.
+              Are you sure you want to delete {activeTab === "structure" ? "this salary structure" : activeTab === "processing" ? "this payroll record" : isBulkPayslipDelete ? `${selectedPayslipIds.length} selected payslip${selectedPayslipIds.length === 1 ? "" : "s"}` : "this payslip"}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

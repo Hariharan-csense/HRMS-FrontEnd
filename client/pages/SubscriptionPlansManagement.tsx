@@ -53,6 +53,24 @@ const moduleOptions = [
   { value: 'exit', label: 'Exit & Offboarding' },
 ];
 
+const FREE_PACKAGE_MODULES = [
+  'Organization Setup',
+  'Employee Management',
+  'Role & Permission',
+  'Employees',
+  'Survey',
+];
+
+const createFreePackageForm = () => ({
+  name: 'Free Package',
+  description: FREE_PACKAGE_MODULES.join('\n'),
+  price: '0',
+  yearly_price: '0',
+  storage_gb: '0',
+  trial_days: '0',
+  is_active: true
+});
+
 const SubscriptionPlansManagement: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,13 +87,7 @@ const SubscriptionPlansManagement: React.FC = () => {
   const [isAssigningAddon, setIsAssigningAddon] = useState(false);
 
   const [planForm, setPlanForm] = useState({
-    name: '',
-    description: '',
-    price: '',
-    yearly_price: '',
-    storage_gb: '',
-    trial_days: '',
-    is_active: true
+    ...createFreePackageForm()
   });
 
   const [addonForm, setAddonForm] = useState({
@@ -136,6 +148,13 @@ const SubscriptionPlansManagement: React.FC = () => {
     });
     setEditingPlan(null);
     setIsCreatingPlan(false);
+  };
+
+  const startCreatePlan = () => {
+    setEditorSessionKey((prev) => prev + 1);
+    setEditingPlan(null);
+    setPlanForm(createFreePackageForm());
+    setIsCreatingPlan(true);
   };
 
   const handleEditPlan = (plan: SubscriptionPlan) => {
@@ -341,10 +360,7 @@ const SubscriptionPlansManagement: React.FC = () => {
               <Button
                 type="button"
                 className="bg-white text-green-700 hover:bg-gray-100 px-5 py-2.5 font-semibold shadow-md"
-                onClick={() => {
-                  resetPlanForm();
-                  setIsCreatingPlan(true);
-                }}
+                onClick={startCreatePlan}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Package
@@ -581,10 +597,7 @@ const SubscriptionPlansManagement: React.FC = () => {
                     <Button
                       variant="outline"
                       className="mt-4 border-green-600 text-green-600 hover:bg-green-50"
-                      onClick={() => {
-                        resetPlanForm();
-                        setIsCreatingPlan(true);
-                      }}
+                      onClick={startCreatePlan}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Create Package

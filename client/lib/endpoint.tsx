@@ -4,7 +4,7 @@ import axios from "axios";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.8:3000/backend";
+// export const BASE_URL = "http://192.168.1.10:3000/backend";
   export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -576,6 +576,13 @@ const ENDPOINTS = {
       },
     }),
 
+  facialRecognitionAttendance: (data: FormData) =>
+    api.post("/attendance/facial-recognition", data, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }),
+
   getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
 
   createOverride: (data: any) => api.post("/attendance/overrides", data),
@@ -857,6 +864,9 @@ const ENDPOINTS = {
 
   deletePayslip: (id: string) => api.delete(`/payroll/payslips/${id}`),
 
+  deletePayrollProcessing: (id: string) =>
+    api.delete(`/payroll/processing/${id}`),
+
   getpayslip: () => api.get("/payroll"),
 
   getEmployeePayslips: () => api.get("/payroll/employee/payslips"),
@@ -904,6 +914,11 @@ const ENDPOINTS = {
   getNotifications: () => api.get("/notifications"),
 
   createNotification: (data: any) => api.post("/notifications", data),
+
+  registerPushToken: (data: any) => api.post("/notifications/push-token", data),
+
+  unregisterPushToken: (data: any) =>
+    api.delete("/notifications/push-token", { data }),
 
   markNotificationAsRead: (notificationId: string) =>
     api.put(`/notifications/${notificationId}/read`),

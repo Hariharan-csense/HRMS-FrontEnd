@@ -242,11 +242,20 @@ const CreatePulseSurvey: React.FC = () => {
       if (recipientType === "department") payload.selectedDepartment = [selectedDepartmentId];
       if (recipientType === "designation") payload.selectedDesignation = [selectedDesignationId];
 
-      await ENDPOINTS.createPulseSurvey(payload);
+      const res = await ENDPOINTS.createPulseSurvey(payload);
+      const totalSent = Number(res?.data?.totalSent || 0);
+      const emailSent = Number(res?.data?.emails?.sent || 0);
+      const emailFailed = Number(res?.data?.emails?.failed || 0);
+      const pushSent = Number(res?.data?.push?.sent || 0);
+      const pushFailed = Number(res?.data?.push?.failed || 0);
+      const pushSkipped = Number(res?.data?.push?.skipped || 0);
+      const pushError = res?.data?.push?.errors?.[0]?.code;
 
       toast({
         title: "Survey sent",
-        description: "Survey created successfully.",
+        description: totalSent
+          ? `Survey assigned to ${totalSent} employee(s). Push sent: ${pushSent}${pushFailed ? `, failed: ${pushFailed}` : ""}${pushSkipped ? `, skipped: ${pushSkipped}` : ""}${pushError ? ` (${pushError})` : ""}. Emails sent: ${emailSent}${emailFailed ? `, failed: ${emailFailed}` : ""}.`
+          : "Survey created successfully.",
       });
 
       navigate("/pulse-surveys/dashboard");
