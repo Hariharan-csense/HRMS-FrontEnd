@@ -18,6 +18,12 @@ import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { employeeApi } from "@/components/helper/employee/employee";
 import { departmentApi, Department } from "@/components/helper/department/department";
 import { designationApi, Designation } from "@/components/helper/designation/designation";
+import {
+  getLeaveApplicationDateBounds,
+  isLeaveDateWithinApplicationWindow,
+  leaveDateWindowValidationMessage,
+  parseIsoDateOnly,
+} from "@/utils/leaveDateBounds";
 
 // Types
 interface LeaveType {
@@ -743,20 +749,8 @@ useEffect(() => {
   const [selectedReportingManagers, setSelectedReportingManagers] = useState<string[]>([]);
   const [applicationErrors, setApplicationErrors] = useState<Record<string, string>>({});
 
-  const parseIsoDate = (value: string): Date | null => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-    const [year, month, day] = value.split("-").map(Number);
-    const parsed = new Date(year, month - 1, day);
-    if (
-      parsed.getFullYear() !== year ||
-      parsed.getMonth() !== month - 1 ||
-      parsed.getDate() !== day
-    ) {
-      return null;
-    }
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
-  };
+  const parseIsoDate = parseIsoDateOnly;
+  const leaveDateBounds = getLeaveApplicationDateBounds();
 
   const validateLeaveApplicationForm = () => {
     const errors: Record<string, string> = {};
@@ -791,12 +785,16 @@ useEffect(() => {
       const parsedFromDate = parseIsoDate(formData.fromDate);
       if (!parsedFromDate) {
         errors.fromDate = "Please enter a valid from date";
+      } else if (!isLeaveDateWithinApplicationWindow(formData.fromDate)) {
+        errors.fromDate = leaveDateWindowValidationMessage("From date");
       }
     }
     if (formData.toDate) {
       const parsedToDate = parseIsoDate(formData.toDate);
       if (!parsedToDate) {
         errors.toDate = "Please enter a valid to date";
+      } else if (!isLeaveDateWithinApplicationWindow(formData.toDate)) {
+        errors.toDate = leaveDateWindowValidationMessage("To date");
       }
     }
 
@@ -1001,6 +999,13 @@ useEffect(() => {
         const parsedToDate = parseIsoDate(formData.toDate);
         if (!parsedFromDate || !parsedToDate) {
           toast.error("Please enter valid leave dates");
+          return;
+        }
+        if (
+          !isLeaveDateWithinApplicationWindow(formData.fromDate) ||
+          !isLeaveDateWithinApplicationWindow(formData.toDate)
+        ) {
+          toast.error(leaveDateWindowValidationMessage("Leave dates"));
           return;
         }
 
@@ -1893,20 +1898,34 @@ useEffect(() => {
                     <Input
                       value={formData.fromDate || ""}
                       onChange={(e) => {
+                        const nextFromDate = e.target.value;
+                        const nextToDate =
+                          formData.leaveDuration === "half_day"
+                            ? nextFromDate
+                            : formData.toDate &&
+                                formData.toDate >= nextFromDate &&
+                                formData.toDate <= leaveDateBounds.max
+                              ? formData.toDate
+                              : nextFromDate;
                         setFormData({
                           ...formData,
-                          fromDate: e.target.value,
-                          ...(formData.leaveDuration === "half_day" ? { toDate: e.target.value } : {}),
+                          fromDate: nextFromDate,
+                          toDate: nextToDate,
                         });
                         if (applicationErrors.fromDate) {
                           setApplicationErrors(prev => ({ ...prev, fromDate: "" }));
                         }
                       }}
                       type="date"
+                      min={leaveDateBounds.min}
+                      max={leaveDateBounds.max}
                       className={`h-12 text-base rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm ${
                         applicationErrors.fromDate ? "border-red-500" : "border-gray-300"
                       }`}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      You can apply for past dates within the last month (e.g. emergency leave from yesterday).
+                    </p>
                     {applicationErrors.fromDate && (
                       <p className="text-sm text-red-600">{applicationErrors.fromDate}</p>
                     )}
@@ -1925,6 +1944,12 @@ useEffect(() => {
                         }
                       }}
                       type="date"
+                      min={
+                        formData.fromDate && formData.fromDate > leaveDateBounds.min
+                          ? formData.fromDate
+                          : leaveDateBounds.min
+                      }
+                      max={leaveDateBounds.max}
                       disabled={formData.leaveDuration === "half_day"}
                       className={`h-12 text-base rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-sm ${
                         applicationErrors.toDate ? "border-red-500" : "border-gray-300"

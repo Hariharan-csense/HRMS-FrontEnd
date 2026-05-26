@@ -63,6 +63,7 @@ export const Topbar: React.FC = () => {
     if (pathname.startsWith("/assets")) return "Assets";
     if (pathname.startsWith("/exit")) return "Exit & Offboarding";
     if (pathname.startsWith("/reports") || pathname.startsWith("/export")) return "Reports";
+    if (pathname.startsWith("/subscription-plans")) return "Subscription Plans";
     if (pathname.startsWith("/subscription")) return "Subscription";
     if (pathname.startsWith("/my-clients")) return "My Clients";
     if (pathname.startsWith("/my-analytics")) return "My Analytics";

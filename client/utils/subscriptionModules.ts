@@ -79,13 +79,16 @@ const addAll = (set: Set<string>, items: string[]) => {
   for (const item of items) set.add(item);
 };
 
-const FREE_FOREVER_MODULES = [
+/** Modules included on the Free Plan tier (and when subscription is inactive). */
+export const FREEPLAN_MODULES = [
   "subscription",
   "organization",
   "role_access",
   "employees",
   "pulse_surveys",
 ];
+
+const FREE_FOREVER_MODULES = [...FREEPLAN_MODULES];
 
 const BASIC_MODULES = [
   ...FREE_FOREVER_MODULES,
@@ -119,14 +122,83 @@ const ADVANCED_MODULES = [
 ];
 
 const inferTierFromPlanName = (planName?: string | null) => {
-  const name = (planName || "").toLowerCase();
+  const name = (planName || "").toLowerCase().replace(/[\s_-]+/g, "");
   if (!name) return null;
 
+  if (
+    name.includes("freeplan") ||
+    name.includes("freepackage") ||
+    (name.includes("free") && !name.includes("trial"))
+  ) {
+    return "freeplan";
+  }
   if (name.includes("basic")) return "basic";
   if (name.includes("standard") || name.includes("professional")) return "standard";
   if (name.includes("advanced") || name.includes("advance") || name.includes("enterprise"))
     return "advanced";
   return null;
+};
+
+const applyDescriptionModuleLines = (modules: Set<string>, description: string) => {
+  const lines = description
+    .split(/\r?\n/)
+    .map(normalizeLine)
+    .filter(Boolean);
+
+  for (const line of lines) {
+    if (line.includes("all in basic")) addAll(modules, BASIC_MODULES);
+    if (line.includes("all in standard")) addAll(modules, STANDARD_MODULES);
+
+    if (line.includes("organization")) modules.add("organization");
+    if (
+      line.includes("employee") &&
+      (line.includes("management") || line.includes("profile") || line.includes("list"))
+    ) {
+      modules.add("employees");
+    } else if (line.includes("employee")) {
+      modules.add("employees");
+    }
+
+    if (line.includes("attendance")) {
+      modules.add("attendance");
+      modules.add("shift management");
+    }
+
+    if (line.includes("leave")) modules.add("leave");
+    if (line.includes("payroll")) modules.add("payroll");
+    if (line.includes("expense")) modules.add("expenses");
+    if (line.includes("asset")) modules.add("assets");
+    if (line.includes("exit") || line.includes("offboarding")) modules.add("exit");
+
+    if (line.includes("reports") || line.includes("kpi")) modules.add("reports");
+    if (
+      (line.includes("role") && (line.includes("permission") || line.includes("access"))) ||
+      (line.includes("role") && line.includes("module"))
+    ) {
+      modules.add("role_access");
+    }
+
+    if (
+      line.includes("recruitment") ||
+      line.includes("rms") ||
+      line.includes("hr management") ||
+      line.includes("onboarding")
+    ) {
+      modules.add("hr_management");
+    }
+    if (line.includes("live tracking")) modules.add("live_tracking");
+
+    if (line.includes("client attendance admin")) modules.add("client_attendance_admin");
+    if (line.includes("client attendance")) {
+      modules.add("client_attendance");
+      modules.add("client_attendance_admin");
+      modules.add("my_clients");
+      modules.add("my_analytics");
+    }
+
+    if (line.includes("ticket")) modules.add("tickets");
+    if (line.includes("pulse") || line.includes("survey")) modules.add("pulse_surveys");
+  }
 };
 
 export const getAllowedModulesFromSubscription = (
@@ -159,58 +231,39 @@ export const getAllowedModulesFromSubscription = (
 
   if (isInactive) return new Set<string>(FREE_FOREVER_MODULES);
 
+  const tier = inferTierFromPlanName(subscription.plan_name);
+  const description = subscription.plan_description || "";
+
+  if (tier === "freeplan") {
+    const freeModules = new Set<string>(FREEPLAN_MODULES);
+    for (const addon of subscription.addons || []) {
+      const assignedIds = Array.isArray(addon.assigned_employee_ids)
+        ? addon.assigned_employee_ids.map((id) => Number(id))
+        : [];
+      const shouldIncludeAddon =
+        options?.addonAdminBypass ||
+        (options?.currentEmployeeId ? assignedIds.includes(Number(options.currentEmployeeId)) : false);
+
+      if (!shouldIncludeAddon) continue;
+
+      for (const moduleKey of getAddonModuleAliases(addon.module_key, addon.name, addon.description)) {
+        if (FREEPLAN_MODULES.includes(moduleKey)) {
+          freeModules.add(moduleKey);
+        }
+      }
+    }
+    return freeModules;
+  }
+
   const modules = new Set<string>(FREE_FOREVER_MODULES);
 
   // Plan inheritance: allow base modules for the current plan tier, even if the description uses legacy text
   // like "All in Standard + ...". Description parsing below will still add any extra modules mentioned.
-  const tier = inferTierFromPlanName(subscription.plan_name);
   if (tier === "basic") addAll(modules, BASIC_MODULES);
   if (tier === "standard") addAll(modules, STANDARD_MODULES);
   if (tier === "advanced") addAll(modules, ADVANCED_MODULES);
 
-  const description = subscription.plan_description || "";
-
-  const lines = description
-    .split(/\r?\n/)
-    .map(normalizeLine)
-    .filter(Boolean);
-
-  for (const line of lines) {
-    if (line.includes("all in basic")) addAll(modules, BASIC_MODULES);
-    if (line.includes("all in standard")) addAll(modules, STANDARD_MODULES);
-
-    if (line.includes("organization")) modules.add("organization");
-    if (line.includes("employee")) modules.add("employees");
-
-    if (line.includes("attendance")) {
-      modules.add("attendance");
-      modules.add("shift management");
-    }
-
-    if (line.includes("leave")) modules.add("leave");
-    if (line.includes("payroll")) modules.add("payroll");
-    if (line.includes("expense")) modules.add("expenses");
-    if (line.includes("asset")) modules.add("assets");
-    if (line.includes("exit") || line.includes("offboarding")) modules.add("exit");
-
-    if (line.includes("reports") || line.includes("kpi")) modules.add("reports");
-    if (line.includes("role") && line.includes("module") && line.includes("access")) modules.add("role_access");
-
-    if (line.includes("recruitment") || line.includes("rms") || line.includes("hr management") || line.includes("onboarding")) modules.add("hr_management");
-    if (line.includes("live tracking")) modules.add("live_tracking");
-
-    // Keep all client-attendance-related modules enabled together when the plan includes client attendance.
-    if (line.includes("client attendance admin")) modules.add("client_attendance_admin");
-    if (line.includes("client attendance")) {
-      modules.add("client_attendance");
-      modules.add("client_attendance_admin");
-      modules.add("my_clients");
-      modules.add("my_analytics");
-    }
-
-    if (line.includes("ticket")) modules.add("tickets");
-    if (line.includes("pulse") || line.includes("survey")) modules.add("pulse_surveys");
-  }
+  applyDescriptionModuleLines(modules, description);
 
   for (const addon of subscription.addons || []) {
     const assignedIds = Array.isArray(addon.assigned_employee_ids)

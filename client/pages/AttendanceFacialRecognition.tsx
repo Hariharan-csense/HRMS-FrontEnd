@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Loader2, RefreshCw, ScanFace } from "lucide-react";
 import { toast } from "sonner";
+import * as faceapi from "face-api.js";
 import ENDPOINTS from "@/lib/endpoint";
 
 type PunchAction = "check-in" | "check-out";
@@ -36,27 +37,13 @@ type FacialResponse = {
   };
 };
 
-const CAPTURE_SIZE = 960;
 const SCAN_INTERVAL_MS = 2800;
 const SUCCESS_COOLDOWN_MS = 9000;
 const NO_FACE_TOAST_COOLDOWN_MS = 6000;
-
-type BrowserFaceDetector = {
-  detect: (image: CanvasImageSource | Blob | ImageBitmap) => Promise<unknown[]>;
-};
-
-declare global {
-  interface Window {
-    FaceDetector?: new (options?: {
-      fastMode?: boolean;
-      maxDetectedFaces?: number;
-    }) => BrowserFaceDetector;
-  }
-}
+const FACE_MODEL_URL = "/models";
 
 export default function AttendanceFacialRecognition() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mountedRef = useRef(false);
   const scanTimerRef = useRef<ReturnType<typeof window.setInterval> | null>(
@@ -67,12 +54,14 @@ export default function AttendanceFacialRecognition() {
   const lastNoFaceToastAtRef = useRef(0);
   const scannerPausedRef = useRef(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [areFaceModelsReady, setAreFaceModelsReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [scannerStatus, setScannerStatus] = useState("Starting camera...");
   const [lastResult, setLastResult] = useState<FacialResponse | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
+    loadBrowserFaceModels();
     startCamera();
 
     const handleVisibilityChange = () => {
@@ -105,6 +94,26 @@ export default function AttendanceFacialRecognition() {
       stopCamera();
     };
   }, []);
+
+  const loadBrowserFaceModels = async () => {
+    try {
+      setScannerStatus("Loading face models...");
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
+      ]);
+
+      if (mountedRef.current) {
+        setAreFaceModelsReady(true);
+        setScannerStatus("Scanner active");
+      }
+    } catch (error) {
+      console.error("Browser face model load error:", error);
+      setScannerStatus("Browser face models missing");
+      toast.error("Unable to load browser face recognition models.");
+    }
+  };
 
   const stopCamera = () => {
     if (scanTimerRef.current) {
@@ -143,7 +152,9 @@ export default function AttendanceFacialRecognition() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setIsCameraReady(true);
-        setScannerStatus("Scanner active");
+        setScannerStatus(
+          areFaceModelsReady ? "Scanner active" : "Loading face models...",
+        );
       }
     } catch (error: any) {
       console.error("Camera error:", error);
@@ -157,6 +168,7 @@ export default function AttendanceFacialRecognition() {
 
   useEffect(() => {
     if (!isCameraReady) return;
+    if (!areFaceModelsReady) return;
     if (scannerPausedRef.current) return;
 
     scanTimerRef.current = window.setInterval(() => {
@@ -171,76 +183,29 @@ export default function AttendanceFacialRecognition() {
         scanTimerRef.current = null;
       }
     };
-  }, [isCameraReady]);
+  }, [isCameraReady, areFaceModelsReady]);
 
-  const captureBlob = async () => {
-    if (!videoRef.current || !canvasRef.current) {
+  const detectFaceDescriptorFromVideo = async () => {
+    if (!videoRef.current) {
       throw new Error("Camera is not ready");
     }
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
+    const detection = await faceapi
+      .detectSingleFace(
+        videoRef.current,
+        new faceapi.SsdMobilenetv1Options({
+          minConfidence: 0.2,
+          maxResults: 1,
+        }),
+      )
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
-    if (!context) {
-      throw new Error("Unable to capture image");
+    if (!detection) {
+      return null;
     }
 
-    const sourceWidth = video.videoWidth || 1280;
-    const sourceHeight = video.videoHeight || 720;
-    const cropSize = Math.min(sourceWidth, sourceHeight);
-    const cropX = Math.max(0, (sourceWidth - cropSize) / 2);
-    const cropY = Math.max(0, (sourceHeight - cropSize) / 2);
-
-    canvas.width = CAPTURE_SIZE;
-    canvas.height = CAPTURE_SIZE;
-    context.drawImage(
-      video,
-      cropX,
-      cropY,
-      cropSize,
-      cropSize,
-      0,
-      0,
-      CAPTURE_SIZE,
-      CAPTURE_SIZE,
-    );
-
-    return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Unable to prepare captured image"));
-            return;
-          }
-          resolve(blob);
-        },
-        "image/jpeg",
-        0.94,
-      );
-    });
-  };
-
-  const detectFaceInBlob = async (blob: Blob) => {
-    if (!window.FaceDetector) {
-      return true;
-    }
-
-    const detector = new window.FaceDetector({
-      fastMode: true,
-      maxDetectedFaces: 2,
-    });
-    const bitmap = await createImageBitmap(blob);
-
-    try {
-      const faces = await detector.detect(bitmap);
-      return faces.length === 1;
-    } catch (error) {
-      console.warn("Browser face pre-check failed, using backend detection", error);
-      return true;
-    } finally {
-      bitmap.close();
-    }
+    return Array.from(detection.descriptor);
   };
 
   const showNoFaceToast = (message: string) => {
@@ -285,27 +250,28 @@ export default function AttendanceFacialRecognition() {
     setScannerStatus("Looking for a face...");
 
     try {
-      const [blob, location] = await Promise.all([
-        captureBlob(),
+      if (!areFaceModelsReady) {
+        setScannerStatus("Loading face models...");
+        return;
+      }
+
+      const [descriptor, location] = await Promise.all([
+        detectFaceDescriptorFromVideo(),
         getOptionalLocation(),
       ]);
 
-      const hasSingleFace = await detectFaceInBlob(blob);
-      if (!hasSingleFace) {
+      if (!descriptor) {
         setScannerStatus("No face detected");
         showNoFaceToast("No face was detected. Please center one face in the frame.");
         return;
       }
 
-      const formData = new FormData();
-      formData.append("action", "auto");
-      formData.append("image", blob, "facial-attendance.jpg");
-      if (location) {
-        formData.append("location", JSON.stringify(location));
-      }
-
       setScannerStatus("Recognizing employee...");
-      const response = await ENDPOINTS.facialRecognitionAttendance(formData);
+      const response = await ENDPOINTS.facialRecognitionDescriptorAttendance({
+        action: "auto",
+        descriptor,
+        location,
+      });
       const result = response.data as FacialResponse;
       setLastResult(result);
       lastSuccessAtRef.current = Date.now();
@@ -387,8 +353,6 @@ export default function AttendanceFacialRecognition() {
                   </div>
                 )}
               </div>
-
-              <canvas ref={canvasRef} className="hidden" />
 
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                 <div className="flex min-h-10 items-center rounded-md border bg-slate-50 px-3 text-sm text-slate-700">

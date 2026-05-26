@@ -212,7 +212,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
     const normalizedUserRoleNames = getNormalizedUserRoleNames();
     const isAdmin = normalizedUserRoleNames.includes("admin");
-    if (isAdmin && module.toLowerCase() === "payroll") {
+    if (isAdmin && (module.toLowerCase() === "payroll" || module.toLowerCase() === "expenses")) {
       return true;
     }
 
@@ -270,7 +270,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     if (
       isAdmin &&
       (normalizedModule === "payroll" ||
-        (normalizedModule === "employees" && normalizedSubModule === "profile"))
+        (normalizedModule === "employees" && normalizedSubModule === "profile") ||
+        (normalizedModule === "expenses" &&
+          (!normalizedSubModule || normalizedSubModule === "claims")))
     ) {
       return true;
     }

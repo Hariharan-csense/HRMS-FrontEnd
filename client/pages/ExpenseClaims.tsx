@@ -118,6 +118,12 @@ const isValidExpenseFile = (file: File) => {
 export default function ExpenseClaims() {
   const { user } = useAuth();
   const { canPerformModuleAction } = useRole();
+
+  const canClaimExpenses =
+    canPerformModuleAction("expenses", "create", "claims") ||
+    canPerformModuleAction("expenses", "create") ||
+    hasRole(user, "admin") ||
+    String(user?.type || "").toLowerCase() === "admin";
   const [expenses, setExpenses] = useState<ExpenseClaim[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -366,7 +372,8 @@ export default function ExpenseClaims() {
     setError(null);
 
     try {
-      const shouldLoadDraft = Boolean(user) && !hasRole(user, "finance") && !hasRole(user, "admin");
+      const shouldLoadDraft =
+        Boolean(user) && canClaimExpenses && !hasRole(user, "finance");
       const [expenseResult, draftResult, clientsResult] = await Promise.all([
         expenseApi.getExpense(),
         shouldLoadDraft
@@ -1396,26 +1403,26 @@ export default function ExpenseClaims() {
 
   const canEditClaim = (expense: GroupedExpenseClaim) => {
     if (expense.isDraft) {
-      return canPerformModuleAction("expenses", "create") || canPerformModuleAction("expenses", "edit");
+      return canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims");
     }
 
     if (["approved", "reimbursed"].includes(expense.status)) {
       return false;
     }
 
-    return canPerformModuleAction("expenses", "edit");
+    return canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims");
   };
 
   const canDeleteClaim = (expense: GroupedExpenseClaim) => {
     if (expense.isDraft) {
-      return true;
+      return canClaimExpenses;
     }
 
     if (["approved", "reimbursed"].includes(expense.status)) {
       return false;
     }
 
-    return canPerformModuleAction("expenses", "edit");
+    return canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims");
   };
 
   const getReceiptPreviewType = (url: string) => {
@@ -1581,6 +1588,13 @@ export default function ExpenseClaims() {
           </div>
         )}
 
+        {(hasRole(user, "finance") || hasRole(user, "admin")) && canClaimExpenses && (
+          <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+            Submit Claim
+          </Button>
+        )}
+
         {(hasRole(user, "finance") || hasRole(user, "admin")) ? (
           <Card>
             <CardHeader className="pb-3 sm:pb-4">
@@ -1676,7 +1690,7 @@ export default function ExpenseClaims() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {canPerformModuleAction("expenses", "create") && (
+            {canClaimExpenses && (
               <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
                 <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                 Submit Claim

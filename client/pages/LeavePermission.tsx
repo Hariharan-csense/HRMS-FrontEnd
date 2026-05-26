@@ -15,6 +15,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { leavePermissionApi, type LeavePermission, type LeavePermissionFormData } from "@/components/helper/leavePermission/leavePermission";
+import {
+  getLeaveApplicationDateBounds,
+  isLeaveDateWithinApplicationWindow,
+  leaveDateWindowValidationMessage,
+  parseIsoDateOnly,
+} from "@/utils/leaveDateBounds";
 
 export default function LeavePermission() {
   const { user } = useAuth();
@@ -86,21 +92,8 @@ export default function LeavePermission() {
     }
   };
 
-  // Validation functions
-  const parseIsoDate = (value: string): Date | null => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-    const [year, month, day] = value.split('-').map(Number);
-    const parsed = new Date(year, month - 1, day);
-    if (
-      parsed.getFullYear() !== year ||
-      parsed.getMonth() !== month - 1 ||
-      parsed.getDate() !== day
-    ) {
-      return null;
-    }
-    parsed.setHours(0, 0, 0, 0);
-    return parsed;
-  };
+  const parseIsoDate = parseIsoDateOnly;
+  const permissionDateBounds = getLeaveApplicationDateBounds();
 
   const validateDate = (date: string): string => {
     if (!date) {
@@ -111,25 +104,9 @@ export default function LeavePermission() {
     if (!selectedDate) {
       return "Please enter a valid date";
     }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
 
-    // Check if date is in the past
-    if (selectedDate < today) {
-      return "Cannot select past dates";
-    }
-
-    // Check if date is too far in future (more than 30 days)
-    const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 30);
-    if (selectedDate > maxDate) {
-      return "Cannot select dates more than 30 days in advance";
-    }
-
-    // Check if it's a weekend (Saturday = 6, Sunday = 0)
-    const dayOfWeek = selectedDate.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      return "Cannot select weekends. Please select a weekday.";
+    if (!isLeaveDateWithinApplicationWindow(date)) {
+      return leaveDateWindowValidationMessage("Permission date");
     }
 
     return "";
@@ -559,10 +536,13 @@ export default function LeavePermission() {
                     type="date"
                     value={formData.permission_date || ''}
                     onChange={(e) => handleDateChange(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    min={permissionDateBounds.min}
+                    max={permissionDateBounds.max}
                     className={`h-12 text-base border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm ${dateError ? 'border-red-500' : ''}`}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Select a date within the last month or next month (e.g. for emergency permission you forgot to request earlier).
+                  </p>
                   {dateError && (
                     <p className="text-red-500 text-sm mt-2 font-medium">{dateError}</p>
                   )}

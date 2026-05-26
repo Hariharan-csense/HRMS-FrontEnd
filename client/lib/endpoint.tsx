@@ -583,6 +583,12 @@ const ENDPOINTS = {
       },
     }),
 
+  facialRecognitionDescriptorAttendance: (data: {
+    action?: "auto" | "check-in" | "check-out";
+    descriptor: number[];
+    location?: any;
+  }) => api.post("/attendance/facial-recognition/descriptor", data),
+
   getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
 
   createOverride: (data: any) => api.post("/attendance/overrides", data),

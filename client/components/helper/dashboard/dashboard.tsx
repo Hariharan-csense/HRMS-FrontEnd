@@ -39,6 +39,14 @@ export interface AdminDashboardData {
     fromDate: string | null;
     toDate: string | null;
   }>;
+  pendingApprovals?: Array<{
+    id: number;
+    name: string;
+    type: string;
+    category: string;
+    employeeId: string;
+    createdAt?: string | null;
+  }>;
   teamHealth?: {
     overallScore: number;
     status: string;
@@ -174,6 +182,7 @@ export const getAdminDashboardData = async (): Promise<{
       upcomingHolidays: payload.upcomingHolidays || [],
       presentTodayEmployees: payload.presentTodayEmployees || [],
       onLeaveEmployees: payload.onLeaveEmployees || [],
+      pendingApprovals: payload.pendingApprovals || [],
       teamHealth: payload.teamHealth || {
         overallScore: 0,
         status: '',

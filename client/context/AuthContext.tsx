@@ -275,6 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (document.visibilityState === "visible") {
         try {
           await checkAndRefreshTokenIfNeeded();
+          await registerWebPushNotifications();
         } catch (error) {
           console.error("Visibility change token refresh failed:", error);
         }

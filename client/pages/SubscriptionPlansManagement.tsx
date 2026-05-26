@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,6 +8,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Plus, Save, Trash2, Edit, X, PackagePlus } from 'lucide-react';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
+import { FREEPLAN_MODULES } from '@/utils/subscriptionModules';
 
 const formatPrice = (price: number): string => {
   return `\u20B9${price.toLocaleString('en-IN')}`;
@@ -53,23 +54,109 @@ const moduleOptions = [
   { value: 'exit', label: 'Exit & Offboarding' },
 ];
 
-const FREE_PACKAGE_MODULES = [
-  'Organization Setup',
-  'Employee Management',
-  'Role & Permission',
-  'Employees',
-  'Survey',
+export type PlanCategory = 'freeplan' | 'basic' | 'standard' | 'advanced' | 'custom';
+
+const PLAN_CATEGORIES: Array<{
+  id: PlanCategory;
+  label: string;
+  description: string;
+  defaultModules: string[];
+}> = [
+  {
+    id: 'freeplan',
+    label: 'Free Plan',
+    description: 'Organization setup, roles, employees, and surveys only',
+    defaultModules: [
+      'Organization Setup',
+      'Role & Permissions',
+      'Employee Management',
+      'Employee Surveys',
+    ],
+  },
+  {
+    id: 'basic',
+    label: 'Basic',
+    description: 'Free modules plus attendance, leave, and reports',
+    defaultModules: [
+      'Organization Setup',
+      'Role & Permissions',
+      'Employee Management',
+      'Employee Surveys',
+      'Attendance',
+      'Leave',
+      'Reports',
+    ],
+  },
+  {
+    id: 'standard',
+    label: 'Standard',
+    description: 'Basic plus payroll, expenses, assets, and field tools',
+    defaultModules: [
+      'All in Basic',
+      'Payroll',
+      'Expenses',
+      'Assets',
+      'Client Attendance',
+      'Live Tracking',
+      'Tickets',
+    ],
+  },
+  {
+    id: 'advanced',
+    label: 'Advanced',
+    description: 'Standard plus HR, recruitment, and exit management',
+    defaultModules: [
+      'All in Standard',
+      'HR Management',
+      'Recruitment (RMS)',
+      'Exit & Offboarding',
+    ],
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    description: 'Define your own module list',
+    defaultModules: [],
+  },
 ];
 
-const createFreePackageForm = () => ({
-  name: 'Free Package',
-  description: FREE_PACKAGE_MODULES.join('\n'),
-  price: '0',
-  yearly_price: '0',
-  storage_gb: '0',
-  trial_days: '0',
-  is_active: true
-});
+const inferPlanCategory = (planName?: string | null): PlanCategory => {
+  const normalized = String(planName || '').toLowerCase().replace(/[\s_-]+/g, '');
+  if (!normalized) return 'custom';
+  if (normalized.includes('freeplan') || normalized.includes('freepackage') || (normalized.includes('free') && !normalized.includes('trial'))) {
+    return 'freeplan';
+  }
+  if (normalized.includes('basic')) return 'basic';
+  if (normalized.includes('standard') || normalized.includes('professional')) return 'standard';
+  if (normalized.includes('advanced') || normalized.includes('advance') || normalized.includes('enterprise')) {
+    return 'advanced';
+  }
+  return 'custom';
+};
+
+const createPlanFormForCategory = (category: PlanCategory) => {
+  const preset = PLAN_CATEGORIES.find((item) => item.id === category) || PLAN_CATEGORIES[0];
+  const nameByCategory: Record<PlanCategory, string> = {
+    freeplan: 'Free Plan',
+    basic: 'Basic Plan',
+    standard: 'Standard Plan',
+    advanced: 'Advanced Plan',
+    custom: '',
+  };
+
+  return {
+    category,
+    name: nameByCategory[category],
+    description: preset.defaultModules.join('\n'),
+    price: '',
+    yearly_price: '',
+    storage_gb: '',
+    trial_days: '',
+    is_active: true,
+  };
+};
+
+const createFreePackageForm = () => createPlanFormForCategory('freeplan');
 
 const SubscriptionPlansManagement: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -87,7 +174,7 @@ const SubscriptionPlansManagement: React.FC = () => {
   const [isAssigningAddon, setIsAssigningAddon] = useState(false);
 
   const [planForm, setPlanForm] = useState({
-    ...createFreePackageForm()
+    ...createFreePackageForm(),
   });
 
   const [addonForm, setAddonForm] = useState({
@@ -137,23 +224,15 @@ const SubscriptionPlansManagement: React.FC = () => {
   };
 
   const resetPlanForm = () => {
-    setPlanForm({
-      name: '',
-      description: '',
-      price: '',
-      yearly_price: '',
-      storage_gb: '',
-      trial_days: '',
-      is_active: true
-    });
+    setPlanForm(createPlanFormForCategory('custom'));
     setEditingPlan(null);
     setIsCreatingPlan(false);
   };
 
-  const startCreatePlan = () => {
+  const startCreatePlan = (category: PlanCategory = 'freeplan') => {
     setEditorSessionKey((prev) => prev + 1);
     setEditingPlan(null);
-    setPlanForm(createFreePackageForm());
+    setPlanForm(createPlanFormForCategory(category));
     setIsCreatingPlan(true);
   };
 
@@ -162,15 +241,56 @@ const SubscriptionPlansManagement: React.FC = () => {
     setEditingPlan(plan);
     setIsCreatingPlan(false);
     setPlanForm({
+      category: inferPlanCategory(plan.name),
       name: plan.name || '',
       description: plan.description || '',
       price: plan.price?.toString() || '',
       yearly_price: plan.yearly_price?.toString() || '',
       storage_gb: plan.storage_gb?.toString() || '',
       trial_days: plan.trial_days?.toString() || '',
-      is_active: plan.is_active
+      is_active: plan.is_active,
     });
   };
+
+  const handlePlanCategoryChange = (category: PlanCategory) => {
+    const preset = PLAN_CATEGORIES.find((item) => item.id === category);
+    setPlanForm((prev) => ({
+      ...prev,
+      category,
+      name: prev.name.trim() ? prev.name : createPlanFormForCategory(category).name,
+      description: preset?.defaultModules.length ? preset.defaultModules.join('\n') : prev.description,
+    }));
+  };
+
+  const isFreePlanForm = planForm.category === 'freeplan';
+
+  const groupedPlans = useMemo(() => {
+    const groups: Record<PlanCategory, SubscriptionPlan[]> = {
+      freeplan: [],
+      basic: [],
+      standard: [],
+      advanced: [],
+      custom: [],
+    };
+
+    plans.forEach((plan) => {
+      groups[inferPlanCategory(plan.name)].push(plan);
+    });
+
+    return PLAN_CATEGORIES.map((category) => ({
+      ...category,
+      plans: groups[category.id],
+    })).filter((group) => group.plans.length > 0 || group.id === 'freeplan');
+  }, [plans]);
+
+  const sortedPlans = useMemo(() => {
+    const categoryOrder: PlanCategory[] = ['freeplan', 'basic', 'standard', 'advanced', 'custom'];
+    return [...plans].sort(
+      (a, b) =>
+        categoryOrder.indexOf(inferPlanCategory(a.name)) -
+        categoryOrder.indexOf(inferPlanCategory(b.name)),
+    );
+  }, [plans]);
 
   const fetchAddons = async () => {
     try {
@@ -200,15 +320,23 @@ const SubscriptionPlansManagement: React.FC = () => {
     e.preventDefault();
     setIsSavingPlan(true);
     try {
+      const normalizedName =
+        planForm.category === 'freeplan' && !String(planForm.name || '').toLowerCase().includes('free')
+          ? 'Free Plan'
+          : planForm.name;
+
+      const isFreePlan =
+        isFreePlanForm || inferPlanCategory(normalizedName) === 'freeplan';
+
       const payload = {
-        name: planForm.name,
+        name: String(normalizedName || '').trim(),
         description: planForm.description,
-        price: Number(planForm.price),
-        yearly_price: Number(planForm.yearly_price),
+        price: isFreePlan ? 0 : Number(planForm.price),
+        yearly_price: isFreePlan ? 0 : Number(planForm.yearly_price),
         max_users: 0,
-        storage_gb: planForm.storage_gb ? Number(planForm.storage_gb) : undefined,
-        trial_days: Number(planForm.trial_days),
-        is_active: planForm.is_active
+        storage_gb: isFreePlan ? undefined : planForm.storage_gb ? Number(planForm.storage_gb) : undefined,
+        trial_days: isFreePlan ? 0 : Number(planForm.trial_days),
+        is_active: planForm.is_active,
       };
 
       if (editingPlan) {
@@ -331,6 +459,105 @@ const SubscriptionPlansManagement: React.FC = () => {
     }
   };
 
+  const renderPlanCard = (plan: SubscriptionPlan) => {
+    const isPopular = plan.name?.toLowerCase?.().includes('standard');
+    const category = inferPlanCategory(plan.name);
+
+    return (
+      <div
+        key={plan.id}
+        className={`relative flex h-full min-w-0 flex-col bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl ${
+          isPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
+        }`}
+      >
+        {isPopular && (
+          <div className="bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
+            Most Popular
+          </div>
+        )}
+
+        <div className={`flex flex-1 flex-col p-6 ${isPopular ? '' : ''}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <span className="inline-flex text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">
+                {PLAN_CATEGORIES.find((item) => item.id === category)?.label || 'Custom'}
+              </span>
+              <h4 className="mt-2 text-xl font-bold text-gray-900 break-words">{plan.name}</h4>
+            </div>
+            <span
+              className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                plan.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {plan.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+
+          {category === 'freeplan' ? (
+            <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
+              <p className="text-sm font-semibold text-emerald-800">Free forever</p>
+              <p className="mt-1 text-xs text-emerald-700">No pricing, storage limits, or trial period</p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-6 grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] uppercase text-gray-500">Monthly</p>
+                  <p className="text-lg font-semibold text-gray-900">{formatPrice(plan.price || 0)}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] uppercase text-gray-500">Yearly</p>
+                  <p className="text-lg font-semibold text-emerald-700">{formatPrice(plan.yearly_price || 0)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
+                <span>Storage: {plan.storage_gb ? `${plan.storage_gb}GB` : '-'}</span>
+                <span>Trial: {plan.trial_days} days</span>
+              </div>
+            </>
+          )}
+
+          <div className="mt-6 flex-1 space-y-2">
+            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Modules</p>
+            <div className="flex flex-wrap gap-2">
+              {plan.description
+                .split('\n')
+                .filter(Boolean)
+                .slice(0, 8)
+                .map((item, index) => (
+                  <span key={index} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                    {item}
+                  </span>
+                ))}
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1"
+              onClick={() => handleEditPlan(plan)}
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-500 text-red-600 hover:bg-red-50 flex-1"
+              onClick={() => handleDeletePlan(plan.id)}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -343,11 +570,11 @@ const SubscriptionPlansManagement: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <section className="relative overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600">
+      <div className="-m-4 sm:-m-6 lg:-m-6 min-h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-gray-50 to-gray-100">
+        <section className="relative w-full overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600">
           <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIzIi8+PC9nPjwvZz48L3N2Zz4=')]"></div>
-          <div className="relative px-6 py-10 sm:px-8 sm:py-12">
-            <div className="max-w-6xl mx-auto flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full max-w-[1600px] mx-auto px-4 py-10 sm:px-8 sm:py-12 lg:px-10">
+            <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                   Pricing Management
@@ -357,19 +584,30 @@ const SubscriptionPlansManagement: React.FC = () => {
                   Create and manage package names, monthly pricing, yearly pricing, storage, and trial days.
                 </p>
               </div>
-              <Button
-                type="button"
-                className="bg-white text-green-700 hover:bg-gray-100 px-5 py-2.5 font-semibold shadow-md"
-                onClick={startCreatePlan}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Package
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  className="bg-white text-green-700 hover:bg-gray-100 px-5 py-2.5 font-semibold shadow-md"
+                  onClick={() => startCreatePlan('freeplan')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Free Plan
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/80 bg-white/10 text-white hover:bg-white/20 px-5 py-2.5 font-semibold"
+                  onClick={() => startCreatePlan('custom')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Custom Package
+                </Button>
+              </div>
             </div>
           </div>
         </section>
 
-        <div className="p-6 space-y-8">
+        <div className="w-full max-w-[1600px] mx-auto space-y-8 px-4 py-8 sm:px-8 lg:px-10">
           {error && (
             <Card className="border border-red-200 bg-red-50">
               <CardContent className="p-4">
@@ -378,7 +616,7 @@ const SubscriptionPlansManagement: React.FC = () => {
             </Card>
           )}
 
-          <Card className="border border-gray-200 shadow-sm bg-white/80 backdrop-blur-sm">
+          <Card className="w-full border border-gray-200 shadow-sm bg-white/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -387,7 +625,7 @@ const SubscriptionPlansManagement: React.FC = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="w-full space-y-6">
               {(isCreatingPlan || editingPlan) && (
                 <Card className="border border-dashed border-gray-300 bg-white">
                   <CardContent className="p-6">
@@ -406,7 +644,29 @@ const SubscriptionPlansManagement: React.FC = () => {
                         </Button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="space-y-2">
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-gray-700 font-medium">Plan Category</Label>
+                          <select
+                            value={planForm.category}
+                            onChange={(e) => handlePlanCategoryChange(e.target.value as PlanCategory)}
+                            className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            {PLAN_CATEGORIES.map((category) => (
+                              <option key={category.id} value={category.id}>
+                                {category.label}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500">
+                            {PLAN_CATEGORIES.find((item) => item.id === planForm.category)?.description}
+                          </p>
+                          {planForm.category === 'freeplan' && (
+                            <p className="text-xs text-emerald-700">
+                              Unlocks: {FREEPLAN_MODULES.filter((key) => key !== 'subscription').join(', ')}
+                            </p>
+                          )}
+                        </div>
+                        <div className={`space-y-2 ${isFreePlanForm ? 'md:col-span-2' : ''}`}>
                           <Label className="text-gray-700 font-medium">Package Name</Label>
                           <Input
                             name="plan_name"
@@ -417,57 +677,61 @@ const SubscriptionPlansManagement: React.FC = () => {
                             required
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Monthly Price</Label>
-                          <Input
-                            type="number"
-                            name="monthly_price"
-                            autoComplete="off"
-                            min="0"
-                            value={planForm.price}
-                            onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
-                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Yearly Price</Label>
-                          <Input
-                            type="number"
-                            name="yearly_price"
-                            autoComplete="off"
-                            min="0"
-                            value={planForm.yearly_price}
-                            onChange={(e) => setPlanForm({ ...planForm, yearly_price: e.target.value })}
-                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Storage (GB)</Label>
-                          <Input
-                            type="number"
-                            name="storage_gb"
-                            autoComplete="off"
-                            min="0"
-                            value={planForm.storage_gb}
-                            onChange={(e) => setPlanForm({ ...planForm, storage_gb: e.target.value })}
-                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Trial Days</Label>
-                          <Input
-                            type="number"
-                            name="trial_days"
-                            autoComplete="off"
-                            min="0"
-                            value={planForm.trial_days}
-                            onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })}
-                            className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                            required
-                          />
-                        </div>
+                        {!isFreePlanForm && (
+                          <>
+                            <div className="space-y-2">
+                              <Label className="text-gray-700 font-medium">Monthly Price</Label>
+                              <Input
+                                type="number"
+                                name="monthly_price"
+                                autoComplete="off"
+                                min="0"
+                                value={planForm.price}
+                                onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
+                                className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-gray-700 font-medium">Yearly Price</Label>
+                              <Input
+                                type="number"
+                                name="yearly_price"
+                                autoComplete="off"
+                                min="0"
+                                value={planForm.yearly_price}
+                                onChange={(e) => setPlanForm({ ...planForm, yearly_price: e.target.value })}
+                                className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-gray-700 font-medium">Storage (GB)</Label>
+                              <Input
+                                type="number"
+                                name="storage_gb"
+                                autoComplete="off"
+                                min="0"
+                                value={planForm.storage_gb}
+                                onChange={(e) => setPlanForm({ ...planForm, storage_gb: e.target.value })}
+                                className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-gray-700 font-medium">Trial Days</Label>
+                              <Input
+                                type="number"
+                                name="trial_days"
+                                autoComplete="off"
+                                min="0"
+                                value={planForm.trial_days}
+                                onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })}
+                                className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                                required
+                              />
+                            </div>
+                          </>
+                        )}
                         <div className="flex items-center gap-2">
                           <input
                             id="plan-active"
@@ -502,93 +766,32 @@ const SubscriptionPlansManagement: React.FC = () => {
               )}
 
               {plans.length > 0 ? (
-                <div className="relative before:absolute before:inset-0 before:bg-gradient-to-r before:from-green-500/10 before:to-transparent before:rounded-2xl before:blur-2xl before:-z-10 before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-3/4 before:h-3/4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {plans.map((plan) => {
-                      const isPopular = plan.name?.toLowerCase?.().includes('standard');
-
-                      return (
-                        <div
-                          key={plan.id}
-                          className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${
-                            isPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
-                          }`}
-                        >
-                          {isPopular && (
-                            <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
-                              Most Popular
-                            </div>
-                          )}
-
-                          <div className={`p-6 ${isPopular ? 'pt-12' : 'pt-6'}`}>
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h4 className="text-xl font-bold text-gray-900">{plan.name}</h4>
-                              </div>
-                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${plan.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                                {plan.is_active ? 'Active' : 'Inactive'}
-                              </span>
-                            </div>
-
-                            <div className="mt-6 grid grid-cols-2 gap-3 text-center">
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                                <p className="text-[10px] uppercase text-gray-500">Monthly</p>
-                                <p className="text-lg font-semibold text-gray-900">{formatPrice(plan.price || 0)}</p>
-                              </div>
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                                <p className="text-[10px] uppercase text-gray-500">Yearly</p>
-                                <p className="text-lg font-semibold text-emerald-700">{formatPrice(plan.yearly_price || 0)}</p>
-                              </div>
-                            </div>
-
-                            <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-                              <span>Storage: {plan.storage_gb ? `${plan.storage_gb}GB` : '-'}</span>
-                              <span>Trial: {plan.trial_days} days</span>
-                            </div>
-
-                            <div className="mt-6 space-y-2">
-                              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Modules</p>
-                              <div className="flex flex-wrap gap-2">
-                                {plan.description
-                                  .split('\n')
-                                  .filter(Boolean)
-                                  .slice(0, 8)
-                                  .map((item, index) => (
-                                    <span
-                                      key={index}
-                                      className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700"
-                                    >
-                                      {item}
-                                    </span>
-                                  ))}
-                              </div>
-                            </div>
-
-                            <div className="mt-6 flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1"
-                                onClick={() => handleEditPlan(plan)}
-                              >
-                                <Edit className="w-4 h-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-red-500 text-red-600 hover:bg-red-50 flex-1"
-                                onClick={() => handleDeletePlan(plan.id)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                <div className="space-y-10 w-full">
+                  <div className="grid w-full gap-6 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
+                    {sortedPlans.map((plan) => renderPlanCard(plan))}
                   </div>
+
+                  {groupedPlans
+                    .filter((group) => group.plans.length === 0 && group.id === 'freeplan')
+                    .map((group) => (
+                      <Card key={group.id} className="border border-dashed border-gray-200 bg-gray-50/80">
+                        <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{group.label}</h3>
+                            <p className="text-sm text-gray-600">{group.description}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => startCreatePlan('freeplan')}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Free Plan
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               ) : (
                 <Card className="border border-dashed border-gray-200 bg-white/80 backdrop-blur-sm">
@@ -597,10 +800,10 @@ const SubscriptionPlansManagement: React.FC = () => {
                     <Button
                       variant="outline"
                       className="mt-4 border-green-600 text-green-600 hover:bg-green-50"
-                      onClick={startCreatePlan}
+                      onClick={() => startCreatePlan('freeplan')}
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Create Package
+                      Create Free Plan
                     </Button>
                   </CardContent>
                 </Card>
@@ -608,7 +811,7 @@ const SubscriptionPlansManagement: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200 shadow-sm bg-white/80 backdrop-blur-sm">
+          <Card className="w-full border border-gray-200 shadow-sm bg-white/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -803,7 +1006,7 @@ const SubscriptionPlansManagement: React.FC = () => {
               </Card>
 
               {addons.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid w-full gap-6 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
                   {addons.map((addon) => (
                     <div key={addon.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                       <div className="flex items-start justify-between gap-3">

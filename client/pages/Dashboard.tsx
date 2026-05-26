@@ -360,6 +360,13 @@ type MetricEmployee = {
   toDate?: string | null;
 };
 
+type PendingApprovalItem = {
+  id?: number;
+  name: string;
+  type: string;
+  category?: string;
+};
+
 const formatMetricTime = (value?: string | null) => {
   if (!value) return "N/A";
   const date = new Date(value);
@@ -529,8 +536,9 @@ const AdminDashboard = () => {
   const [metricDialog, setMetricDialog] = useState<{
     title: string;
     description: string;
-    type: "present" | "leave";
-    employees: MetricEmployee[];
+    type: "present" | "leave" | "pending";
+    employees?: MetricEmployee[];
+    pendingItems?: PendingApprovalItem[];
   } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -771,6 +779,23 @@ const AdminDashboard = () => {
             trend={kpis.pendingTrend || ''}
             description="Awaiting action"
             colorClass="gradient-bg-red"
+          onClick={() =>
+            setMetricDialog({
+              title: "Pending Approvals",
+              description: "Leave and expense requests waiting for action",
+              type: "pending",
+              pendingItems:
+                dashboardData?.pendingApprovals?.length
+                  ? dashboardData.pendingApprovals
+                  : (kpis.pendingApprovals || 0) > 0
+                    ? [{
+                        name: `${kpis.pendingApprovals} pending request(s)`,
+                        type: "Pending approvals are available. Please open approvals module to review.",
+                        category: "pending",
+                      }]
+                    : [],
+            })
+          }
           />
         </div>
       </div>
@@ -1218,7 +1243,32 @@ const AdminDashboard = () => {
             <DialogDescription>{metricDialog?.description}</DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto">
-            {metricDialog?.employees?.length ? (
+            {metricDialog?.type === "pending" ? (
+              metricDialog?.pendingItems?.length ? (
+                <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {metricDialog.pendingItems.map((item, index) => (
+                    <div
+                      key={`${item.id || item.name}-${index}`}
+                      className="grid gap-2 p-4 sm:grid-cols-[1fr_auto]"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-900">{item.name}</p>
+                        <p className="text-sm text-slate-500">{item.type}</p>
+                      </div>
+                      <div className="text-left text-sm sm:text-right">
+                        <span className="rounded-md bg-amber-100 px-2.5 py-1 font-medium text-amber-700">
+                          {item.category || "pending"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                  No pending approvals found.
+                </div>
+              )
+            ) : metricDialog?.employees?.length ? (
               <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
                 {metricDialog.employees.map((employee, index) => (
                   <div
@@ -1520,6 +1570,14 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
           icon={<AlertCircle className="w-7 h-7" />}
           description="Awaiting your action"
           colorClass="gradient-bg-red"
+          onClick={() =>
+            setMetricDialog({
+              title: "Pending Approvals",
+              description: "Items requiring your review",
+              type: "pending",
+              pendingItems: dashboardData?.pendingApprovals || [],
+            })
+          }
         />
       </div>
 

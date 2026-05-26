@@ -7,6 +7,7 @@ import {
   type MessagePayload,
 } from "firebase/messaging";
 import ENDPOINTS from "@/lib/endpoint";
+import { showBrowserNotification } from "@/services/showBrowserNotification";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
@@ -17,7 +18,7 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
 };
 
-const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || "";
+const vapidKey = String(import.meta.env.VITE_FIREBASE_VAPID_KEY || "").trim();
 
 const hasFirebaseConfig = () =>
   Boolean(
@@ -31,13 +32,68 @@ const hasFirebaseConfig = () =>
 let registrationPromise: Promise<string | null> | null = null;
 let foregroundListenerAttached = false;
 
-const getServiceWorkerRegistration = async () => {
-  if (!("serviceWorker" in navigator)) return null;
-  return navigator.serviceWorker.register("/firebase-messaging-sw.js");
+const parsePayloadData = (payload: MessagePayload): Record<string, string> => {
+  const raw = payload.data || {};
+  return Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, String(value ?? "")]),
+  );
 };
 
-export const registerWebPushNotifications = async () => {
-  if (registrationPromise) return registrationPromise;
+const attachForegroundListener = (messaging: ReturnType<typeof getMessaging>) => {
+  if (foregroundListenerAttached) return;
+  foregroundListenerAttached = true;
+
+  onMessage(messaging, (payload: MessagePayload) => {
+    const data = parsePayloadData(payload);
+    const title =
+      payload.notification?.title || data.title || "HRMS";
+    const body =
+      payload.notification?.body || data.body || "";
+    void showBrowserNotification(title, body, data);
+  });
+};
+
+const waitForServiceWorkerActivation = async (
+  registration: ServiceWorkerRegistration,
+) => {
+  if (registration.active) return registration;
+
+  const installing = registration.installing || registration.waiting;
+  if (!installing) {
+    await navigator.serviceWorker.ready;
+    return registration;
+  }
+
+  await new Promise<void>((resolve) => {
+    const onStateChange = () => {
+      if (installing.state === "activated") {
+        installing.removeEventListener("statechange", onStateChange);
+        resolve();
+      }
+    };
+    installing.addEventListener("statechange", onStateChange);
+    onStateChange();
+  });
+
+  return registration;
+};
+
+const getServiceWorkerRegistration = async () => {
+  if (!("serviceWorker" in navigator)) return null;
+  const registration = await navigator.serviceWorker.register(
+    "/firebase-messaging-sw.js",
+    { scope: "/" },
+  );
+  return waitForServiceWorkerActivation(registration);
+};
+
+export const resetWebPushRegistration = () => {
+  registrationPromise = null;
+  foregroundListenerAttached = false;
+};
+
+export const registerWebPushNotifications = async (force = false) => {
+  if (registrationPromise && !force) return registrationPromise;
 
   registrationPromise = (async () => {
     if (typeof window === "undefined" || !("Notification" in window)) return null;
@@ -49,11 +105,16 @@ export const registerWebPushNotifications = async () => {
     const supported = await isSupported().catch(() => false);
     if (!supported) return null;
 
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") return null;
 
     const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
+    attachForegroundListener(messaging);
+
     const serviceWorkerRegistration = await getServiceWorkerRegistration();
     if (!serviceWorkerRegistration) return null;
 
@@ -62,28 +123,40 @@ export const registerWebPushNotifications = async () => {
       serviceWorkerRegistration,
     });
 
-    if (!token) return null;
-
-    await ENDPOINTS.registerPushToken({
-      token,
-      platform: "web",
-    });
-
-    if (!foregroundListenerAttached) {
-      foregroundListenerAttached = true;
-      onMessage(messaging, (payload: MessagePayload) => {
-        const title = payload.notification?.title || payload.data?.title || "HRMS";
-        const body = payload.notification?.body || payload.data?.body || "";
-        if (document.visibilityState === "visible" && "Notification" in window) {
-          new Notification(title, {
-            body,
-            data: payload.data,
-          });
-        }
-      });
+    if (!token) {
+      console.warn(
+        "FCM getToken returned empty. Check VITE_FIREBASE_VAPID_KEY and notification permission.",
+      );
+      return null;
     }
 
-    localStorage.setItem("fcmToken", token);
+    const storedToken = localStorage.getItem("fcmToken");
+    if (storedToken !== token) {
+      if (storedToken) {
+        try {
+          await ENDPOINTS.unregisterPushToken({ token: storedToken });
+        } catch {
+          // ignore stale unregister errors
+        }
+      }
+
+      try {
+        await ENDPOINTS.registerPushToken({
+          token,
+          platform: "web",
+        });
+        localStorage.setItem("fcmToken", token);
+        console.info("Web push token registered with backend.");
+      } catch (error: any) {
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to register push token with server";
+        console.warn("Push token registration failed:", message);
+        return null;
+      }
+    }
+
     return token;
   })();
 
@@ -100,6 +173,6 @@ export const unregisterStoredWebPushToken = async () => {
     console.warn("Failed to unregister FCM token", error);
   } finally {
     localStorage.removeItem("fcmToken");
-    registrationPromise = null;
+    resetWebPushRegistration();
   }
 };

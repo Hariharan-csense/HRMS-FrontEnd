@@ -249,12 +249,25 @@ const CreatePulseSurvey: React.FC = () => {
       const pushSent = Number(res?.data?.push?.sent || 0);
       const pushFailed = Number(res?.data?.push?.failed || 0);
       const pushSkipped = Number(res?.data?.push?.skipped || 0);
-      const pushError = res?.data?.push?.errors?.[0]?.code;
+      const pushSkipReasons = Array.isArray(res?.data?.push?.skipReasons)
+        ? res.data.push.skipReasons
+        : [];
+      const pushErrorReason = res?.data?.push?.errors?.[0]?.reason;
+      const pushSkipHint = pushSkipReasons.includes("fcm_api_permission_denied") ||
+        pushErrorReason === "fcm_api_permission_denied"
+        ? " — enable Firebase Cloud Messaging API and grant the service account permission to send messages"
+        : pushSkipReasons.includes("no_active_fcm_token")
+          ? " — assignee must log in on browser and allow notifications"
+          : pushSkipReasons.includes("firebase_not_configured")
+            ? " — configure Firebase Admin on the server"
+            : pushSkipReasons.includes("fcm_credential_mismatch")
+              ? " — regenerate Web Push key in Firebase and re-login on browser"
+              : "";
 
       toast({
         title: "Survey sent",
         description: totalSent
-          ? `Survey assigned to ${totalSent} employee(s). Push sent: ${pushSent}${pushFailed ? `, failed: ${pushFailed}` : ""}${pushSkipped ? `, skipped: ${pushSkipped}` : ""}${pushError ? ` (${pushError})` : ""}. Emails sent: ${emailSent}${emailFailed ? `, failed: ${emailFailed}` : ""}.`
+          ? `Survey assigned to ${totalSent} employee(s). Push sent: ${pushSent}${pushFailed ? `, failed: ${pushFailed}` : ""}${pushSkipped ? `, skipped: ${pushSkipped}` : ""}${pushSkipHint}. Emails sent: ${emailSent}${emailFailed ? `, failed: ${emailFailed}` : ""}.`
           : "Survey created successfully.",
       });
 

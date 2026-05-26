@@ -530,6 +530,9 @@ const SubscriptionManagement: React.FC = () => {
 
   const getPlanIcon = (planName: string) => {
     const name = planName.toLowerCase();
+    if (name.includes('freeplan') || name.includes('free plan') || name.includes('free package') || (name.includes('free') && !name.includes('trial'))) {
+      return <Star className="w-8 h-8 text-emerald-500" />;
+    }
     if (name.includes('basic') || name.includes('starter')) {
       return <Shield className="w-8 h-8 text-blue-500" />;
     }
