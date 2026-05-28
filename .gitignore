@@ -24,13 +24,16 @@ dist-ssr
 *.sw?
 
 .config/
-!.env
-env 
+
+
 dist/
 build/
 coverage/
 
-.env
+
 dist.zip/
 
 
+.env/
+.env/
+.env/

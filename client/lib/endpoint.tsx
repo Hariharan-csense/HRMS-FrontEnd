@@ -4,8 +4,8 @@ import axios from "axios";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.10:3000/backend";
-  export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.10:3000/backend";
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -1081,7 +1081,8 @@ const ENDPOINTS = {
 
   //clint attendance
 
-  getallattendance: (params?: any) => api.get("/client-attendance/all", { params }),
+  getallattendance: (params?: any) =>
+    api.get("/client-attendance/all", { params }),
 
   getActiveClientAttendance: () => api.get("/client-attendance/active"),
 
@@ -1147,6 +1148,10 @@ const ENDPOINTS = {
           month: item.month,
 
           payableDays: item.payable_days || 0,
+
+          lopDays: parseFloat(item.lop_days) || 0,
+
+          unpayableDays: parseFloat(item.lop_days) || 0,
 
           lopAmount: parseFloat(item.lop_amount) || 0,
 
@@ -1278,7 +1283,8 @@ const ENDPOINTS = {
   getAvailableSubscriptionAddons: () =>
     api.get("/subscription/addons/available"),
 
-  createSubscriptionAddon: (data: any) => api.post("/subscription/addons", data),
+  createSubscriptionAddon: (data: any) =>
+    api.post("/subscription/addons", data),
 
   updateSubscriptionAddon: (addonId: number, data: any) =>
     api.put(`/subscription/addons/${addonId}`, data),
@@ -1299,7 +1305,10 @@ const ENDPOINTS = {
     api.get("/subscription/addons/assignments"),
 
   updateSubscriptionAddonUsers: (subscriptionAddonId: number, data: any) =>
-    api.put(`/subscription/addons/assignments/${subscriptionAddonId}/users`, data),
+    api.put(
+      `/subscription/addons/assignments/${subscriptionAddonId}/users`,
+      data,
+    ),
 
   removeSubscriptionAddonAssignment: (assignmentId: number) =>
     api.delete(`/subscription/addons/assignments/${assignmentId}`),

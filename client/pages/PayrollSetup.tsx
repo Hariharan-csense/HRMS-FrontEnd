@@ -34,7 +34,9 @@ interface PayrollProcessing {
   reportingManager?: string;
   month: string;
   payableDays: number;
-  lopAmount: number;
+  lopDays?: number;
+  unpayableDays?: number;
+  lopAmount?: number;
   gross: number;
   tdsAmount?: number;
   deductions: number;
@@ -395,7 +397,7 @@ export default function PayrollSetup() {
   const { user } = useAuth();
   const { hasSubModuleAccess } = useRole();
   const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>([]);
-  const [payrollProcessing, setPayrollProcessing] = useState<PayrollProcessing[]>(mockPayrollProcessing);
+  const [payrollProcessing, setPayrollProcessing] = useState<PayrollProcessing[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -869,14 +871,12 @@ export default function PayrollSetup() {
         } else if (result.error) {
           console.log('API error:', result.error);
           setError(result.error);
-          // Fallback to mock data in case of error
-          setPayslips(mockPayslips);
+          setPayslips([]);
         }
       } catch (err) {
         console.error('Error fetching payslips:', err);
-        setError('Failed to fetch payslips. Using mock data instead.');
-        // Fallback to mock data in case of error
-        setPayslips(mockPayslips);
+        setError('Failed to fetch payslips.');
+        setPayslips([]);
       } finally {
         setIsLoading(false);
       }
@@ -903,14 +903,12 @@ export default function PayrollSetup() {
           } else if (result.error) {
             console.log('API error:', result.error);
             setError(result.error);
-            // Fallback to mock data in case of error
-            setPayslips(mockPayslips);
+            setPayslips([]);
           }
         } catch (err) {
           console.error('Error fetching payslips:', err);
-          setError('Failed to fetch payslips. Using mock data instead.');
-          // Fallback to mock data in case of error
-          setPayslips(mockPayslips);
+          setError('Failed to fetch payslips.');
+          setPayslips([]);
         } finally {
           setIsLoading(false);
         }
@@ -939,14 +937,12 @@ export default function PayrollSetup() {
         } else if (result.error) {
           console.log('API error:', result.error);
           setError(result.error);
-          // Fallback to mock data in case of error
-          setPayrollProcessing(mockPayrollProcessing);
+          setPayrollProcessing([]);
         }
       } catch (err) {
         console.error('Error fetching payroll processing:', err);
-        setError('Failed to fetch payroll processing. Using mock data instead.');
-        // Fallback to mock data in case of error
-        setPayrollProcessing(mockPayrollProcessing);
+        setError('Failed to fetch payroll processing.');
+        setPayrollProcessing([]);
       } finally {
         setIsLoading(false);
       }
@@ -1637,6 +1633,7 @@ export default function PayrollSetup() {
         "Employee ID": process.employeeId,
         "Month": process.month,
         "Payable Days": process.payableDays,
+        "Unpayable Days": process.unpayableDays ?? process.lopDays ?? 0,
         "LOP Amount": process.lopAmount || 0,
         "Gross Salary": process.gross,
         "TDS": process.tdsAmount || 0,
@@ -1977,6 +1974,12 @@ export default function PayrollSetup() {
                               <span className="font-semibold text-slate-900">{process.payableDays}</span>
                             </div>
                             <div className="flex justify-between">
+                              <span className="text-slate-600">Lop Days:</span>
+                              <span className={`font-semibold ${(process.unpayableDays ?? process.lopDays ?? 0) > 0 ? "text-red-600" : "text-green-600"}`}>
+                                {process.unpayableDays ?? process.lopDays ?? 0}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
                               <span className="text-slate-600">LOP Amount:</span>
                               <span className={`font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</span>
                             </div>
@@ -2017,36 +2020,36 @@ export default function PayrollSetup() {
 
                   {/* Desktop Table View */}
                   <div className="hidden md:block w-full overflow-x-auto border rounded-lg">
-                    <table className="w-full text-sm border-collapse">
+                    <table className="w-full min-w-[1040px] text-sm border-collapse">
                       <thead>
                         <tr className="border-b-2 border-slate-300 bg-slate-100">
-                          <th className="text-left px-6 py-4 font-bold text-slate-900">Employee</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900">Month</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900">Payable Days</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900">LOP Amt</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900">Gross</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900">TDS</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900">Deductions</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900">Net</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900">Status</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900">Actions</th>
+                          <th className="text-left px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Employee</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Month</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Payable Days</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">LOP Amt</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Gross</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">TDS</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Deductions</th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Net</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Status</th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredProcessing.map((process) => {
                           return (
                             <tr key={process.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 font-semibold text-slate-900">{process.employeeName}</td>
-                              <td className="px-4 py-4 text-slate-700 text-center">{process.month}</td>
-                              <td className="px-4 py-4 text-slate-700 text-center font-medium">{process.payableDays}</td>
-                              <td className={`px-6 py-4 text-right font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</td>
-                              <td className="px-6 py-4 text-slate-700 text-right">₹{process.gross.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-slate-700 text-right">₹{(process.tdsAmount || 0).toLocaleString()}</td>
-                              <td className="px-6 py-4 text-slate-700 text-right">₹{process.deductions.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-slate-900 text-right font-bold bg-green-100">₹{process.net.toLocaleString()}</td>
+                              <td className="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">{process.employeeName}</td>
+                              <td className="px-4 py-4 text-slate-700 text-center whitespace-nowrap">{process.month}</td>
+                              <td className="px-4 py-4 text-slate-700 text-center font-medium whitespace-nowrap">{process.payableDays}</td>
+                              <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</td>
+                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">₹{process.gross.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">₹{(process.tdsAmount || 0).toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">₹{process.deductions.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-900 text-right font-bold bg-green-100 whitespace-nowrap">₹{process.net.toLocaleString()}</td>
                               <td className="px-4 py-4 text-center">
                                 <span
-                                  className={`text-xs font-semibold px-3 py-1.5 rounded-full ${process.status === "paid"
+                                  className={`inline-flex items-center justify-center min-w-[86px] whitespace-nowrap text-xs font-semibold px-3 py-1.5 rounded-full ${process.status === "paid"
                                     ? "bg-green-100 text-green-800"
                                     : process.status === "final"
                                       ? "bg-blue-100 text-blue-800"
@@ -2056,7 +2059,7 @@ export default function PayrollSetup() {
                                   {process.status.charAt(0).toUpperCase() + process.status.slice(1)}
                                 </span>
                               </td>
-                              <td className="px-4 py-4">
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="flex gap-2 justify-center">
                                   <button
                                     onClick={() => handleDelete(process.id)}
@@ -2155,15 +2158,18 @@ export default function PayrollSetup() {
                             <button
                               onClick={async () => {
                                 try {
+                                  setPayslipPreviewHtml(null);
                                   const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
                                   if (result.data) {
                                     setPayslipPreviewHtml(result.data);
                                     setIsViewPayslipOpen(true);
                                   } else if (result.error) {
+                                    setIsViewPayslipOpen(false);
                                     toast.error(result.error);
                                   }
                                 } catch (error) {
                                   console.error('Error fetching payslip preview:', error);
+                                  setIsViewPayslipOpen(false);
                                   toast.error('Failed to load payslip preview');
                                 }
                               }}
@@ -2186,6 +2192,7 @@ export default function PayrollSetup() {
                               <button
                                 onClick={async () => {
                                   try {
+                                    setPayslipPreviewHtml(null);
                                     const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
                                     if (result.data) {
                                       setPayslipPreviewHtml(result.data);
@@ -2673,7 +2680,13 @@ export default function PayrollSetup() {
       </AlertDialog>
 
       {/* View Payslip Dialog */}
-      <Dialog open={isViewPayslipOpen} onOpenChange={setIsViewPayslipOpen}>
+      <Dialog
+        open={isViewPayslipOpen}
+        onOpenChange={(open) => {
+          setIsViewPayslipOpen(open);
+          if (!open) setPayslipPreviewHtml(null);
+        }}
+      >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
             <DialogTitle className="text-xl font-bold">Payslip Preview</DialogTitle>

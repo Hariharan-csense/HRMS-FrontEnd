@@ -1293,12 +1293,6 @@ export default function EmployeeList() {
       return;
     }
 
-    if (!uploadedFiles.photo && !uploadedFileObjects.photo) {
-      showToast.error("Employee photo is required for facial recognition");
-      setActiveTab("documents");
-      return;
-    }
-
     // if (!formData.shift) {
     //   showToast.error("Shift is required!");
     //   return;
@@ -3499,7 +3493,7 @@ export default function EmployeeList() {
               {[
                 {
                   field: "photo",
-                  label: "Photo *",
+                  label: "Photo",
                   description: "Employee profile photo (JPG/PNG)",
                 },
                 {
