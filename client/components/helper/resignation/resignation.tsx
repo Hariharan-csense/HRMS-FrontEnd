@@ -89,20 +89,24 @@ export const resignationApi = {
 // resignationApi.ts la update pannu
 createResignation: async (
   data: {
+    employeeId?: string;
     employeeName?: string;                  // employeeId remove pannita
     resignationDate: string;
     lastWorkingDate?: string;
     reason?: string;
     noticePeriod?: number;
+    status?: Resignation["status"];
   }
 ): Promise<{ data?: Resignation; error?: string }> => {
   try {
     // Send exact fields backend expects
     const payload = {
+      employee_id: data.employeeId,
       employee_name: data.employeeName,
       resignation_date: data.resignationDate,
       last_working_day: data.lastWorkingDate,
       reason: data.reason,
+      approval_status: data.status || "pending",
       // notice_period if needed
     };
 
@@ -140,10 +144,21 @@ createResignation: async (
   // ✅ Update resignation
   updateResignation: async (
     id: string,
-    data: Partial<Pick<Resignation, "resignationDate" | "lastWorkingDate" | "reason" | "status" | "noticePeriod" | "isActive">>
+    data: Partial<Pick<Resignation, "employeeId" | "employeeName" | "resignationDate" | "lastWorkingDate" | "reason" | "status" | "noticePeriod" | "isActive">>
   ): Promise<{ data?: Resignation; error?: string }> => {
     try {
-      const response = await ENDPOINTS.updateResignation(id, data);
+      const payload = {
+        ...(data.employeeId !== undefined && { employee_id: data.employeeId }),
+        ...(data.employeeName !== undefined && { employee_name: data.employeeName }),
+        ...(data.resignationDate !== undefined && { resignation_date: data.resignationDate }),
+        ...(data.lastWorkingDate !== undefined && { last_working_day: data.lastWorkingDate }),
+        ...(data.reason !== undefined && { reason: data.reason }),
+        ...(data.status !== undefined && { approval_status: data.status }),
+        ...(data.noticePeriod !== undefined && { notice_period: data.noticePeriod }),
+        ...(data.isActive !== undefined && { is_active: data.isActive }),
+      };
+
+      const response = await ENDPOINTS.updateResignation(id, payload);
       const r = response.data?.resignation || response.data;
 
       if (r) {
@@ -153,9 +168,9 @@ createResignation: async (
             employeeId: r.employee_id || r.employeeId,
             employeeName: r.employee_name || r.employeeName,
             resignationDate: extractDateOnly(r.resignation_date || r.resignationDate) || data.resignationDate,
-            lastWorkingDate: extractDateOnly(r.last_working_date || r.lastWorkingDate) || data.lastWorkingDate,
+            lastWorkingDate: extractDateOnly(r.last_working_day || r.lastWorkingDate) || data.lastWorkingDate,
             reason: r.reason || data.reason,
-            status: r.status || data.status || "pending",
+            status: r.approval_status || r.status || data.status || "pending",
             noticePeriod: Number(r.notice_period || r.noticePeriod || data.noticePeriod || 0),
             isActive: r.is_active ?? r.isActive ?? data.isActive,
             createdAt: r.created_at || r.createdAt,

@@ -879,13 +879,13 @@ const AdminDashboard = () => {
           <h2 className="text-2xl font-bold text-gray-800">Attendance & Department Numbers</h2>
         </div>
         <div className="grid grid-cols-1 gap-6 items-stretch">
-          <div className="modern-card hover-scale overflow-hidden h-full">
-            <CardHeader className="bg-gradient-to-r from-purple-900 to-indigo-800 rounded-t-xl p-4">
+          <div className="modern-card overflow-hidden h-full">
+            <CardHeader className="bg-[#17c491] rounded-t-xl p-4">
               <CardTitle className="text-white font-bold flex items-center gap-2 text-xl">
                 <Building className="w-5 h-5" />
                 Headcount by Department
               </CardTitle>
-              <CardDescription className="text-purple-100 text-xs">Department-wise employee count</CardDescription>
+              <CardDescription className="text-white/80 text-xs">Department-wise employee count</CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-2.5">
               {(departmentData || []).slice(0, 6).map((d: any, idx: number) => (
@@ -910,18 +910,18 @@ const AdminDashboard = () => {
         </div>
         <div className="grid grid-cols-1 gap-5">
           <div className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#f7fcfa] px-6 py-5">
-              <CardTitle className="text-[#0d5f49] flex items-center gap-2">
-                <div className="w-5 h-5 bg-[#17c491] rounded-full flex items-center justify-center text-white text-xs font-bold">%</div>
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491] px-6 py-5">
+              <CardTitle className="text-white flex items-center gap-2">
+                <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-white text-xs font-bold">%</div>
                 Department Attendance Summary
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Quick comparison with attendance rate</CardDescription>
+              <CardDescription className="text-white/80">Quick comparison with attendance rate</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-4">
                 {departmentAttendanceChart.length > 0 ? (
                   departmentAttendanceChart.map((dept, idx) => (
-                    <div key={idx} className="rounded-xl border border-[#d7ede6] bg-[#fbfffd] p-4 transition-shadow duration-300 hover:shadow-sm">
+                    <div key={idx} className="rounded-xl border border-[#d7ede6] bg-[#fbfffd] p-4">
                       <div className="mb-3 flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-[#0d5f49] text-lg">{dept.dept}</p>
@@ -945,7 +945,7 @@ const AdminDashboard = () => {
                           <p className="text-xs text-[#0d5f49]">Half Day</p>
                         </div>
                         <div className="rounded-xl bg-[#f1fbf7] p-3 border border-[#d7ede6]">
-                          <p className="text-2xl font-bold text-[#0f8f6a]">{dept.absent}</p>
+                          <p className="text-2xl font-bold text-[#0fa372]">{dept.absent}</p>
                           <p className="text-xs text-[#0d5f49]">Absent</p>
                         </div>
                       </div>
@@ -972,13 +972,13 @@ const AdminDashboard = () => {
       {/* Additional Metrics */}
       <div className="space-y-5">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5] dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
-              <CardTitle className="flex items-center gap-2 text-[#0d5f49] dark:text-emerald-300">
-                <TrendingUp className="h-5 w-5 text-[#17c491]" />
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491] dark:border-slate-700">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <TrendingUp className="h-5 w-5 text-white" />
                 Leave Utilization
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f] dark:text-emerald-200/80">Leave balance across all employees</CardDescription>
+              <CardDescription className="text-white/80">Leave balance across all employees</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
@@ -1032,13 +1032,13 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
-                <Clock className="h-5 w-5 text-[#17c491]" />
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Clock className="h-5 w-5 text-white" />
                 Recent Activities
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Latest system activities and updates</CardDescription>
+              <CardDescription className="text-white/80">Latest system activities and updates</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
@@ -1060,13 +1060,13 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
-                <Users className="h-5 w-5 text-[#17c491]" />
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Users className="h-5 w-5 text-white" />
                 Recent Joinings
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Recently onboarded employees</CardDescription>
+              <CardDescription className="text-white/80">Recently onboarded employees</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
@@ -1092,19 +1092,19 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
-                <Calendar className="h-5 w-5 text-[#17c491]" />
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Calendar className="h-5 w-5 text-white" />
                 Upcoming Birthdays
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Celebrate with your team</CardDescription>
+              <CardDescription className="text-white/80">Celebrate with your team</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {upcomingBirthdays?.map((emp, idx) => (
                   <div key={idx} className="flex items-center gap-3 rounded-xl border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-semibold text-rose-700">BD</div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dff8ef] text-xs font-semibold text-[#0d5f49]">BD</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#0d5f49]">{emp.name}</p>
                       <p className="text-xs text-[#2f6f5f]">{emp.date}</p>
@@ -1118,19 +1118,19 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#f7fcfa] to-[#eefaf5]">
-              <CardTitle className="flex items-center gap-2 text-[#0d5f49]">
-                <Calendar className="h-5 w-5 text-[#17c491]" />
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Calendar className="h-5 w-5 text-white" />
                 Upcoming Holidays
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Public and company holidays</CardDescription>
+              <CardDescription className="text-white/80">Public and company holidays</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {upcomingHolidays?.map((holiday, idx) => (
                   <div key={idx} className="flex items-center gap-3 rounded-xl border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-xs font-semibold text-sky-700">HD</div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dff8ef] text-xs font-semibold text-[#0d5f49]">HD</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#0d5f49]">{holiday.name}</p>
                       <p className="text-xs text-[#2f6f5f]">{holiday.date}</p>
@@ -1154,13 +1154,13 @@ const AdminDashboard = () => {
           <h2 className="text-2xl font-bold text-gray-800">Monthly Attendance Trends</h2>
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#0e2d3a] to-[#0b4c4c]">
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
               <CardTitle className="text-white flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
                 Monthly Present
               </CardTitle>
-              <CardDescription className="text-slate-200">Daily present counts this month</CardDescription>
+              <CardDescription className="text-white/80">Daily present counts this month</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="h-72">
@@ -1187,20 +1187,20 @@ const AdminDashboard = () => {
                       formatter={(value: number) => [value, "Present"]}
                       labelFormatter={(label: any) => `${label}`}
                     />
-                    <Bar dataKey="present" fill="url(#presentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} />
+                    <Bar dataKey="present" fill="url(#presentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="border-b border-[#e8f4f0] bg-gradient-to-r from-[#3b0f1b] to-[#6b1420]">
+          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
               <CardTitle className="text-white flex items-center gap-2">
                 <Building className="h-5 w-5" />
                 Monthly Absent
               </CardTitle>
-              <CardDescription className="text-rose-100">Daily absent counts this month</CardDescription>
+              <CardDescription className="text-white/80">Daily absent counts this month</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="h-72">
@@ -1208,15 +1208,15 @@ const AdminDashboard = () => {
                   <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.06} />
+                        <stop offset="0%" stopColor="#17c491" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#17c491" stopOpacity={0.06} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
                     <Tooltip
-                      cursor={{ stroke: "#fecaca", strokeWidth: 1 }}
+                      cursor={{ stroke: "#a7f3d0", strokeWidth: 1 }}
                       contentStyle={{
                         borderRadius: 10,
                         border: "1px solid hsl(var(--border))",
@@ -1227,7 +1227,7 @@ const AdminDashboard = () => {
                       formatter={(value: number) => [value, "Absent"]}
                       labelFormatter={(label: any) => `${label}`}
                     />
-                    <Bar dataKey="absent" fill="url(#absentGradient)" stroke="#dc2626" strokeWidth={1.5} radius={[10, 10, 4, 4]} />
+                    <Bar dataKey="absent" fill="url(#absentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

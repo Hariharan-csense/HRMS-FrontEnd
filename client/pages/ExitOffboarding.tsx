@@ -12,12 +12,12 @@ import { resignationApi, Resignation } from "@/components/helper/resignation/res
 import { Loader2 } from "lucide-react";
 import { checklistApi } from "@/components/helper/checklist/checklist";
 import { showToast } from "@/utils/toast";
-//import { employeeApi,type Employee   } from "@/components/helper/employee/employee";
+import type { Employee } from "@/components/helper/employee/employee";
 
 interface OffboardingChecklist {
   id: string;
   employeeId: string;
-  employeeName: string;
+  employeeName?: string;
   hrClearance: boolean;
   financeClearance: boolean;
   assetReturn: boolean;
@@ -218,6 +218,7 @@ export default function ExitOffboarding() {
     }
 
     const payload = {
+      employeeId: formData.employeeId,
       employeeName: formData.employeeName.trim(),
       resignationDate: formData.resignationDate,
       lastWorkingDate: formData.lastWorkingDate,
@@ -247,6 +248,11 @@ export default function ExitOffboarding() {
         setIsDialogOpen(false);
         setFormData({});
         setEditingId(null);
+
+        if (result.data.status === "approved") {
+          await fetchChecklists();
+          navigate("/exit/checklist");
+        }
       } else {
         showToast.error(result.error || "Failed to save resignation");
       }

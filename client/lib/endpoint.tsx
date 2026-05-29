@@ -4,8 +4,8 @@ import axios from "axios";
 
 // // //Export the base URL for use in other components
 
-export const BASE_URL = "http://192.168.1.10:3000/backend";
-// export const BASE_URL="https://hrms.procease.co/backend";
+// export const BASE_URL = "http://192.168.1.3:3000/backend";
+export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -138,6 +138,38 @@ const emitForceLogout = () => {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("auth:logout"));
   }
+};
+
+const isRefreshTokenAuthError = (error: any) => {
+  const status = error?.response?.status;
+  const message = String(error?.response?.data?.message || "")
+    .toLowerCase()
+    .trim();
+
+  if (status === 400 && message.includes("refresh token is required")) {
+    return true;
+  }
+
+  if (status !== 401) {
+    return false;
+  }
+
+  return (
+    message.includes("refresh token") ||
+    message.includes("invalid token type") ||
+    message.includes("invalid user type") ||
+    message.includes("user not found") ||
+    message.includes("admin user not found") ||
+    message.includes("employee not found")
+  );
+};
+
+const clearAuthAndNotify = () => {
+  clearAuthStorage();
+
+  clearReadableDebugCookies();
+
+  emitForceLogout();
 };
 
 // Attach token dynamically on EVERY request
@@ -317,18 +349,16 @@ api.interceptors.response.use(
             refreshError,
           );
 
-          clearAuthStorage();
-
-          clearReadableDebugCookies();
+          if (isRefreshTokenAuthError(refreshError)) {
+            clearAuthAndNotify();
+          }
 
           return Promise.reject(refreshError);
         }
       } else {
-        // No refresh token or refresh token request failed
-
-        clearAuthStorage();
-
-        clearReadableDebugCookies();
+        if (isRefreshTokenAuthError(error)) {
+          clearAuthAndNotify();
+        }
 
         return Promise.reject(error);
       }
@@ -882,13 +912,15 @@ const ENDPOINTS = {
 
   //reports
 
-  getAttendanceReport: () => api.get("/reports/attendance"),
+  getReportFilters: () => api.get("/reports/filters"),
 
-  getpayrollReport: () => api.get("/reports/payroll"),
+  getAttendanceReport: (params?: any) => api.get("/reports/attendance", { params }),
 
-  getexpenseReport: () => api.get("/reports/expenses"),
+  getpayrollReport: (params?: any) => api.get("/reports/payroll", { params }),
 
-  getleaveReport: () => api.get("/reports/leaves"),
+  getexpenseReport: (params?: any) => api.get("/reports/expenses", { params }),
+
+  getleaveReport: (params?: any) => api.get("/reports/leaves", { params }),
 
   //shifts
 

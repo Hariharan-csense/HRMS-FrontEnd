@@ -50,28 +50,11 @@ export const PREDEFINED_OFFICE_LOCATIONS: OfficeLocation[] = [
   },
 ];
 
-// Reverse geocoding using OpenStreetMap Nominatim API (free, no API key needed)
+// Reverse geocoding through the backend first so provider keys stay server-side.
 export const reverseGeocode = async (
   latitude: number,
   longitude: number
 ): Promise<string | null> => {
-  const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-
-  if (googleKey) {
-    try {
-      const googleResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${googleKey}`
-      );
-      if (googleResponse.ok) {
-        const googleData = await googleResponse.json();
-        const formatted = googleData?.results?.[0]?.formatted_address;
-        if (formatted) return String(formatted);
-      }
-    } catch (googleError) {
-      console.error("Google reverse geocoding failed:", googleError);
-    }
-  }
-
   try {
     // Prefer backend proxy (Mappls / MapmyIndia). Keeps API tokens off the client.
     const response = await api.get("/geocode/reverse", {

@@ -197,22 +197,23 @@ const BlockDashboardBackNavigation = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    const shouldBlockBackNavigation =
-      isAuthenticated &&
-      (pathname === "/dashboard" || pathname === "/superadmin-dashboard");
-
-    if (!shouldBlockBackNavigation) return;
-
-    const guardState = { dashboardBackGuard: true };
-    window.history.replaceState(guardState, "", window.location.href);
-    window.history.pushState(guardState, "", window.location.href);
+    if (
+      !isAuthenticated ||
+      (pathname !== "/dashboard" && pathname !== "/superadmin-dashboard")
+    ) {
+      return;
+    }
 
     const handlePopState = () => {
-      window.location.replace("about:blank");
+      window.history.pushState(null, "", window.location.href);
     };
 
+    window.history.replaceState(null, "", window.location.href);
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, [isAuthenticated, pathname]);
 
   return null;
@@ -968,3 +969,7 @@ if (rootElement && !globalThis.__REACT_ROOT__) {
 if (globalThis.__REACT_ROOT__) {
   globalThis.__REACT_ROOT__.render(<App />);
 }
+
+
+
+  

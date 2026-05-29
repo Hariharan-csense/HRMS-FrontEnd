@@ -514,6 +514,33 @@ const getDocumentByField = (documents: any[] | undefined, field: string) =>
       document?.fieldname === field || document?.type === field,
   );
 
+const normalizeRoleKey = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const normalizeRoleOptions = (roleNames: unknown[]) => {
+  const rolesByKey = new Map<string, string>();
+
+  roleNames.forEach((roleName) => {
+    const label = String(roleName || "").trim();
+    const key = normalizeRoleKey(label);
+    if (!key || rolesByKey.has(key)) return;
+    rolesByKey.set(key, label);
+  });
+
+  return Array.from(rolesByKey.values()).sort((a, b) => a.localeCompare(b));
+};
+
+const getCanonicalRoleValue = (value: unknown, roleOptions: string[]) => {
+  const roleKey = normalizeRoleKey(value);
+  if (!roleKey) return "";
+  return (
+    roleOptions.find((roleName) => normalizeRoleKey(roleName) === roleKey) ||
+    String(value || "").trim()
+  );
+};
+
 export default function EmployeeList() {
   const { canPerformModuleAction } = useRole();
   //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
@@ -683,7 +710,7 @@ export default function EmployeeList() {
       try {
         const result = await roleApi.getRoles();
         if (result.data) {
-          setRoles(result.data.map((role) => role.name));
+          setRoles(normalizeRoleOptions(result.data.map((role) => role.name)));
         }
       } catch (error) {
         console.error("Error loading roles:", error);
@@ -755,7 +782,9 @@ export default function EmployeeList() {
         if (result.data) {
           const roleResult = await roleApi.getRoles();
           if (roleResult.data) {
-            setRoles(roleResult.data.map((role) => role.name));
+            setRoles(
+              normalizeRoleOptions(roleResult.data.map((role) => role.name)),
+            );
           }
           showToast.success("Role created successfully");
         }
@@ -832,6 +861,15 @@ export default function EmployeeList() {
     }
   }, [currentPage, totalPages]);
 
+  useEffect(() => {
+    if (!formData.role || roles.length === 0) return;
+
+    const canonicalRole = getCanonicalRoleValue(formData.role, roles);
+    if (canonicalRole && canonicalRole !== formData.role) {
+      setFormData((prev) => ({ ...prev, role: canonicalRole }));
+    }
+  }, [formData.role, roles]);
+
   const handleOpenDialog = (employee?: EmployeeWithShiftId) => {
     if (employee && !canEditEmployee) {
       showToast.error("You do not have permission to edit employees");
@@ -870,7 +908,7 @@ export default function EmployeeList() {
         dateOfJoining: employee.dateOfJoining || "",
         employmentType: employee.employmentType || "full-time",
         status: employee.status || "active",
-        role: employee.role || "",
+        role: getCanonicalRoleValue(employee.role, roles),
         location: employee.location || "",
         salary: employee.salary || 0,
         aadhaar: employee.aadhaar || "",
@@ -2188,10 +2226,7 @@ export default function EmployeeList() {
           setDesignations([]);
         }
         if (roleResult.data && Array.isArray(roleResult.data)) {
-          const roleNames = roleResult.data
-            .map((role) => role.name?.trim())
-            .filter((name): name is string => Boolean(name));
-          setRoles(Array.from(new Set(roleNames)));
+          setRoles(normalizeRoleOptions(roleResult.data.map((role) => role.name)));
         } else {
           setRoles([]);
         }
@@ -3235,7 +3270,12 @@ export default function EmployeeList() {
                         <SelectValue placeholder="Select Role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {formData.role && !roles.includes(formData.role) && (
+                        {formData.role &&
+                          !roles.some(
+                            (roleName) =>
+                              normalizeRoleKey(roleName) ===
+                              normalizeRoleKey(formData.role),
+                          ) && (
                           <SelectItem value={formData.role}>
                             {formData.role}
                           </SelectItem>

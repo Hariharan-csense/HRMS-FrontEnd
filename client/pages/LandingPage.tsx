@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Users, Calendar, DollarSign, Shield, BarChart, Clock, UserCheck, AlertCircle, Camera, Receipt, Scan, Zap } from "lucide-react";
-import ContactPopup from "@/components/ContactPopup";
 import Footer from "@/components/Footer";
 import image from "../assets/image.png";
 import logo from "../assets/logo.png";
@@ -11,16 +10,6 @@ import liveDelivery from "../assets/7c769c85-2549-41b2-b60a-db5fbda6d108.png";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const [showContactPopup, setShowContactPopup] = useState(false);
-
-  useEffect(() => {
-    // Show popup after 2 seconds of page load
-    const timer = setTimeout(() => {
-      setShowContactPopup(true);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleGetStarted = () => {
     navigate("/login");
@@ -686,11 +675,6 @@ const LandingPage = () => {
 
         <Footer />
 
-        {/* Contact Popup */}
-        <ContactPopup
-          isOpen={showContactPopup}
-          onClose={() => setShowContactPopup(false)}
-        />
       </div >
     </>
   );

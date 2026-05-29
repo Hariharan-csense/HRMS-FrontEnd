@@ -6,8 +6,6 @@ import ENDPOINTS, {
   checkAndRefreshTokenIfNeeded,
   refreshAccessToken,
   resolveFileUrl,
-  verifyCredentials,
-  loginWithRole as apiLoginWithRole,
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
@@ -91,8 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         .filter(Boolean)
         .join(" ")
         .trim();
+      const profileEmail = String(profileData?.email || "")
+        .toLowerCase()
+        .trim();
+      const userEmail = String(resolvedUser.email || "")
+        .toLowerCase()
+        .trim();
 
-      if (profileData) {
+      if (profileData && (!profileEmail || profileEmail === userEmail)) {
         resolvedUser = {
           ...resolvedUser,
           name: fullName || resolvedUser.name,
@@ -364,14 +368,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.removeItem("rememberMe");
       }
 
-      const normalizedRolesRaw = Array.isArray(responseData.user?.roles)
+      const normalizedRolesRaw: unknown[] = Array.isArray(responseData.user?.roles)
         ? responseData.user.roles
         : [responseData.user?.role || responseData.role || "employee"];
-      const normalizedRoles = [
+      const normalizedRoles: string[] = [
         ...new Set(
           normalizedRolesRaw
             .filter(Boolean)
-            .map((role: string) => String(role).toLowerCase())
+            .map((role) => String(role).toLowerCase())
         ),
       ];
 

@@ -2,9 +2,19 @@ import ENDPOINTS from "@/lib/endpoint";
 
 export const reportService = {
   // Get attendance report
-  getAttendanceReport: async () => {
+  getReportFilters: async () => {
     try {
-      const response = await ENDPOINTS.getAttendanceReport();
+      const response = await ENDPOINTS.getReportFilters();
+      return response;
+    } catch (error) {
+      console.error("Error fetching report filters:", error);
+      throw error;
+    }
+  },
+
+  getAttendanceReport: async (params?: any) => {
+    try {
+      const response = await ENDPOINTS.getAttendanceReport(params);
       return response;
     } catch (error) {
       console.error("Error fetching attendance report:", error);
@@ -13,9 +23,9 @@ export const reportService = {
   },
 
   // Get payroll report
-  getPayrollReport: async () => {
+  getPayrollReport: async (params?: any) => {
     try {
-      const response = await ENDPOINTS.getpayrollReport();
+      const response = await ENDPOINTS.getpayrollReport(params);
       return response;
     } catch (error) {
       console.error("Error fetching payroll report:", error);
@@ -24,9 +34,9 @@ export const reportService = {
   },
 
   // Get expense report
-  getExpenseReport: async () => {
+  getExpenseReport: async (params?: any) => {
     try {
-      const response = await ENDPOINTS.getexpenseReport();
+      const response = await ENDPOINTS.getexpenseReport(params);
       return response;
     } catch (error) {
       console.error("Error fetching expense report:", error);
@@ -35,9 +45,9 @@ export const reportService = {
   },
 
   // Get leave report
-  getLeaveReport: async () => {
+  getLeaveReport: async (params?: any) => {
     try {
-      const response = await ENDPOINTS.getleaveReport();
+      const response = await ENDPOINTS.getleaveReport(params);
       return response;
     } catch (error) {
       console.error("Error fetching leave report:", error);

@@ -59,12 +59,17 @@ export default function ReportsAnalytics() {
   const [leaveData, setLeaveData] = useState([]);
   const [payrollData, setPayrollData] = useState([]);
   const [expenseData, setExpenseData] = useState([]);
+  const [leaveRows, setLeaveRows] = useState([]);
+  const [payrollRows, setPayrollRows] = useState([]);
+  const [expenseRows, setExpenseRows] = useState([]);
 
   // Filter states
   const [filters, setFilters] = useState({
     mode: 'month', // 'month' | 'day'
     month: '',
     day: '',
+    startDate: '',
+    endDate: '',
     employee: 'all',
     department: 'all',
     status: 'all', // 'all' | 'late' | others if needed
@@ -73,6 +78,13 @@ export default function ReportsAnalytics() {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [attendanceReportType, setAttendanceReportType] = useState<"summary" | "detail">("detail");
+
+  useEffect(() => {
+    if (reportType === "attendance") {
+      setAttendanceReportType("detail");
+    }
+  }, [reportType]);
 
   // Refs for PDF export
   const reportRef = useRef(null);
@@ -120,6 +132,38 @@ export default function ReportsAnalytics() {
     department?: string;
   }
 
+  const buildReportParams = () => {
+    const params: any = {};
+    const effectiveMode = reportType === "attendance" ? filters.mode : "month";
+
+    if (effectiveMode === "month" && filters.month) {
+      params.month = filters.month;
+      params.startDate = `${filters.month}-01`;
+      const [year, month] = filters.month.split("-").map(Number);
+      const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, "0");
+      params.endDate = `${filters.month}-${lastDay}`;
+    }
+
+    if (effectiveMode === "day" && filters.day) {
+      params.day = filters.day;
+      params.startDate = filters.day;
+      params.endDate = filters.day;
+    }
+
+    if (effectiveMode === "range") {
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
+    }
+
+    if (filters.employee !== "all") params.employeeId = filters.employee;
+    if (filters.department !== "all") params.departmentId = filters.department;
+    if (reportType === "attendance" && filters.status !== "all") {
+      params.status = filters.status;
+    }
+
+    return params;
+  };
+
   // State for summary data
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({});
   const [leaveSummary, setLeaveSummary] = useState(null);
@@ -132,6 +176,11 @@ export default function ReportsAnalytics() {
     String(value ?? "")
       .trim()
       .toLowerCase();
+
+  const filteredEmployees = employees.filter((employee: any) => {
+    if (employee.id === "all" || filters.department === "all") return true;
+    return normalizeValue(employee.departmentId ?? employee.department_id) === normalizeValue(filters.department);
+  });
 
   const getEmployeeFilterValue = (item: any) =>
     String(
@@ -165,50 +214,56 @@ export default function ReportsAnalytics() {
       ""
     ).trim();
 
+  const selectedDepartment = departments.find(
+    (department: any) => department.id === filters.department
+  ) as any;
+
+  const matchesSelectedDepartment = (item: any) => {
+    if (!filters.department || filters.department === "all") return true;
+
+    const selectedDepartmentId = normalizeValue(filters.department);
+    const selectedDepartmentName = normalizeValue(selectedDepartment?.name);
+    const itemDepartmentId = normalizeValue(item?.departmentId ?? item?.department_id);
+    const itemDepartmentName = normalizeValue(getDepartmentFilterValue(item));
+
+    return (
+      itemDepartmentId === selectedDepartmentId ||
+      (!!selectedDepartmentName && itemDepartmentName === selectedDepartmentName)
+    );
+  };
+
   useEffect(() => {
-    if (reportType !== "attendance") {
-      setEmployees([]);
-      setDepartments([]);
-      return;
-    }
+    const fetchReportFilters = async () => {
+      try {
+        const response = await reportService.getReportFilters();
+        const filterData = response?.data?.data || {};
 
-    const employeeMap = new Map<string, Employee>();
-    const departmentMap = new Map<string, { id: string; name: string }>();
-
-    attendanceRows.forEach((item: any) => {
-      const employeeId = getEmployeeFilterValue(item);
-      const employeeName = getEmployeeDisplayName(item);
-      const departmentName = getDepartmentFilterValue(item);
-
-      if (employeeId && !employeeMap.has(employeeId)) {
-        employeeMap.set(employeeId, {
-          id: employeeId,
-          name: employeeName,
-          department: departmentName,
-        });
+        setEmployees([
+          { id: "all", name: "All Employees" },
+          ...(filterData.employees || []).map((employee: any) => ({
+            ...employee,
+            id: String(employee.id),
+            departmentId: employee.departmentId === undefined || employee.departmentId === null
+              ? employee.departmentId
+              : String(employee.departmentId),
+          })),
+        ]);
+        setDepartments([
+          { id: "all", name: "All Departments" },
+          ...(filterData.departments || []).map((department: any) => ({
+            ...department,
+            id: String(department.id),
+          })),
+        ]);
+      } catch (err) {
+        console.error("Report filters fetch error:", err);
+        setEmployees([{ id: "all", name: "All Employees" }]);
+        setDepartments([{ id: "all", name: "All Departments" }]);
       }
+    };
 
-      if (departmentName) {
-        const normalizedDepartment = normalizeValue(departmentName);
-        if (!departmentMap.has(normalizedDepartment)) {
-          departmentMap.set(normalizedDepartment, {
-            id: normalizedDepartment,
-            name: departmentName,
-          });
-        }
-      }
-    });
-
-    setEmployees([
-      { id: "all", name: "All Employees" },
-      ...Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
-    ]);
-
-    setDepartments([
-      { id: "all", name: "All Departments" },
-      ...Array.from(departmentMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
-    ]);
-  }, [attendanceRows, reportType]);
+    fetchReportFilters();
+  }, []);
 
   // Apply filters to attendance rows (export + table)
   useEffect(() => {
@@ -241,9 +296,7 @@ export default function ReportsAnalytics() {
 
     // Department filter
     if (filters.department && filters.department !== 'all') {
-      filtered = filtered.filter(
-        (item: any) => normalizeValue(getDepartmentFilterValue(item)) === normalizeValue(filters.department)
-      );
+      filtered = filtered.filter((item: any) => matchesSelectedDepartment(item));
     }
 
     // Status filter (e.g., late arrivals)
@@ -270,15 +323,215 @@ export default function ReportsAnalytics() {
       mode: 'month',
       month: '',
       day: '',
+      startDate: '',
+      endDate: '',
       employee: 'all',
       department: 'all',
       status: 'all',
     });
   };
 
+  useEffect(() => {
+    if (filters.employee === "all" || filters.department === "all") return;
+
+    const selectedEmployee = employees.find((employee: any) => employee.id === filters.employee);
+    if (
+      selectedEmployee &&
+      normalizeValue(selectedEmployee.departmentId ?? selectedEmployee.department_id) !== normalizeValue(filters.department)
+    ) {
+      handleFilterChange("employee", "all");
+    }
+  }, [filters.department, filters.employee, employees]);
+
+  const getItemValue = (item: any, ...keys: string[]) => {
+    for (const key of keys) {
+      if (item?.[key] !== undefined && item?.[key] !== null) return item[key];
+    }
+    return "";
+  };
+
+  const getItemDateKey = (item: any) =>
+    String(getItemValue(item, "date", "attendanceDate", "check_in_date", "check_in", "checkInTime") || "").slice(0, 10);
+
+  const isTruthyText = (value: any) => ["yes", "true", "1"].includes(normalizeValue(value));
+
+  const buildAttendanceSummaryRows = (rows: any[]) => {
+    const employeeMap = new Map<string, any>();
+
+    rows.forEach((item: any) => {
+      const employeeCode = getEmployeeFilterValue(item);
+      if (!employeeCode) return;
+
+      const date = getItemDateKey(item) || `row-${item.id || employeeMap.size}`;
+      const employeeName =
+        getItemValue(item, "employeeName", "employee_name", "name") ||
+        `${String(getItemValue(item, "first_name")).trim()} ${String(getItemValue(item, "last_name")).trim()}`.trim() ||
+        employeeCode;
+
+      if (!employeeMap.has(employeeCode)) {
+        employeeMap.set(employeeCode, {
+          employeeCode,
+          employeeName,
+          department: getDepartmentFilterValue(item),
+          dates: new Map<string, any>(),
+        });
+      }
+
+      const employee = employeeMap.get(employeeCode);
+      if (!employee.department && getDepartmentFilterValue(item)) {
+        employee.department = getDepartmentFilterValue(item);
+      }
+
+      const dateSummary = employee.dates.get(date) || {
+        workingDay: 0,
+        present: 0,
+        absent: 0,
+        leave: 0,
+        permission: 0,
+        late: 0,
+        lop: 0,
+      };
+
+      const status = normalizeValue(getItemValue(item, "status", "attendance_status"));
+      const leaveDays = Number(getItemValue(item, "leaveDays", "leave_days")) || 0;
+      const isLeave =
+        isTruthyText(getItemValue(item, "leaveTaken", "leave_taken")) ||
+        status.includes("leave") ||
+        Boolean(getItemValue(item, "leaveType", "leave_type", "leave_type_name"));
+      const isPermission =
+        isTruthyText(getItemValue(item, "permissionTaken", "permission_taken")) ||
+        status.includes("permission");
+      const isWeekendOrHoliday = status.includes("weekend") || status.includes("holiday");
+      const isAbsent = status.includes("absent");
+      const isLate =
+        status.includes("late") ||
+        Number(getItemValue(item, "lateArrival", "late_by")) > 0;
+      const isHalf = status === "half" || status === "half_day";
+      const isPresent =
+        status.includes("present") ||
+        status.includes("late") ||
+        isPermission ||
+        Number(getItemValue(item, "hoursWorked", "hours_worked", "total_hours", "duration")) > 0;
+
+      if (!isWeekendOrHoliday) dateSummary.workingDay = 1;
+      if (isLeave) dateSummary.leave = Math.max(dateSummary.leave, leaveDays > 0 && leaveDays <= 1 ? leaveDays : 1);
+      if (isPermission) dateSummary.permission = 1;
+      if (isLate) dateSummary.late = 1;
+      if (isHalf) dateSummary.present = Math.max(dateSummary.present, 0.5);
+      if (isPresent && !isLeave && !isAbsent) dateSummary.present = Math.max(dateSummary.present, isHalf ? 0.5 : 1);
+      if (isAbsent) {
+        dateSummary.absent = 1;
+        dateSummary.lop = 1;
+      }
+
+      employee.dates.set(date, dateSummary);
+    });
+
+    return Array.from(employeeMap.values())
+      .map((employee: any) => {
+        const totals = Array.from(employee.dates.values()).reduce(
+          (acc: any, day: any) => ({
+            workingDays: acc.workingDays + day.workingDay,
+            presentDays: acc.presentDays + day.present,
+            absentDays: acc.absentDays + day.absent,
+            leaveDays: acc.leaveDays + day.leave,
+            permissionDays: acc.permissionDays + day.permission,
+            lateDays: acc.lateDays + day.late,
+            lopDays: acc.lopDays + day.lop,
+          }),
+          {
+            workingDays: 0,
+            presentDays: 0,
+            absentDays: 0,
+            leaveDays: 0,
+            permissionDays: 0,
+            lateDays: 0,
+            lopDays: 0,
+          }
+        );
+
+        return {
+          "Employee Code": employee.employeeCode,
+          "Employee Name": employee.employeeName,
+          "Department": employee.department || "",
+          "Working Days": totals.workingDays,
+          "Present Days": totals.presentDays,
+          "Absent Days": totals.absentDays,
+          "Leave Days": totals.leaveDays,
+          "Permission Days": totals.permissionDays,
+          "Late Days": totals.lateDays,
+          "LOP Days": totals.lopDays,
+        };
+      })
+      .sort((a: any, b: any) => String(a["Employee Name"]).localeCompare(String(b["Employee Name"])));
+  };
+
+  const exportRows = (rows: any[], title: string, fileBase: string, format: "csv" | "xlsx" | "pdf") => {
+    if (!rows.length) {
+      toast.error("No data available to export");
+      return;
+    }
+
+    const headers = Object.keys(rows[0] || {});
+
+    if (format === "xlsx") {
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+      XLSX.utils.book_append_sheet(workbook, worksheet, title.slice(0, 31));
+      XLSX.writeFile(workbook, `${fileBase}-${new Date().toISOString().split("T")[0]}.xlsx`);
+      return;
+    }
+
+    if (format === "pdf") {
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      pdf.setFontSize(14);
+      pdf.text(title, 40, 35);
+      pdf.setFontSize(8);
+      let y = 60;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const colWidth = Math.max(80, (pageWidth - 80) / headers.length);
+      headers.forEach((header, index) => pdf.text(header.slice(0, 18), 40 + index * colWidth, y));
+      y += 14;
+      rows.forEach((row: any) => {
+        if (y > 560) {
+          pdf.addPage();
+          y = 40;
+        }
+        headers.forEach((header, index) => pdf.text(String(row[header] ?? "").slice(0, 20), 40 + index * colWidth, y));
+        y += 12;
+      });
+      pdf.save(`${fileBase}-${new Date().toISOString().split("T")[0]}.pdf`);
+      return;
+    }
+
+    const csvRows = [
+      `"${title}"`,
+      `"Generated on: ${new Date().toLocaleString()}"`,
+      "",
+      headers.join(","),
+      ...rows.map((row: any) =>
+        headers
+          .map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      ),
+    ];
+
+    const blob = new Blob(["\uFEFF" + csvRows.join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${fileBase}-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Export to PDF
   // Update the exportToPDF function to export raw data
-  const exportToCSV = () => {
+  const exportToCSV = (format: "csv" | "xlsx" | "pdf" = "csv") => {
     try {
       setLoading(true);
 
@@ -316,20 +569,20 @@ export default function ReportsAnalytics() {
           dataToExport = hasActiveAttendanceFilters ? filteredAttendanceRows : attendanceRows;
           break;
         case 'leave':
-          dataToExport = leaveData;
+          dataToExport = leaveRows;
           break;
         case 'payroll':
-          dataToExport = payrollData;
+          dataToExport = payrollRows;
           break;
         case 'finance':
-          dataToExport = expenseData;
+          dataToExport = expenseRows;
           break;
         default:
           dataToExport = [];
       }
 
       if (!dataToExport || dataToExport.length === 0) {
-        setError('No data available to export');
+        toast.error('No data available to export');
         return;
       }
 
@@ -477,10 +730,40 @@ export default function ReportsAnalytics() {
           return row;
         });
 
+        const summaryRows = buildAttendanceSummaryRows(dataToExport);
+
+        if (attendanceReportType === "summary" && format !== "xlsx") {
+          exportRows(
+            summaryRows,
+            "Attendance Summary Report",
+            "attendance-summary-report",
+            format
+          );
+          return;
+        }
+
+        if (attendanceReportType === "detail" && format !== "xlsx") {
+          exportRows(
+            rows,
+            "Attendance Detail Report",
+            "attendance-detail-report",
+            format
+          );
+          return;
+        }
+
         const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
         XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+        const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+
+        if (attendanceReportType === "summary") {
+          XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Detail Attendance");
+        } else {
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Detail Attendance");
+          XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+        }
 
         const getAux = (item: any, ...keys: string[]) => {
           for (const k of keys) {
@@ -497,7 +780,7 @@ export default function ReportsAnalytics() {
           if (
             filters.department &&
             filters.department !== "all" &&
-            normalizeValue(getDepartmentFilterValue(item)) !== normalizeValue(filters.department)
+            !matchesSelectedDepartment(item)
           ) {
             return false;
           }
@@ -565,17 +848,12 @@ export default function ReportsAnalytics() {
         );
         XLSX.utils.book_append_sheet(workbook, permissionsSheet, "Permissions");
 
-        const fileName = `attendance-report-${new Date().toISOString().split("T")[0]}.xlsx`;
+        const fileName = `attendance-${attendanceReportType}-report-${new Date().toISOString().split("T")[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
       } else {
-        // Non-attendance exports keep the existing CSV path
-        let csvContent = '';
-        csvContent += `"${reportTitles[reportType]}"\n`;
-        csvContent += `"Generated on: ${currentDate}"\n\n`;
-
         const headers = Object.keys(dataToExport[0] || {});
         if (headers.length === 0) {
-          setError('No data available to export');
+          toast.error('No data available to export');
           return;
         }
 
@@ -585,6 +863,63 @@ export default function ReportsAnalytics() {
             .replace(/^./, str => str.toUpperCase())
             .trim()
         );
+
+        const normalizedRows = dataToExport.map((item: any) => {
+          const row: any = {};
+          headers.forEach((header, index) => {
+            let value = item[header];
+            if (value && typeof value === 'object') {
+              value = Array.isArray(value) ? value.join('; ') : JSON.stringify(value);
+            }
+            row[formattedHeaders[index]] = value ?? "";
+          });
+          return row;
+        });
+
+        if (format === "xlsx") {
+          const workbook = XLSX.utils.book_new();
+          const worksheet = XLSX.utils.json_to_sheet(normalizedRows);
+          XLSX.utils.book_append_sheet(workbook, worksheet, reportTitles[reportType].slice(0, 31));
+          XLSX.writeFile(
+            workbook,
+            `${reportTitles[reportType].toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`
+          );
+          return;
+        }
+
+        if (format === "pdf") {
+          const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+          pdf.setFontSize(14);
+          pdf.text(reportTitles[reportType], 40, 35);
+          pdf.setFontSize(9);
+          pdf.text(`Generated on: ${currentDate}`, 40, 52);
+
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const colWidth = Math.max(70, (pageWidth - 80) / formattedHeaders.length);
+          let y = 75;
+          pdf.setFontSize(7);
+          formattedHeaders.forEach((header, index) => pdf.text(header.slice(0, 18), 40 + index * colWidth, y));
+          y += 14;
+
+          normalizedRows.slice(0, 45).forEach((row: any) => {
+            if (y > 560) {
+              pdf.addPage();
+              y = 40;
+            }
+            formattedHeaders.forEach((header, index) => {
+              pdf.text(String(row[header] ?? "").slice(0, 20), 40 + index * colWidth, y);
+            });
+            y += 12;
+          });
+
+          pdf.save(`${reportTitles[reportType].toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+          return;
+        }
+
+        // Non-attendance CSV export
+        let csvContent = '';
+        csvContent += `"${reportTitles[reportType]}"\n`;
+        csvContent += `"Generated on: ${currentDate}"\n\n`;
 
         csvContent += formattedHeaders.join(',') + '\n';
 
@@ -628,10 +963,11 @@ export default function ReportsAnalytics() {
       setError(null);
 
       const errors: string[] = [];
+      const reportParams = buildReportParams();
 
       if (reportType === "attendance") {
         try {
-          const response = await reportService.getAttendanceReport();
+          const response = await reportService.getAttendanceReport(reportParams);
           const attendanceResult = response?.data?.data;
 
           // Be defensive about backend shape: accept trend, rows, data, logs, or direct array
@@ -726,21 +1062,9 @@ export default function ReportsAnalytics() {
         }
       }
 
-      if (reportType === "finance") {
-        try {
-          const response = await reportService.getExpenseReport();
-          const expenseResult = response?.data?.data;
-          setExpenseData(expenseResult?.summary || []);
-          setExpenseStats(expenseResult?.stats || {});
-        } catch (err: any) {
-          errors.push(err?.response?.data?.message || err?.message || "Expense report failed");
-          console.error("Expense report fetch error:", err);
-        }
-      }
-
       if (reportType === "leave" || reportType === "finance") {
         try {
-          const response = await reportService.getLeaveReport();
+          const response = await reportService.getLeaveReport(reportParams);
           const leaveResult = response?.data?.data;
           const normalizedLeaves = (leaveResult?.distribution || []).map((l) => ({
             name: l.name,
@@ -748,6 +1072,7 @@ export default function ReportsAnalytics() {
             fill: l.fill || "#f43f5e",
           }));
           setLeaveData(normalizedLeaves);
+          setLeaveRows(leaveResult?.rows || []);
           setLeaveSummary(leaveResult?.stats || {});
         } catch (err: any) {
           errors.push(err?.response?.data?.message || err?.message || "Leave report failed");
@@ -757,7 +1082,7 @@ export default function ReportsAnalytics() {
 
       if (reportType === "payroll" || reportType === "finance") {
         try {
-          const response = await reportService.getPayrollReport();
+          const response = await reportService.getPayrollReport(reportParams);
           const payrollResult = response?.data?.data ?? response?.data;
           if (payrollResult?.trend) {
             setPayrollData(payrollResult.trend);
@@ -772,6 +1097,7 @@ export default function ReportsAnalytics() {
               ytdAmount: payrollResult.summary.ytdAmount
             });
           }
+          setPayrollRows(payrollResult?.rows || []);
         } catch (err: any) {
           errors.push(err?.response?.data?.message || err?.message || "Payroll report failed");
           console.error("Payroll report fetch error:", err);
@@ -780,9 +1106,10 @@ export default function ReportsAnalytics() {
 
       if (reportType === "finance") {
         try {
-          const response = await reportService.getExpenseReport();
+          const response = await reportService.getExpenseReport(reportParams);
           const expenseResult = response?.data?.data;
           setExpenseData(expenseResult?.summary || []);
+          setExpenseRows(expenseResult?.rows || []);
           setExpenseStats(expenseResult?.stats || {});
         } catch (err: any) {
           errors.push(err?.response?.data?.message || err?.message || "Expense report failed");
@@ -798,7 +1125,7 @@ export default function ReportsAnalytics() {
     };
 
     fetchReportData();
-  }, [reportType]);
+  }, [reportType, filters]);
 
   const getPageTitle = (): string => {
     switch (reportType) {
@@ -830,6 +1157,107 @@ export default function ReportsAnalytics() {
     }
   };
 
+  const getExportLabel = (format: "csv" | "xlsx" | "pdf") => {
+    const formatLabel = format === "xlsx" ? "Excel" : format.toUpperCase();
+    if (reportType !== "attendance") {
+      return format === "csv" ? "Export CSV" : formatLabel;
+    }
+
+    return `${attendanceReportType === "summary" ? "Export Summary" : "Export Detail"} ${formatLabel}`;
+  };
+
+  const formatCurrency = (value: any) => {
+    const amount = Number(value || 0);
+    return `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  };
+
+  const ReportTable = ({ title, rows, columns }: any) => (
+    <Card className="border-0 shadow-xl">
+      <CardHeader className="pb-4 border-b border-slate-200">
+        <CardTitle className="text-xl font-semibold">{title}</CardTitle>
+        <CardDescription>{rows.length} record{rows.length === 1 ? "" : "s"} found</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0 px-0">
+        {rows.length === 0 ? (
+          <div className="py-16 text-center text-muted-foreground">No report data found for the selected filters.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  {columns.map((column: any) => (
+                    <th key={column.key} className="px-4 py-3 text-left font-semibold whitespace-nowrap">
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row: any, index: number) => (
+                  <tr key={row.id || index} className="border-t border-slate-100">
+                    {columns.map((column: any) => (
+                      <td key={column.key} className="px-4 py-3 align-top text-slate-700">
+                        {column.render ? column.render(row) : (row[column.key] ?? "-")}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const leaveColumns = [
+    { key: "employeeCode", label: "Employee Code" },
+    { key: "employeeName", label: "Employee Name" },
+    { key: "department", label: "Department" },
+    { key: "leaveType", label: "Leave Type" },
+    { key: "leaveDays", label: "Leave Days" },
+    { key: "dates", label: "Leave Dates", render: (row: any) => `${row.fromDate || "-"} to ${row.toDate || "-"}` },
+    { key: "reason", label: "Details", render: (row: any) => row.reason || row.remarks || "-" },
+    { key: "status", label: "Status" },
+  ];
+
+  const expenseColumns = [
+    { key: "employeeCode", label: "Employee Code" },
+    { key: "employeeName", label: "Employee Name" },
+    { key: "department", label: "Department" },
+    { key: "expenseAmount", label: "Expense Amount", render: (row: any) => formatCurrency(row.expenseAmount) },
+    { key: "category", label: "Category" },
+    { key: "expenseDetails", label: "Details" },
+    { key: "expenseDate", label: "Expense Date" },
+    { key: "status", label: "Status" },
+  ];
+
+  const payrollColumns = [
+    { key: "employeeCode", label: "Employee Code" },
+    { key: "employeeName", label: "Employee Name" },
+    { key: "department", label: "Department" },
+    { key: "month", label: "Payroll Month" },
+    { key: "basicSalary", label: "Basic", render: (row: any) => formatCurrency(row.basicSalary) },
+    { key: "grossAmount", label: "Gross", render: (row: any) => formatCurrency(row.grossAmount) },
+    { key: "totalDays", label: "Total Days" },
+    { key: "presentDays", label: "Present Days" },
+    { key: "absentDays", label: "Absent Days" },
+    { key: "approvedLeaveDays", label: "Leave Days" },
+    { key: "payableDays", label: "Payable Days" },
+    { key: "lopDays", label: "LOP Days" },
+    { key: "lopAmount", label: "LOP Amount", render: (row: any) => formatCurrency(row.lopAmount) },
+    { key: "pf", label: "PF", render: (row: any) => formatCurrency(row.pf) },
+    { key: "esi", label: "ESI", render: (row: any) => formatCurrency(row.esi) },
+    { key: "pt", label: "PT", render: (row: any) => formatCurrency(row.pt) },
+    { key: "tdsAmount", label: "TDS", render: (row: any) => formatCurrency(row.tdsAmount || row.tds) },
+    { key: "otherDeductions", label: "Other Deductions", render: (row: any) => formatCurrency(row.otherDeductions) },
+    { key: "deductions", label: "Total Deductions", render: (row: any) => formatCurrency(row.deductions) },
+    { key: "netPay", label: "Net Pay", render: (row: any) => formatCurrency(row.netPay ?? row.payrollAmount) },
+    { key: "details", label: "Processed Payroll Details", render: (row: any) => `HRA ${formatCurrency(row.hra)} | Allowances ${formatCurrency(row.allowances)} | Incentives ${formatCurrency(row.incentives)}` },
+    { key: "payrollDate", label: "Payroll Date" },
+    { key: "status", label: "Status" },
+  ];
+
   // Add filter controls component
   const FilterControls = () => (
     <Card className="mb-6">
@@ -849,12 +1277,32 @@ export default function ReportsAnalytics() {
             <Button
               variant="outline"
               size="sm"
-              onClick={exportToCSV}
+              onClick={() => exportToCSV("csv")}
               disabled={loading}
               className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700"
             >
               <Download className="h-4 w-4" />
-              Export CSV
+              {getExportLabel("csv")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportToCSV("xlsx")}
+              disabled={loading}
+              className="flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              {getExportLabel("xlsx")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportToCSV("pdf")}
+              disabled={loading}
+              className="flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              {getExportLabel("pdf")}
             </Button>
           </div>
         </div>
@@ -863,23 +1311,44 @@ export default function ReportsAnalytics() {
       {showFilters && (
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="mode">Report View</Label>
-              <Select
-                value={filters.mode}
-                onValueChange={(value) => handleFilterChange('mode', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select view" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Month-wise</SelectItem>
-                  <SelectItem value="day">Day-wise</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {reportType === "attendance" && (
+              <div className="space-y-2">
+                <Label htmlFor="mode">Report View</Label>
+                <Select
+                  value={filters.mode}
+                  onValueChange={(value) => handleFilterChange('mode', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Month-wise</SelectItem>
+                    <SelectItem value="day">Day-wise</SelectItem>
+                    <SelectItem value="range">Date Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            {filters.mode === 'month' && (
+            {reportType === "attendance" && (
+              <div className="space-y-2">
+                <Label htmlFor="attendanceReportType">Report Type</Label>
+                <Select
+                  value={attendanceReportType}
+                  onValueChange={(value: "summary" | "detail") => setAttendanceReportType(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select report type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="summary">Summary Report</SelectItem>
+                    <SelectItem value="detail">Detail Report</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {(reportType !== "attendance" || filters.mode === 'month') && (
               <div className="space-y-2">
                 <Label htmlFor="month">Month</Label>
                 <Input
@@ -892,7 +1361,7 @@ export default function ReportsAnalytics() {
               </div>
             )}
 
-            {filters.mode === 'day' && (
+            {reportType === "attendance" && filters.mode === 'day' && (
               <div className="space-y-2">
                 <Label htmlFor="day">Date</Label>
                 <Input
@@ -905,26 +1374,53 @@ export default function ReportsAnalytics() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={filters.status}
-                onValueChange={(value) => handleFilterChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="late">Late</SelectItem>
-                  <SelectItem value="present">Present</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
-                  <SelectItem value="half">Half Day</SelectItem>
-                  <SelectItem value="leave">Leave</SelectItem>
-                  <SelectItem value="permission">Permission</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {reportType === "attendance" && filters.mode === 'range' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">From Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">To Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
+
+            {reportType === "attendance" && (
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={filters.status}
+                  onValueChange={(value) => handleFilterChange('status', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="late">Late</SelectItem>
+                    <SelectItem value="present">Present</SelectItem>
+                    <SelectItem value="absent">Absent</SelectItem>
+                    <SelectItem value="half">Half Day</SelectItem>
+                    <SelectItem value="leave">Leave</SelectItem>
+                    <SelectItem value="permission">Permission</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
@@ -955,7 +1451,7 @@ export default function ReportsAnalytics() {
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employees
+                  {filteredEmployees
                     .map((emp: any) => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name}
@@ -966,7 +1462,7 @@ export default function ReportsAnalytics() {
             </div>
           </div>
 
-          {(filters.month || filters.day || filters.employee !== 'all' || filters.department !== 'all' || filters.status !== 'all') && (
+          {(filters.month || filters.day || filters.startDate || filters.endDate || filters.employee !== 'all' || filters.department !== 'all' || (reportType === "attendance" && filters.status !== 'all')) && (
             <div className="flex justify-end mt-4">
               <Button
                 variant="ghost"
@@ -1141,6 +1637,8 @@ export default function ReportsAnalytics() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <ReportTable title="Leave Report Details" rows={leaveRows} columns={leaveColumns} />
               </div>
             )}
 
@@ -1228,6 +1726,8 @@ export default function ReportsAnalytics() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <ReportTable title="Payroll Report Details" rows={payrollRows} columns={payrollColumns} />
               </div>
             )}
 
@@ -1430,6 +1930,8 @@ export default function ReportsAnalytics() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <ReportTable title="Expense Report Details" rows={expenseRows} columns={expenseColumns} />
 
               </div>
             )}

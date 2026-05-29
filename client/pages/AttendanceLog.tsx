@@ -67,6 +67,9 @@ export interface AttendanceLogRecord {
   autoFlag: boolean;
   flagReason?: string;
   lateBy?: string;              // How many minutes late
+  clientId?: string | number | null;
+  clientName?: string | null;
+  clientCode?: string | null;
   originalEmployeeId?: number;  // ← original employee_id from backend
 }
 
@@ -1079,6 +1082,9 @@ export default function AttendanceLog() {
             reportingManager: undefined,
             type: (actualStatus === "half" ? "half" : actualStatus === "absent" ? "absent" : actualStatus === "unmarked" ? "unmarked" : "full") as "full" | "half" | "absent" | "present" | "unmarked",
             lateBy: calculatedLateBy,
+            clientId: item.client_id || null,
+            clientName: item.client_name || null,
+            clientCode: item.client_code || null,
             // Also store the original employee_id for matching
             originalEmployeeId: item.employee_id,
           };
@@ -2030,6 +2036,9 @@ export default function AttendanceLog() {
                       const leaveLabel = leaveRecord
                         ? `${normalizeLeaveTypeName(leaveRecord.leaveTypeName)}${leaveRecord.status === "half" ? " - HALF" : ""}`.toUpperCase()
                         : "LEAVE";
+                      const clientLabel = records
+                        .map((record) => record.clientName)
+                        .find((name) => Boolean(String(name || "").trim()));
                       // Weekend/holiday should be shown only when there is no real attendance punch.
                       // Synthetic absent/unmarked records are excluded by hasRealRecords.
                       const hasAttendanceOnHoliday = isHolidayDate && hasRealRecords;
@@ -2209,6 +2218,14 @@ export default function AttendanceLog() {
                                     {statuses.includes("holiday") ? "HOLIDAY" : "WEEK OFF"}
                                   </span>
                                 )}
+                                {clientLabel && !hasLeave && !hasPermission && !hasWeekOff && (
+                                  <span
+                                    className="hidden max-w-full whitespace-normal break-words px-1 text-center text-[10px] font-semibold leading-tight text-emerald-700 sm:inline-block"
+                                    title={String(clientLabel)}
+                                  >
+                                    {String(clientLabel).toUpperCase()}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -2272,8 +2289,8 @@ export default function AttendanceLog() {
       {/* Modal for date details */}
       {/* Modal for date details - Exact design as per your image */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full mx-auto max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full mx-auto max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="border-b bg-background px-6 py-5 pr-12">
             <DialogTitle className="text-xl sm:text-2xl font-bold pr-8">
               Attendance - {selectedDate || "Selected Date"}
             </DialogTitle>
@@ -2282,7 +2299,7 @@ export default function AttendanceLog() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 sm:mt-6">
+          <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-6 pb-6 pt-4 sm:pt-6">
             {selectedDateRecords.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 No attendance records found for this date.
@@ -2331,6 +2348,12 @@ export default function AttendanceLog() {
                                 <span className="whitespace-nowrap">Check-in: {record.inTime || "—"}</span>
                                 <span className="whitespace-nowrap">Check-out: {record.outTime || "—"}</span>
                                 <span className="whitespace-nowrap">Hours: {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(2)}h` : "—"}</span>
+                                {record.clientName && (
+                                  <span className="col-span-2 whitespace-nowrap font-medium text-emerald-700">
+                                    Client: {record.clientName}
+                                    {record.clientCode ? ` (${record.clientCode})` : ""}
+                                  </span>
+                                )}
                               </div>
 
 
