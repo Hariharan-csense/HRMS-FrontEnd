@@ -167,14 +167,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       checkSubscriptionStatus();
     }, 100);
 
-    // Set up periodic subscription checks (every 5 minutes)
-    const interval = setInterval(() => {
-      checkSubscriptionStatus();
-    }, 5 * 60 * 1000);
-
     return () => {
       clearTimeout(timer);
-      clearInterval(interval);
     };
   }, [isAuthenticated]);
 

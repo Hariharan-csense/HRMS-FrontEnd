@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Employee } from "@/lib/employees";
-import { OfficeLocation, reverseGeocode } from "@/lib/locationUtils";
+import { OfficeLocation } from "@/lib/locationUtils";
 import { toast } from "sonner";
 import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi from "@/components/helper/branch/branch";
@@ -171,11 +171,6 @@ const extractLocationName = (address?: unknown) => {
 
   // If only one part, use it as is
   return firstPart || fullAddress;
-};
-
-const looksLikeCoordinateLabel = (value?: unknown) => {
-  const text = String(value || "").trim();
-  return /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(text);
 };
 
 const formatCoordinates = (latitude?: unknown, longitude?: unknown) => {
@@ -1462,41 +1457,16 @@ export default function LiveTracking() {
             location_timestamp: point.location_timestamp || null,
           })),
         );
-        const resolveSegmentAddresses = async (segments: StopSegment[]) =>
-          Promise.all(
-            segments.map(async (segment) => {
-              if (String(segment.address || "").trim()) {
-                return segment;
-              }
+        const resolveSegmentAddresses = (segments: StopSegment[]) =>
+          segments.map((segment) => ({
+            ...segment,
+            address:
+              String(segment.address || "").trim() ||
+              formatCoordinateLabel(segment.latitude, segment.longitude),
+          }));
 
-              try {
-                const resolvedAddress = await reverseGeocode(
-                  segment.latitude,
-                  segment.longitude,
-                );
-                return {
-                  ...segment,
-                  address:
-                    String(resolvedAddress || "").trim() ||
-                    formatCoordinateLabel(segment.latitude, segment.longitude),
-                };
-              } catch (error) {
-                console.warn("Failed to reverse geocode hover location", error);
-                return {
-                  ...segment,
-                  address: formatCoordinateLabel(
-                    segment.latitude,
-                    segment.longitude,
-                  ),
-                };
-              }
-            }),
-          );
-
-        const [resolvedStops, resolvedHighlights] = await Promise.all([
-          resolveSegmentAddresses(groupedStops),
-          resolveSegmentAddresses(routeHighlights),
-        ]);
+        const resolvedStops = resolveSegmentAddresses(groupedStops);
+        const resolvedHighlights = resolveSegmentAddresses(routeHighlights);
 
         const dedupedHighlights = resolvedHighlights.filter(
           (segment, index, allSegments) => {
@@ -1703,28 +1673,8 @@ export default function LiveTracking() {
               (parsedCheckInLocation as any)?.longitude,
           );
 
-        let resolvedEndAddress =
+        const resolvedEndAddress =
           result.data?.summary?.endAddress || fallbackEndAddress;
-        if (
-          looksLikeCoordinateLabel(resolvedEndAddress) &&
-          lastRoutePoint &&
-          !String(lastRoutePoint.address || "").trim()
-        ) {
-          try {
-            const reverseGeocoded = await reverseGeocode(
-              Number(lastRoutePoint.latitude),
-              Number(lastRoutePoint.longitude),
-            );
-            if (reverseGeocoded) {
-              resolvedEndAddress = reverseGeocoded;
-            }
-          } catch (error) {
-            console.warn(
-              "Failed to reverse geocode current travel location",
-              error,
-            );
-          }
-        }
 
         setSelectedRoutePoints(routePoints);
         setTravelPaths((prev) => ({

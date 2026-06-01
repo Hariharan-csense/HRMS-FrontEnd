@@ -1,5 +1,4 @@
 import "./global.css";
-
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { createRoot } from "react-dom/client";
@@ -19,8 +18,6 @@ import { RoleProvider, useRole } from "@/context/RoleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { RoleBasedRoute } from "@/components/RoleBasedRoute";
 import { AutoLoginHandler } from "@/components/AutoLoginHandler";
-
-// Pages
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
@@ -422,6 +419,14 @@ function AppRoutes() {
           path="/leave/apply"
           element={
             <RoleBasedRoute requiredModule="leave" requiredAction="create">
+              <LeaveManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leave/types"
+          element={
+            <RoleBasedRoute requiredModule="leave" requiredAction="view">
               <LeaveManagement />
             </RoleBasedRoute>
           }

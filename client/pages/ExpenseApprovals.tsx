@@ -72,6 +72,7 @@ interface PendingExpenseGroup {
   employeeName: string;
   clientName: string;
   date: string;
+  submittedAt: string;
   expenses: ExpenseApproval[];
   categories: string[];
   totalAmount: number;
@@ -114,6 +115,20 @@ export default function ExpenseApprovals() {
     "approved" | "rejected" | null
   >(null);
 
+  const formatSubmitTimestamp = (value?: string | null) => {
+    if (!value) return "N/A";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const pendingExpenses = expenses.filter((e) => e.status === "pending");
   const selectedPendingExpenses = useMemo(
     () =>
@@ -147,6 +162,7 @@ export default function ExpenseApprovals() {
           employeeName: expense.employeeName || "Unknown Employee",
           clientName,
           date,
+          submittedAt: formatSubmitTimestamp(expense.createdAt),
           expenses: [expense],
           categories: [],
           totalAmount: 0,
@@ -172,6 +188,7 @@ export default function ExpenseApprovals() {
         totalAmount: orderedExpenses.reduce((sum, e) => sum + e.amount, 0),
         count: orderedExpenses.length,
         primaryExpense: orderedExpenses[0],
+        submittedAt: formatSubmitTimestamp(orderedExpenses[0]?.createdAt),
       };
     });
   }, [pendingExpenses]);
@@ -375,10 +392,11 @@ export default function ExpenseApprovals() {
     }
   };
 
-  const normalizeExpenses = (items: ExpenseApproval[]) =>
-    items.map((e) => ({
+  const normalizeExpenses = (items: any[]): ExpenseApproval[] =>
+    items.map((e: any) => ({
       ...e,
       date: e.date ? new Date(e.date).toLocaleDateString("en-IN") : "N/A",
+      createdAt: e.createdAt || e.created_at || e.createdAt,
       employeeName: e.employeeName || "Unknown Employee",
     }));
 
@@ -655,8 +673,8 @@ export default function ExpenseApprovals() {
         </div>
 
         {/* Pending Expenses Table */}
-        <Card>
-          <CardHeader className="pb-3 sm:pb-4">
+        <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-[#17c491]/10 via-white to-white pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <CardTitle className="text-lg sm:text-xl">
@@ -726,7 +744,7 @@ export default function ExpenseApprovals() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {pendingExpenses.length === 0 ? (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-xs sm:text-sm text-muted-foreground">
@@ -736,13 +754,13 @@ export default function ExpenseApprovals() {
             ) : (
               <>
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
+                <div className="space-y-3 p-3 md:hidden">
                   {groupedPending.map((group) => (
                     <div
                       key={group.id}
-                      className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30"
+                      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
                     >
-                      <div className="flex items-start gap-2 mb-2 sm:mb-3">
+                      <div className="mb-3 flex items-start gap-3">
                         <Checkbox
                           checked={isGroupSelected(
                             group.expenses.map((e) => e.id),
@@ -754,46 +772,51 @@ export default function ExpenseApprovals() {
                           }
                           className="mt-1 flex-shrink-0"
                         />
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-sm sm:text-base">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="break-words text-sm font-bold text-slate-950">
                             {group.employeeName}
                           </h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
+                          <p className="mt-1 text-xs text-slate-500">
                             {group.clientName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-slate-500">
                             {group.date}
                           </p>
+                          <p className="text-xs text-slate-500">
+                            Submitted {group.submittedAt}
+                          </p>
                         </div>
-                        <span className="text-sm sm:text-base font-bold text-blue-600 flex-shrink-0">
+                        <span className="shrink-0 whitespace-nowrap text-sm font-bold text-blue-600">
                           ₹{group.totalAmount.toLocaleString()}
                         </span>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-3">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">
-                            Claims:
-                          </span>
-                          <span className="text-right">{group.count}</span>
+                      <div className="mb-3 grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Claims</span>
+                          <span className="mt-1 block font-bold text-slate-950">{group.count}</span>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">
-                            Categories:
-                          </span>
-                          <span className="text-right flex-1">
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Categories</span>
+                          <span className="mt-1 block font-semibold text-slate-900">
                             {group.categories.length === 1
                               ? group.categories[0]
                               : `${group.categories.length} categories`}
                           </span>
                         </div>
+                        <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">Description</span>
+                          <span className="mt-1 block text-sm font-semibold text-slate-900">
+                            {group.primaryExpense?.description || "-"}
+                          </span>
+                        </div>
                       </div>
-                      <div className="pt-2 sm:pt-3 border-t border-border flex gap-1 sm:gap-2">
+                      <div className="flex gap-2 border-t border-slate-100 pt-3">
                         <button
                           onClick={() =>
                             handleViewDetails(group.primaryExpense)
                           }
                           disabled={isSubmittingDecision}
-                          className="flex-1 p-1 sm:p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
+                          className="flex-1 rounded-lg border border-slate-200 p-2 text-slate-700 transition-colors hover:bg-slate-50"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4 mx-auto" />
@@ -803,7 +826,7 @@ export default function ExpenseApprovals() {
                             handleApproveClick(group.primaryExpense)
                           }
                           disabled={isSubmittingDecision}
-                          className="flex-1 p-1 sm:p-2 hover:bg-green-100 text-green-600 rounded-lg transition-colors"
+                          className="flex-1 rounded-lg border border-emerald-100 p-2 text-emerald-600 transition-colors hover:bg-emerald-50"
                           title="Approve"
                         >
                           {isGroupProcessing(group) &&
@@ -818,7 +841,7 @@ export default function ExpenseApprovals() {
                             handleRejectClick(group.primaryExpense)
                           }
                           disabled={isSubmittingDecision}
-                          className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                          className="flex-1 rounded-lg border border-red-100 p-2 text-red-600 transition-colors hover:bg-red-50"
                           title="Reject"
                         >
                           {isGroupProcessing(group) &&
@@ -833,7 +856,7 @@ export default function ExpenseApprovals() {
                             handleExportSingle(group.primaryExpense)
                           }
                           disabled={isSubmittingDecision}
-                          className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                          className="flex-1 rounded-lg border border-blue-100 p-2 text-blue-600 transition-colors hover:bg-blue-50"
                           title="Export PDF"
                         >
                           <Download className="w-4 h-4 mx-auto" />
@@ -844,11 +867,21 @@ export default function ExpenseApprovals() {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-4 py-3 font-semibold">
+                <div className="hidden md:block">
+                  <table className="w-full table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-[4%]" />
+                      <col className="w-[17%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[17%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[13%]" />
+                      <col className="w-[13%]" />
+                    </colgroup>
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+                        <th className="px-3 py-3 text-left font-bold">
                           <Checkbox
                             checked={
                               selectedExpenses.length ===
@@ -858,36 +891,36 @@ export default function ExpenseApprovals() {
                             onCheckedChange={handleSelectAll}
                           />
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="px-3 py-3 text-left font-bold">
                           Employee
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="px-3 py-3 text-left font-bold">
                           Assigned Client
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="px-3 py-3 text-left font-bold">
                           Date / Categories
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="px-3 py-3 text-right font-bold">
                           Amount
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="px-3 py-3 text-left font-bold">
                           Claims
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="px-3 py-3 text-left font-bold">
                           Description
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold">
+                        <th className="border-l border-slate-200 px-3 py-3 text-center font-bold">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {groupedPending.map((group) => (
                         <tr
                           key={group.id}
-                          className="border-b border-border hover:bg-muted/50 transition-colors"
+                          className="bg-white"
                         >
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-4 align-middle">
                             <Checkbox
                               checked={isGroupSelected(
                                 group.expenses.map((e) => e.id),
@@ -899,52 +932,71 @@ export default function ExpenseApprovals() {
                               }
                             />
                           </td>
-                          <td className="px-4 py-3 font-medium">
-                            {group.employeeName}
-                          </td>
-                          <td className="px-4 py-3">{group.clientName}</td>
-                          <td className="px-4 py-3">
-                            <div>{group.date}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {group.categories.length === 1
-                                ? group.categories[0]
-                                : `${group.categories.length} categories`}
+                          <td className="px-3 py-4 align-middle">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17c491]/10 text-sm font-bold text-[#0b6f53]">
+                                {group.employeeName?.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "EX"}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="whitespace-normal break-words font-bold leading-snug text-slate-950">{group.employeeName}</p>
+                                <p className="text-xs text-slate-500">{group.count} pending claims</p>
+                                <p className="text-xs text-slate-500">Submitted {group.submittedAt}</p>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-bold text-blue-600">
-                            ₹{group.totalAmount.toLocaleString()}
+                          <td className="px-3 py-4 align-middle">
+                            <p className="whitespace-normal break-words font-semibold leading-snug text-slate-900">{group.clientName || "No client"}</p>
+                            <p className="text-xs text-slate-500">{group.clientName && group.clientName !== "No client" ? "Assigned client" : "General expense"}</p>
                           </td>
-                          <td className="px-4 py-3 text-xs">
-                            {group.count} claims
+                          <td className="px-3 py-4 align-middle">
+                            <p className="font-semibold text-slate-900">{group.date}</p>
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">Submitted {group.submittedAt}</p>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {group.categories.map((category) => (
+                                <span key={category} className="whitespace-nowrap rounded-full border border-[#17c491]/20 bg-[#17c491]/10 px-2 py-1 text-xs font-semibold text-[#0b6f53]">
+                                  {category}
+                                </span>
+                              ))}
+                            </div>
                           </td>
-                          <td className="px-4 py-3 text-xs">
-                            {group.primaryExpense?.description || "-"}
+                          <td className="px-3 py-4 text-right align-middle">
+                            <p className="whitespace-nowrap text-base font-bold text-blue-600">₹{group.totalAmount.toLocaleString()}</p>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-2">
+                          <td className="px-3 py-4 align-middle">
+                            <span className="inline-flex min-w-[76px] items-center justify-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700">
+                              {group.count} claims
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 align-middle">
+                            <p className="line-clamp-2 max-w-[160px] whitespace-normal break-words text-[11px] leading-relaxed text-slate-700">
+                              {group.primaryExpense?.description || "-"}
+                            </p>
+                          </td>
+                          <td className="border-l border-slate-100 bg-white px-3 py-4 align-middle">
+                            <div className="flex justify-center gap-1 whitespace-nowrap">
                               <button
                                 onClick={() =>
                                   handleViewDetails(group.primaryExpense)
                                 }
                                 disabled={isSubmittingDecision}
-                                className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
+                                className="rounded-lg border border-slate-200 p-1.5 text-slate-700 transition-colors hover:bg-slate-50"
                                 title="View Details"
                               >
-                                <Eye className="w-4 h-4" />
+                                <Eye className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() =>
                                   handleApproveClick(group.primaryExpense)
                                 }
                                 disabled={isSubmittingDecision}
-                                className="p-2 hover:bg-green-100 text-green-600 rounded-lg transition-colors"
+                                className="rounded-lg border border-emerald-100 p-1.5 text-emerald-600 transition-colors hover:bg-emerald-50"
                                 title="Approve"
                               >
                                 {isGroupProcessing(group) &&
                                   currentDecision === "approved" ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Check className="w-4 h-4" />
+                                  <Check className="h-4 w-4" />
                                 )}
                               </button>
                               <button
@@ -952,14 +1004,14 @@ export default function ExpenseApprovals() {
                                   handleRejectClick(group.primaryExpense)
                                 }
                                 disabled={isSubmittingDecision}
-                                className="p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                                className="rounded-lg border border-red-100 p-1.5 text-red-600 transition-colors hover:bg-red-50"
                                 title="Reject"
                               >
                                 {isGroupProcessing(group) &&
                                   currentDecision === "rejected" ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <X className="w-4 h-4" />
+                                  <X className="h-4 w-4" />
                                 )}
                               </button>
                               <button
@@ -967,10 +1019,10 @@ export default function ExpenseApprovals() {
                                   handleExportSingle(group.primaryExpense)
                                 }
                                 disabled={isSubmittingDecision}
-                                className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                                className="rounded-lg border border-blue-100 p-1.5 text-blue-600 transition-colors hover:bg-blue-50"
                                 title="Export PDF"
                               >
-                                <Download className="w-4 h-4" />
+                                <Download className="h-4 w-4" />
                               </button>
                             </div>
                           </td>
@@ -985,127 +1037,154 @@ export default function ExpenseApprovals() {
         </Card>
 
         {/* Recent Actions */}
-        <Card>
-          <CardHeader className="pb-3 sm:pb-4">
-            <CardTitle className="text-lg sm:text-xl">
+        <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/70 pb-4">
+            <CardTitle className="text-lg font-bold text-slate-950">
               Approval History
             </CardTitle>
+            <CardDescription className="text-sm text-slate-600">
+              Latest approved and rejected expense decisions
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2 sm:space-y-3">
-              {expenses
-                .filter((e) => e.status !== "pending")
-                .slice(0, 5)
-                .map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-xs sm:text-sm">
-                        {expense.employeeName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        ₹{expense.amount} - {expense.category}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span
-                        className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium whitespace-nowrap ${expense.status === "approved"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                          }`}
+          <CardContent className="p-0">
+            {expenses.filter((e) => e.status !== "pending").length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm font-semibold text-slate-700">No approval history yet</p>
+                <p className="mt-1 text-xs text-slate-500">Approved and rejected claims will appear here.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {expenses
+                  .filter((e) => e.status !== "pending")
+                  .slice(0, 5)
+                  .map((expense) => {
+                    const isApproved = String(expense.status).toLowerCase() === "approved";
+                    return (
+                      <div
+                        key={expense.id}
+                        className="flex flex-col gap-3 bg-white p-4 transition-colors hover:bg-[#17c491]/5 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        {expense.status}
-                      </span>
-                      {expense.approvedBy && (
-                        <p className="text-xs text-muted-foreground text-right">
-                          {expense.approvedBy}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-            </div>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                              isApproved
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            {isApproved ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="break-words text-sm font-bold text-slate-950">
+                              {expense.employeeName}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              ₹{Number(expense.amount || 0).toLocaleString()} • {expense.category || "Expense"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                          <span
+                            className={`inline-flex min-w-[92px] items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold capitalize ${
+                              isApproved
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {expense.status}
+                          </span>
+                          {expense.approvedBy && (
+                            <span className="text-xs font-medium text-slate-500">
+                              by {expense.approvedBy}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">
-              Expense Details
-            </DialogTitle>
+            <div className="border-b border-slate-100 bg-gradient-to-r from-[#17c491]/10 via-white to-white px-6 py-5">
+              <DialogTitle className="text-xl font-bold text-slate-950">
+                Expense Details
+              </DialogTitle>
+              <p className="mt-1 text-sm text-slate-600">
+                Review grouped claims, bills and pending amount before approval
+              </p>
+            </div>
           </DialogHeader>
 
           {selectedExpense && (
-            <div className="space-y-6 py-2">
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Employee</p>
-                    <p className="font-medium">
+            <div className="space-y-5 px-6 pb-6 pt-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Employee</p>
+                  <p className="mt-1 break-words text-base font-bold text-slate-950">
                       {selectedExpense.employeeName || "Unknown Employee"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Client</p>
-                    <p className="font-medium">
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Client</p>
+                  <p className="mt-1 break-words text-base font-bold text-slate-950">
                       {selectedGroup?.clientName ||
                         selectedExpense.clientName ||
                         "No client"}
-                    </p>
-                  </div>
+                  </p>
                 </div>
-
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Amount</p>
-                    <p className="font-bold text-blue-600">
-                      ₹{employeeTotal.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Date</p>
-                    <p className="font-medium">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Amount</p>
+                  <p className="mt-1 whitespace-nowrap text-lg font-bold text-blue-700">
+                    ₹{employeeTotal.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Date</p>
+                  <p className="mt-1 text-base font-bold text-slate-950">
                       {selectedGroup?.date || selectedExpense.date}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">Submitted Time</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">
+                    {selectedGroup?.submittedAt || formatSubmitTimestamp(selectedExpense.createdAt)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-[#0b6f53]">
+                      Pending total for this client and date
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {employeePendingExpenses.length} pending claims in this client/date group
                     </p>
                   </div>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    Client Name
-                  </p>
-                  <p className="text-sm font-medium">
-                    {selectedGroup?.clientName ||
-                      selectedExpense.clientName ||
-                      "No client"}
+                  <p className="whitespace-nowrap text-xl font-bold text-[#0b6f53]">
+                    ₹{employeeTotal.toLocaleString()}
                   </p>
                 </div>
+              </div>
 
-                <div className="rounded-lg border border-border bg-muted/30 p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Pending Total For Client On Date
+              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">
+                      Pending claims for this client and date
                     </p>
-                    <p className="font-semibold text-blue-700">
-                      ₹{employeeTotal.toLocaleString()}
+                    <p className="mt-1 text-xs text-slate-500">
+                      Bill preview and grouped claim summary
                     </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {employeePendingExpenses.length} pending claims in this
-                    client/date group
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">
-                      Pending Claims For This Client And Date
-                    </p>
                     <Button
                       type="button"
                       variant="outline"
@@ -1123,25 +1202,26 @@ export default function ExpenseApprovals() {
                         }
                       }}
                       disabled={employeePendingExpenses.length === 0}
+                      className="w-full sm:w-auto"
                     >
                       <FileText className="w-4 h-4 mr-2" />
                       Export All (Excel)
                     </Button>
-                  </div>
+                </div>
                   {employeePendingExpenses.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
                       No pending claims found.
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                      <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+                      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium">
+                          <p className="break-words font-bold text-slate-950">
                             {selectedGroup?.clientName ||
                               selectedExpense.clientName ||
                               "No client"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="mt-1 text-xs text-slate-500">
                             {selectedGroup?.date || selectedExpense.date}
                             {selectedGroup?.categories?.length
                               ? ` • ${selectedGroup.categories.join(", ")}`
@@ -1151,30 +1231,29 @@ export default function ExpenseApprovals() {
                               : ` • ${employeePendingExpenses.length} expense`}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                           {groupReceiptUrls.length > 0 && (
                             <button
                               type="button"
                               onClick={() =>
                                 openReceiptGallery(groupReceiptUrls, 0)
                               }
-                              className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors"
+                              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-100"
                               title="Preview Bills"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                           )}
-                          <p className="font-semibold text-blue-600">
+                          <p className="whitespace-nowrap text-base font-bold text-blue-600">
                             ₹{employeeTotal.toLocaleString()}
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
-                </div>
               </div>
 
-              <div className="pt-4 border-t">
+              <div className="border-t border-slate-100 pt-4">
                 <Button
                   variant="outline"
                   className="w-full"

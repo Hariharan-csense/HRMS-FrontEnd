@@ -354,6 +354,20 @@ export default function ReportsAnalytics() {
     String(getItemValue(item, "date", "attendanceDate", "check_in_date", "check_in", "checkInTime") || "").slice(0, 10);
 
   const isTruthyText = (value: any) => ["yes", "true", "1"].includes(normalizeValue(value));
+  const hasExplicitValue = (value: any) => value !== undefined && value !== null && value !== "";
+  const isPaidLeaveRow = (item: any) => {
+    const paidValue = getItemValue(item, "isPaid", "is_paid", "paid", "paid_status");
+    if (hasExplicitValue(paidValue)) {
+      return isTruthyText(paidValue) || paidValue === true;
+    }
+
+    const leaveTypeName = normalizeValue(getItemValue(item, "leaveType", "leave_type", "leave_type_name"));
+    return !(
+      leaveTypeName.includes("unpaid") ||
+      leaveTypeName.includes("lop") ||
+      leaveTypeName.includes("loss of pay")
+    );
+  };
 
   const buildAttendanceSummaryRows = (rows: any[]) => {
     const employeeMap = new Map<string, any>();
@@ -394,10 +408,12 @@ export default function ReportsAnalytics() {
 
       const status = normalizeValue(getItemValue(item, "status", "attendance_status"));
       const leaveDays = Number(getItemValue(item, "leaveDays", "leave_days")) || 0;
+      const leaveCredit = leaveDays > 0 && leaveDays <= 1 ? leaveDays : 1;
       const isLeave =
         isTruthyText(getItemValue(item, "leaveTaken", "leave_taken")) ||
         status.includes("leave") ||
         Boolean(getItemValue(item, "leaveType", "leave_type", "leave_type_name"));
+      const isUnpaidLeave = isLeave && !isPaidLeaveRow(item);
       const isPermission =
         isTruthyText(getItemValue(item, "permissionTaken", "permission_taken")) ||
         status.includes("permission");
@@ -414,7 +430,11 @@ export default function ReportsAnalytics() {
         Number(getItemValue(item, "hoursWorked", "hours_worked", "total_hours", "duration")) > 0;
 
       if (!isWeekendOrHoliday) dateSummary.workingDay = 1;
-      if (isLeave) dateSummary.leave = Math.max(dateSummary.leave, leaveDays > 0 && leaveDays <= 1 ? leaveDays : 1);
+      if (isLeave && !isUnpaidLeave) dateSummary.leave = Math.max(dateSummary.leave, leaveCredit);
+      if (isUnpaidLeave) {
+        dateSummary.absent = Math.max(dateSummary.absent, leaveCredit);
+        dateSummary.lop = Math.max(dateSummary.lop, leaveCredit);
+      }
       if (isPermission) dateSummary.permission = 1;
       if (isLate) dateSummary.late = 1;
       if (isHalf) dateSummary.present = Math.max(dateSummary.present, 0.5);
@@ -429,7 +449,7 @@ export default function ReportsAnalytics() {
 
     return Array.from(employeeMap.values())
       .map((employee: any) => {
-        const totals = Array.from(employee.dates.values()).reduce(
+        const totals = Array.from(employee.dates.values()).reduce<any>(
           (acc: any, day: any) => ({
             workingDays: acc.workingDays + day.workingDay,
             presentDays: acc.presentDays + day.present,
@@ -477,6 +497,13 @@ export default function ReportsAnalytics() {
     if (format === "xlsx") {
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+      worksheet["!cols"] = headers.map((header) => {
+        const maxValueLength = rows.reduce((max, row: any) => {
+          const value = String(row?.[header] ?? "");
+          return Math.max(max, value.length);
+        }, String(header).length);
+        return { wch: Math.min(Math.max(maxValueLength + 2, 12), 42) };
+      });
       XLSX.utils.book_append_sheet(workbook, worksheet, title.slice(0, 31));
       XLSX.writeFile(workbook, `${fileBase}-${new Date().toISOString().split("T")[0]}.xlsx`);
       return;
@@ -527,6 +554,123 @@ export default function ReportsAnalytics() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const formatExpenseModelDate = (value: any) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date
+      .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })
+      .replace(/ /g, "-");
+  };
+
+  const excelTextValue = (value: any) => {
+    const text = String(value || "").trim();
+    // Keep Excel from converting compact dates into date cells that can show as #######.
+    return text ? `\t${text}` : "";
+  };
+
+  const formatExpenseModelMonth = (value: any) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date
+      .toLocaleDateString("en-GB", { month: "short", year: "2-digit" })
+      .replace(/ /g, "-");
+  };
+
+  const formatExpenseModelAmount = (value: any) => {
+    const amount = Number(value || 0);
+    return `₹${amount.toLocaleString("en-IN", {
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    })}`;
+  };
+
+  const inferExpenseTravelMode = (description: any) => {
+    const text = String(description || "").toLowerCase();
+    if (text.includes("train") && text.includes("bus")) return "Train & Reg Bus";
+    if (text.includes("ac sleeper")) return "AC Sleeper Bus";
+    if (text.includes("bus")) return "Bus - Regular";
+    if (text.includes("train")) return "Train";
+    if (text.includes("auto")) return "Auto";
+    if (text.includes("cab") || text.includes("taxi")) return "Cab";
+    if (text.includes("car")) return "Car";
+    return "";
+  };
+
+  const buildFinanceExpenseModelRows = (rows: any[]) => {
+    const grouped = new Map<string, any>();
+
+    rows.forEach((item: any) => {
+      const date = String(item.expenseDate || item.date || "").slice(0, 10);
+      const employeeName = String(item.employeeName || item.employee_name || "").trim();
+      const clientName = item.clientName || item.client_name || "";
+      const key = [
+        item.employeeCode || item.employee_id || employeeName,
+        date,
+        clientName,
+        item.createdAt || item.created_at || item.expenseId || item.id || "",
+      ].join("|");
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          month: excelTextValue(formatExpenseModelMonth(date)),
+          date: excelTextValue(formatExpenseModelDate(date)),
+          consultant: employeeName.split(/\s+/)[0] || employeeName,
+          client: clientName,
+          from: "",
+          to: "",
+          modelOfTravel: "",
+          travel: 0,
+          stay: 0,
+          food: 0,
+          other: 0,
+          total: 0,
+          remarks: [] as string[],
+        });
+      }
+
+      const row = grouped.get(key);
+      const category = String(item.category || "").trim().toLowerCase();
+      const amount = Number(item.expenseAmount ?? item.amount ?? 0);
+      const description = String(item.expenseDetails || item.description || "").trim();
+
+      if (category.includes("travel")) {
+        row.travel += amount;
+        row.modelOfTravel = row.modelOfTravel || inferExpenseTravelMode(description);
+      } else if (category.includes("accommodation") || category.includes("accomodation") || category.includes("stay")) {
+        row.stay += amount;
+      } else if (category.includes("food") || category.includes("meal")) {
+        row.food += amount;
+      } else {
+        row.other += amount;
+        if (description) row.remarks.push(`*Others : ${description}`);
+      }
+
+      if (!category.includes("other") && description && !row.remarks.includes(description)) {
+        row.remarks.push(description);
+      }
+
+      row.total += amount;
+    });
+
+    return Array.from(grouped.values()).map((row, index) => ({
+      "S.No": index + 1,
+      Month: row.month,
+      Date: row.date,
+      Consultant: row.consultant,
+      Client: row.client,
+      From: row.from,
+      To: row.to,
+      "Model of Travel": row.modelOfTravel,
+      Travel: formatExpenseModelAmount(row.travel),
+      Stay: formatExpenseModelAmount(row.stay),
+      Food: formatExpenseModelAmount(row.food),
+      Other: formatExpenseModelAmount(row.other),
+      Total: formatExpenseModelAmount(row.total),
+      Remarks: row.remarks.join(" | "),
+    }));
   };
 
   // Export to PDF
@@ -583,6 +727,17 @@ export default function ReportsAnalytics() {
 
       if (!dataToExport || dataToExport.length === 0) {
         toast.error('No data available to export');
+        return;
+      }
+
+      if (reportType === "finance") {
+        const financeRows = buildFinanceExpenseModelRows(dataToExport);
+        exportRows(
+          financeRows,
+          "Finance Expense Report",
+          "finance-expense-claim-model",
+          format
+        );
         return;
       }
 
@@ -1005,6 +1160,7 @@ export default function ReportsAnalytics() {
                 department: leave.department || leave.department_name,
                 designation: leave.designation || leave.designation_name,
                 leaveType: leave.leave_type_name || leave.leaveType || leave.leave_type,
+                isPaid: leave.is_paid ?? leave.isPaid,
                 leaveFromDate: leave.from_date || leave.fromDate,
                 leaveToDate: leave.to_date || leave.toDate,
                 leaveDays: leave.days,
@@ -1225,6 +1381,7 @@ export default function ReportsAnalytics() {
     { key: "employeeCode", label: "Employee Code" },
     { key: "employeeName", label: "Employee Name" },
     { key: "department", label: "Department" },
+    { key: "clientName", label: "Client" },
     { key: "expenseAmount", label: "Expense Amount", render: (row: any) => formatCurrency(row.expenseAmount) },
     { key: "category", label: "Category" },
     { key: "expenseDetails", label: "Details" },

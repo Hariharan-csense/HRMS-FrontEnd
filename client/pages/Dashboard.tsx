@@ -872,364 +872,328 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Numeric Insights */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
-          <h2 className="text-2xl font-bold text-gray-800">Attendance & Department Numbers</h2>
-        </div>
-        <div className="grid grid-cols-1 gap-6 items-stretch">
-          <div className="modern-card overflow-hidden h-full">
-            <CardHeader className="bg-[#17c491] rounded-t-xl p-4">
-              <CardTitle className="text-white font-bold flex items-center gap-2 text-xl">
-                <Building className="w-5 h-5" />
-                Headcount by Department
-              </CardTitle>
-              <CardDescription className="text-white/80 text-xs">Department-wise employee count</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-2.5">
-              {(departmentData || []).slice(0, 6).map((d: any, idx: number) => (
-                <div key={`${d.dept}-${idx}`} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2.5">
-                  <span className="font-medium text-gray-700 text-sm">{d.dept}</span>
-                  <span className="font-bold text-[#17c491] text-sm">{Number(d.count || 0)}</span>
-                </div>
-              ))}
-              {(!departmentData || departmentData.length === 0) && (
-                <p className="text-sm text-gray-500">No department data available</p>
-              )}
-            </CardContent>
+      {/* Attendance & Department Numbers */}
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-1 rounded-full bg-[#17c491]"></div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Attendance & Department Numbers</h2>
+            <p className="text-sm text-gray-500">Department strength, attendance, leave, events, and trends</p>
           </div>
         </div>
-      </div>
 
-      {/* Department-wise Attendance */}
-      <div className="mb-8">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
-          <h2 className="text-2xl font-bold text-[#0d5f49]">Department-wise Attendance Today</h2>
-        </div>
-        <div className="grid grid-cols-1 gap-5">
-          <div className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491] px-6 py-5">
-              <CardTitle className="text-white flex items-center gap-2">
-                <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-white text-xs font-bold">%</div>
-                Department Attendance Summary
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm xl:col-span-1">
+            <CardHeader className="border-b border-emerald-100 bg-emerald-50/70 px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[#17c491] shadow-sm">
+                  <Building className="h-5 w-5" />
+                </span>
+                Headcount by Department
               </CardTitle>
-              <CardDescription className="text-white/80">Quick comparison with attendance rate</CardDescription>
+              <CardDescription className="text-[#2f6f5f]">Department-wise employee count</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
-              <div className="space-y-4">
-                {departmentAttendanceChart.length > 0 ? (
-                  departmentAttendanceChart.map((dept, idx) => (
-                    <div key={idx} className="rounded-xl border border-[#d7ede6] bg-[#fbfffd] p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-[#0d5f49] text-lg">{dept.dept}</p>
-                          <p className="text-sm text-[#2f6f5f]">Total: {dept.total} employees</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <p className="text-2xl font-bold text-[#17c491]">{dept.attendanceRate}%</p>
-                            <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
-                          </div>
-                          <p className="text-xs text-[#2f6f5f]">Attendance Rate</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="rounded-xl bg-[#f1fbf7] p-3 border border-[#d7ede6]">
-                          <p className="text-2xl font-bold text-[#0fa97f]">{dept.present}</p>
-                          <p className="text-xs text-[#0d5f49]">Present</p>
-                        </div>
-                        <div className="rounded-xl bg-[#f1fbf7] p-3 border border-[#d7ede6]">
-                          <p className="text-2xl font-bold text-[#17c491]">{dept.half}</p>
-                          <p className="text-xs text-[#0d5f49]">Half Day</p>
-                        </div>
-                        <div className="rounded-xl bg-[#f1fbf7] p-3 border border-[#d7ede6]">
-                          <p className="text-2xl font-bold text-[#0fa372]">{dept.absent}</p>
-                          <p className="text-xs text-[#0d5f49]">Absent</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="inline-flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-[#17c491]/20 rounded-full flex items-center justify-center">
-                        <svg className="w-6 h-6 text-[#17c491]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 0v6m0 6h6m-6 0v6" />
-                        </svg>
-                      </div>
-                      <p className="text-[#2f6f5f] text-sm">No attendance data available for today</p>
-                    </div>
+              <div className="space-y-3">
+                {(departmentData || []).slice(0, 6).map((d: any, idx: number) => (
+                  <div key={`${d.dept}-${idx}`} className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white px-4 py-3 shadow-sm">
+                    <span className="truncate text-sm font-semibold text-slate-700">{d.dept}</span>
+                    <span className="ml-3 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-bold text-[#0d8f6b]">
+                      {Number(d.count || 0)}
+                    </span>
+                  </div>
+                ))}
+                {(!departmentData || departmentData.length === 0) && (
+                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
+                    No department data available
                   </div>
                 )}
               </div>
             </CardContent>
-          </div>
-        </div>
-      </div>
+          </Card>
 
-      {/* Additional Metrics */}
-      <div className="space-y-5">
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm xl:col-span-2">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-[#17c491]">
+                  %
+                </span>
+                Department-wise Attendance Today
+              </CardTitle>
+              <CardDescription className="text-slate-500">Quick comparison with attendance rate</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5">
+              {departmentAttendanceChart.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {departmentAttendanceChart.map((dept, idx) => (
+                    <div key={idx} className="rounded-2xl border border-emerald-100 bg-[#fbfffd] p-4 shadow-sm">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-bold text-[#0d5f49]">{dept.dept}</p>
+                          <p className="text-xs font-medium text-slate-500">Total: {dept.total} employees</p>
+                        </div>
+                        <div className="rounded-xl bg-white px-3 py-2 text-right shadow-sm">
+                          <p className="text-xl font-black text-[#17c491]">{dept.attendanceRate}%</p>
+                          <p className="text-[11px] font-medium text-slate-500">Rate</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          ["Present", dept.present],
+                          ["Half Day", dept.half],
+                          ["Absent", dept.absent],
+                        ].map(([label, value]) => (
+                          <div key={String(label)} className="rounded-xl bg-white p-3 text-center shadow-sm">
+                            <p className="text-lg font-black text-[#0d5f49]">{Number(value || 0)}</p>
+                            <p className="text-[11px] font-semibold text-slate-500">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-[190px] items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 text-center">
+                  <div>
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#17c491] shadow-sm">
+                      <CheckCircle className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-semibold text-[#0d5f49]">No attendance data available for today</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491] dark:border-slate-700">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <TrendingUp className="h-5 w-5 text-white" />
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <TrendingUp className="h-5 w-5 text-[#17c491]" />
                 Leave Utilization
               </CardTitle>
-              <CardDescription className="text-white/80">Leave balance across all employees</CardDescription>
+              <CardDescription>Leave balance across all employees</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {(leaveData || []).map((entry: any, index: number) => (
-                  <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                    <span className="font-medium text-slate-700 dark:text-slate-100">{entry.name}</span>
-                    <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                  <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                    <span className="text-sm font-semibold text-slate-700">{entry.name}</span>
+                    <span className="rounded-lg bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700">
                       {Number(entry.value || 0)}
                     </span>
                   </div>
                 ))}
                 {(!leaveData || leaveData.length === 0) && (
-                  <>
-                    {/* Dummy Leave Data - Replace with real data when available */}
-                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                      <span className="font-medium text-slate-700 dark:text-slate-100">Casual Leave</span>
-                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        12
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                      <span className="font-medium text-slate-700 dark:text-slate-100">Sick Leave</span>
-                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        8
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                      <span className="font-medium text-slate-700 dark:text-slate-100">Earned Leave</span>
-                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        15
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                      <span className="font-medium text-slate-700 dark:text-slate-100">Maternity Leave</span>
-                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        180
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-[#d7ede6] bg-[#f9fdfb] px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                      <span className="font-medium text-slate-700 dark:text-slate-100">Paternity Leave</span>
-                      <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                        15
-                      </span>
-                    </div>
-                    <div className="mt-2 text-xs text-center text-gray-400 italic">
-                      * Sample data - Real data will appear when available
-                    </div>
-                  </>
+                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
+                    No leave balance data available
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Clock className="h-5 w-5 text-white" />
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <Clock className="h-5 w-5 text-[#17c491]" />
                 Recent Activities
               </CardTitle>
-              <CardDescription className="text-white/80">Latest system activities and updates</CardDescription>
+              <CardDescription>Latest system activities and updates</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {recentActivities.map((item, idx) => (
-                  <div key={idx} className="flex gap-3 rounded-xl border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
+                  <div key={idx} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">
                       {item?.icon || "N"}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[#0d5f49]">{item?.activity || "No activity"}</p>
-                      <p className="mt-1 text-xs text-[#2f6f5f]">{item?.time || ""}</p>
+                      <p className="text-sm font-semibold text-slate-800">{item?.activity || "No activity"}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item?.time || ""}</p>
                     </div>
                   </div>
                 ))}
                 {(!recentActivities || recentActivities.length === 0) && (
-                  <p className="py-4 text-center text-sm text-[#2f6f5f]">No recent activities</p>
+                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
+                    No recent activities
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Users className="h-5 w-5 text-white" />
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <Users className="h-5 w-5 text-[#17c491]" />
                 Recent Joinings
               </CardTitle>
-              <CardDescription className="text-white/80">Recently onboarded employees</CardDescription>
+              <CardDescription>Recently onboarded employees</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {recentJoinings.map((emp, idx) => {
                   const initials = emp?.name?.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2) || "U";
                   return (
-                    <div key={idx} className="flex gap-3 rounded-xl border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#17c491] text-sm font-bold text-white">
+                    <div key={idx} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#17c491] text-sm font-bold text-white">
                         {initials}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-[#0d5f49]">{emp?.name || "New Employee"}</p>
-                        <p className="text-xs text-[#2f6f5f]">{[emp?.role, emp?.dept].filter(Boolean).join(" | ") || "Role not specified"}</p>
-                        {emp?.joinDate && <p className="mt-1 text-xs text-[#2f6f5f]">Joined: {emp.joinDate}</p>}
+                        <p className="truncate text-sm font-bold text-slate-800">{emp?.name || "New Employee"}</p>
+                        <p className="text-xs text-slate-500">{[emp?.role, emp?.dept].filter(Boolean).join(" | ") || "Role not specified"}</p>
+                        {emp?.joinDate && <p className="mt-1 text-xs font-medium text-[#0d8f6b]">Joined: {emp.joinDate}</p>}
                       </div>
                     </div>
                   );
                 })}
                 {(!recentJoinings || recentJoinings.length === 0) && (
-                  <p className="py-4 text-center text-sm text-[#2f6f5f]">No recent joinings</p>
+                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
+                    No recent joinings
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Calendar className="h-5 w-5 text-white" />
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <Calendar className="h-5 w-5 text-[#17c491]" />
                 Upcoming Birthdays
               </CardTitle>
-              <CardDescription className="text-white/80">Celebrate with your team</CardDescription>
+              <CardDescription>Celebrate with your team</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {upcomingBirthdays?.map((emp, idx) => (
-                  <div key={idx} className="flex items-center gap-3 rounded-xl border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dff8ef] text-xs font-semibold text-[#0d5f49]">BD</div>
+                  <div key={idx} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">BD</div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[#0d5f49]">{emp.name}</p>
-                      <p className="text-xs text-[#2f6f5f]">{emp.date}</p>
+                      <p className="text-sm font-bold text-slate-800">{emp.name}</p>
+                      <p className="text-xs text-slate-500">{emp.date}</p>
                     </div>
                   </div>
                 ))}
                 {(!upcomingBirthdays || upcomingBirthdays.length === 0) && (
-                  <p className="py-4 text-center text-sm text-[#2f6f5f]">No upcoming birthdays</p>
+                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
+                    No upcoming birthdays
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Calendar className="h-5 w-5 text-white" />
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <Calendar className="h-5 w-5 text-[#17c491]" />
                 Upcoming Holidays
               </CardTitle>
-              <CardDescription className="text-white/80">Public and company holidays</CardDescription>
+              <CardDescription>Public and company holidays</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {upcomingHolidays?.map((holiday, idx) => (
-                  <div key={idx} className="flex items-center gap-3 rounded-xl border border-[#e8f4f0] bg-[#fbfffd] p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dff8ef] text-xs font-semibold text-[#0d5f49]">HD</div>
+                  <div key={idx} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">HD</div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[#0d5f49]">{holiday.name}</p>
-                      <p className="text-xs text-[#2f6f5f]">{holiday.date}</p>
-                      <p className="mt-1 text-xs font-medium text-[#17c491]">{holiday.type}</p>
+                      <p className="text-sm font-bold text-slate-800">{holiday.name}</p>
+                      <p className="text-xs text-slate-500">{holiday.date}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#0d8f6b]">{holiday.type}</p>
                     </div>
                   </div>
                 ))}
                 {(!upcomingHolidays || upcomingHolidays.length === 0) && (
-                  <p className="py-4 text-center text-sm text-[#2f6f5f]">No upcoming holidays</p>
+                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
+                    No upcoming holidays
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
 
-      {/* Monthly Attendance Trends */}
-      <div className="space-y-6">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="w-2 h-0.5 bg-gradient-to-r from-[#17c491] to-[#0fa372] rounded-full"></div>
-          <h2 className="text-2xl font-bold text-gray-800">Monthly Attendance Trends</h2>
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
-              <CardTitle className="text-white flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Monthly Present
+          <Card className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm md:col-span-2 xl:col-span-3">
+            <CardHeader className="border-b border-emerald-100 bg-white px-5 py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-[#0d5f49]">
+                <BarChart3 className="h-5 w-5 text-[#17c491]" />
+                Monthly Attendance Trends
               </CardTitle>
-              <CardDescription className="text-white/80">Daily present counts this month</CardDescription>
+              <CardDescription>Monthly present and absent counts</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#17c491" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#17c491" stopOpacity={0.06} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      cursor={{ stroke: "#a7f3d0", strokeWidth: 1 }}
-                      contentStyle={{
-                        borderRadius: 10,
-                        border: "1px solid hsl(var(--border))",
-                        fontSize: 12,
-                        background: "hsl(var(--popover))",
-                        color: "hsl(var(--foreground))",
-                      }}
-                      formatter={(value: number) => [value, "Present"]}
-                      labelFormatter={(label: any) => `${label}`}
-                    />
-                    <Bar dataKey="present" fill="url(#presentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="mb-3">
+                    <p className="font-bold text-slate-800">Monthly Present</p>
+                    <p className="text-xs text-slate-500">Daily present counts this month</p>
+                  </div>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#17c491" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#17c491" stopOpacity={0.06} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          cursor={{ stroke: "#a7f3d0", strokeWidth: 1 }}
+                          contentStyle={{
+                            borderRadius: 10,
+                            border: "1px solid hsl(var(--border))",
+                            fontSize: 12,
+                            background: "hsl(var(--popover))",
+                            color: "hsl(var(--foreground))",
+                          }}
+                          formatter={(value: number) => [value, "Present"]}
+                          labelFormatter={(label: any) => `${label}`}
+                        />
+                        <Bar dataKey="present" fill="url(#presentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
 
-          <Card className="overflow-hidden rounded-2xl border border-[#d7ede6] bg-white shadow-sm">
-            <CardHeader className="border-b border-[#e8f4f0] bg-[#17c491]">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                Monthly Absent
-              </CardTitle>
-              <CardDescription className="text-white/80">Daily absent counts this month</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#17c491" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#17c491" stopOpacity={0.06} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      cursor={{ stroke: "#a7f3d0", strokeWidth: 1 }}
-                      contentStyle={{
-                        borderRadius: 10,
-                        border: "1px solid hsl(var(--border))",
-                        fontSize: 12,
-                        background: "hsl(var(--popover))",
-                        color: "hsl(var(--foreground))",
-                      }}
-                      formatter={(value: number) => [value, "Absent"]}
-                      labelFormatter={(label: any) => `${label}`}
-                    />
-                    <Bar dataKey="absent" fill="url(#absentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="mb-3">
+                    <p className="font-bold text-slate-800">Monthly Absent</p>
+                    <p className="text-xs text-slate-500">Daily absent counts this month</p>
+                  </div>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#64748b" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#64748b" stopOpacity={0.06} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                          contentStyle={{
+                            borderRadius: 10,
+                            border: "1px solid hsl(var(--border))",
+                            fontSize: 12,
+                            background: "hsl(var(--popover))",
+                            color: "hsl(var(--foreground))",
+                          }}
+                          formatter={(value: number) => [value, "Absent"]}
+                          labelFormatter={(label: any) => `${label}`}
+                        />
+                        <Bar dataKey="absent" fill="url(#absentGradient)" stroke="#475569" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1570,14 +1534,6 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
           icon={<AlertCircle className="w-7 h-7" />}
           description="Awaiting your action"
           colorClass="gradient-bg-red"
-          onClick={() =>
-            setMetricDialog({
-              title: "Pending Approvals",
-              description: "Items requiring your review",
-              type: "pending",
-              pendingItems: dashboardData?.pendingApprovals || [],
-            })
-          }
         />
       </div>
 

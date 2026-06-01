@@ -342,6 +342,7 @@ const expenseApi = {
 
   exportExpenses: async (exportData: {
     employeeIds: string[];
+    expenseIds?: string[];
     format: 'csv' | 'json';
     statusFilter?: string;
     dateFilter?: {

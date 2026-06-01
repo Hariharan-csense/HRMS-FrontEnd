@@ -422,7 +422,6 @@ export default function ExpenseClaims() {
   const [selectAllEmployees, setSelectAllEmployees] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
   const [exportStatusFilter, setExportStatusFilter] = useState<string>('all');
-  const [exportDateFilter, setExportDateFilter] = useState<{ startDate?: string; endDate?: string }>({});
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -1462,6 +1461,28 @@ export default function ExpenseClaims() {
     }
   };
 
+  const getActiveExportDateFilter = () => {
+    if (filterFromDate || filterToDate) {
+      return {
+        ...(filterFromDate ? { startDate: filterFromDate } : {}),
+        ...(filterToDate ? { endDate: filterToDate } : {}),
+      };
+    }
+
+    if (filterMonth) {
+      const [year, month] = filterMonth.split("-").map(Number);
+      if (Number.isFinite(year) && Number.isFinite(month)) {
+        const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, "0");
+        return {
+          startDate: `${filterMonth}-01`,
+          endDate: `${filterMonth}-${lastDay}`,
+        };
+      }
+    }
+
+    return undefined;
+  };
+
   // Handle export
   const handleExport = async () => {
     try {
@@ -1469,9 +1490,12 @@ export default function ExpenseClaims() {
 
       const exportData = {
         employeeIds: selectAllEmployees ? ['all'] : selectedEmployees,
+        expenseIds: filteredExpenses.flatMap((expense) =>
+          expense.claims.map((claim) => claim.id).filter(Boolean),
+        ),
         format: exportFormat,
-        statusFilter: exportStatusFilter,
-        dateFilter: exportDateFilter.startDate || exportDateFilter.endDate ? exportDateFilter : undefined
+        statusFilter: exportStatusFilter !== 'all' ? exportStatusFilter : filterStatus,
+        dateFilter: getActiveExportDateFilter()
       };
 
       const response = await expenseApi.exportExpenses(exportData);
@@ -1486,7 +1510,7 @@ export default function ExpenseClaims() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `expense_claim_model_${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -1510,7 +1534,6 @@ export default function ExpenseClaims() {
       setSelectedEmployees([]);
       setSelectAllEmployees(false);
       setExportStatusFilter('all');
-      setExportDateFilter({});
     } catch (error) {
       console.error('Export error:', error);
       setError(error instanceof Error ? error.message : 'Failed to export expenses');
@@ -1540,6 +1563,10 @@ export default function ExpenseClaims() {
 
 
   const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
+  const pendingClaims = filteredExpenses.filter((expense) => expense.status === "pending");
+  const approvedClaims = filteredExpenses.filter((expense) => expense.status === "approved");
+  const reimbursedClaims = filteredExpenses.filter((expense) => expense.status === "reimbursed");
+  const formatClaimAmount = (amount: number) => `₹${(Number(amount) || 0).toLocaleString()}`;
 
   return (
     <Layout>
@@ -1766,12 +1793,36 @@ export default function ExpenseClaims() {
           </div>
         )}
 
-        <Card>
-          <CardHeader className="pb-3 sm:pb-4">
-            <CardTitle className="text-lg sm:text-xl">Claims ({filteredExpenses.length})</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Total: ₹{totalAmount.toLocaleString()}</CardDescription>
+        <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-[#17c491]/10 via-white to-white pb-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold text-slate-950">Claims ({filteredExpenses.length})</CardTitle>
+                <CardDescription className="mt-1 text-sm text-slate-600">
+                  Employee-wise expense claims with date, client and approval status
+                </CardDescription>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-lg border border-white/80 bg-white px-3 py-2 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p>
+                  <p className="text-sm font-bold text-slate-950">{formatClaimAmount(totalAmount)}</p>
+                </div>
+                <div className="rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-yellow-700">Pending</p>
+                  <p className="text-sm font-bold text-yellow-900">{pendingClaims.length}</p>
+                </div>
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Approved</p>
+                  <p className="text-sm font-bold text-emerald-900">{approvedClaims.length}</p>
+                </div>
+                <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Reimbursed</p>
+                  <p className="text-sm font-bold text-blue-900">{reimbursedClaims.length}</p>
+                </div>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {loading ? (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-xs sm:text-sm text-muted-foreground">Loading expenses...</p>
@@ -1782,55 +1833,60 @@ export default function ExpenseClaims() {
               </div>
             ) : (
               <>
+                {filteredExpenses.length === 0 && (
+                  <div className="p-8 text-center">
+                    <p className="text-sm font-semibold text-slate-700">No expense claims found</p>
+                    <p className="mt-1 text-xs text-slate-500">Try changing the filters or date range.</p>
+                  </div>
+                )}
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-2 sm:space-y-3">
+                {filteredExpenses.length > 0 && <div className="space-y-3 p-3 md:hidden">
                   {filteredExpenses.map((expense) => (
-                    <div key={expense.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
-                      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                        <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{expense.employeeName}</h3>
-                        <span className={`text-xs px-1.5 py-0.5 rounded border whitespace-nowrap ${getStatusColor(expense.status)}`}>
+                    <div key={expense.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="break-words text-sm font-bold text-slate-950">{expense.employeeName}</h3>
+                          <p className="mt-1 text-xs text-slate-500">{expense.date} {expense.clientName ? `- ${expense.clientName}` : ""}</p>
+                        </div>
+                        <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold capitalize whitespace-nowrap ${getStatusColor(expense.status)}`}>
                           {expense.status}
                         </span>
                       </div>
-                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-4">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Date:</span>
-                          <span className="font-medium text-right">{expense.date}</span>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Client</span>
+                          <span className="mt-1 block truncate font-semibold text-slate-900">{expense.clientName || "-"}</span>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Client:</span>
-                          <span className="font-medium text-right">{expense.clientName || "-"}</span>
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amount</span>
+                          <span className="mt-1 block font-bold text-slate-950">{formatClaimAmount(expense.totalAmount || 0)}</span>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Category:</span>
-                          <span className="font-medium text-right">{expense.categories.join(", ")}</span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Amount:</span>
-                          <span className="font-semibold text-right">₹{(expense.totalAmount || 0).toLocaleString()}</span>
+                        <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">Category</span>
+                          <span className="mt-1 block text-sm font-semibold text-slate-900">{expense.categories.join(", ")}</span>
                         </div>
                         {expense.claims.length > 1 && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground flex-shrink-0">Items:</span>
-                            <span className="font-medium text-right">{expense.claims.length} expenses</span>
+                          <div className="col-span-2 flex justify-between rounded-lg bg-slate-50 px-3 py-2">
+                            <span className="text-xs font-semibold text-slate-500">Items</span>
+                            <span className="text-xs font-bold text-slate-900">{expense.claims.length} expenses</span>
                           </div>
                         )}
                       </div>
-                      <div className="pt-2 sm:pt-3 border-t border-border">
+                      <div className="mt-3 border-t border-slate-100 pt-3">
                         {hasRole(user, "finance") ? (
-                          <div className="flex gap-1 sm:gap-2 flex-wrap">
+                          <div className="flex flex-wrap gap-2">
                             {expense.status === "pending" && (
                               <>
                                 <button
                                   onClick={() => handleApprovalAction(expense.id, "approve")}
-                                  className="flex-1 p-1 sm:p-2 hover:bg-green-100 text-green-600 rounded-lg text-xs font-medium"
+                                  className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
                                   title="Approve"
                                 >
                                   Approve
                                 </button>
                                 <button
                                   onClick={() => handleApprovalAction(expense.id, "reject")}
-                                  className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium"
+                                  className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
                                   title="Reject"
                                 >
                                   Reject
@@ -1844,32 +1900,32 @@ export default function ExpenseClaims() {
                             )}
                           </div>
                         ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
-                          <div className="flex gap-1 sm:gap-2">
+                          <div className="flex gap-2">
                             {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
                               <button
                                 onClick={() => handleViewReceipt(expense)}
-                                className="flex-1 p-1 sm:p-2 hover:bg-slate-100 text-slate-700 rounded-lg"
+                                className="flex-1 rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
                                 title="View Bill"
                               >
-                                <Eye className="w-4 h-4" />
+                                <Eye className="mx-auto h-4 w-4" />
                               </button>
                             )}
                             {canEditClaim(expense) && (
                               <button
                                 onClick={() => handleOpenDialog(expense)}
-                                className="flex-1 p-1 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
+                                className="flex-1 rounded-lg border border-blue-100 p-2 text-blue-600 hover:bg-blue-50"
                                 title="Edit"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit className="mx-auto h-4 w-4" />
                               </button>
                             )}
                             {canDeleteClaim(expense) && (
                               <button
                                 onClick={() => handleDelete(expense)}
-                                className="flex-1 p-1 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg"
+                                className="flex-1 rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"
                                 title={expense.isDraft ? "Delete Draft" : "Delete"}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="mx-auto h-4 w-4" />
                               </button>
                             )}
                           </div>
@@ -1879,50 +1935,85 @@ export default function ExpenseClaims() {
                       </div>
                     </div>
                   ))}
-                </div>
+                </div>}
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-4 py-3 font-semibold">Employee</th>
-                        <th className="text-left px-4 py-3 font-semibold">Date</th>
-                        <th className="text-left px-4 py-3 font-semibold">Client</th>
-                        <th className="text-left px-4 py-3 font-semibold">Category</th>
-                        <th className="text-left px-4 py-3 font-semibold">Amount</th>
-                        <th className="text-left px-4 py-3 font-semibold">Status</th>
-                        <th className="text-left px-4 py-3 font-semibold">Actions</th>
+                {filteredExpenses.length > 0 && <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[1120px] table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-[230px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[260px]" />
+                      <col className="w-[300px]" />
+                      <col className="w-[130px]" />
+                      <col className="w-[140px]" />
+                      <col className="w-[120px]" />
+                    </colgroup>
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+                        <th className="px-5 py-3 text-left font-bold">Employee</th>
+                        <th className="px-5 py-3 text-left font-bold">Claim Date</th>
+                        <th className="px-5 py-3 text-left font-bold">Client</th>
+                        <th className="px-5 py-3 text-left font-bold">Category</th>
+                        <th className="px-5 py-3 text-right font-bold">Amount</th>
+                        <th className="px-5 py-3 text-left font-bold">Status</th>
+                        <th className="px-5 py-3 text-center font-bold">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {filteredExpenses.map((expense) => (
-                        <tr key={expense.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-4 py-3 font-medium">{expense.employeeName}</td>
-                          <td className="px-4 py-3">{expense.date}</td>
-                          <td className="px-4 py-3">{expense.clientName || "-"}</td>
-                          <td className="px-4 py-3">{expense.categories.join(", ")}</td>
-                          <td className="px-4 py-3 font-medium">₹{(expense.totalAmount || 0).toLocaleString()}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(expense.status)}`}>
+                        <tr key={expense.id} className="bg-white transition-colors hover:bg-[#17c491]/5">
+                          <td className="px-5 py-4 align-middle">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17c491]/10 text-sm font-bold text-[#0b6f53]">
+                                {expense.employeeName?.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "EX"}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="whitespace-normal break-words font-bold leading-snug text-slate-950">{expense.employeeName}</p>
+                                <p className="text-xs text-slate-500">{expense.claims.length > 1 ? `${expense.claims.length} expense items` : "1 expense item"}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 align-middle">
+                            <p className="font-semibold text-slate-900">{expense.date}</p>
+                            <p className="text-xs text-slate-500">Submitted claim</p>
+                          </td>
+                          <td className="px-5 py-4 align-middle">
+                            <p className="whitespace-normal break-words font-semibold leading-snug text-slate-900">{expense.clientName || "-"}</p>
+                            <p className="text-xs text-slate-500">{expense.clientName ? "Client visit" : "General expense"}</p>
+                          </td>
+                          <td className="px-5 py-4 align-middle">
+                            <div className="flex flex-wrap gap-1.5">
+                              {expense.categories.map((category) => (
+                                <span key={category} className="whitespace-nowrap rounded-full border border-[#17c491]/20 bg-[#17c491]/10 px-2 py-1 text-xs font-semibold text-[#0b6f53]">
+                                  {category}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-right align-middle">
+                            <p className="whitespace-nowrap text-base font-bold text-slate-950">{formatClaimAmount(expense.totalAmount || 0)}</p>
+                          </td>
+                          <td className="px-5 py-4 align-middle">
+                            <span className={`inline-flex min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-bold capitalize leading-none ${getStatusColor(expense.status)}`}>
                               {expense.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-5 py-4 align-middle">
                             {hasRole(user, "finance") ? (
-                              <div className="flex gap-2">
+                              <div className="flex justify-center gap-2">
                                 {expense.status === "pending" && (
                                   <>
                                     <button
                                       onClick={() => handleApprovalAction(expense.id, "approve")}
-                                      className="p-2 hover:bg-green-100 text-green-600 rounded-lg text-xs font-medium"
+                                      className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
                                       title="Approve"
                                     >
                                       Approve
                                     </button>
                                     <button
                                       onClick={() => handleApprovalAction(expense.id, "reject")}
-                                      className="p-2 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium"
+                                      className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
                                       title="Reject"
                                     >
                                       Reject
@@ -1930,17 +2021,17 @@ export default function ExpenseClaims() {
                                   </>
                                 )}
                                 {(expense.status === "approved" || expense.status === "rejected") && (
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="whitespace-nowrap text-xs text-muted-foreground">
                                     {expense.status === "approved" ? "Approved" : "Rejected"}
                                   </span>
                                 )}
                               </div>
                             ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
-                              <div className="flex gap-2">
+                              <div className="flex justify-center gap-1.5">
                                 {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
                                   <button
                                     onClick={() => handleViewReceipt(expense)}
-                                    className="p-2 hover:bg-slate-100 text-slate-700 rounded-lg"
+                                    className="rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
                                     title="View Bill"
                                   >
                                     <Eye className="w-4 h-4" />
@@ -1949,7 +2040,7 @@ export default function ExpenseClaims() {
                                 {canEditClaim(expense) && (
                                   <button
                                     onClick={() => handleOpenDialog(expense)}
-                                    className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
+                                    className="rounded-lg border border-blue-100 p-2 text-blue-600 hover:bg-blue-50"
                                     title="Edit"
                                   >
                                     <Edit className="w-4 h-4" />
@@ -1958,7 +2049,7 @@ export default function ExpenseClaims() {
                                 {canDeleteClaim(expense) && (
                                   <button
                                     onClick={() => handleDelete(expense)}
-                                    className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
+                                    className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"
                                     title={expense.isDraft ? "Delete Draft" : "Delete"}
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1966,14 +2057,14 @@ export default function ExpenseClaims() {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
+                              <span className="block text-center text-xs text-muted-foreground">-</span>
                             )}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </div>}
               </>
             )}
           </CardContent>
@@ -2854,29 +2945,15 @@ export default function ExpenseClaims() {
               </Select>
             </div>
 
-            {/* Date Filter */}
-            <div>
-              <Label className="text-xs sm:text-sm font-medium">Date Range (Optional)</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Start Date</Label>
-                  <Input
-                    type="date"
-                    value={exportDateFilter.startDate || ''}
-                    onChange={(e) => setExportDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="mt-1 h-8 sm:h-10 text-xs sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">End Date</Label>
-                  <Input
-                    type="date"
-                    value={exportDateFilter.endDate || ''}
-                    onChange={(e) => setExportDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="mt-1 h-8 sm:h-10 text-xs sm:text-sm"
-                  />
-                </div>
-              </div>
+            <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#0b6f53]">Applied Date Filter</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">
+                {filterFromDate || filterToDate
+                  ? `${filterFromDate || "Start"} to ${filterToDate || "End"}`
+                  : filterMonth
+                    ? filterMonth
+                    : "All dates"}
+              </p>
             </div>
           </div>
 

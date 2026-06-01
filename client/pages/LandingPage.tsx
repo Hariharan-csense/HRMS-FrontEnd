@@ -47,7 +47,7 @@ const LandingPage = () => {
           animation: bar-grow 1s ease-out forwards;
         }
       `}</style>
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+      <div className="min-h-screen bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20">
         {/* Header */}
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
@@ -57,7 +57,7 @@ const LandingPage = () => {
                 {/* <h1 className="text-2xl font-bold text-gray-900">HRMS</h1> */}
               </div>
               <nav className="hidden md:flex space-x-8">
-                <Link to="/" className="text-green-600 font-medium hover:text-green-700 transition-colors">Home</Link>
+                <Link to="/" className="text-[#17c491] font-medium hover:text-[#17c491] transition-colors">Home</Link>
                 <Link to="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</Link>
                 <Link to="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</Link>
                 <Link to="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</Link>
@@ -101,7 +101,7 @@ const LandingPage = () => {
               <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2">
                 <Button
                   size="lg"
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg shadow-lg"
+                  className="bg-[#17c491] hover:bg-[#13aa7e] text-white px-8 py-3 text-lg shadow-lg"
                   onClick={handleGetStarted}
                 >
                   Get Started
@@ -120,57 +120,57 @@ const LandingPage = () => {
               <p className="text-gray-600">Monitor your entire workforce at a glance</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-blue-200 animate-fade-in group cursor-pointer" style={{ animationDelay: '0ms' }}>
+              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '0ms' }}>
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                      <Users className="w-6 h-6 text-blue-600 group-hover:scale-110 transition-transform" />
+                    <div className="w-12 h-12 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
+                      <Users className="w-6 h-6 text-[#17c491] group-hover:scale-110 transition-transform" />
                     </div>
-                    <span className="text-sm text-green-600 font-medium animate-pulse">Active</span>
+                    <span className="text-sm text-[#17c491] font-medium animate-pulse">Active</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">3</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[#17c491] transition-colors">3</h3>
                   <p className="text-gray-600 text-sm">Total Employees</p>
                   <p className="text-xs text-gray-500 mt-2">All active</p>
                 </CardContent>
               </Card>
 
-              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-200 animate-fade-in group cursor-pointer" style={{ animationDelay: '100ms' }}>
+              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '100ms' }}>
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                      <UserCheck className="w-6 h-6 text-green-600 group-hover:scale-110 transition-transform" />
+                    <div className="w-12 h-12 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
+                      <UserCheck className="w-6 h-6 text-[#17c491] group-hover:scale-110 transition-transform" />
                     </div>
-                    <span className="text-sm text-green-600 font-medium animate-pulse">100.0%</span>
+                    <span className="text-sm text-[#17c491] font-medium animate-pulse">100.0%</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">3</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[#17c491] transition-colors">3</h3>
                   <p className="text-gray-600 text-sm">Present Today</p>
                   <p className="text-xs text-gray-500 mt-2">100.0% attendance</p>
                 </CardContent>
               </Card>
 
-              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-amber-200 animate-fade-in group cursor-pointer" style={{ animationDelay: '200ms' }}>
+              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '200ms' }}>
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center group-hover:bg-amber-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                      <Calendar className="w-6 h-6 text-amber-600 group-hover:scale-110 transition-transform" />
+                    <div className="w-12 h-12 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
+                      <Calendar className="w-6 h-6 text-[#17c491] group-hover:scale-110 transition-transform" />
                     </div>
                     <span className="text-sm text-gray-600 font-medium">66.7%</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">2</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[#17c491] transition-colors">2</h3>
                   <p className="text-gray-600 text-sm">On Leave</p>
                   <p className="text-xs text-gray-500 mt-2">66.7% of workforce</p>
                 </CardContent>
               </Card>
 
-              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-purple-200 animate-fade-in group cursor-pointer" style={{ animationDelay: '300ms' }}>
+              <Card className="p-6 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '300ms' }}>
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                      <AlertCircle className="w-6 h-6 text-purple-600 group-hover:scale-110 transition-transform" />
+                    <div className="w-12 h-12 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
+                      <AlertCircle className="w-6 h-6 text-[#17c491] group-hover:scale-110 transition-transform" />
                     </div>
-                    <span className="text-sm text-green-600 font-medium animate-pulse">All Clear</span>
+                    <span className="text-sm text-[#17c491] font-medium animate-pulse">All Clear</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">1</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 group-hover:text-[#17c491] transition-colors">1</h3>
                   <p className="text-gray-600 text-sm">Pending Approvals</p>
                   <p className="text-xs text-gray-500 mt-2">No pending items</p>
                 </CardContent>
@@ -180,7 +180,7 @@ const LandingPage = () => {
         </section>
 
         {/* Real-Time Location Tracking Section */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-green-50 to-emerald-100">
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20">
           <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <div className="text-center md:text-left">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">Real-Time Location Tracking</h2>
@@ -190,15 +190,15 @@ const LandingPage = () => {
               </p>
               <div className="space-y-4 mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                  <div className="w-4 h-4 bg-[#17c491] rounded-full"></div>
                   <span className="text-gray-700">Checked In Employees</span>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                  <div className="w-4 h-4 bg-[#17c491] rounded-full"></div>
                   <span className="text-gray-700">Checked Out Employees</span>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                  <div className="w-4 h-4 bg-[#17c491]/100 rounded-full"></div>
                   <span className="text-gray-700">Office Locations</span>
                 </div>
               </div>
@@ -223,20 +223,20 @@ const LandingPage = () => {
         <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <div className="relative w-full rounded-xl shadow-2xl overflow-hidden border border-gray-200 order-2 md:order-1">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-100 p-8">
+              <div className="bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20 p-8">
                 {/* Expense Card Preview */}
                 <div className="bg-white rounded-xl shadow-lg p-6 mb-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <Receipt className="w-5 h-5 text-green-600" />
+                      <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center">
+                        <Receipt className="w-5 h-5 text-[#17c491]" />
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900">New Expense</h4>
                         <p className="text-sm text-gray-500">Auto-filled from scan</p>
                       </div>
                     </div>
-                    <span className="text-green-600 font-bold">₹2,450.00</span>
+                    <span className="text-[#17c491] font-bold">₹2,450.00</span>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
@@ -256,14 +256,14 @@ const LandingPage = () => {
                 {/* Scan Animation */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center animate-pulse">
+                    <div className="w-16 h-16 bg-gradient-to-br from-[#17c491] to-[#13aa7e] rounded-xl flex items-center justify-center animate-pulse">
                       <Scan className="w-8 h-8 text-white" />
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900">Auto-Scan Active</h4>
                       <p className="text-sm text-gray-500">Point camera at bill receipt</p>
                       <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+                        <div className="bg-[#17c491] h-2 rounded-full" style={{ width: '75%' }}></div>
                       </div>
                     </div>
                   </div>
@@ -278,8 +278,8 @@ const LandingPage = () => {
               </p>
               <div className="space-y-4 mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Camera className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-[#17c491]" />
                   </div>
                   <div className="text-left">
                     <h4 className="font-medium text-gray-900">Auto-Scan Bills</h4>
@@ -287,8 +287,8 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-[#17c491]" />
                   </div>
                   <div className="text-left">
                     <h4 className="font-medium text-gray-900">Smart Auto-Fill</h4>
@@ -296,8 +296,8 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  {/* <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-green-600" />
+                  {/* <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-[#17c491]" />
                 </div> */}
                   {/* <div className="text-left">
                   <h4 className="font-medium text-gray-900">Fraud Detection</h4>
@@ -310,23 +310,23 @@ const LandingPage = () => {
         </section>
 
         {/* Payroll Management Section */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20">
           <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <div className="relative w-full rounded-xl shadow-2xl overflow-hidden border border-gray-200 order-2 md:order-1 animate-fade-in hover:shadow-3xl transition-all duration-500">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+              <div className="bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20 p-8">
                 {/* Payroll Card Preview */}
                 <div className="bg-white rounded-xl shadow-lg p-6 mb-4 hover:scale-[1.02] transition-transform duration-300 hover:shadow-xl">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-[#17c491]" />
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900">April 2026 Payroll</h4>
                         <p className="text-sm text-gray-500">Auto-calculated & ready</p>
                       </div>
                     </div>
-                    <span className="text-green-600 font-bold animate-pulse">₹4,25,000</span>
+                    <span className="text-[#17c491] font-bold animate-pulse">₹4,25,000</span>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
@@ -339,16 +339,16 @@ const LandingPage = () => {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Deductions</span>
-                      <span className="text-red-600 font-medium">- ₹32,400</span>
+                      <span className="text-[#17c491] font-medium">- ₹32,400</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Bonuses</span>
-                      <span className="text-green-600 font-medium">+ ₹15,000</span>
+                      <span className="text-[#17c491] font-medium">+ ₹15,000</span>
                     </div>
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-700 font-semibold">Net Payable</span>
-                        <span className="text-blue-600 font-bold text-lg">₹4,07,600</span>
+                        <span className="text-[#17c491] font-bold text-lg">₹4,07,600</span>
                       </div>
                     </div>
                   </div>
@@ -357,50 +357,50 @@ const LandingPage = () => {
                 <div className="bg-white rounded-xl shadow-lg p-6 hover:scale-[1.02] transition-transform duration-300 hover:shadow-xl">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">Employee Payslip</h4>
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
-                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-8 h-8 bg-[#17c491]/15 rounded-full flex items-center justify-center animate-bounce">
+                      <svg className="w-4 h-4 text-[#17c491]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm">RS</div>
+                    <div className="w-10 h-10 bg-[#17c491] rounded-full flex items-center justify-center text-white font-bold text-sm">RS</div>
                     <div>
                       <p className="font-medium text-gray-900">Ravi Kumar</p>
                       <p className="text-xs text-gray-500">Software Engineer</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-green-50 p-2 rounded">
+                    <div className="bg-[#17c491]/10 p-2 rounded">
                       <p className="text-gray-500 text-xs">Basic Salary</p>
                       <p className="font-semibold text-gray-900">₹45,000</p>
                     </div>
-                    <div className="bg-blue-50 p-2 rounded">
+                    <div className="bg-[#17c491]/10 p-2 rounded">
                       <p className="text-gray-500 text-xs">HRA</p>
                       <p className="font-semibold text-gray-900">₹18,000</p>
                     </div>
-                    <div className="bg-purple-50 p-2 rounded">
+                    <div className="bg-[#17c491]/10 p-2 rounded">
                       <p className="text-gray-500 text-xs">PF (Employee)</p>
                       <p className="font-semibold text-gray-900">₹5,400</p>
                     </div>
-                    <div className="bg-orange-50 p-2 rounded">
+                    <div className="bg-[#17c491]/10 p-2 rounded">
                       <p className="text-gray-500 text-xs">Net Salary</p>
-                      <p className="font-semibold text-green-600">₹57,600</p>
+                      <p className="font-semibold text-[#17c491]">₹57,600</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             <div className="text-center md:text-left order-1 md:order-2 animate-slide-in-right">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4 hover:text-blue-600 transition-colors duration-300">Automated Payroll Management</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4 hover:text-[#17c491] transition-colors duration-300">Automated Payroll Management</h2>
               <p className="text-lg text-gray-700 mb-6">
                 Streamline your payroll process with automatic calculations, tax compliance, and instant payslip generation.
                 Save hours of manual work and ensure 100% accuracy every month.
               </p>
               <div className="space-y-4 mb-6">
                 <div className="flex items-center space-x-3 group cursor-pointer">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 group-hover:scale-110 transition-all duration-300">
-                    <DollarSign className="w-5 h-5 text-blue-600 group-hover:rotate-12 transition-transform duration-300" />
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:scale-110 transition-all duration-300">
+                    <DollarSign className="w-5 h-5 text-[#17c491] group-hover:rotate-12 transition-transform duration-300" />
                   </div>
                   <div className="text-left">
                     <h4 className="font-medium text-gray-900">Auto Salary Calculation</h4>
@@ -408,8 +408,8 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 group cursor-pointer">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 group-hover:scale-110 transition-all duration-300">
-                    <svg className="w-5 h-5 text-blue-600 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:scale-110 transition-all duration-300">
+                    <svg className="w-5 h-5 text-[#17c491] group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
@@ -419,8 +419,8 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 group cursor-pointer">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 group-hover:scale-110 transition-all duration-300">
-                    <svg className="w-5 h-5 text-blue-600 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:scale-110 transition-all duration-300">
+                    <svg className="w-5 h-5 text-[#17c491] group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
@@ -435,18 +435,18 @@ const LandingPage = () => {
         </section>
 
         {/* Pulse Survey Section */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-pink-50 to-rose-100">
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20">
           <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <div className="text-center md:text-left animate-slide-in-left">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4 hover:text-pink-600 transition-colors duration-300">Employee Pulse Surveys</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4 hover:text-[#17c491] transition-colors duration-300">Employee Pulse Surveys</h2>
               <p className="text-lg text-gray-700 mb-6">
                 Keep your finger on the pulse of your organization. Collect real-time feedback, measure employee sentiment,
                 and take action to improve workplace culture and engagement.
               </p>
               <div className="space-y-4 mb-6">
                 <div className="flex items-center space-x-3 group cursor-pointer">
-                  <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center group-hover:bg-pink-200 group-hover:scale-110 transition-all duration-300">
-                    <svg className="w-5 h-5 text-pink-600 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:scale-110 transition-all duration-300">
+                    <svg className="w-5 h-5 text-[#17c491] group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
@@ -456,8 +456,8 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 group cursor-pointer">
-                  <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center group-hover:bg-pink-200 group-hover:scale-110 transition-all duration-300">
-                    <svg className="w-5 h-5 text-pink-600 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:scale-110 transition-all duration-300">
+                    <svg className="w-5 h-5 text-[#17c491] group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                     </svg>
@@ -468,8 +468,8 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 group cursor-pointer">
-                  <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center group-hover:bg-pink-200 group-hover:scale-110 transition-all duration-300">
-                    <svg className="w-5 h-5 text-pink-600 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center group-hover:bg-[#17c491]/25 group-hover:scale-110 transition-all duration-300">
+                    <svg className="w-5 h-5 text-[#17c491] group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                   </div>
@@ -481,13 +481,13 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="relative w-full rounded-xl shadow-2xl overflow-hidden border border-gray-200 order-2 md:order-2 animate-fade-in hover:shadow-3xl transition-all duration-500">
-              <div className="bg-gradient-to-br from-pink-50 to-rose-100 p-8">
+              <div className="bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20 p-8">
                 {/* Survey Card */}
                 <div className="bg-white rounded-xl shadow-lg p-6 mb-4 hover:scale-[1.02] transition-transform duration-300 hover:shadow-xl">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-10 h-10 bg-[#17c491]/15 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-[#17c491]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                       </div>
@@ -496,15 +496,15 @@ const LandingPage = () => {
                         <p className="text-sm text-gray-500">Active • 18 responses</p>
                       </div>
                     </div>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full animate-pulse">Live</span>
+                    <span className="text-xs bg-[#17c491]/15 text-[#17c491] px-2 py-1 rounded-full animate-pulse">Live</span>
                   </div>
                   <div className="space-y-3">
                     <p className="text-sm text-gray-700">How satisfied are you with your work-life balance this week?</p>
                     <div className="flex space-x-2">
-                      <div className="flex-1 h-8 bg-red-100 rounded flex items-center justify-center text-xs text-red-600 hover:scale-105 transition-transform cursor-pointer">😟 2</div>
-                      <div className="flex-1 h-8 bg-orange-100 rounded flex items-center justify-center text-xs text-orange-600 hover:scale-105 transition-transform cursor-pointer">😐 3</div>
-                      <div className="flex-1 h-8 bg-yellow-100 rounded flex items-center justify-center text-xs text-yellow-600 hover:scale-105 transition-transform cursor-pointer">🙂 5</div>
-                      <div className="flex-1 h-8 bg-green-100 rounded flex items-center justify-center text-xs text-green-600 font-semibold hover:scale-105 transition-transform cursor-pointer animate-pulse">😊 8</div>
+                      <div className="flex-1 h-8 bg-[#17c491]/10 rounded flex items-center justify-center text-xs text-[#17c491] hover:scale-105 transition-transform cursor-pointer">😟 2</div>
+                      <div className="flex-1 h-8 bg-[#17c491]/15 rounded flex items-center justify-center text-xs text-[#17c491] hover:scale-105 transition-transform cursor-pointer">😐 3</div>
+                      <div className="flex-1 h-8 bg-[#17c491]/20 rounded flex items-center justify-center text-xs text-[#17c491] hover:scale-105 transition-transform cursor-pointer">🙂 5</div>
+                      <div className="flex-1 h-8 bg-[#17c491]/15 rounded flex items-center justify-center text-xs text-[#17c491] font-semibold hover:scale-105 transition-transform cursor-pointer animate-pulse">😊 8</div>
                     </div>
                   </div>
                 </div>
@@ -513,18 +513,18 @@ const LandingPage = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-900">Engagement Score</h4>
                     <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-green-600 animate-pulse">+12% this month</span>
+                      <div className="w-2 h-2 bg-[#17c491] rounded-full animate-pulse"></div>
+                      <span className="text-xs text-[#17c491] animate-pulse">+12% this month</span>
                     </div>
                   </div>
                   <div className="flex items-end space-x-2 h-24 mb-2">
-                    <div className="flex-1 bg-pink-200 rounded-t animate-bar-grow hover:bg-pink-300 transition-colors cursor-pointer" style={{ height: '40%', animationDelay: '0ms' }}></div>
-                    <div className="flex-1 bg-pink-300 rounded-t animate-bar-grow hover:bg-pink-400 transition-colors cursor-pointer" style={{ height: '55%', animationDelay: '100ms' }}></div>
-                    <div className="flex-1 bg-pink-400 rounded-t animate-bar-grow hover:bg-pink-500 transition-colors cursor-pointer" style={{ height: '45%', animationDelay: '200ms' }}></div>
-                    <div className="flex-1 bg-pink-500 rounded-t animate-bar-grow hover:bg-pink-600 transition-colors cursor-pointer" style={{ height: '70%', animationDelay: '300ms' }}></div>
-                    <div className="flex-1 bg-pink-600 rounded-t animate-bar-grow hover:bg-pink-700 transition-colors cursor-pointer" style={{ height: '85%', animationDelay: '400ms' }}></div>
-                    <div className="flex-1 bg-pink-500 rounded-t animate-bar-grow hover:bg-pink-600 transition-colors cursor-pointer" style={{ height: '75%', animationDelay: '500ms' }}></div>
-                    <div className="flex-1 bg-pink-600 rounded-t animate-bar-grow hover:bg-pink-700 transition-colors cursor-pointer" style={{ height: '90%', animationDelay: '600ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/25 rounded-t animate-bar-grow hover:bg-[#17c491]/40 transition-colors cursor-pointer" style={{ height: '40%', animationDelay: '0ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/35 rounded-t animate-bar-grow hover:bg-[#17c491]/50 transition-colors cursor-pointer" style={{ height: '55%', animationDelay: '100ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/45 rounded-t animate-bar-grow hover:bg-[#17c491]/55 transition-colors cursor-pointer" style={{ height: '45%', animationDelay: '200ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/55 rounded-t animate-bar-grow hover:bg-[#17c491]/70 transition-colors cursor-pointer" style={{ height: '70%', animationDelay: '300ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/70 rounded-t animate-bar-grow hover:bg-[#17c491]/80 transition-colors cursor-pointer" style={{ height: '85%', animationDelay: '400ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/55 rounded-t animate-bar-grow hover:bg-[#17c491]/70 transition-colors cursor-pointer" style={{ height: '75%', animationDelay: '500ms' }}></div>
+                    <div className="flex-1 bg-[#17c491]/70 rounded-t animate-bar-grow hover:bg-[#17c491]/80 transition-colors cursor-pointer" style={{ height: '90%', animationDelay: '600ms' }}></div>
                   </div>
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>Mon</span>
@@ -537,15 +537,15 @@ const LandingPage = () => {
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <div className="text-center group cursor-pointer">
-                      <p className="text-2xl font-bold text-pink-600 group-hover:scale-110 transition-transform">87%</p>
+                      <p className="text-2xl font-bold text-[#17c491] group-hover:scale-110 transition-transform">87%</p>
                       <p className="text-xs text-gray-500">Engagement</p>
                     </div>
                     <div className="text-center border-l pl-4 group cursor-pointer">
-                      <p className="text-2xl font-bold text-blue-600 group-hover:scale-110 transition-transform">4.5</p>
+                      <p className="text-2xl font-bold text-[#17c491] group-hover:scale-110 transition-transform">4.5</p>
                       <p className="text-xs text-gray-500">Avg Rating</p>
                     </div>
                     <div className="text-center border-l pl-4 group cursor-pointer">
-                      <p className="text-2xl font-bold text-green-600 group-hover:scale-110 transition-transform">92%</p>
+                      <p className="text-2xl font-bold text-[#17c491] group-hover:scale-110 transition-transform">92%</p>
                       <p className="text-xs text-gray-500">Response</p>
                     </div>
                   </div>
@@ -556,72 +556,72 @@ const LandingPage = () => {
         </section>
 
         {/* Features Preview */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-green-50 to-emerald-100">
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#17c491]/10 to-[#17c491]/20">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
               Everything You Need to Manage Your Team
             </h2>
             <div className="grid md:grid-cols-3 gap-8">
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '0ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '0ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <Users className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <Users className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Employee Management</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Employee Management</h3>
                   <p className="text-gray-600">Comprehensive employee profiles and organizational structure management</p>
                 </CardContent>
               </Card>
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '100ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '100ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <Calendar className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <Calendar className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Attendance Tracking</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Attendance Tracking</h3>
                   <p className="text-gray-600">Real-time attendance monitoring with facial recognition and geo-tracking</p>
                 </CardContent>
               </Card>
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '200ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '200ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <DollarSign className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <DollarSign className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Payroll Management</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Payroll Management</h3>
                   <p className="text-gray-600">Automated payroll processing with accurate calculations and compliance</p>
                 </CardContent>
               </Card>
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '300ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '300ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <Shield className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <Shield className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Leave Management</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Leave Management</h3>
                   <p className="text-gray-600">Streamlined leave requests, approvals, and balance tracking for all employee types</p>
                 </CardContent>
               </Card>
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '400ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '400ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <BarChart className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <BarChart className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Performance Analytics</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Performance Analytics</h3>
                   <p className="text-gray-600">Data-driven insights and reports to optimize workforce productivity and engagement</p>
                 </CardContent>
               </Card>
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '500ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '500ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <Clock className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <Clock className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Time & Scheduling</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Time & Scheduling</h3>
                   <p className="text-gray-600">Flexible shift scheduling and time tracking for remote and in-office teams</p>
                 </CardContent>
               </Card>
-              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-green-300 animate-fade-in group cursor-pointer" style={{ animationDelay: '600ms' }}>
+              <Card className="p-6 text-center hover:shadow-2xl hover:scale-105 hover:-translate-y-2 transition-all duration-500 border border-gray-100 hover:border-[#17c491]/40 animate-fade-in group cursor-pointer" style={{ animationDelay: '600ms' }}>
                 <CardContent className="pt-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
-                    <Receipt className="h-8 w-8 text-green-600 group-hover:scale-110 transition-transform" />
+                  <div className="w-16 h-16 bg-[#17c491]/15 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-[#17c491]/25 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-lg">
+                    <Receipt className="h-8 w-8 text-[#17c491] group-hover:scale-110 transition-transform" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2 group-hover:text-green-600 transition-colors">Expense Management</h3>
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-[#17c491] transition-colors">Expense Management</h3>
                   <p className="text-gray-600">AI-powered bill scanning with auto-fill for effortless expense reporting</p>
                 </CardContent>
               </Card>
@@ -634,19 +634,19 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 text-center">
             <div>
-              <div className="text-3xl font-bold text-green-600 mb-2">500+</div>
+              <div className="text-3xl font-bold text-[#17c491] mb-2">500+</div>
               <div className="text-gray-600">Companies Trust Us</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-green-600 mb-2">50K+</div>
+              <div className="text-3xl font-bold text-[#17c491] mb-2">50K+</div>
               <div className="text-gray-600">Employees Managed</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-green-600 mb-2">99.9%</div>
+              <div className="text-3xl font-bold text-[#17c491] mb-2">99.9%</div>
               <div className="text-gray-600">Uptime Guaranteed</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-green-600 mb-2">24/7</div>
+              <div className="text-3xl font-bold text-[#17c491] mb-2">24/7</div>
               <div className="text-gray-600">Support Available</div>
             </div>
           </div>
@@ -654,12 +654,12 @@ const LandingPage = () => {
       </section> */}
 
         {/* CTA Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-green-600">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#17c491]">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl font-bold text-white mb-4">
               Ready to Streamline Your HR Operations?
             </h2>
-            <p className="text-xl text-green-100 mb-8">
+            <p className="text-xl text-white/85 mb-8">
               Join thousands of companies that have transformed their HR management with our platform.
             </p>
             <Button
@@ -681,3 +681,4 @@ const LandingPage = () => {
 };
 
 export default LandingPage;
+

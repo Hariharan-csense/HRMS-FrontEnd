@@ -213,7 +213,7 @@ const navigationItems: NavItem[] = [
     moduleName: "organization",
     submenu: [
       {
-        label: "Company Master",
+        label: "Company",
         path: "/organization/company",
         roles: [],
         icon: <div />,
@@ -432,6 +432,14 @@ const navigationItems: NavItem[] = [
         roles: [],
         icon: <div />,
         moduleName: "leave",
+      },
+      {
+        label: "Leave Types",
+        path: "/leave/types",
+        roles: [],
+        icon: <div />,
+        moduleName: "leave",
+        subModuleName: "leave_types",
       },
       {
         label: "Leave Balance",
@@ -932,6 +940,7 @@ export const Sidebar: React.FC = () => {
         if (path.includes("/attendance/setup")) return "setup";
         return undefined;
       case "leave":
+        if (path.includes("/leave/types")) return "leave_types";
         if (path.includes("/leave/apply")) return "apply";
         if (path.includes("/leave/balance")) return "balance";
         if (path.includes("/leave/approvals")) return "approvals";

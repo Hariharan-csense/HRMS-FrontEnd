@@ -4,7 +4,7 @@ import axios from "axios";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.3:3000/backend";
+// export const BASE_URL = "http://192.168.1.12:3000/backend";
 export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {

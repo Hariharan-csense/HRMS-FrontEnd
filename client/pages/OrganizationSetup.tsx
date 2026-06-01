@@ -648,35 +648,35 @@ export default function OrganizationSetup() {
             <div className="space-y-6">
               {/* Header */}
               <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/20 shadow-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                <CardContent className="p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-4">
                       {company?.logo && (
                         <img
                           src={resolveFileUrl(company.logo)}
                           alt="Company Logo"
-                          className="w-16 h-16 rounded-lg border-2 border-white shadow-md object-cover"
+                          className="h-16 w-16 shrink-0 rounded-lg border-2 border-white object-cover shadow-md"
                           onError={(e) => {
                             console.error('Logo failed to load:', company.logo);
                             e.currentTarget.style.display = 'none';
                           }}
                         />
                       )}
-                      <div>
-                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      <div className="min-w-0">
+                        <h2 className="flex items-center gap-3 text-xl font-bold text-gray-900 sm:text-2xl">
                           {!company?.logo && (
-                            <div className="p-2 bg-[#17c491] rounded-lg">
+                            <div className="shrink-0 rounded-lg bg-[#17c491] p-2">
                               <Building2 className="w-6 h-6 text-white" />
                             </div>
                           )}
-                          {company?.name || 'Company Information'}
+                          <span className="truncate">{company?.name || 'Company Information'}</span>
                         </h2>
-                        <p className="text-gray-600 mt-1">{company?.legalName}</p>
+                        <p className="mt-1 truncate text-gray-600">{company?.legalName}</p>
                       </div>
                     </div>
                     <Button
                       onClick={() => handleOpenDialog(company)}
-                      className="bg-[#17c491] hover:bg-[#17c491]/90 text-white shadow-md transition-all duration-200 hover:shadow-lg"
+                      className="w-full bg-[#17c491] text-white shadow-md transition-all duration-200 hover:bg-[#17c491]/90 hover:shadow-lg sm:w-auto"
                     >
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Company
@@ -686,54 +686,48 @@ export default function OrganizationSetup() {
               </Card>
 
               {/* Company Information Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Basic Information Card */}
-                <Card className="shadow-sm border-0 bg-white">
+                <Card className="border border-gray-100 bg-white shadow-sm">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
                       Basic Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-1">Company ID</Label>
-                        <p className="text-sm font-semibold text-gray-900">{company?.companyId}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-1">Industry</Label>
-                        <p className="text-sm font-semibold text-gray-900">{company?.industry}</p>
-                      </div>
+                  <CardContent className="space-y-3">
+                    <div className="rounded-lg border border-gray-100 bg-gray-50/70 px-4 py-3 shadow-sm">
+                      <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">Industry</Label>
+                      <p className="text-base font-semibold text-gray-950">{company?.industry || "Not specified"}</p>
                     </div>
-                    <div className="bg-[#17c491]/10 rounded-lg p-4 border-l-4 border-[#17c491]">
-                      <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">GSTIN/PAN</Label>
-                      <p className="text-lg font-bold text-[#0b6f53]">{company?.gstin}</p>
+                    <div className="rounded-lg border border-[#17c491]/20 bg-white px-4 py-3 shadow-sm">
+                      <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">GSTIN/PAN</Label>
+                      <p className="break-words text-base font-bold text-[#075c46]">{company?.gstin || "Not specified"}</p>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Operational Settings Card */}
-                <Card className="shadow-sm border-0 bg-white">
+                <Card className="border border-gray-100 bg-white shadow-sm">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
                       Operational Settings
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-[#17c491]/10 rounded-lg p-4">
-                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Payroll Cycle</Label>
-                        <p className="text-sm font-semibold text-[#0b6f53]">{company?.payrollCycle}</p>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border border-[#17c491]/20 bg-white px-4 py-3 shadow-sm">
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Payroll Cycle</Label>
+                        <p className="text-base font-semibold text-gray-950">{company?.payrollCycle || "Not specified"}</p>
                       </div>
-                      <div className="bg-[#17c491]/10 rounded-lg p-4">
-                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Timezone</Label>
-                        <p className="text-sm font-semibold text-[#0b6f53]">{company?.timezone}</p>
+                      <div className="rounded-lg border border-[#17c491]/20 bg-white px-4 py-3 shadow-sm">
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Timezone</Label>
+                        <p className="text-base font-semibold text-gray-950">{company?.timezone || "Not specified"}</p>
                       </div>
-                      <div className="bg-[#17c491]/10 rounded-lg p-4 sm:col-span-2">
-                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-1">Salary Calculation Period</Label>
-                        <p className="text-sm font-semibold text-[#0b6f53]">
+                      <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 px-4 py-3 shadow-sm sm:col-span-2">
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Salary Calculation Period</Label>
+                        <p className="text-base font-semibold text-gray-950">
                           Day {company?.payrollStartDay || 1} to Day {company?.payrollEndDay || 31}
                         </p>
                       </div>
@@ -743,7 +737,7 @@ export default function OrganizationSetup() {
               </div>
 
               {/* Address Card */}
-              <Card className="shadow-sm border-0 bg-white">
+              <Card className="border border-gray-100 bg-white shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <div className="w-2 h-2 bg-[#17c491] rounded-full"></div>
@@ -751,14 +745,14 @@ export default function OrganizationSetup() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-[#17c491]/10 rounded-lg p-6 border-l-4 border-[#17c491]">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-[#17c491] rounded-lg">
+                  <div className="rounded-lg border border-[#17c491]/20 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#17c491]">
                         <Building2 className="w-5 h-5 text-white" />
                       </div>
-                      <div className="flex-1">
-                        <Label className="text-xs font-medium text-[#0b6f53] uppercase tracking-wider block mb-2">Registered Address</Label>
-                        <p className="text-gray-900 leading-relaxed">{company?.address}</p>
+                      <div className="min-w-0 flex-1">
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Registered Address</Label>
+                        <p className="text-base leading-relaxed text-gray-950">{company?.address || "Not specified"}</p>
                       </div>
                     </div>
                   </div>
