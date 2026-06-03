@@ -1055,6 +1055,14 @@ export const Sidebar: React.FC = () => {
 
     // Submodule-aware visibility: prefer submodule RBAC check when available.
     const inferredSubmodule = inferSubmoduleFromPath(item);
+    if (
+      item.moduleName === "pulse_surveys" &&
+      (isAdmin || isCeo) &&
+      ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || ""))
+    ) {
+      return true;
+    }
+
     if (item.moduleName && inferredSubmodule) {
       const hasAccess = canPerformModuleAction(
         item.moduleName,
@@ -1158,7 +1166,7 @@ export const Sidebar: React.FC = () => {
         })
       : [];
 
-    if (item.label === "Pulse Surveys" && isEmployeeUser) {
+    if (item.label === "Employee Surveys" && isEmployeeUser) {
       filteredSubmenu = filteredSubmenu.filter(
         (subitem) =>
           subitem.path === "/pulse-surveys/my-surveys" ||

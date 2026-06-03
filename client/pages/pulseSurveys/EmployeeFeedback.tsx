@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,17 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import ENDPOINTS from "@/lib/endpoint";
-import { useAuth } from "@/context/AuthContext";
 import { MessageSquareText, ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 
 const EmployeeFeedback: React.FC = () => {
-  const { user } = useAuth();
   const [feedback, setFeedback] = useState("");
   const [category, setCategory] = useState("general");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  const canUse = useMemo(() => user?.type?.toLowerCase() === "employee", [user?.type]);
 
   const onSubmit = async () => {
     const text = feedback.trim();
@@ -59,26 +55,6 @@ const EmployeeFeedback: React.FC = () => {
       setSubmitting(false);
     }
   };
-
-  if (!canUse) {
-    return (
-      <Layout>
-        <div className="mx-auto max-w-3xl">
-          <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-900 to-slate-700 text-white px-6 py-5">
-              <div className="text-lg font-semibold">Not authorized</div>
-              <div className="text-xs opacity-90 mt-1">
-                This page is available for employee logins.
-              </div>
-            </div>
-            <CardContent className="text-sm text-muted-foreground p-6">
-              Please login as an employee to send feedback.
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>

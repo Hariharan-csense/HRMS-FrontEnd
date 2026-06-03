@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
-import { BarChart3, MessageSquare, Calendar, Users, TrendingUp, Eye, Star } from "lucide-react";
+import { BarChart3, MessageSquare, Calendar, Users, TrendingUp, Eye, Star, UserCheck, UserX } from "lucide-react";
 
 const formatScore = (value: number | null | undefined) => {
   if (value === null || value === undefined) return "0/10";
@@ -30,11 +30,16 @@ const PulseSurveyResultsList: React.FC = () => {
       message: string;
       allowAnonymous: boolean;
       createdAt: string;
+      totalSent: number;
       responseCount: number;
       avgScore: number;
     }>
   >([]);
   const [loading, setLoading] = useState(true);
+
+  const totalSent = rows.reduce((sum, row) => sum + Number(row.totalSent || 0), 0);
+  const totalResponses = rows.reduce((sum, row) => sum + Number(row.responseCount || 0), 0);
+  const totalPending = Math.max(totalSent - totalResponses, 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +88,7 @@ const PulseSurveyResultsList: React.FC = () => {
 
           {/* Stats Cards */}
           {!loading && rows.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-100 rounded-lg">
@@ -101,17 +106,37 @@ const PulseSurveyResultsList: React.FC = () => {
                     <Users className="h-5 w-5 text-teal-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {rows.reduce((sum, row) => sum + row.responseCount, 0)}
-                    </p>
-                    <p className="text-sm text-gray-500">Total Responses</p>
+                    <p className="text-2xl font-bold text-gray-900">{totalSent}</p>
+                    <p className="text-sm text-gray-500">Total Sent</p>
                   </div>
                 </div>
               </div>
               <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-cyan-100 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-cyan-600" />
+                    <UserCheck className="h-5 w-5 text-cyan-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{totalResponses}</p>
+                    <p className="text-sm text-gray-500">Total Responses</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-rose-100 rounded-lg">
+                    <UserX className="h-5 w-5 text-rose-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{totalPending}</p>
+                    <p className="text-sm text-gray-500">Not Responded</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">
@@ -205,7 +230,17 @@ const PulseSurveyResultsList: React.FC = () => {
                               </div>
                               <div className="flex items-center gap-1">
                                 <Users className="h-4 w-4" />
-                                <span>{row.responseCount} responses</span>
+                                <span>{Number(row.totalSent || 0)} sent</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-emerald-600">
+                                <UserCheck className="h-4 w-4" />
+                                <span>{Number(row.responseCount || 0)} responded</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-rose-600">
+                                <UserX className="h-4 w-4" />
+                                <span>
+                                  {Math.max(Number(row.totalSent || 0) - Number(row.responseCount || 0), 0)} not responded
+                                </span>
                               </div>
                               {row.allowAnonymous && (
                                 <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-0">

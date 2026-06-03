@@ -126,6 +126,10 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   if (requiredModule) {
     const inferredSubmodule = inferSubmoduleFromPath(requiredModule, location.pathname);
     const currentEmployeeId = Number(user.employee_id || user.employeeId || user.id || 0) || null;
+    const isPulseSelfService =
+      String(requiredModule).toLowerCase() === "pulse_surveys" &&
+      ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || "").toLowerCase());
+    const isAdminSelfServiceUser = hasAnyRole(["admin", "ceo"]) && isPulseSelfService;
     const addonUnlocksModule =
       hasSubscriptionAddonModule(subscription, requiredModule, {
         currentEmployeeId,
@@ -135,6 +139,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     // If specific action is required, check for that action
     if (requiredAction) {
       const hasRequiredAccess =
+        isAdminSelfServiceUser ||
         addonUnlocksModule ||
         canPerformModuleAction(requiredModule, requiredAction) ||
         (inferredSubmodule
@@ -155,6 +160,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     } else {
       // Otherwise, just check for view access
       const hasViewAccess =
+        isAdminSelfServiceUser ||
         addonUnlocksModule ||
         hasModuleAccess(requiredModule) ||
         (inferredSubmodule

@@ -796,6 +796,12 @@ export default function ReportsAnalytics() {
 
         const fmtDuration = (val: any) => {
           if (val === null || val === undefined || val === "") return "00:00:00";
+          if (typeof val === "string") {
+            const match = val.trim().match(/^(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
+            if (match) {
+              return `${pad(Number(match[1]))}:${match[2]}:${match[3] || "00"}`;
+            }
+          }
           const num = typeof val === "number" ? val : parseFloat(val);
           if (isNaN(num)) return "00:00:00";
           const totalSeconds = Math.round(num * 3600);
@@ -807,6 +813,7 @@ export default function ReportsAnalytics() {
 
         const fmtTime = (val: any) => {
           if (!val) return "";
+          if (typeof val === "string" && /^00:00(?::00)?$/.test(val.trim())) return "";
           if (typeof val === "string" && (val.includes("AM") || val.includes("PM"))) return val;
           const parsed =
             typeof val === "string" && val.includes("T")
@@ -834,6 +841,11 @@ export default function ReportsAnalytics() {
             normalizeString(get("leaveTaken", "leave_taken")).toLowerCase() === "yes" ||
             normalizeString(get("status", "attendance_status")).toLowerCase().includes("leave") ||
             Boolean(get("leaveType", "leave_type", "leave_type_name"));
+          const isHalfDayLeaveRow =
+            normalizeString(get("status", "attendance_status")).toLowerCase().replace(/[\s-]+/g, "_").includes("half") ||
+            normalizeString(get("leaveType", "leave_type", "leave_type_name")).toLowerCase().includes("half") ||
+            (Number(get("leaveDays", "leave_days")) > 0 && Number(get("leaveDays", "leave_days")) <= 0.5);
+          const shouldBlankPunch = isLeaveRow && !isHalfDayLeaveRow;
 
           const row = {
             // Prefer business code over numeric id
@@ -861,15 +873,15 @@ export default function ReportsAnalytics() {
             "Permission To": fmtTime(get("permissionToTime", "permission_to_time", "permission_time_to")),
             "Permission Duration": get("permissionDuration", "permission_duration"),
             "Permission Reason": get("permissionReason", "permission_reason"),
-            "Punch in time": isLeaveRow ? "" : fmtTime(get("inTime", "checkInTime", "check_in_time", "punch_in_time", "check_in")),
-            "Punch out time": isLeaveRow ? "" : fmtTime(get("outTime", "checkOutTime", "check_out_time", "punch_out_time", "check_out")),
+            "Punch in time": shouldBlankPunch ? "" : fmtTime(get("inTime", "checkInTime", "check_in_time", "punch_in_time", "check_in")),
+            "Punch out time": shouldBlankPunch ? "" : fmtTime(get("outTime", "checkOutTime", "check_out_time", "punch_out_time", "check_out")),
             "Punch Type": get("punchType", "punch_type", "check_in_type") || "Shift",
             "Name": get("shiftName", "shift_name", "shift_type") || "Regular",
             "Paid": get("paid", "paid_status", "isPaid") ? "Yes" : "",
             "Scheduled Start Time": fmtTime(get("scheduledStartTime", "shift_start_time", "shift_start")),
             "Scheduled End Time": fmtTime(get("scheduledEndTime", "shift_end_time", "shift_end")),
-            "Punch in location": isLeaveRow ? "" : normalizeString(get("punchInLocation", "check_in_location", "location_in", "location")),
-            "Punch out location": isLeaveRow ? "" : normalizeString(get("punchOutLocation", "check_out_location", "location_out")),
+            "Punch in location": shouldBlankPunch ? "" : normalizeString(get("punchInLocation", "check_in_location", "location_in", "location")),
+            "Punch out location": shouldBlankPunch ? "" : normalizeString(get("punchOutLocation", "check_out_location", "location_out")),
           };
 
           // If locations are objects/JSON strings, stringify gracefully

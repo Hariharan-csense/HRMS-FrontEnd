@@ -29,7 +29,7 @@ import {
 } from "recharts";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
-import { TrendingUp, BarChart3, MessageSquare, Calendar, Users, ArrowLeft, Star, User } from "lucide-react";
+import { TrendingUp, BarChart3, MessageSquare, Calendar, Users, ArrowLeft, Star, User, UserCheck, UserX } from "lucide-react";
 
 type ApiSurvey = {
   id: number;
@@ -37,6 +37,7 @@ type ApiSurvey = {
   message: string;
   allowAnonymous: boolean;
   createdAt: string;
+  totalSent: number;
   responseCount: number;
   avgScore: number;
 };
@@ -184,6 +185,9 @@ const PulseSurveyResultsDetail: React.FC = () => {
   const weekData = useMemo(() => groupByWeek(responses), [responses]);
   const monthData = useMemo(() => groupByMonth(responses), [responses]);
   const distData = useMemo(() => distribution(responses), [responses]);
+  const sentCount = Number(survey?.totalSent || 0);
+  const responseCount = survey?.responseCount ?? responses.length;
+  const pendingCount = Math.max(sentCount - Number(responseCount || 0), 0);
 
   if (loading) {
     return (
@@ -250,7 +254,15 @@ const PulseSurveyResultsDetail: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1 text-gray-500">
                     <Users className="h-4 w-4" />
-                    <span>{responses.length} responses</span>
+                    <span>{sentCount} sent</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-emerald-600">
+                    <UserCheck className="h-4 w-4" />
+                    <span>{Number(responseCount || 0)} responded</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-rose-600">
+                    <UserX className="h-4 w-4" />
+                    <span>{pendingCount} not responded</span>
                   </div>
                   {survey.allowAnonymous && (
                     <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-0">
@@ -291,45 +303,41 @@ const PulseSurveyResultsDetail: React.FC = () => {
                   <Users className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{responses.length}</p>
-                  <p className="text-sm text-gray-500">Total Responses</p>
+                  <p className="text-2xl font-bold text-gray-900">{sentCount}</p>
+                  <p className="text-sm text-gray-500">Total Sent</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-100 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-teal-600" />
+                  <UserCheck className="h-5 w-5 text-teal-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{formatScore(avg)}</p>
-                  <p className="text-sm text-gray-500">Average Score</p>
+                  <p className="text-2xl font-bold text-gray-900">{Number(responseCount || 0)}</p>
+                  <p className="text-sm text-gray-500">Responded</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-100 rounded-lg">
+                  <UserX className="h-5 w-5 text-rose-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{pendingCount}</p>
+                  <p className="text-sm text-gray-500">Not Responded</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-cyan-100 rounded-lg">
-                  <Star className="h-5 w-5 text-cyan-600" />
+                  <TrendingUp className="h-5 w-5 text-cyan-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {responses.filter(r => r.score >= 7).length}
-                  </p>
-                  <p className="text-sm text-gray-500">Happy Responses</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <MessageSquare className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {responses.filter(r => r.comment).length}
-                  </p>
-                  <p className="text-sm text-gray-500">With Comments</p>
+                  <p className="text-2xl font-bold text-gray-900">{formatScore(avg)}</p>
+                  <p className="text-sm text-gray-500">Average Score</p>
                 </div>
               </div>
             </div>
