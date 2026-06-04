@@ -93,6 +93,7 @@ import PulseSurveyResultsDetail from "./pages/pulseSurveys/PulseSurveyResultsDet
 import EmployeeFeedback from "./pages/pulseSurveys/EmployeeFeedback";
 import AdminFeedbackInbox from "./pages/pulseSurveys/AdminFeedbackInbox";
 import PulseSurveyTemplates from "./pages/pulseSurveys/PulseSurveyTemplates";
+import { isCordovaIOS } from "@/lib/platform";
 
 import { Hash } from "lucide-react";
 const queryClient = new QueryClient();
@@ -165,6 +166,14 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
 
   // Don't redirect authenticated users from public routes - let them access if needed
   return <>{element}</>;
+};
+
+const SignupRoute = () => {
+  if (isCordovaIOS()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <PublicRoute element={<Signup />} />;
 };
 
 const PulseSurveysRoot = () => {
@@ -261,7 +270,7 @@ function AppRoutes() {
           path="/forgot-password"
           element={<PublicRoute element={<ForgotPassword />} />}
         />
-        <Route path="/signup" element={<PublicRoute element={<Signup />} />} />
+        <Route path="/signup" element={<SignupRoute />} />
 
         {/* Protected Routes */}
         <Route

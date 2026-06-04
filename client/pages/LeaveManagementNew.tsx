@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X, RefreshCw, Loader2, Clock, FileText, UserRound, Layers3, WalletCards, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { employeeApi } from "@/components/helper/employee/employee";
@@ -877,6 +877,16 @@ useEffect(() => {
     [leaveTypes, searchTerm]
   );
 
+  const leaveTypeSummary = useMemo(
+    () => ({
+      total: filteredLeaveTypes.length,
+      paid: filteredLeaveTypes.filter((lt) => lt.isPaid).length,
+      unpaid: filteredLeaveTypes.filter((lt) => !lt.isPaid).length,
+      encashable: filteredLeaveTypes.filter((lt) => lt.encashable).length,
+    }),
+    [filteredLeaveTypes]
+  );
+
   const filteredLeaveBalances = useMemo(() => {
     let filtered = leaveBalances;
 
@@ -908,6 +918,16 @@ useEffect(() => {
     return grouped;
   }, [filteredLeaveBalances]);
 
+  const balanceSummary = useMemo(
+    () => ({
+      employees: Object.keys(groupedLeaveBalances).length,
+      leaveTypes: filteredLeaveBalances.length,
+      opening: filteredLeaveBalances.reduce((sum, lb) => sum + Number(lb.opening || 0), 0),
+      available: filteredLeaveBalances.reduce((sum, lb) => sum + Number(lb.available || 0), 0),
+    }),
+    [filteredLeaveBalances, groupedLeaveBalances]
+  );
+
   const filteredLeaveApplications = useMemo(() => {
     let filtered = leaveApplications;
 
@@ -931,6 +951,15 @@ useEffect(() => {
   }, [leaveApplications, searchTerm, user]);
 
   const pendingApplications = leaveApplications.filter((la) => la.status === "applied");
+  const applicationSummary = useMemo(
+    () => ({
+      total: filteredLeaveApplications.length,
+      pending: filteredLeaveApplications.filter((la) => la.status === "applied").length,
+      approved: filteredLeaveApplications.filter((la) => la.status === "approved").length,
+      rejected: filteredLeaveApplications.filter((la) => la.status === "rejected").length,
+    }),
+    [filteredLeaveApplications]
+  );
 
   // Dialog handlers
   const handleOpenDialog = (item?: any, mode?: "types" | "applications") => {
@@ -1311,13 +1340,6 @@ useEffect(() => {
                     className="pl-7 sm:pl-10 h-8 sm:h-10 text-xs sm:text-sm"
                   />
                 </div>
-                {activeTab === "types" && (
-                  <Button type="button" onClick={() => handleOpenDialog()} className="gap-2 w-full sm:w-auto h-8 sm:h-10 text-xs sm:text-sm">
-                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Add</span>
-                    <span className="sm:hidden">Add</span>
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -1328,16 +1350,16 @@ useEffect(() => {
         
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 gap-1 md:gap-2 bg-muted p-1 h-auto min-w-max md:min-w-full">
-            <TabsTrigger value="types" className="text-xs md:text-sm">
+          <TabsList className="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 h-auto min-w-max md:min-w-full">
+            <TabsTrigger value="types" className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <span className="sm:hidden">Types</span>
               <span className="hidden sm:inline">Leave Types ({leaveTypes.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="balance" className="text-xs md:text-sm">
+            <TabsTrigger value="balance" className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <span className="sm:hidden">Bal</span>
               <span className="hidden sm:inline">Balance</span>
             </TabsTrigger>
-            <TabsTrigger value="applications" className="text-xs md:text-sm">
+            <TabsTrigger value="applications" className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <span className="sm:hidden">Apps</span>
               <span className="hidden sm:inline">Applications ({leaveApplications.length})</span>
             </TabsTrigger>
@@ -1347,12 +1369,59 @@ useEffect(() => {
           <TabsContent value="types">
             <Card>
               <CardContent className="pt-4 sm:pt-6">
+                <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                      <Layers3 className="h-4 w-4" />
+                      Total Types
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">{leaveTypeSummary.total}</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                      <CheckCircle className="h-4 w-4" />
+                      Paid
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-emerald-800">{leaveTypeSummary.paid}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                      <XCircle className="h-4 w-4" />
+                      Unpaid
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-slate-800">{leaveTypeSummary.unpaid}</p>
+                  </div>
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-sky-700">
+                      <WalletCards className="h-4 w-4" />
+                      Encashable
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-sky-800">{leaveTypeSummary.encashable}</p>
+                  </div>
+                </div>
+
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">Leave Types</h2>
+                    <p className="text-xs text-muted-foreground">Configure annual limits, carry forward, and encashment rules.</p>
+                  </div>
+                  <Button type="button" onClick={() => handleOpenDialog()} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm sm:w-auto">
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Add Leave Type
+                  </Button>
+                </div>
+
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {filteredLeaveTypes.map((lt) => (
-                    <div key={lt.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
+                    <div key={lt.id} className="rounded-lg border border-border bg-white p-3 shadow-sm">
                       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                        <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{lt.name}</h3>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-sm sm:text-base break-words">{lt.name}</h3>
+                          <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                            {lt.isPaid ? "Paid" : "Unpaid"}
+                          </span>
+                        </div>
                         <div className="flex gap-1 flex-shrink-0">
                           <button
                             onClick={() => handleOpenDialog(lt)}
@@ -1370,21 +1439,15 @@ useEffect(() => {
                       </div>
                       <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Type:</span>
-                          <span className={`text-right px-1.5 py-0.5 rounded text-xs font-medium ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-                            {lt.isPaid ? "Paid" : "Unpaid"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Annual Limit:</span>
+                          <span className="text-muted-foreground flex-shrink-0">Annual Limit</span>
                           <span className="font-medium text-right">{lt.annualLimit} days</span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Carry Fwd:</span>
+                          <span className="text-muted-foreground flex-shrink-0">Carry Fwd</span>
                           <span className="font-medium text-right">{lt.carryForward} days</span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Encashable:</span>
+                          <span className="text-muted-foreground flex-shrink-0">Encashable</span>
                           <span className="font-medium text-right">{lt.encashable ? "Yes" : "No"}</span>
                         </div>
                       </div>
@@ -1393,32 +1456,36 @@ useEffect(() => {
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="hidden md:block overflow-hidden rounded-lg border border-border">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-3 font-semibold">Name</th>
-                        <th className="text-left px-3 py-3 font-semibold">Type</th>
-                        <th className="text-left px-3 py-3 font-semibold">Annual Limit</th>
-                        <th className="text-left px-3 py-3 font-semibold">Carry Fwd</th>
-                        <th className="text-left px-3 py-3 font-semibold">Encash</th>
-                        <th className="text-left px-3 py-3 font-semibold">Actions</th>
+                      <tr className="border-b border-border bg-slate-50">
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Name</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Type</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Annual Limit</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Carry Fwd</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Encash</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredLeaveTypes.map((lt) => (
-                        <tr key={lt.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-3 font-medium">{lt.name}</td>
-                          <td className="px-3 py-3">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                        <tr key={lt.id} className="border-b border-border last:border-0 hover:bg-slate-50/80">
+                          <td className="px-4 py-3 font-semibold text-slate-900">{lt.name}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
                               {lt.isPaid ? "Paid" : "Unpaid"}
                             </span>
                           </td>
-                          <td className="px-3 py-3">{lt.annualLimit} days</td>
-                          <td className="px-3 py-3">{lt.carryForward} days</td>
-                          <td className="px-3 py-3">{lt.encashable ? "Yes" : "No"}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex gap-2">
+                          <td className="px-4 py-3 text-center font-medium">{lt.annualLimit} days</td>
+                          <td className="px-4 py-3 text-center font-medium">{lt.carryForward} days</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex min-w-[52px] justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${lt.encashable ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-700"}`}>
+                              {lt.encashable ? "Yes" : "No"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-center gap-2">
                               <button
                                 onClick={() => handleOpenDialog(lt)}
                                 className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg"
@@ -1446,13 +1513,45 @@ useEffect(() => {
           <TabsContent value="balance">
             <Card>
               <CardContent className="pt-4 sm:pt-6">
+                <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                      <UserRound className="h-4 w-4" />
+                      Employees
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">{balanceSummary.employees}</p>
+                  </div>
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-sky-700">
+                      <Layers3 className="h-4 w-4" />
+                      Balance Rows
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-sky-800">{balanceSummary.leaveTypes}</p>
+                  </div>
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-indigo-700">
+                      <WalletCards className="h-4 w-4" />
+                      Opening
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-indigo-800">{balanceSummary.opening}</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                      <CheckCircle className="h-4 w-4" />
+                      Available
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-emerald-800">{balanceSummary.available}</p>
+                  </div>
+                </div>
+
                 {hasRole(user, "employee") && !hasRole(user, "admin") ? (
                   // Employee View - Simple and clean
                   <div className="space-y-3">
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold mb-2">Your Leave Balances</h3>
+                      <h2 className="text-base font-semibold text-slate-900">Your Leave Balances</h2>
+                      <p className="text-xs text-muted-foreground">Track opening, availed, and currently available leave.</p>
                       {filteredLeaveBalances.length > 0 && (
-                        <div className="flex items-center">
+                        <div className="mt-3 flex items-center">
                           <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-medium text-sm">
                             {filteredLeaveBalances[0].employeeName}
                           </span>
@@ -1461,18 +1560,19 @@ useEffect(() => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredLeaveBalances.map((lb) => (
-                        <div key={lb.id} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                        <div key={lb.id} className="rounded-lg border border-border bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-semibold text-blue-900">{lb.leaveType}</h4>
-                            <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                            <h4 className="font-semibold text-slate-900">{lb.leaveType}</h4>
+                            <div className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-full font-semibold">
                               Available
                             </div>
                           </div>
-                          <div className="text-2xl font-bold text-blue-700 mb-1">
+                          <div className="text-2xl font-bold text-emerald-700 mb-1">
                             {lb.available} days
                           </div>
-                          <div className="text-xs text-blue-600">
-                            Opening: {lb.opening} | Availed: {lb.availed}
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-md bg-slate-50 p-2 text-slate-700">Opening: <span className="font-semibold">{lb.opening}</span></div>
+                            <div className="rounded-md bg-amber-50 p-2 text-amber-700">Availed: <span className="font-semibold">{lb.availed}</span></div>
                           </div>
                         </div>
                       ))}
@@ -1484,25 +1584,23 @@ useEffect(() => {
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-2 sm:space-y-3">
                       {Object.entries(groupedLeaveBalances).map(([employeeId, balances]) => (
-                        <div key={employeeId} className="border border-border rounded-lg bg-muted/30">
+                        <div key={employeeId} className="rounded-lg border border-border bg-white shadow-sm">
                           <div 
-                            className="p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                            className="p-3 sm:p-4 cursor-pointer hover:bg-slate-50 transition-colors"
                             onClick={() => toggleEmployeeExpansion(employeeId)}
                           >
                             <div className="flex items-center justify-between">
-                              <h3 className="font-semibold text-sm sm:text-base">{balances[0].employeeName}</h3>
+                              <div className="min-w-0">
+                                <h3 className="truncate font-semibold text-sm sm:text-base">{balances[0].employeeName}</h3>
+                                <p className="text-xs text-muted-foreground">
+                                  {balances.reduce((sum, lb) => sum + Number(lb.available || 0), 0)} days available
+                                </p>
+                              </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">
+                                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
                                   {balances.length} leave type{balances.length > 1 ? 's' : ''}
                                 </span>
-                                <svg 
-                                  className={`w-4 h-4 transition-transform ${expandedEmployees.has(employeeId) ? 'rotate-180' : ''}`}
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
+                                <ChevronDown className={`h-4 w-4 transition-transform ${expandedEmployees.has(employeeId) ? 'rotate-180' : ''}`} />
                               </div>
                             </div>
                           </div>
@@ -1513,13 +1611,13 @@ useEffect(() => {
                                 <div key={lb.id} className="border-t border-border pt-2 sm:pt-3">
                                   <p className="text-xs sm:text-sm text-muted-foreground mb-2">{lb.leaveType}</p>
                                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                                    <div className="bg-blue-50 rounded p-2 sm:p-3 text-center">
+                                    <div className="bg-indigo-50 rounded p-2 sm:p-3 text-center">
                                       <p className="text-xs text-muted-foreground mb-1">Opening</p>
-                                      <p className="text-lg sm:text-xl font-bold text-blue-700">{lb.opening}</p>
+                                      <p className="text-lg sm:text-xl font-bold text-indigo-700">{lb.opening}</p>
                                     </div>
-                                    <div className="bg-orange-50 rounded p-2 sm:p-3 text-center">
+                                    <div className="bg-amber-50 rounded p-2 sm:p-3 text-center">
                                       <p className="text-xs text-muted-foreground mb-1">Availed</p>
-                                      <p className="text-lg sm:text-xl font-bold text-orange-700">{lb.availed}</p>
+                                      <p className="text-lg sm:text-xl font-bold text-amber-700">{lb.availed}</p>
                                     </div>
                                     <div className="bg-green-50 rounded p-2 sm:p-3 text-center">
                                       <p className="text-xs text-muted-foreground mb-1">Available</p>
@@ -1535,30 +1633,30 @@ useEffect(() => {
                     </div>
 
                     {/* Desktop Table View */}
-                    <div className="hidden md:block overflow-x-auto">
+                    <div className="hidden md:block overflow-hidden rounded-lg border border-border">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-border bg-muted/50">
-                            <th className="text-left px-3 py-3 font-semibold">Employee</th>
-                            <th className="text-left px-3 py-3 font-semibold">Leave Types</th>
-                            <th className="text-center px-3 py-3 font-semibold">Total Available</th>
+                          <tr className="border-b border-border bg-slate-50">
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">Employee</th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">Leave Types</th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">Total Available</th>
                           </tr>
                         </thead>
                         <tbody>
                           {Object.entries(groupedLeaveBalances).map(([employeeId, balances]) => (
                             <React.Fragment key={employeeId}>
-                              <tr 
-                                className="border-b border-border hover:bg-muted/50 cursor-pointer"
+                              <tr
+                                className="border-b border-border hover:bg-slate-50/80 cursor-pointer"
                                 onClick={() => toggleEmployeeExpansion(employeeId)}
                               >
-                                <td className="px-3 py-3 font-medium">{balances[0].employeeName}</td>
-                                <td className="px-3 py-3">
-                                  <span className="text-muted-foreground">
+                                <td className="px-4 py-3 font-semibold text-slate-900">{balances[0].employeeName}</td>
+                                <td className="px-4 py-3">
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                                     {balances.length} leave type{balances.length > 1 ? 's' : ''}
                                   </span>
                                 </td>
-                                <td className="px-3 py-3 text-center">
-                                  <span className="bg-green-50 px-2 py-1 rounded font-semibold text-green-700">
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-flex min-w-[92px] justify-center rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
                                     {balances.reduce((sum, lb) => sum + lb.available, 0)} days
                                   </span>
                                 </td>
@@ -1567,23 +1665,23 @@ useEffect(() => {
                               {expandedEmployees.has(employeeId) && (
                                 <tr>
                                   <td colSpan={3} className="px-0 py-0">
-                                    <div className="bg-muted/30 border-l-4 border-primary">
+                                    <div className="bg-slate-50/80 border-l-4 border-primary">
                                       <table className="w-full text-sm">
                                         <thead>
-                                          <tr className="bg-muted/50">
-                                            <th className="text-left px-3 py-2 font-semibold text-xs">Leave Type</th>
-                                            <th className="text-center px-3 py-2 font-semibold text-xs">Opening</th>
-                                            <th className="text-center px-3 py-2 font-semibold text-xs">Availed</th>
-                                            <th className="text-center px-3 py-2 font-semibold text-xs">Available</th>
+                                          <tr className="bg-white">
+                                            <th className="text-left px-4 py-2 font-semibold text-xs text-slate-700">Leave Type</th>
+                                            <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">Opening</th>
+                                            <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">Availed</th>
+                                            <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">Available</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {balances.map((lb) => (
                                             <tr key={lb.id} className="border-t border-border">
-                                              <td className="px-3 py-2">{lb.leaveType}</td>
-                                              <td className="px-3 py-2 text-center bg-blue-50">{lb.opening}</td>
-                                              <td className="px-3 py-2 text-center bg-orange-50">{lb.availed}</td>
-                                              <td className="px-3 py-2 text-center bg-green-50 font-semibold">{lb.available}</td>
+                                              <td className="px-4 py-2 font-medium">{lb.leaveType}</td>
+                                              <td className="px-4 py-2 text-center text-indigo-700">{lb.opening}</td>
+                                              <td className="px-4 py-2 text-center text-amber-700">{lb.availed}</td>
+                                              <td className="px-4 py-2 text-center font-semibold text-green-700">{lb.available}</td>
                                             </tr>
                                           ))}
                                         </tbody>
@@ -1607,8 +1705,54 @@ useEffect(() => {
           <TabsContent value="applications">
             <Card>
               <CardContent className="pt-4 sm:pt-6">
-                {/* Apply Leave Button for All Users */}
-                <div className="mb-4 sm:mb-6 flex items-center justify-between gap-4">
+                <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                      <FileText className="h-4 w-4" />
+                      Total
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">{applicationSummary.total}</p>
+                  </div>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-amber-700">
+                      <Clock className="h-4 w-4" />
+                      Pending
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-amber-800">{applicationSummary.pending}</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                      <CheckCircle className="h-4 w-4" />
+                      Approved
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-emerald-800">{applicationSummary.approved}</p>
+                  </div>
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-rose-700">
+                      <XCircle className="h-4 w-4" />
+                      Rejected
+                    </div>
+                    <p className="mt-2 text-2xl font-bold text-rose-800">{applicationSummary.rejected}</p>
+                  </div>
+                </div>
+
+                <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">Leave Applications</h2>
+                    <p className="text-xs text-muted-foreground">Review request dates, reasons, and approval status.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => loadLeaveApplications()}
+                    className="gap-2 h-8 sm:h-10 text-xs sm:text-sm sm:w-auto"
+                  >
+                    <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Refresh
+                  </Button>
+                </div>
+                {/* Existing action row kept mounted for logic parity, hidden after refreshed toolbar above. */}
+                <div className="hidden">
                   <Button type="button" onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
                     <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Apply Leave</span>
@@ -1629,14 +1773,19 @@ useEffect(() => {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {filteredLeaveApplications.map((la) => (
-                    <div key={la.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
+                    <div key={la.id} className="rounded-lg border border-border bg-white p-3 shadow-sm">
                       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-sm sm:text-base">{la.employeeName }</h3>
-                 
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <UserRound className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="truncate font-semibold text-sm sm:text-base">{la.employeeName}</h3>
+                            <p className="text-xs text-muted-foreground">{la.leaveType || "Leave request"}</p>
+                          </div>
                         </div>
                         <span
-                          className={`text-xs px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${
+                          className={`text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap ${
                             la.status === "applied"
                               ? "bg-yellow-100 text-yellow-800"
                               : la.status === "approved"
@@ -1649,24 +1798,24 @@ useEffect(() => {
                       </div>
                       <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-3">
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">From:</span>
+                          <span className="text-muted-foreground flex-shrink-0">From</span>
                           <span className="font-medium text-right">
                             {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''}
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">To:</span>
+                          <span className="text-muted-foreground flex-shrink-0">To</span>
                           <span className="font-medium text-right">
                             {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Days:</span>
+                          <span className="text-muted-foreground flex-shrink-0">Days</span>
                           <span className="font-medium text-right">{getLeaveDurationLabel(la.days, la.halfDaySession)}</span>
                         </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Reason:</span>
-                          <span className="text-right flex-1">{la.reason}</span>
+                        <div className="rounded-md bg-muted/60 p-2">
+                          <span className="text-muted-foreground">Reason</span>
+                          <p className="mt-1 leading-5">{la.reason || "-"}</p>
                         </div>
                       </div>
                     </div>
@@ -1677,37 +1826,40 @@ useEffect(() => {
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full table-fixed text-sm">
                     <colgroup>
-                      <col className="w-[150px]" />
-                      <col className="w-[220px]" />
-                      <col className="w-[90px]" />
+                      <col className="w-[170px]" />
+                      <col className="w-[230px]" />
+                      <col className="w-[110px]" />
                       <col />
-                      <col className="w-[120px]" />
+                      <col className="w-[130px]" />
                     </colgroup>
                     <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-3 py-3 font-semibold">Employee</th>
-                        <th className="text-left px-3 py-3 font-semibold">From - To</th>
-                        <th className="text-center px-3 py-3 font-semibold">Days</th>
-                        <th className="text-left px-3 py-3 font-semibold">Reason</th>
-                        <th className="text-center px-3 py-3 font-semibold">Status</th>
+                      <tr className="border-b border-border bg-slate-50">
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Employee</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">From - To</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Days</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Reason</th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredLeaveApplications.map((la) => (
-                        <tr key={la.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-3 py-3 font-medium break-words">{la.employeeName }</td>
-                          <td className="px-3 py-3 whitespace-nowrap">
+                        <tr key={la.id} className="border-b border-border last:border-0 hover:bg-slate-50/80">
+                          <td className="px-4 py-3 font-semibold break-words text-slate-900">
+                            <div>{la.employeeName}</div>
+                            <div className="mt-1 text-xs font-normal text-muted-foreground">{la.leaveType || "Leave"}</div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-700">
                             {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''} → {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
                           </td>
-                          <td className="px-3 py-3 text-center">{getLeaveDurationLabel(la.days, la.halfDaySession)}</td>
-                          <td className="px-3 py-3 align-middle">
+                          <td className="px-4 py-3 text-center font-medium">{getLeaveDurationLabel(la.days, la.halfDaySession)}</td>
+                          <td className="px-4 py-3 align-middle">
                             <p className="line-clamp-2 whitespace-normal break-words leading-5" title={la.reason}>
                               {la.reason || "-"}
                             </p>
                           </td>
-                          <td className="px-3 py-3 text-center align-middle">
+                          <td className="px-4 py-3 text-center align-middle">
                             <span
-                              className={`inline-flex min-w-[82px] items-center justify-center whitespace-nowrap rounded px-2 py-1 text-sm font-medium ${
+                              className={`inline-flex min-w-[92px] items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
                                 la.status === "applied"
                                   ? "bg-yellow-100 text-yellow-800"
                                   : la.status === "approved"
@@ -1734,16 +1886,13 @@ useEffect(() => {
         <DialogContent className="w-full max-w-3xl max-h-[95vh] overflow-y-auto p-0 bg-white border-0 rounded-2xl shadow-2xl">
           {/* Dialog Header */}
           <DialogHeader className="relative bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] p-8 text-white rounded-t-2xl">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12 blur-xl"></div>
-            
             <div className="relative z-10 flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
                 <Calendar className="w-8 h-8 text-white" />
               </div>
               <div className="flex-1">
                 <DialogTitle className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                  {editingId ? "Edit" : "Request"} {dialogMode === "types" ? "Leave Type" : "Leave Permission"}
+                  {editingId ? "Edit" : "Request"} {dialogMode === "types" ? "Leave Type" : "Leave Request"}
                 </DialogTitle>
                 <DialogDescription className="text-emerald-100 text-base mt-2 font-medium">
                   {dialogMode === "applications" 

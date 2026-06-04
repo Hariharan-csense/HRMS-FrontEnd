@@ -11,6 +11,7 @@ import { Layout } from '@/components/Layout';
 import ENDPOINTS from '../lib/endpoint';
 import { showToast } from '@/utils/toast';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { isCordovaIOS } from '@/lib/platform';
 
 declare global {
   interface Window {
@@ -207,6 +208,7 @@ const formatCurrency = (price: number): string => {
 const SubscriptionManagement: React.FC = () => {
   const navigate = useNavigate();
   const { checkSubscriptionStatus } = useSubscription();
+  const hideRegistration = isCordovaIOS();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [addons, setAddons] = useState<SubscriptionAddon[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<CompanySubscription | null>(null);
@@ -841,9 +843,9 @@ const SubscriptionManagement: React.FC = () => {
                 </p>
                 <Button
                   className="bg-white text-green-700 hover:bg-gray-100 px-6 py-2 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate(hideRegistration ? '/login' : '/signup')}
                 >
-                  Start Free Trial
+                  {hideRegistration ? 'Sign In' : 'Start Free Trial'}
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>

@@ -10,9 +10,11 @@ import { showToast } from "@/utils/toast";
 import Footer from "@/components/Footer";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
 import logo from "../assets/logo.png";
+import { isCordovaIOS } from "@/lib/platform";
 
 const ContactPage = () => {
   const navigate = useNavigate();
+  const hideRegistration = isCordovaIOS();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -344,7 +346,7 @@ const ContactPage = () => {
               variant="secondary"
               onClick={() => navigate("/login")}
             >
-              Start Free Trial
+              {hideRegistration ? "Sign In" : "Start Free Trial"}
             </Button>
             {/* <Button 
               size="lg" 

@@ -6,9 +6,11 @@ import { ArrowLeft, Users, Calendar, DollarSign, Shield, BarChart, Clock, MapPin
 import { title } from "process";
 import Footer from "@/components/Footer";
 import logo from "../assets/logo.png";
+import { isCordovaIOS } from "@/lib/platform";
 
 const FeaturesPage = () => {
   const navigate = useNavigate();
+  const hideRegistration = isCordovaIOS();
 
   const features = [
     {
@@ -123,7 +125,7 @@ const FeaturesPage = () => {
             variant="secondary"
             onClick={() => navigate("/login")}
           >
-            Start Free Trial
+            {hideRegistration ? "Sign In" : "Start Free Trial"}
             <ArrowLeft className="ml-2 h-5 w-5 rotate-180" />
           </Button>
         </div>

@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Search, Settings, Calendar, Zap } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Settings, Calendar, FileText, CheckCircle2 } from "lucide-react";
 import { holidayApi, fiscalYearApi, leavePolicyApi, Holiday, FiscalYearConfig, LeavePolicy } from "@/components/helper/leave/leave";
 import { showToast } from "@/utils/toast";
 
@@ -69,6 +69,11 @@ export default function LeaveConfiguration() {
   const filteredPolicies = useMemo(
     () => leavePolicies.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
     [leavePolicies, searchTerm]
+  );
+
+  const activePolicyCount = useMemo(
+    () => leavePolicies.filter((policy) => policy.status === "active").length,
+    [leavePolicies]
   );
 
   // Dialog handlers
@@ -213,19 +218,44 @@ export default function LeaveConfiguration() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Settings className="w-8 h-8 text-primary" />
-            Leave Configuration
-          </h1>
-          <p className="text-muted-foreground mt-2">Manage holiday calendar, fiscal year settings, and leave policies</p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <Settings className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+              Leave Configuration
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">Manage holiday calendar, fiscal year settings, and leave policies</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                <Calendar className="h-4 w-4" />
+                Holidays
+              </div>
+              <p className="mt-1 text-xl font-bold text-emerald-900">{holidays.length}</p>
+            </div>
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-sky-700">
+                <CheckCircle2 className="h-4 w-4" />
+                Fiscal
+              </div>
+              <p className="mt-1 text-xl font-bold text-sky-900">{fiscalYear ? "Active" : "None"}</p>
+            </div>
+            <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-violet-700">
+                <FileText className="h-4 w-4" />
+                Policies
+              </div>
+              <p className="mt-1 text-xl font-bold text-violet-900">{activePolicyCount}/{leavePolicies.length}</p>
+            </div>
+          </div>
         </div>
 
         {/* Search Card */}
         {activeTab !== "fiscal" && (
           <Card>
             <CardContent className="pt-6">
-              <div className="flex gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -236,7 +266,7 @@ export default function LeaveConfiguration() {
                   />
                 </div>
                 {(activeTab === "holidays" || activeTab === "policies") && (
-                  <Button onClick={() => handleOpenDialog()} className="gap-2">
+                  <Button onClick={() => handleOpenDialog()} className="gap-2 sm:w-auto">
                     <Plus className="w-4 h-4" />
                     Add
                   </Button>
@@ -248,35 +278,35 @@ export default function LeaveConfiguration() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 gap-2 bg-muted p-1">
-            <TabsTrigger value="holidays" className="text-xs md:text-sm">Holidays ({holidays.length})</TabsTrigger>
-            <TabsTrigger value="fiscal" className="text-xs md:text-sm">Fiscal Year</TabsTrigger>
-            <TabsTrigger value="policies" className="text-xs md:text-sm">Leave Policies ({leavePolicies.length})</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+            <TabsTrigger value="holidays" className="rounded-md text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Holidays ({holidays.length})</TabsTrigger>
+            <TabsTrigger value="fiscal" className="rounded-md text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Fiscal Year</TabsTrigger>
+            <TabsTrigger value="policies" className="rounded-md text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Leave Policies ({leavePolicies.length})</TabsTrigger>
           </TabsList>
 
           {/* Holidays Tab */}
           <TabsContent value="holidays">
             <Card>
               <CardContent className="pt-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-2 py-2 font-semibold">Holiday Name</th>
-                        <th className="text-left px-2 py-2 font-semibold">Date</th>
-                        <th className="text-left px-2 py-2 font-semibold">Type</th>
-                        <th className="text-left px-2 py-2 font-semibold">Description</th>
-                        <th className="text-left px-2 py-2 font-semibold">Actions</th>
+                      <tr className="border-b border-border bg-slate-50">
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Holiday Name</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Date</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Type</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Description</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredHolidays.map((holiday) => (
-                        <tr key={holiday.id} className="border-b border-border hover:bg-muted/50">
-                          <td className="px-2 py-2 font-medium">{holiday.name}</td>
-                          <td className="px-2 py-2 text-xs">{holiday.date}</td>
-                          <td className="px-2 py-2">
+                        <tr key={holiday.id} className="border-b border-border last:border-0 hover:bg-slate-50/80">
+                          <td className="px-4 py-3 font-semibold text-slate-900">{holiday.name}</td>
+                          <td className="px-4 py-3 text-slate-700">{holiday.date}</td>
+                          <td className="px-4 py-3">
                             <span
-                              className={`text-xs px-2 py-1 rounded font-medium ${
+                              className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
                                 holiday.type === "national"
                                   ? "bg-red-100 text-red-800"
                                   : holiday.type === "regional"
@@ -287,8 +317,8 @@ export default function LeaveConfiguration() {
                               {holiday.type.charAt(0).toUpperCase() + holiday.type.slice(1)}
                             </span>
                           </td>
-                          <td className="px-2 py-2 text-xs">{holiday.description || "-"}</td>
-                          <td className="px-2 py-2">
+                          <td className="px-4 py-3 text-slate-700">{holiday.description || "-"}</td>
+                          <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleOpenDialog(holiday)}
@@ -324,30 +354,30 @@ export default function LeaveConfiguration() {
                 {fiscalYear ? (
                   <div className="space-y-6 max-w-2xl">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                      <div className="rounded-lg border bg-slate-50 p-4">
                         <Label className="font-semibold">Financial Year</Label>
-                        <p className="text-sm text-muted-foreground mt-1">{fiscalYear.year}</p>
+                        <p className="text-sm text-slate-700 mt-1">{fiscalYear.year}</p>
                       </div>
-                      <div>
+                      <div className="rounded-lg border bg-emerald-50 p-4">
                         <Label className="font-semibold">Active</Label>
                         <p className="text-sm text-muted-foreground mt-1">
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Active</span>
+                          <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-full text-xs font-semibold">Active</span>
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                      <div className="rounded-lg border bg-white p-4">
                         <Label className="font-semibold">Fiscal Year Start</Label>
-                        <p className="text-sm text-muted-foreground mt-1">{fiscalYear.startDate}</p>
+                        <p className="text-sm text-slate-700 mt-1">{fiscalYear.startDate}</p>
                       </div>
-                      <div>
+                      <div className="rounded-lg border bg-white p-4">
                         <Label className="font-semibold">Fiscal Year End</Label>
-                        <p className="text-sm text-muted-foreground mt-1">{fiscalYear.endDate}</p>
+                        <p className="text-sm text-slate-700 mt-1">{fiscalYear.endDate}</p>
                       </div>
                     </div>
-                    <div>
+                    <div className="rounded-lg border bg-white p-4">
                       <Label className="font-semibold">Leave Cycle Start Date</Label>
-                      <p className="text-sm text-muted-foreground mt-1">{fiscalYear.leaveCycleStart}</p>
+                      <p className="text-sm text-slate-700 mt-1">{fiscalYear.leaveCycleStart}</p>
                     </div>
 
                     <div className="border-t pt-6">
@@ -376,14 +406,14 @@ export default function LeaveConfiguration() {
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   {filteredPolicies.map((policy) => (
-                    <div key={policy.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                    <div key={policy.id} className="border rounded-lg bg-white p-4 shadow-sm transition-colors hover:bg-slate-50/80">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <h3 className="font-semibold">{policy.name}</h3>
+                          <h3 className="font-semibold text-slate-900">{policy.name}</h3>
                           <p className="text-sm text-muted-foreground">{policy.description}</p>
                         </div>
                         <span
-                          className={`text-xs px-2 py-1 rounded font-medium ${
+                          className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
                             policy.status === "active"
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
@@ -392,7 +422,7 @@ export default function LeaveConfiguration() {
                           {policy.status.charAt(0).toUpperCase() + policy.status.slice(1)}
                         </span>
                       </div>
-                      <div className="flex gap-2 mt-3">
+                      <div className="flex gap-2 mt-4 border-t pt-3">
                         <button
                           onClick={() => handleOpenDialog(policy)}
                           className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg text-xs"

@@ -1,11 +1,12 @@
 // src/components/utils/api.ts
 
 import axios from "axios";
+import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.2:3000/backend";
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.2:3000/backend";
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -386,7 +387,10 @@ const ENDPOINTS = {
 
   refreshAccessToken: () => api.post("/auth/refresh-token", {}),
 
-  register: (data: any) => api.post("/auth/register", data),
+  register: (data: any) =>
+    isCordovaIOS()
+      ? Promise.reject(new Error("Account registration is unavailable on iOS."))
+      : api.post("/auth/register", data),
 
   logout: () => api.post("/auth/logout"),
 
@@ -914,7 +918,8 @@ const ENDPOINTS = {
 
   getReportFilters: () => api.get("/reports/filters"),
 
-  getAttendanceReport: (params?: any) => api.get("/reports/attendance", { params }),
+  getAttendanceReport: (params?: any) =>
+    api.get("/reports/attendance", { params }),
 
   getpayrollReport: (params?: any) => api.get("/reports/payroll", { params }),
 

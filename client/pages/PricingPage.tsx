@@ -6,6 +6,7 @@ import { Check, ArrowLeft, Star, Zap, Shield, Loader2, Rocket, HelpCircle, Messa
 import ENDPOINTS from "@/lib/endpoint";
 import Footer from "@/components/Footer";
 import logo from "../assets/logo.png";
+import { isCordovaIOS } from "@/lib/platform";
 
 interface SubscriptionPlan {
   id: number;
@@ -50,6 +51,7 @@ const getPricingSummary = (plan: SubscriptionPlan, usersCount: number, billingCy
 
 const PricingPage = () => {
   const navigate = useNavigate();
+  const hideRegistration = isCordovaIOS();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +99,10 @@ const PricingPage = () => {
 
     fetchPlans();
   }, []);
+
+  const handleSignupAction = () => {
+    navigate(hideRegistration ? "/login" : "/signup");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -164,9 +170,9 @@ const PricingPage = () => {
           <Button 
             size="lg"
             className="bg-white text-green-700 hover:bg-gray-100 px-8 py-3 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-            onClick={() => navigate("/signup")}
+            onClick={handleSignupAction}
           >
-            Start Free Trial
+            {hideRegistration ? "Sign In" : "Start Free Trial"}
             <ChevronRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
@@ -328,9 +334,9 @@ const PricingPage = () => {
                               ? 'bg-orange-500 hover:bg-orange-600 text-white' 
                               : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
                           }`}
-                          onClick={() => navigate("/signup")}
+                          onClick={handleSignupAction}
                         >
-                          Try Everything Free!
+                          {hideRegistration ? "Sign In" : "Try Everything Free!"}
                           <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                         
@@ -453,7 +459,7 @@ const PricingPage = () => {
               onClick={() => navigate("/login")}
             >
               <Zap className="h-5 w-5 mr-2" />
-              Start 14-Day Free Trial
+              {hideRegistration ? "Sign In" : "Start 14-Day Free Trial"}
             </Button>
             {/* <Button 
               size="lg" 

@@ -371,6 +371,100 @@ export default function LeavePermission() {
     );
   };
 
+  const getDateTime = (value?: string | null) => {
+    if (!value) return 0;
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? 0 : time;
+  };
+
+  const sortNewestFirst = (items: LeavePermission[]) =>
+    [...items].sort((a, b) => {
+      const bTime = getDateTime(b.created_at || b.permission_date);
+      const aTime = getDateTime(a.created_at || a.permission_date);
+      return bTime - aTime;
+    });
+
+  const pendingPermissions = sortNewestFirst(
+    filteredPermissions.filter(
+      (permission) => String(permission.status).toLowerCase() === "pending"
+    )
+  );
+
+  const processedPermissions = sortNewestFirst(
+    filteredPermissions.filter(
+      (permission) => String(permission.status).toLowerCase() !== "pending"
+    )
+  );
+
+  const renderPermissionCard = (permission: LeavePermission) => (
+    <div key={permission.id} className="border rounded-lg p-4 space-y-3">
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium">{permission.employee_name}</h3>
+            {getStatusBadge(permission.status)}
+          </div>
+          <p className="text-sm text-muted-foreground">ID: {permission.permission_id}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {canManagePermission && permission.status === 'pending' && (
+            <Button
+              size="sm"
+              onClick={() => openStatusDialog(permission)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="mr-1 h-4 w-4" />
+              Review
+            </Button>
+          )}
+          {permission.attachment_url && (
+            <Button size="sm" variant="outline" asChild>
+              <a href={permission.attachment_url} target="_blank" rel="noopener noreferrer">
+                <FileText className="mr-1 h-4 w-4" />
+                Attachment
+              </a>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div>
+          <span className="font-medium">Date:</span>
+          <p>{new Date(permission.permission_date).toLocaleDateString('en-IN')}</p>
+        </div>
+        <div>
+          <span className="font-medium">Time:</span>
+          <p>{permission.permission_time_from} - {permission.permission_time_to}</p>
+        </div>
+        <div>
+          <span className="font-medium">Applied:</span>
+          <p>{new Date(permission.created_at).toLocaleDateString('en-IN')}</p>
+        </div>
+      </div>
+
+      <div>
+        <span className="font-medium">Reason:</span>
+        <p className="text-sm text-muted-foreground mt-1">{permission.reason}</p>
+      </div>
+
+      {permission.approved_by_name && (
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium">Processed by:</span> {permission.approved_by_name}
+          {permission.approved_at && (
+            <span> on {new Date(permission.approved_at).toLocaleDateString('en-IN')}</span>
+          )}
+        </div>
+      )}
+
+      {permission.remarks && (
+        <div className="bg-gray-50 p-3 rounded text-sm">
+          <span className="font-medium">Remarks:</span> {permission.remarks}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -424,75 +518,38 @@ export default function LeavePermission() {
                 No permission requests found
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredPermissions.map((permission) => (
-                  <div key={permission.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{permission.employee_name}</h3>
-                          {getStatusBadge(permission.status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">ID: {permission.permission_id}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {canManagePermission && permission.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            onClick={() => openStatusDialog(permission)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle className="mr-1 h-4 w-4" />
-                            Review
-                          </Button>
-                        )}
-                        {permission.attachment_url && (
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={permission.attachment_url} target="_blank" rel="noopener noreferrer">
-                              <FileText className="mr-1 h-4 w-4" />
-                              Attachment
-                            </a>
-                          </Button>
-                        )}
-                      </div>
+              <div className="space-y-6">
+                {pendingPermissions.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-yellow-700">
+                        Pending Review
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {pendingPermissions.length} request{pendingPermissions.length === 1 ? "" : "s"}
+                      </span>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium">Date:</span>
-                        <p>{new Date(permission.permission_date).toLocaleDateString('en-IN')}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium">Time:</span>
-                        <p>{permission.permission_time_from} - {permission.permission_time_to}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium">Applied:</span>
-                        <p>{new Date(permission.created_at).toLocaleDateString('en-IN')}</p>
-                      </div>
+                    <div className="space-y-4">
+                      {pendingPermissions.map(renderPermissionCard)}
                     </div>
-
-                    <div>
-                      <span className="font-medium">Reason:</span>
-                      <p className="text-sm text-muted-foreground mt-1">{permission.reason}</p>
-                    </div>
-
-                    {permission.approved_by_name && (
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">Processed by:</span> {permission.approved_by_name}
-                        {permission.approved_at && (
-                          <span> on {new Date(permission.approved_at).toLocaleDateString('en-IN')}</span>
-                        )}
-                      </div>
-                    )}
-
-                    {permission.remarks && (
-                      <div className="bg-gray-50 p-3 rounded text-sm">
-                        <span className="font-medium">Remarks:</span> {permission.remarks}
-                      </div>
-                    )}
                   </div>
-                ))}
+                )}
+
+                {processedPermissions.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-green-700">
+                        Approved / Processed
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {processedPermissions.length} request{processedPermissions.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="space-y-4">
+                      {processedPermissions.map(renderPermissionCard)}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

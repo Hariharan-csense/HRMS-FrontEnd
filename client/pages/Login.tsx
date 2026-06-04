@@ -16,6 +16,7 @@ import { showToast } from "@/utils/toast";
 import logo from "../assets/logo.png";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { isCordovaIOS } from "@/lib/platform";
 
 const styles = `
   @keyframes fadeInDown {
@@ -67,6 +68,7 @@ export default function Login() {
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
   const { login, autoLogin, isLoading } = useAuth();
   const navigate = useNavigate();
+  const hideRegistration = isCordovaIOS();
 
   useEffect(() => {
     const savedCredentials = profileManager.getSavedCredentials();
@@ -100,6 +102,8 @@ export default function Login() {
   }, []);
 
   const handleRegisterClick = () => {
+    if (hideRegistration) return;
+
     setIsRegisterClicked(true);
     setTimeout(() => {
       navigate("/signup");
@@ -393,26 +397,28 @@ export default function Login() {
                       )}
                     </Button>
 
-                    <div
-                      className={`text-center pt-4 animate-fade-in-up ${isRegisterClicked ? "register-button-spin" : ""
-                        }`}
-                      style={{ animationDelay: "0.4s" }}
-                    >
-                      <p className="text-sm text-slate-600">
-                        Don't have an account?{" "}
-                        <button
-                          type="button"
-                          onClick={handleRegisterClick}
-                          className="font-medium text-teal-600 hover:text-teal-700 hover:underline transition-colors inline-flex items-center gap-1"
-                          disabled={isRegisterClicked}
-                        >
-                          Register here
-                          {isRegisterClicked && (
-                            <span className="inline-block animate-spin">*</span>
-                          )}
-                        </button>
-                      </p>
-                    </div>
+                    {!hideRegistration && (
+                      <div
+                        className={`text-center pt-4 animate-fade-in-up ${isRegisterClicked ? "register-button-spin" : ""
+                          }`}
+                        style={{ animationDelay: "0.4s" }}
+                      >
+                        <p className="text-sm text-slate-600">
+                          Don't have an account?{" "}
+                          <button
+                            type="button"
+                            onClick={handleRegisterClick}
+                            className="font-medium text-teal-600 hover:text-teal-700 hover:underline transition-colors inline-flex items-center gap-1"
+                            disabled={isRegisterClicked}
+                          >
+                            Register here
+                            {isRegisterClicked && (
+                              <span className="inline-block animate-spin">*</span>
+                            )}
+                          </button>
+                        </p>
+                      </div>
+                    )}
                   </form>
                 </CardContent>
               </>
