@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Package, Search, Plus, Edit, Trash2, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Archive,
+  Boxes,
+  CheckCircle2,
+  Edit,
+  Package,
+  Plus,
+  Search,
+  Trash2,
+  Wallet,
+} from "lucide-react";
+import {
+  AssetPageHeader,
+  AssetStatCard,
+  assetCardClass,
+  assetContainerClass,
+  assetInputClass,
+  assetOutlineButtonClass,
+  assetPrimaryButtonClass,
+  assetShellClass,
+} from "./AssetUI";
 
 export interface Asset {
   id: string;
@@ -115,7 +136,7 @@ const mockAssets: Asset[] = [
 const categories = ["laptop", "mobile", "furniture", "equipment", "other"];
 const statuses = ["active", "returned", "damaged", "lost"];
 
-const getCategoryLabel = (cat: string) => {
+const getCategoryLabel = (category: string) => {
   const labels: Record<string, string> = {
     laptop: "Laptop",
     mobile: "Mobile Phone",
@@ -123,7 +144,7 @@ const getCategoryLabel = (cat: string) => {
     equipment: "Equipment",
     other: "Other",
   };
-  return labels[cat] || cat;
+  return labels[category] || category;
 };
 
 const getStatusLabel = (status: string) => {
@@ -138,12 +159,12 @@ const getStatusLabel = (status: string) => {
 
 const getStatusBadgeClass = (status: string) => {
   const classes: Record<string, string> = {
-    active: "bg-green-100 text-green-800 border-green-300",
-    returned: "bg-gray-100 text-gray-800 border-gray-300",
-    damaged: "bg-orange-100 text-orange-800 border-orange-300",
-    lost: "bg-red-100 text-red-800 border-red-300",
+    active: "bg-[#e9fbf5] text-[#11966f] border-[#17c491]/30",
+    returned: "bg-slate-100 text-slate-700 border-slate-200",
+    damaged: "bg-amber-50 text-amber-700 border-amber-200",
+    lost: "bg-red-50 text-red-700 border-red-200",
   };
-  return classes[status] || "bg-gray-100 text-gray-800 border-gray-300";
+  return classes[status] || "bg-slate-100 text-slate-700 border-slate-200";
 };
 
 export default function MyAssets() {
@@ -167,33 +188,31 @@ export default function MyAssets() {
     value: 0,
   });
 
+  const isAdmin = Boolean(user?.roles?.includes("admin"));
+
   const filteredAssets = useMemo(() => {
     let visibleAssets = assets;
 
-    // Role-based filtering
     if (user) {
       if (user.roles.includes("manager")) {
-        // Managers see their team's assets
         visibleAssets = assets.filter(
-          (asset) =>
-            asset.assignedTo === user.name || asset.manager === user.name
+          (asset) => asset.assignedTo === user.name || asset.manager === user.name,
         );
       } else if (user.roles.includes("employee") && !user.roles.includes("admin")) {
-        // Employees see only their own assets
         visibleAssets = assets.filter((asset) => asset.assignedTo === user.name);
       }
-      // Admins see all assets (no filtering)
     }
 
-    // Apply search and filters
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
     return visibleAssets.filter((asset) => {
       const matchesSearch =
-        asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase());
+        !normalizedSearch ||
+        asset.name.toLowerCase().includes(normalizedSearch) ||
+        asset.serialNumber.toLowerCase().includes(normalizedSearch) ||
+        asset.assignedTo.toLowerCase().includes(normalizedSearch);
 
-      const matchesCategory =
-        filterCategory === "all" || asset.category === filterCategory;
+      const matchesCategory = filterCategory === "all" || asset.category === filterCategory;
       const matchesStatus = filterStatus === "all" || asset.status === filterStatus;
 
       return matchesSearch && matchesCategory && matchesStatus;
@@ -202,9 +221,9 @@ export default function MyAssets() {
 
   const stats = {
     total: filteredAssets.length,
-    active: filteredAssets.filter((a) => a.status === "active").length,
-    returned: filteredAssets.filter((a) => a.status === "returned").length,
-    totalValue: filteredAssets.reduce((sum, a) => sum + a.value, 0),
+    active: filteredAssets.filter((asset) => asset.status === "active").length,
+    returned: filteredAssets.filter((asset) => asset.status === "returned").length,
+    totalValue: filteredAssets.reduce((sum, asset) => sum + asset.value, 0),
   };
 
   const handleOpenDialog = (asset?: Asset) => {
@@ -247,14 +266,12 @@ export default function MyAssets() {
 
     if (editingId) {
       setAssets((prev) =>
-        prev.map((asset) =>
-          asset.id === editingId ? { ...asset, ...formData } : asset
-        )
+        prev.map((asset) => (asset.id === editingId ? { ...asset, ...formData } as Asset : asset)),
       );
     } else {
       const newAsset: Asset = {
         id: `AST${String(assets.length + 1).padStart(3, "0")}`,
-        ...formData as Asset,
+        ...(formData as Asset),
       };
       setAssets((prev) => [newAsset, ...prev]);
     }
@@ -277,359 +294,231 @@ export default function MyAssets() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-50">
-            <Package className="w-8 h-8 text-primary" />
-            My Assets
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage and track assigned assets and equipment
-          </p>
-        </div>
+      <div className={assetShellClass}>
+        <div className={`${assetContainerClass} space-y-4`}>
+          <AssetPageHeader
+            icon={<Package className="h-5 w-5" />}
+            title="My Assets"
+            description="Track assigned assets, return status, current location, and asset value."
+            action={
+              isAdmin ? (
+                <Button onClick={() => handleOpenDialog()} className={`gap-2 ${assetPrimaryButtonClass}`}>
+                  <Plus className="h-4 w-4" />
+                  Add Asset
+                </Button>
+              ) : null
+            }
+          />
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Total Assets
-              </div>
-              <div className="text-3xl font-bold mt-2">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Active
-              </div>
-              <div className="text-3xl font-bold mt-2 text-green-600">
-                {stats.active}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Returned
-              </div>
-              <div className="text-3xl font-bold mt-2 text-gray-600">
-                {stats.returned}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm font-medium text-muted-foreground">
-                Total Value
-              </div>
-              <div className="text-3xl font-bold mt-2">
-                ₹{stats.totalValue.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <AssetStatCard label="Total Assets" value={stats.total} icon={<Boxes className="h-5 w-5" />} />
+            <AssetStatCard label="Active" value={stats.active} icon={<CheckCircle2 className="h-5 w-5" />} />
+            <AssetStatCard label="Returned" value={stats.returned} icon={<Archive className="h-5 w-5" />} tone="slate" />
+            <AssetStatCard label="Total Value" value={`Rs. ${stats.totalValue.toLocaleString()}`} icon={<Wallet className="h-5 w-5" />} />
+          </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filter & Search</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="search">Search</Label>
-                <div className="relative mt-2">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="search"
-                    placeholder="Search by name or serial number..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+          <Card className={assetCardClass}>
+            <CardContent className="p-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="search" className="text-xs">Search</Label>
+                  <div className="relative mt-1.5">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="search"
+                      placeholder="Search by name, serial, or employee..."
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      className={`pl-10 ${assetInputClass}`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="category" className="text-xs">Category</Label>
+                  <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger id="category" className={`mt-1.5 ${assetInputClass}`}>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {getCategoryLabel(category)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="status" className="text-xs">Status</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger id="status" className={`mt-1.5 ${assetInputClass}`}>
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      {statuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {getStatusLabel(status)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger id="category" className="mt-2">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {getCategoryLabel(cat)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <Card className={assetCardClass}>
+            <CardHeader className="border-b border-slate-100 px-4 py-3">
+              <CardTitle className="text-base text-slate-950">Assets ({filteredAssets.length})</CardTitle>
+              <CardDescription className="text-sm">Showing {filteredAssets.length} of {assets.length} assets</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {filteredAssets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+                    <AlertCircle className="h-7 w-7 text-slate-400" />
+                  </div>
+                  <p className="mt-4 text-sm text-slate-500">No assets found</p>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                          <th className="w-24 px-4 py-3 text-left font-semibold">ID</th>
+                          <th className="min-w-48 px-4 py-3 text-left font-semibold">Asset Name</th>
+                          <th className="w-36 px-4 py-3 text-left font-semibold">Category</th>
+                          <th className="min-w-40 px-4 py-3 text-left font-semibold">Serial</th>
+                          <th className="min-w-40 px-4 py-3 text-left font-semibold">Assigned To</th>
+                          <th className="w-32 px-4 py-3 text-center font-semibold">Status</th>
+                          <th className="w-36 px-4 py-3 text-right font-semibold">Value</th>
+                          {isAdmin && <th className="w-24 px-4 py-3 text-center font-semibold">Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAssets.map((asset) => (
+                          <tr key={asset.id} className="border-b border-slate-100 transition-colors hover:bg-[#e9fbf5]/60">
+                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{asset.id}</td>
+                            <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-950">{asset.name}</td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              <span className="inline-block rounded border border-[#17c491]/20 bg-[#e9fbf5] px-2 py-1 text-xs font-medium text-[#11966f]">
+                                {getCategoryLabel(asset.category)}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600">{asset.serialNumber}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-slate-700">{asset.assignedTo}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center">
+                              <span className={`inline-block rounded border px-2 py-1 text-xs ${getStatusBadgeClass(asset.status)}`}>
+                                {getStatusLabel(asset.status)}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-950">
+                              Rs. {asset.value.toLocaleString()}
+                            </td>
+                            {isAdmin && (
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex justify-center gap-1">
+                                  <button onClick={() => handleOpenDialog(asset)} className="rounded-lg p-2 text-[#11966f] hover:bg-[#e9fbf5]" title="Edit">
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleDeleteClick(asset.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title="Delete">
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger id="status" className="mt-2">
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {statuses.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {getStatusLabel(status)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-3 p-4 md:hidden">
+                    {filteredAssets.map((asset) => (
+                      <div key={asset.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-mono text-xs text-slate-500">{asset.id}</p>
+                            <h3 className="mt-1 truncate text-base font-semibold text-slate-950">{asset.name}</h3>
+                            <p className="mt-1 font-mono text-xs text-slate-500">{asset.serialNumber}</p>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-1">
+                              <button onClick={() => handleOpenDialog(asset)} className="rounded-lg p-2 text-[#11966f] hover:bg-[#e9fbf5]" title="Edit">
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button onClick={() => handleDeleteClick(asset.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" title="Delete">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
-              <div className="flex items-end">
-                {user?.roles.includes("admin") && (
-                  <Button onClick={() => handleOpenDialog()} className="w-full gap-2">
-                    <Plus className="w-4 h-4" />
-                    Add Asset
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Assets Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Assets ({filteredAssets.length})</CardTitle>
-            <CardDescription>
-              Showing {filteredAssets.length} of {assets.length} assets
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {filteredAssets.length === 0 ? (
-              <div className="text-center py-8">
-                <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No assets found</p>
-              </div>
-            ) : (
-              <>
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[65px]">
-                          ID
-                        </th>
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[120px]">
-                          Asset Name
-                        </th>
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[100px]">
-                          Category
-                        </th>
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[120px]">
-                          Serial Number
-                        </th>
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[100px]">
-                          Assigned To
-                        </th>
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[80px]">
-                          Status
-                        </th>
-                        <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[85px]">
-                          Value
-                        </th>
-                        {user?.roles.includes("admin") && (
-                          <th className="text-left px-2 py-2.5 font-semibold whitespace-nowrap min-w-[55px]">
-                            Actions
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAssets.map((asset) => (
-                        <tr
-                          key={asset.id}
-                          className="border-b border-border hover:bg-muted/50 transition-colors"
-                        >
-                          <td className="px-2 py-2.5 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                            {asset.id}
-                          </td>
-                          <td className="px-2 py-2.5 font-medium whitespace-nowrap">
-                            {asset.name}
-                          </td>
-                          <td className="px-2 py-2.5 text-xs whitespace-nowrap">
-                            {getCategoryLabel(asset.category)}
-                          </td>
-                          <td className="px-2 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap">
-                            {asset.serialNumber}
-                          </td>
-                          <td className="px-2 py-2.5 text-xs whitespace-nowrap">
-                            {asset.assignedTo}
-                          </td>
-                          <td className="px-2 py-2.5">
-                            <span
-                              className={`text-xs px-1.5 py-0.5 rounded border inline-block ${getStatusBadgeClass(
-                                asset.status
-                              )}`}
-                            >
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">Category</p>
+                            <p className="mt-1 font-medium text-slate-950">{getCategoryLabel(asset.category)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">Assigned To</p>
+                            <p className="mt-1 truncate font-medium text-slate-950">{asset.assignedTo}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">Status</p>
+                            <span className={`mt-1 inline-block rounded border px-2 py-1 text-xs ${getStatusBadgeClass(asset.status)}`}>
                               {getStatusLabel(asset.status)}
                             </span>
-                          </td>
-                          <td className="px-2 py-2.5 font-medium text-xs whitespace-nowrap">
-                            ₹{asset.value.toLocaleString()}
-                          </td>
-                          {user?.roles.includes("admin") && (
-                            <td className="px-2 py-2.5">
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => handleOpenDialog(asset)}
-                                  className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick(asset.id)}
-                                  className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="md:hidden space-y-3">
-                  {filteredAssets.map((asset) => (
-                    <div
-                      key={asset.id}
-                      className="border border-border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors space-y-3"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                              {asset.id}
-                            </span>
-                            <h3 className="font-bold text-base">{asset.name}</h3>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            SN: {asset.serialNumber}
-                          </p>
-                        </div>
-                        {user?.roles.includes("admin") && (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleOpenDialog(asset)}
-                              className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(asset.id)}
-                              className="p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">Value</p>
+                            <p className="mt-1 font-semibold text-slate-950">Rs. {asset.value.toLocaleString()}</p>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <label className="text-xs text-muted-foreground font-medium">
-                            Category
-                          </label>
-                          <p className="font-medium">
-                            {getCategoryLabel(asset.category)}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground font-medium">
-                            Assigned To
-                          </label>
-                          <p className="font-medium">{asset.assignedTo}</p>
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground font-medium">
-                            Status
-                          </label>
-                          <span
-                            className={`text-xs px-2 py-1 rounded border inline-block ${getStatusBadgeClass(
-                              asset.status
-                            )}`}
-                          >
-                            {getStatusLabel(asset.status)}
-                          </span>
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground font-medium">
-                            Value
-                          </label>
-                          <p className="font-medium">
-                            ₹{asset.value.toLocaleString()}
-                          </p>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Edit Asset" : "Add New Asset"}
-            </DialogTitle>
+            <DialogTitle>{editingId ? "Edit Asset" : "Add New Asset"}</DialogTitle>
             <DialogDescription>
-              {editingId
-                ? "Update asset information"
-                : "Add a new asset to the system"}
+              {editingId ? "Update asset information" : "Add a new asset to the system"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="name">Asset Name *</Label>
                 <Input
                   id="name"
                   value={formData.name || ""}
-                  onChange={(e) => handleFormChange("name", e.target.value)}
-                  className="mt-2"
+                  onChange={(event) => handleFormChange("name", event.target.value)}
+                  className={`mt-2 ${assetInputClass}`}
                 />
               </div>
               <div>
                 <Label htmlFor="category">Category *</Label>
-                <Select
-                  value={formData.category || "laptop"}
-                  onValueChange={(val: any) =>
-                    handleFormChange("category", val)
-                  }
-                >
-                  <SelectTrigger id="category" className="mt-2">
+                <Select value={formData.category || "laptop"} onValueChange={(value: any) => handleFormChange("category", value)}>
+                  <SelectTrigger id="category" className={`mt-2 ${assetInputClass}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {getCategoryLabel(cat)}
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {getCategoryLabel(category)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -637,16 +526,14 @@ export default function MyAssets() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="serial">Serial Number *</Label>
                 <Input
                   id="serial"
                   value={formData.serialNumber || ""}
-                  onChange={(e) =>
-                    handleFormChange("serialNumber", e.target.value)
-                  }
-                  className="mt-2"
+                  onChange={(event) => handleFormChange("serialNumber", event.target.value)}
+                  className={`mt-2 ${assetInputClass}`}
                 />
               </div>
               <div>
@@ -654,32 +541,27 @@ export default function MyAssets() {
                 <Input
                   id="assignedTo"
                   value={formData.assignedTo || ""}
-                  onChange={(e) => handleFormChange("assignedTo", e.target.value)}
-                  className="mt-2"
+                  onChange={(event) => handleFormChange("assignedTo", event.target.value)}
+                  className={`mt-2 ${assetInputClass}`}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="assignedDate">Assigned Date</Label>
                 <Input
                   id="assignedDate"
                   type="date"
                   value={formData.assignedDate || ""}
-                  onChange={(e) =>
-                    handleFormChange("assignedDate", e.target.value)
-                  }
-                  className="mt-2"
+                  onChange={(event) => handleFormChange("assignedDate", event.target.value)}
+                  className={`mt-2 ${assetInputClass}`}
                 />
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status || "active"}
-                  onValueChange={(val: any) => handleFormChange("status", val)}
-                >
-                  <SelectTrigger id="status" className="mt-2">
+                <Select value={formData.status || "active"} onValueChange={(value: any) => handleFormChange("status", value)}>
+                  <SelectTrigger id="status" className={`mt-2 ${assetInputClass}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -693,43 +575,40 @@ export default function MyAssets() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="location">Location</Label>
                 <Input
                   id="location"
                   value={formData.location || ""}
-                  onChange={(e) => handleFormChange("location", e.target.value)}
-                  className="mt-2"
+                  onChange={(event) => handleFormChange("location", event.target.value)}
+                  className={`mt-2 ${assetInputClass}`}
                 />
               </div>
               <div>
-                <Label htmlFor="value">Value (₹)</Label>
+                <Label htmlFor="value">Value (Rs.)</Label>
                 <Input
                   id="value"
                   type="number"
                   value={formData.value || 0}
-                  onChange={(e) =>
-                    handleFormChange("value", parseFloat(e.target.value) || 0)
-                  }
-                  className="mt-2"
+                  onChange={(event) => handleFormChange("value", parseFloat(event.target.value) || 0)}
+                  className={`mt-2 ${assetInputClass}`}
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 justify-end mt-6 border-t pt-4">
-            <Button variant="outline" onClick={handleCloseDialog}>
+          <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+            <Button variant="outline" onClick={handleCloseDialog} className={assetOutlineButtonClass}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} className={assetPrimaryButtonClass}>
               {editingId ? "Update Asset" : "Add Asset"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -738,12 +617,9 @@ export default function MyAssets() {
               Are you sure? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-3 justify-end">
+          <div className="flex justify-end gap-3">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </div>
