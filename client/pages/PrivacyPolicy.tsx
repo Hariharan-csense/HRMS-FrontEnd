@@ -1,6 +1,5 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Shield, Eye, Lock, Database } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 
@@ -45,102 +44,222 @@ const PrivacyPolicy = () => {
       {/* Content */}
       <main className="flex justify-center px-4 sm:px-6 lg:px-8 py-12">
         <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-8">
-          {/* Introduction */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Introduction</h2>
             <p className="text-gray-600 leading-relaxed">
               CSENSE MANAGEMENT SOLUTIONS PRIVATE LIMITED ("we", "us", or "our") is committed to protecting your privacy. 
-              This Privacy Policy explains how we collect, use, and protect your personal information when you use our 
-              HRMS assessment tools (collectively, the "Services").
+              This Privacy Policy explains how we collect, use, process, store, and protect your personal information when you use our 
+              HRMS platform, mobile applications, attendance management tools, assessment tools, and related services 
+              (collectively, the "Services").
+            </p>
+            <p className="text-gray-600 leading-relaxed mt-4">
+              By using our Services, you agree to the collection and use of information in accordance with this Privacy Policy.
             </p>
           </div>
 
-          {/* Information We Collect */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Information We Collect</h2>
             <p className="text-gray-600 mb-4">We collect the following types of information:</p>
-            <div className="space-y-4 text-gray-600">
+            <div className="space-y-6 text-gray-600">
               <div>
                 <h4 className="font-semibold text-gray-900">Personal Information:</h4>
-                <p>When you register for an account or make a payment, we may collect personal information such as your name, email address, and payment details.</p>
+                <p className="mb-3">
+                  When you register for an account, create an employee profile, use our Services, or make a payment, we may collect personal information including:
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Name</li>
+                  <li>Email address</li>
+                  <li>Phone number</li>
+                  <li>Employee identification details</li>
+                  <li>Organization details</li>
+                  <li>Payment information</li>
+                  <li>Other information necessary for providing our Services</li>
+                </ul>
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900">Usage Data:</h4>
-                <p>We collect information about how you use our Site and Services, including IP addresses, browser types, and access times.</p>
+                <p className="mb-3">We collect information regarding your interaction with our Site and Services, including:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>IP address</li>
+                  <li>Device information</li>
+                  <li>Browser type</li>
+                  <li>Operating system</li>
+                  <li>Access times</li>
+                  <li>Usage logs</li>
+                  <li>Application activity</li>
+                </ul>
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900">Cookies:</h4>
-                <p>We use cookies to enhance your experience on our Site. You can control cookies through your browser settings.</p>
+                <p>We use cookies and similar technologies to enhance your experience on our Site. You can control cookie settings through your browser preferences.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Face Data and Biometric Information:</h4>
+                <p className="mb-3">
+                  Our HRMS platform may provide Face Attendance functionality for attendance management and employee verification.
+                </p>
+                <p className="mb-3">When this feature is enabled by an organization, we may collect and process:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Facial photographs captured during employee registration.</li>
+                  <li>Facial photographs captured during attendance check-in and check-out.</li>
+                  <li>Facial feature data generated solely for face matching and identity verification purposes.</li>
+                </ul>
+                <p className="mt-3">Face data is collected only when users voluntarily use the Face Attendance feature.</p>
               </div>
             </div>
           </div>
 
-          {/* How We Use Your Information */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">3. How We Use Your Information</h2>
             <p className="text-gray-600 mb-4">We use your information for the following purposes:</p>
             <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
-              <li>To process payments and provide access to our assessment tools.</li>
-              <li>To communicate with you regarding your account and Services.</li>
-              <li>To improve our Site and Services based on usage data.</li>
-              <li>To send you promotional information if you have opted in to receive it.</li>
+              <li>To process payments and provide access to our Services.</li>
+              <li>To manage employee records and attendance.</li>
+              <li>To communicate regarding your account and Services.</li>
+              <li>To improve our Site and Services.</li>
+              <li>To provide customer support.</li>
+              <li>To comply with legal and regulatory requirements.</li>
+              <li>To send promotional communications where permitted and where users have opted to receive them.</li>
             </ul>
-          </div>
-
-          {/* Data Sharing and Disclosure */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">4. Data Sharing and Disclosure</h2>
-            <p className="text-gray-600 mb-4">We do not sell or rent your personal information to third parties. We may share your information with:</p>
-            <div className="space-y-4 text-gray-600">
+            <div className="space-y-4 text-gray-600 mt-6">
               <div>
-                <h4 className="font-semibold text-gray-900">Service Providers:</h4>
-                <p>We use third-party service providers, such as Razorpay, to process payments. These providers are obligated to protect your information and use it only for the purpose of providing their services.</p>
+                <h4 className="font-semibold text-gray-900">Face Data Usage:</h4>
+                <p className="mb-3">Face data is used exclusively for:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Employee identity verification.</li>
+                  <li>Attendance check-in and check-out validation.</li>
+                  <li>Prevention of proxy attendance and attendance fraud.</li>
+                  <li>Workforce attendance management.</li>
+                  <li>Maintaining accurate attendance records.</li>
+                </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">Legal Requirements:</h4>
-                <p>We may disclose your information if required to do so by law or in response to valid requests by public authorities.</p>
+                <p className="mb-3">Face data is not used for:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Advertising</li>
+                  <li>Marketing</li>
+                  <li>User profiling</li>
+                  <li>Behavioral tracking</li>
+                  <li>Analytics unrelated to attendance management</li>
+                  <li>Any purpose unrelated to identity verification and attendance management</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Face Recognition Processing:</h4>
+                <p>
+                  When Face Attendance is enabled, the application may compare a facial image captured during attendance marking with the employee's registered facial image to verify identity.
+                </p>
+                <p className="mt-3">
+                  Face recognition processing is performed solely for attendance verification and fraud prevention purposes.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Data Security */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Data Security</h2>
-            <p className="text-gray-600">
-              We implement reasonable security measures to protect your personal information from unauthorised access, use, or disclosure. 
-              However, no method of transmission over the Internet or electronic storage is completely secure, and we cannot guarantee absolute security.
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">4. Data Sharing and Disclosure</h2>
+            <p className="text-gray-600 mb-4">
+              We do not sell, rent, trade, or lease your personal information, face data, or biometric information to third parties.
             </p>
+            <p className="text-gray-600 mb-4">We may share information with:</p>
+            <div className="space-y-6 text-gray-600">
+              <div>
+                <h4 className="font-semibold text-gray-900">Service Providers:</h4>
+                <p>
+                  We use trusted third-party service providers, such as payment gateways and cloud infrastructure providers, to support our Services.
+                  These providers are contractually obligated to protect your information and use it only for authorized purposes.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Legal Requirements:</h4>
+                <p>We may disclose information when required by law, court order, governmental authority, or regulatory obligation.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Face Data Disclosure:</h4>
+                <p className="mb-3">
+                  Face data and biometric information are not shared with third parties for advertising, marketing, analytics, or commercial purposes.
+                </p>
+                <p className="mb-3">Face data may only be disclosed:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>To the organization that owns and administers the HRMS platform.</li>
+                  <li>When required by applicable law.</li>
+                  <li>To protect the security, rights, and lawful interests of users, organizations, or the public.</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
-          {/* Your Rights */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Data Storage, Retention, and Security</h2>
+            <p className="text-gray-600 mb-4">
+              We implement reasonable technical, administrative, and organizational safeguards to protect personal information from unauthorized access, use, alteration, disclosure, or destruction.
+            </p>
+            <p className="text-gray-600 mb-6">
+              However, no method of transmission over the Internet or electronic storage can be guaranteed to be completely secure.
+            </p>
+            <div className="space-y-6 text-gray-600">
+              <div>
+                <h4 className="font-semibold text-gray-900">Face Data Storage:</h4>
+                <p className="mb-3">
+                  Facial photographs and face verification data are securely stored within authorized databases and server infrastructure controlled by the organization using the HRMS platform.
+                </p>
+                <p>Access is restricted to authorized personnel who require access for attendance and workforce management purposes.</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Face Data Retention:</h4>
+                <p className="mb-3">Face data is retained only for as long as necessary to:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>Provide attendance management services.</li>
+                  <li>Fulfill contractual obligations.</li>
+                  <li>Meet legal and compliance requirements.</li>
+                  <li>Support workforce management activities.</li>
+                </ul>
+                <p className="my-3">Face data may be deleted:</p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>When an employee account is removed.</li>
+                  <li>Upon termination of employment.</li>
+                  <li>Upon deletion of organizational records.</li>
+                  <li>Upon a valid deletion request where applicable.</li>
+                </ul>
+                <p className="mt-3">Following the retention period, face data will be securely deleted or anonymized.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">6. Your Rights</h2>
-            <p className="text-gray-600">
-              You have the right to access, correct, or delete your personal information. You may also opt out of receiving promotional communications 
-              from us at any time by following the instructions provided in those communications.
+            <p className="text-gray-600 mb-4">You may have the right to:</p>
+            <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
+              <li>Access your personal information.</li>
+              <li>Correct inaccurate information.</li>
+              <li>Request deletion of personal information.</li>
+              <li>Withdraw consent where applicable.</li>
+              <li>Opt out of promotional communications.</li>
+            </ul>
+            <p className="text-gray-600 mt-4">
+              Organizations and users may also request access to, correction of, or deletion of face data, subject to applicable legal and operational requirements.
             </p>
+            <p className="text-gray-600 mt-4">Requests may be submitted using the contact details provided below.</p>
           </div>
 
-          {/* Changes to the Privacy Policy */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">7. Changes to the Privacy Policy</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">7. Changes to this Privacy Policy</h2>
+            <p className="text-gray-600 mb-4">We may update this Privacy Policy from time to time.</p>
             <p className="text-gray-600">
-              We may update this Privacy Policy from time to time. Changes will be effective immediately upon posting on the Site. 
-              Your continued use of the Services after any changes constitutes your acceptance of the updated Privacy Policy.
+              Any changes will become effective immediately upon publication on our Site. Continued use of the Services following any updates constitutes acceptance of the revised Privacy Policy.
             </p>
           </div>
 
-          {/* Contact Information */}
           <div className="mt-12 p-6 bg-gray-50 rounded-lg">
             <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">8. Contact Information</h2>
             <p className="text-gray-600 mb-4 text-center">
-              If you have any questions or concerns about this Privacy Policy, please contact us at:
+              If you have any questions, concerns, or requests regarding this Privacy Policy or the processing of your information, please contact us:
             </p>
             <div className="space-y-2 text-sm text-gray-600 text-center">
               <p><strong>CSENSE MANAGEMENT SOLUTIONS PRIVATE LIMITED</strong></p>
-              <p>106, First Floor, Osian Chloroplaza, Link Road, Porur. Chennai 600116</p>
+              <p>106, First Floor, Osian Chloroplaza, Link Road, Porur, Chennai - 600116, Tamil Nadu, India</p>
               <p><strong>Email:</strong> support@procease.co</p>
-              <p><strong>Phone:</strong> + 91 9042894918</p>
+              <p><strong>Phone:</strong> +91 9042894918</p>
             </div>
           </div>
         </div>
