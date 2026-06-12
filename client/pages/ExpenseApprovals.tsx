@@ -1275,7 +1275,7 @@ export default function ExpenseApprovals() {
           }
         }}
       >
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] flex flex-col p-4 sm:p-6">
+        <DialogContent className="w-[98vw] max-w-[98vw] h-[95vh] max-h-[95vh] flex flex-col p-3 sm:p-4">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
               Bill Preview
@@ -1283,8 +1283,8 @@ export default function ExpenseApprovals() {
           </DialogHeader>
 
           {currentPreviewUrl && (
-            <div className="flex-1 flex flex-col space-y-3 overflow-hidden">
-              <div className="flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="flex-1 flex flex-col space-y-3 overflow-hidden min-h-0">
+              <div className="flex flex-col gap-3 flex-shrink-0 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">
                     {receiptGallery.index + 1} of {previewUrls.length}
@@ -1293,7 +1293,7 @@ export default function ExpenseApprovals() {
                     Category: {currentPreviewItem?.category || "Uncategorized"}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"

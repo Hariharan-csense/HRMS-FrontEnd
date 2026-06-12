@@ -66,7 +66,8 @@ export default function Login() {
   const [savedProfile, setSavedProfile] = useState<any>(null);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
-  const { login, autoLogin, isLoading } = useAuth();
+  const [attemptedSessionRestore, setAttemptedSessionRestore] = useState(false);
+  const { login, autoLogin, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const hideRegistration = isCordovaIOS();
 
@@ -122,6 +123,40 @@ export default function Login() {
     });
   };
 
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (isAuthenticated) {
+      navigateAfterLogin();
+      return;
+    }
+
+    if (attemptedSessionRestore) return;
+
+    const hasRememberedSession =
+      localStorage.getItem("auth:session") ||
+      localStorage.getItem("refreshToken") ||
+      (localStorage.getItem("user") && localStorage.getItem("accessToken"));
+
+    if (!hasRememberedSession) return;
+
+    const restoreSession = async () => {
+      setAttemptedSessionRestore(true);
+      setIsAutoLoggingIn(true);
+
+      try {
+        const result = await autoLogin();
+        if (result.success) {
+          navigateAfterLogin();
+        }
+      } finally {
+        setIsAutoLoggingIn(false);
+      }
+    };
+
+    restoreSession();
+  }, [isAuthenticated, isLoading, attemptedSessionRestore]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -158,6 +193,10 @@ export default function Login() {
 
   const handleClearSavedProfile = () => {
     profileManager.clearAll();
+    localStorage.removeItem("auth:session");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("refreshToken");
     setSavedProfile(null);
     setEmail("");
     setPassword("");

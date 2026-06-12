@@ -29,8 +29,20 @@ export async function handleLogin({ email, password }: LoginParams): Promise<Log
       localStorage.setItem('accessToken', res.data.accessToken);
     }
     if (res.data?.refreshToken) {
-      sessionStorage.setItem('refreshToken', res.data.refreshToken);
+      localStorage.setItem('refreshToken', res.data.refreshToken);
+      sessionStorage.removeItem('refreshToken');
     }
+
+    localStorage.setItem(
+      'auth:session',
+      JSON.stringify({
+        accessToken: res.data?.accessToken || res.data?.token,
+        refreshToken: res.data?.refreshToken,
+        user: res.data?.user,
+        rememberMe: true,
+        savedAt: new Date().toISOString(),
+      }),
+    );
 
     return {
       success: true,
@@ -59,6 +71,7 @@ export async function handleLogout(): Promise<{ success: boolean; message: strin
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('auth:session');
     sessionStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('rememberMe');

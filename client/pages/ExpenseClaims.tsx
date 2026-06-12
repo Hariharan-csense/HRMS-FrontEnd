@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, CreditCard, Upload, X, Camera, Loader2, Download, FileSpreadsheet, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Search, CreditCard, Upload, X, Camera, Loader2, Download, FileSpreadsheet, Eye, ZoomIn, ZoomOut } from "lucide-react";
 import expenseApi, { AssignedClient, ExpenseDraft } from "@/components/helper/expense/expense";
 import NotificationTriggerService from "@/services/notificationTriggerService";
 import { showToast } from "@/utils/toast";
@@ -171,6 +171,7 @@ export default function ExpenseClaims() {
     open: false,
     urls: [],
   });
+  const [draftReceiptZoom, setDraftReceiptZoom] = useState(1);
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftClearing, setDraftClearing] = useState(false);
   const [editReceipt, setEditReceipt] = useState<ExistingReceipt | null>(null);
@@ -924,6 +925,10 @@ export default function ExpenseClaims() {
     setPreview({ open: true, url, name, type });
   };
 
+  const adjustDraftReceiptZoom = (delta: number) => {
+    setDraftReceiptZoom((current) => Math.min(3, Math.max(0.5, Number((current + delta).toFixed(2)))));
+  };
+
   const resolveReceiptUrl = (path?: string | null) => {
     if (!path) return "";
     if (path.startsWith("http://") || path.startsWith("https://")) return path;
@@ -1358,6 +1363,7 @@ export default function ExpenseClaims() {
       );
 
       if (expense.isDraft && expense.draftReceiptPaths && expense.draftReceiptPaths.length > 1) {
+        setDraftReceiptZoom(1);
         setDraftReceiptGallery({
           open: true,
           urls: expense.draftReceiptPaths.map((path) => resolveReceiptUrl(path)).filter(Boolean),
@@ -1366,6 +1372,7 @@ export default function ExpenseClaims() {
       }
 
       if (groupedUrls.length > 1) {
+        setDraftReceiptZoom(1);
         setDraftReceiptGallery({
           open: true,
           urls: groupedUrls,
@@ -1384,6 +1391,7 @@ export default function ExpenseClaims() {
     }
 
     if (expense.isDraft && expense.draftReceiptPaths && expense.draftReceiptPaths.length > 1) {
+      setDraftReceiptZoom(1);
       setDraftReceiptGallery({
         open: true,
         urls: expense.draftReceiptPaths.map((path) => resolveReceiptUrl(path)).filter(Boolean),
@@ -2724,15 +2732,55 @@ export default function ExpenseClaims() {
         onOpenChange={(open) => {
           if (!open) {
             setDraftReceiptGallery({ open: false, urls: [] });
+            setDraftReceiptZoom(1);
           }
         }}
       >
         <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">Draft Attachments</DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {draftReceiptGallery.urls.length} saved bill(s) in this draft
-            </DialogDescription>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <DialogDescription className="text-xs sm:text-sm">
+                {draftReceiptGallery.urls.length} saved bill(s) in this draft
+              </DialogDescription>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => adjustDraftReceiptZoom(-0.25)}
+                  disabled={draftReceiptZoom <= 0.5}
+                  title="Zoom out"
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="w-14 text-center text-xs font-medium tabular-nums">
+                  {Math.round(draftReceiptZoom * 100)}%
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => adjustDraftReceiptZoom(0.25)}
+                  disabled={draftReceiptZoom >= 3}
+                  title="Zoom in"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setDraftReceiptZoom(1)}
+                  disabled={draftReceiptZoom === 1}
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -2754,9 +2802,27 @@ export default function ExpenseClaims() {
                   </div>
 
                   {previewType === "image" ? (
-                    <img src={url} alt={`Draft bill ${index + 1}`} className="max-h-[60vh] w-auto mx-auto rounded border" />
+                    <div className="max-h-[65vh] overflow-auto rounded border bg-slate-50 p-2">
+                      <img
+                        src={url}
+                        alt={`Draft bill ${index + 1}`}
+                        className="mx-auto h-auto max-w-none rounded"
+                        style={{ width: `${draftReceiptZoom * 100}%` }}
+                      />
+                    </div>
                   ) : previewType === "pdf" ? (
-                    <iframe title={`Draft bill ${index + 1}`} src={url} className="w-full h-[60vh] rounded border" />
+                    <div className="max-h-[65vh] overflow-auto rounded border bg-slate-50">
+                      <iframe
+                        title={`Draft bill ${index + 1}`}
+                        src={url}
+                        className="rounded border-0"
+                        style={{
+                          width: `${draftReceiptZoom * 100}%`,
+                          height: `${60 * draftReceiptZoom}vh`,
+                          minHeight: "60vh",
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">Preview not available for this file type.</p>

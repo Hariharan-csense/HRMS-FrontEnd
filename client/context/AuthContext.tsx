@@ -17,6 +17,15 @@ import {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SOFT_LOGOUT_PROMPT_KEY = "auth:showWelcomeBack";
+const AUTH_SESSION_KEY = "auth:session";
+
+type RememberedAuthSession = {
+  accessToken?: string;
+  refreshToken?: string;
+  user?: User;
+  rememberMe?: boolean;
+  savedAt?: string;
+};
 
 const setReadableAuthCookie = (
   name: string,
@@ -40,7 +49,59 @@ const clearDebugCookies = () => {
 };
 
 const getStoredRefreshToken = () =>
-  localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken");
+  localStorage.getItem("refreshToken") ||
+  getRememberedAuthSession()?.refreshToken ||
+  sessionStorage.getItem("refreshToken");
+
+const getRememberedAuthSession = (): RememberedAuthSession | null => {
+  try {
+    const savedSession = localStorage.getItem(AUTH_SESSION_KEY);
+    return savedSession ? JSON.parse(savedSession) : null;
+  } catch (error) {
+    console.error("Failed to read remembered auth session", error);
+    return null;
+  }
+};
+
+const saveRememberedAuthSession = (session: RememberedAuthSession) => {
+  localStorage.setItem(
+    AUTH_SESSION_KEY,
+    JSON.stringify({
+      ...getRememberedAuthSession(),
+      ...session,
+      savedAt: new Date().toISOString(),
+    })
+  );
+};
+
+const clearRememberedAuthSession = () => {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+};
+
+const isRefreshFailureDefinitelyInvalid = (error: any) => {
+  const status = error?.response?.status;
+  const message = String(error?.response?.data?.message || "")
+    .toLowerCase()
+    .trim();
+
+  if (status === 400 && message.includes("refresh token is required")) {
+    return true;
+  }
+
+  if (status !== 401) {
+    return false;
+  }
+
+  return (
+    message.includes("refresh token expired") ||
+    message.includes("invalid refresh token") ||
+    message.includes("invalid token type") ||
+    message.includes("invalid user type") ||
+    message.includes("user not found") ||
+    message.includes("admin user not found") ||
+    message.includes("employee not found")
+  );
+};
 
 const decodeJwtPayload = (token: string) => {
   try {
@@ -130,8 +191,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("userRole", "employee");
     }
 
-    if (options?.rememberMe) {
+    const shouldRememberSession =
+      options?.rememberMe || localStorage.getItem("rememberMe") === "true";
+
+    if (shouldRememberSession) {
       profileManager.saveProfile(resolvedUser, true);
+      saveRememberedAuthSession({
+        accessToken: localStorage.getItem("accessToken") || undefined,
+        refreshToken: getStoredRefreshToken() || undefined,
+        user: resolvedUser,
+        rememberMe: true,
+      });
+    } else {
+      clearRememberedAuthSession();
     }
 
     sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
@@ -142,11 +214,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     success: boolean;
     message?: string;
   }> => {
-    const storedRefreshToken = getStoredRefreshToken();
-    if (!storedRefreshToken) {
-      return { success: false, message: "No saved session found." };
-    }
-
     setIsLoading(true);
     try {
       const newAccessToken = await refreshAccessToken();
@@ -200,12 +267,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return { success: true };
     } catch (error: any) {
       console.error("Auto login failed:", error);
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("refreshToken");
-      sessionStorage.removeItem("refreshToken");
-      sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
+
+      if (isRefreshFailureDefinitelyInvalid(error)) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("user");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
+        clearRememberedAuthSession();
+      }
+
       return {
         success: false,
         message:
@@ -223,6 +295,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const storedUser = localStorage.getItem("user");
         const accessToken = localStorage.getItem("accessToken");
+        const rememberedSession = getRememberedAuthSession();
         const shouldShowWelcomeBack =
           sessionStorage.getItem(SOFT_LOGOUT_PROMPT_KEY) === "true";
 
@@ -233,7 +306,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        if (!shouldShowWelcomeBack && getStoredRefreshToken()) {
+        if (
+          rememberedSession?.rememberMe &&
+          rememberedSession?.user &&
+          rememberedSession?.accessToken
+        ) {
+          localStorage.setItem("user", JSON.stringify(rememberedSession.user));
+          localStorage.setItem("accessToken", rememberedSession.accessToken);
+
+          if (rememberedSession.refreshToken) {
+            localStorage.setItem("refreshToken", rememberedSession.refreshToken);
+            sessionStorage.removeItem("refreshToken");
+          }
+
+          setUser(normalizeUserAvatar(rememberedSession.user));
+          return;
+        }
+
+        if (!shouldShowWelcomeBack) {
           await autoLogin();
         }
       } catch (error) {
@@ -350,11 +440,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setReadableAuthCookie("accessToken", accessToken, 30 * 60);
 
       if (responseData.refreshToken) {
-        if (rememberMe) {
-          localStorage.setItem("refreshToken", responseData.refreshToken);
-        } else {
-          sessionStorage.setItem("refreshToken", responseData.refreshToken);
-        }
+        localStorage.setItem("refreshToken", responseData.refreshToken);
+        sessionStorage.removeItem("refreshToken");
         setReadableAuthCookie(
           "refreshToken",
           responseData.refreshToken,
@@ -404,7 +491,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${normalizedEmail}`,
       };
 
-      await finalizeUserSession(normalizeUserAvatar(userData) as User, { rememberMe });
+      const resolvedUser = await finalizeUserSession(
+        normalizeUserAvatar(userData) as User,
+        { rememberMe }
+      );
+
+      if (rememberMe) {
+        saveRememberedAuthSession({
+          accessToken,
+          refreshToken:
+            responseData.refreshToken || getStoredRefreshToken() || undefined,
+          user: resolvedUser,
+          rememberMe: true,
+        });
+      } else {
+        clearRememberedAuthSession();
+      }
 
       return { success: true };
     } catch (error: any) {
@@ -422,8 +524,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = async (
-    soft: boolean = true
+    soft: boolean = false
   ): Promise<{ success: boolean; message: string }> => {
+    const hasRememberedIdentity =
+      localStorage.getItem("rememberMe") === "true" ||
+      profileManager.hasSavedCredentials() ||
+      profileManager.hasSavedProfile();
     const preserveRefreshToken =
       soft && localStorage.getItem("rememberMe") === "true";
 
@@ -441,7 +547,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         sessionStorage.removeItem("refreshToken");
         localStorage.removeItem("rememberMe");
         sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
-        profileManager.clearAll();
+        clearRememberedAuthSession();
+        if (!hasRememberedIdentity) {
+          profileManager.clearAll();
+        }
       }
 
       Object.keys(localStorage).forEach((key) => {

@@ -5,8 +5,8 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.2:3000/backend";
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.9:3000/backend";
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -83,26 +83,53 @@ const clearAuthStorage = () => {
   localStorage.removeItem("userRole");
 
   localStorage.removeItem("rememberMe");
+
+  localStorage.removeItem("auth:session");
+};
+
+const getRememberedRefreshToken = () => {
+  try {
+    const savedSession = localStorage.getItem("auth:session");
+    if (!savedSession) return null;
+
+    return JSON.parse(savedSession)?.refreshToken || null;
+  } catch {
+    return null;
+  }
 };
 
 const getStoredRefreshToken = () =>
   localStorage.getItem("refreshToken") ||
+  getRememberedRefreshToken() ||
   sessionStorage.getItem("refreshToken");
 
 const persistRefreshToken = (refreshToken: string) => {
-  const rememberMe = localStorage.getItem("rememberMe") === "true";
+  localStorage.setItem("refreshToken", refreshToken);
 
-  if (rememberMe) {
-    localStorage.setItem("refreshToken", refreshToken);
+  sessionStorage.removeItem("refreshToken");
 
-    sessionStorage.removeItem("refreshToken");
+  try {
+    const savedSession = JSON.parse(
+      localStorage.getItem("auth:session") || "{}",
+    );
 
-    return;
+    localStorage.setItem(
+      "auth:session",
+      JSON.stringify({
+        ...savedSession,
+        refreshToken,
+        savedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    localStorage.setItem(
+      "auth:session",
+      JSON.stringify({
+        refreshToken,
+        savedAt: new Date().toISOString(),
+      }),
+    );
   }
-
-  sessionStorage.setItem("refreshToken", refreshToken);
-
-  localStorage.removeItem("refreshToken");
 };
 
 const setReadableAuthCookie = (

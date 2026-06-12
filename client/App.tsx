@@ -151,7 +151,8 @@ const RootRoute = () => {
 
 // Public Routes Handler
 const PublicRoute = ({ element }: { element: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -164,7 +165,22 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
     );
   }
 
-  // Don't redirect authenticated users from public routes - let them access if needed
+  if (
+    isAuthenticated &&
+    (location.pathname === "/" || location.pathname === "/login")
+  ) {
+    const isSuperAdmin =
+      user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
+      user?.role?.toLowerCase() === "superadmin";
+
+    return (
+      <Navigate
+        to={isSuperAdmin ? "/superadmin-dashboard" : "/dashboard"}
+        replace
+      />
+    );
+  }
+
   return <>{element}</>;
 };
 
