@@ -40,7 +40,10 @@ interface LeaveApplication {
   createdAt: string;
 }
 
-const getLeaveDurationLabel = (days: number, halfDaySession?: string | null) => {
+const getLeaveDurationLabel = (
+  days: number,
+  halfDaySession?: string | null,
+) => {
   if (Number(days) === 0.5) {
     return halfDaySession === "second_half"
       ? "0.5 (Second Half)"
@@ -56,7 +59,7 @@ const getLeaveApplications = async (): Promise<{
   try {
     const response = await ENDPOINTS.getleaveapplications();
 
-    console.log("Leave Applications Response:", response);
+    // console.log("Leave Applications Response:", response);
 
     let rawData: any[] = [];
     if (response.data?.success && Array.isArray(response.data?.applications)) {
@@ -133,13 +136,14 @@ const updateLeaveApplicationStatus = async (
       comments,
     });
 
-    console.log("Update Leave Status Response:", response);
+    // console.log("Update Leave Status Response:", response);
 
     if (response.data?.message || response.data?.success) {
       return { success: true };
     }
     return {
-      error: response.data?.message || "Failed to update leave application status",
+      error:
+        response.data?.message || "Failed to update leave application status",
     };
   } catch (error: any) {
     console.error("Error updating leave application status:", error);
@@ -191,25 +195,32 @@ export default function LeaveApprovals() {
 
   const filterByViewer = (applications: LeaveApplication[]) => {
     if (hasRole(user, "manager") && !hasRole(user, "hr")) {
-      return applications.filter((la) => la.reportingManagerName === user?.name);
+      return applications.filter(
+        (la) => la.reportingManagerName === user?.name,
+      );
     }
     return applications;
   };
 
   const pendingApplications = useMemo(
-    () => filterByViewer(leaveApplications.filter((la) => la.status === "applied")),
+    () =>
+      filterByViewer(leaveApplications.filter((la) => la.status === "applied")),
     [leaveApplications, user],
   );
 
   const approvedApplications = useMemo(
     () =>
-      filterByViewer(leaveApplications.filter((la) => la.status === "approved")),
+      filterByViewer(
+        leaveApplications.filter((la) => la.status === "approved"),
+      ),
     [leaveApplications, user],
   );
 
   const rejectedApplications = useMemo(
     () =>
-      filterByViewer(leaveApplications.filter((la) => la.status === "rejected")),
+      filterByViewer(
+        leaveApplications.filter((la) => la.status === "rejected"),
+      ),
     [leaveApplications, user],
   );
 
@@ -220,7 +231,9 @@ export default function LeaveApprovals() {
 
     setLeaveApplications((prev) =>
       prev.map((la) =>
-        la.id === id ? { ...la, status: approved ? "approved" : "rejected" } : la,
+        la.id === id
+          ? { ...la, status: approved ? "approved" : "rejected" }
+          : la,
       ),
     );
 
@@ -374,7 +387,8 @@ export default function LeaveApprovals() {
           <PageHeader />
           <Card className="rounded-2xl">
             <CardContent className="p-10 text-center text-muted-foreground">
-              You don't have permission to access this page based on current role permissions.
+              You don't have permission to access this page based on current
+              role permissions.
             </CardContent>
           </Card>
         </div>
@@ -399,7 +413,9 @@ export default function LeaveApprovals() {
                     <p className="text-sm font-semibold text-slate-600">
                       {card.label}
                     </p>
-                    <p className={`mt-2 text-4xl font-black ${card.valueClass}`}>
+                    <p
+                      className={`mt-2 text-4xl font-black ${card.valueClass}`}
+                    >
                       {card.value}
                     </p>
                   </div>
@@ -420,7 +436,9 @@ export default function LeaveApprovals() {
               <Clock className="h-5 w-5 text-amber-700" />
               Pending Approvals ({pendingApplications.length})
             </CardTitle>
-            <CardDescription>Requests waiting for approval or rejection</CardDescription>
+            <CardDescription>
+              Requests waiting for approval or rejection
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-5">
             {pendingApplications.length === 0 ? (
@@ -470,7 +488,10 @@ export default function LeaveApprovals() {
                               Number of Days
                             </Label>
                             <p className="mt-1 text-xl font-black text-[#0d8f6b]">
-                              {getLeaveDurationLabel(la.days, la.halfDaySession)}
+                              {getLeaveDurationLabel(
+                                la.days,
+                                la.halfDaySession,
+                              )}
                             </p>
                           </div>
                           <div className="rounded-xl bg-slate-50 p-3">

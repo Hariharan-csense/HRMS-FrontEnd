@@ -9,7 +9,6 @@ export interface Employee {
   employeeId?: string;
 }
 
-
 export const employeeApi = {
   // Get all employees
   // getEmployees: async (): Promise<{ data?: any[]; error?: string }> => {
@@ -22,12 +21,9 @@ export const employeeApi = {
   //   }
   // },
 
-
-
- 
-  getEmployees: async (
-    options?: { includeAttendanceLocations?: boolean },
-  ): Promise<{ data?: any[]; error?: string }> => {
+  getEmployees: async (options?: {
+    includeAttendanceLocations?: boolean;
+  }): Promise<{ data?: any[]; error?: string }> => {
     try {
       const response = await ENDPOINTS.getEmployee();
       /*
@@ -47,17 +43,20 @@ export const employeeApi = {
       }
 
       // Map employees to ensure proper name field
-      const mappedEmployees = employees.map(emp => ({
+      const mappedEmployees = employees.map((emp) => ({
         ...emp,
-        name: emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
+        name:
+          emp.name ||
+          `${emp.first_name || ""} ${emp.last_name || ""}`.trim() ||
+          `Employee ${emp.id}`,
         firstName: emp.first_name,
         lastName: emp.last_name,
-        employeeId: emp.employee_id
+        employeeId: emp.employee_id,
       }));
 
       if (options?.includeAttendanceLocations) {
         // Live tracking fetches locations separately; keep employee load fast by default.
-        const employeesWithoutLocation = mappedEmployees.map(employee => ({
+        const employeesWithoutLocation = mappedEmployees.map((employee) => ({
           ...employee,
           latitude: null,
           longitude: null,
@@ -65,14 +64,13 @@ export const employeeApi = {
           address: null,
           locationTimestamp: null,
           isTracking: false,
-          trackingStatus: 'offline',
-          deviceInfo: null
+          trackingStatus: "offline",
+          deviceInfo: null,
         }));
         return { data: employeesWithoutLocation };
       }
 
       return { data: mappedEmployees };
-
     } catch (error: any) {
       console.error("Error fetching employees:", error);
 
@@ -86,110 +84,143 @@ export const employeeApi = {
     }
   },
 
-
   // Create an employee
-// Create an employee - FIXED
-createEmployee: async (employeeData: any): Promise<{ data?: any; error?: string }> => {
-  try {
-    const isFormData = employeeData instanceof FormData;
+  // Create an employee - FIXED
+  createEmployee: async (
+    employeeData: any,
+  ): Promise<{ data?: any; error?: string }> => {
+    try {
+      const isFormData = employeeData instanceof FormData;
 
-    const config = isFormData
-      ? {}  // ← Header set பண்ண வேண்டாம்!
-      : {};
+      const config = isFormData
+        ? {} // ← Header set பண்ண வேண்டாம்!
+        : {};
 
-    const response = await ENDPOINTS.createEmployee(employeeData, config);
+      const response = await ENDPOINTS.createEmployee(employeeData, config);
 
-    return { data: response.data };
-  } catch (error: any) {
-    console.error("Error creating employee:", error);
-    return {
-      error: error.response?.data?.message || error.message || "Failed to create employee",
-    };
-  }
-},
-checkEmployeeDuplicate: async (
-  field: string,
-  value: string,
-  excludeEmployeeId?: string | null
-): Promise<{ exists?: boolean; message?: string | null; error?: string }> => {
-  try {
-    const response = await ENDPOINTS.checkEmployeeDuplicate({
-      field,
-      value,
-      excludeEmployeeId: excludeEmployeeId || undefined,
-    });
+      return { data: response.data };
+    } catch (error: any) {
+      console.error("Error creating employee:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to create employee",
+      };
+    }
+  },
+  checkEmployeeDuplicate: async (
+    field: string,
+    value: string,
+    excludeEmployeeId?: string | null,
+  ): Promise<{ exists?: boolean; message?: string | null; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.checkEmployeeDuplicate({
+        field,
+        value,
+        excludeEmployeeId: excludeEmployeeId || undefined,
+      });
 
-    return {
-      exists: Boolean(response.data?.exists),
-      message: response.data?.message || null,
-    };
-  } catch (error: any) {
-    console.error("Error checking employee duplicate:", error);
-    return {
-      error:
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to check duplicate employee data",
-    };
-  }
-},
+      return {
+        exists: Boolean(response.data?.exists),
+        message: response.data?.message || null,
+      };
+    } catch (error: any) {
+      console.error("Error checking employee duplicate:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to check duplicate employee data",
+      };
+    }
+  },
   // Update an employee
- // Update an employee
-updateEmployee: async (id: string, employeeData: any): Promise<{ data?: any; error?: string }> => {
-  try {
-    // Detect if employeeData is FormData (for file uploads)
-    const isFormData = employeeData instanceof FormData;
+  // Update an employee
+  updateEmployee: async (
+    id: string,
+    employeeData: any,
+  ): Promise<{ data?: any; error?: string }> => {
+    try {
+      // Detect if employeeData is FormData (for file uploads)
+      const isFormData = employeeData instanceof FormData;
 
-    const config = isFormData
-      ? {}  // ← மிக முக்கியம்! Header set பண்ணக் கூடாது!
-      : {};
+      const config = isFormData
+        ? {} // ← மிக முக்கியம்! Header set பண்ணக் கூடாது!
+        : {};
 
-    const response = await ENDPOINTS.updateEmployee(id, employeeData, config);
+      const response = await ENDPOINTS.updateEmployee(id, employeeData, config);
 
-    return { data: response.data };
-  } catch (error: any) {
-    console.error("Error updating employee:", error);
-    return { 
-      error: error.response?.data?.message || "Failed to update employee" 
-    };
-  }
-},
+      return { data: response.data };
+    } catch (error: any) {
+      console.error("Error updating employee:", error);
+      return {
+        error: error.response?.data?.message || "Failed to update employee",
+      };
+    }
+  },
 
   // Delete an employee
-  deleteEmployee: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  deleteEmployee: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteEmployee(id);
-      if (response.status === 200 || response.status === 204 || response.data?.success) {
+      if (
+        response.status === 200 ||
+        response.status === 204 ||
+        response.data?.success
+      ) {
         return { success: true };
       }
       return { error: "Unexpected response from server" };
     } catch (error: any) {
       console.error("Error deleting employee:", error);
-      return { error: error.response?.data?.message || error.message || "Failed to delete employee" };
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to delete employee",
+      };
     }
   },
 
-   // Assume ENDPOINTS has getDepartments and getDesignations methods
-getDepartments: async (): Promise<{ data?: { id: string; name: string }[]; error?: string }> => {
-  try {
-    const response = await ENDPOINTS.getdepartment();
-    return { data: response.data || [] };
-  } catch (error: any) {
-    console.error("Error fetching departments:", error);
-    return { error: error.response?.data?.message || error.message || "Failed to load departments" };
-  }
-},
+  // Assume ENDPOINTS has getDepartments and getDesignations methods
+  getDepartments: async (): Promise<{
+    data?: { id: string; name: string }[];
+    error?: string;
+  }> => {
+    try {
+      const response = await ENDPOINTS.getdepartment();
+      return { data: response.data || [] };
+    } catch (error: any) {
+      console.error("Error fetching departments:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to load departments",
+      };
+    }
+  },
 
-getDesignations: async (): Promise<{ data?: { id: string; name: string }[]; error?: string }> => {
-  try {
-    const response = await ENDPOINTS.getDesignation();
-    return { data: response.data || [] };
-  } catch (error: any) {
-    console.error("Error fetching designations:", error);
-    return { error: error.response?.data?.message || error.message || "Failed to load designations" };
-  }
-},
-
+  getDesignations: async (): Promise<{
+    data?: { id: string; name: string }[];
+    error?: string;
+  }> => {
+    try {
+      const response = await ENDPOINTS.getDesignation();
+      return { data: response.data || [] };
+    } catch (error: any) {
+      console.error("Error fetching designations:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to load designations",
+      };
+    }
+  },
 };
 
 export default employeeApi;

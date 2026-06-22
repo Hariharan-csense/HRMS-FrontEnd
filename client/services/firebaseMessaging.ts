@@ -23,14 +23,15 @@ const vapidKey = String(import.meta.env.VITE_FIREBASE_VAPID_KEY || "").trim();
 const hasFirebaseConfig = () =>
   Boolean(
     firebaseConfig.apiKey &&
-      firebaseConfig.projectId &&
-      firebaseConfig.messagingSenderId &&
-      firebaseConfig.appId &&
-      vapidKey,
+    firebaseConfig.projectId &&
+    firebaseConfig.messagingSenderId &&
+    firebaseConfig.appId &&
+    vapidKey,
   );
 
 let registrationPromise: Promise<string | null> | null = null;
 let foregroundListenerAttached = false;
+let webPushDisabled = false;
 
 const parsePayloadData = (payload: MessagePayload): Record<string, string> => {
   const raw = payload.data || {};
@@ -39,16 +40,16 @@ const parsePayloadData = (payload: MessagePayload): Record<string, string> => {
   );
 };
 
-const attachForegroundListener = (messaging: ReturnType<typeof getMessaging>) => {
+const attachForegroundListener = (
+  messaging: ReturnType<typeof getMessaging>,
+) => {
   if (foregroundListenerAttached) return;
   foregroundListenerAttached = true;
 
   onMessage(messaging, (payload: MessagePayload) => {
     const data = parsePayloadData(payload);
-    const title =
-      payload.notification?.title || data.title || "HRMS";
-    const body =
-      payload.notification?.body || data.body || "";
+    const title = payload.notification?.title || data.title || "HRMS";
+    const body = payload.notification?.body || data.body || "";
     void showBrowserNotification(title, body, data);
   });
 };
@@ -96,9 +97,19 @@ export const registerWebPushNotifications = async (force = false) => {
   if (registrationPromise && !force) return registrationPromise;
 
   registrationPromise = (async () => {
-    if (typeof window === "undefined" || !("Notification" in window)) return null;
+    if (typeof window === "undefined" || !("Notification" in window))
+      return null;
     if (!hasFirebaseConfig()) {
-      console.warn("Firebase web push config is missing. FCM token not registered.");
+      console.warn(
+        "Firebase web push config is missing. FCM token not registered.",
+      );
+      return null;
+    }
+
+    if (webPushDisabled) {
+      console.info(
+        "Web push registration skipped because Firebase push is disabled for this session.",
+      );
       return null;
     }
 
@@ -118,10 +129,27 @@ export const registerWebPushNotifications = async (force = false) => {
     const serviceWorkerRegistration = await getServiceWorkerRegistration();
     if (!serviceWorkerRegistration) return null;
 
-    const token = await getToken(messaging, {
-      vapidKey,
-      serviceWorkerRegistration,
-    });
+    let token: string | null = null;
+    try {
+      token = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration,
+      });
+    } catch (error: any) {
+      const message = String(error?.message || "").toLowerCase();
+      if (
+        message.includes("permission_denied") ||
+        message.includes("api_key") ||
+        message.includes("installations")
+      ) {
+        webPushDisabled = true;
+      }
+      console.warn(
+        "FCM getToken failed. Web push registration is disabled:",
+        error,
+      );
+      return null;
+    }
 
     if (!token) {
       console.warn(

@@ -1,13 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import {
-  GoogleMap,
-  Marker,
-  InfoWindow,
-  Polyline,
-  Circle,
-  OverlayView,
-  useJsApiLoader,
-} from "@react-google-maps/api";
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -52,12 +43,13 @@ import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi from "@/components/helper/branch/branch";
 import { useRole } from "@/context/RoleContext";
 import { useAuth } from "@/context/AuthContext";
-import {
-  GOOGLE_MAPS_API_KEY,
-  GOOGLE_MAPS_LOADER_OPTIONS,
-} from "@/lib/googleMaps";
 import { useRealtimeTracking } from "@/hooks/useRealtimeTracking";
 import ENDPOINTS from "@/lib/endpoint";
+import KeylessMap, {
+  KeylessMapCircle,
+  KeylessMapMarker,
+  KeylessMapPath,
+} from "@/components/KeylessMap";
 
 const toFiniteNumber = (value: unknown): number | null => {
   const num = typeof value === "string" ? Number(value) : (value as number);
@@ -523,71 +515,16 @@ const normalizeLiveState = (
   return "offline" as const;
 };
 
-// Helper to create employee marker icon with initials badge and animation
-const createEmployeeMarkerIcon = (
-  firstName: string | undefined,
-  lastName: string | undefined,
-  isCheckedIn: boolean,
-) => {
-  const statusColor = isCheckedIn ? "#10b981" : "#ef4444";
-  const first = (firstName || "?").charAt(0).toUpperCase();
-  const last = (lastName || "?").charAt(0).toUpperCase();
-  const initials = `${first}${last}`;
-  const pulseColor = isCheckedIn
-    ? "rgba(16, 185, 129, 0.3)"
-    : "rgba(239, 68, 68, 0.3)";
-
-  const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
-      <defs>
-        <style>
-          @keyframes pulse {
-            0% { r: 30; opacity: 0.6; }
-            50% { r: 35; opacity: 0.3; }
-            100% { r: 30; opacity: 0.6; }
-          }
-          .pulse-circle {
-            animation: pulse 2s ease-in-out infinite;
-          }
-        </style>
-      </defs>
-      <circle class="pulse-circle" cx="40" cy="40" r="30" fill="${pulseColor}"/>
-      <circle cx="40" cy="40" r="28" fill="white" stroke="${statusColor}" stroke-width="3"/>
-      <circle cx="40" cy="40" r="26" fill="${statusColor}" opacity="0.1"/>
-      <text x="40" y="46" font-size="20" font-weight="bold" text-anchor="middle" fill="${statusColor}">${initials}</text>
-      <circle cx="60" cy="60" r="10" fill="${statusColor}" stroke="white" stroke-width="2"/>
-      ${isCheckedIn ? '<circle cx="60" cy="60" r="14" fill="none" stroke="#10b981" stroke-width="2" opacity="0.5"/>' : ""}
-    </svg>
-  `;
-
-  return {
-    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`,
-    scaledSize: { width: 80, height: 80 },
-    anchor: { x: 40, y: 40 },
-  };
-};
-
-const createNavigationPuckIcon = (isSelected: boolean) => ({
-  path: google.maps.SymbolPath.CIRCLE,
-  scale: isSelected ? 9 : 7,
-  fillColor: isSelected ? "#1d4ed8" : "#2563eb",
-  fillOpacity: 1,
-  strokeColor: "#ffffff",
-  strokeWeight: isSelected ? 4 : 3,
-});
-
 export default function LiveTracking() {
   const { hasModuleAccess } = useRole();
   const { user } = useAuth();
-  const { isLoaded: isMapLoaded, loadError } = useJsApiLoader(
-    GOOGLE_MAPS_LOADER_OPTIONS,
-  );
   const [searchTerm, setSearchTerm] = useState("");
   const [showAll, setShowAll] = useState(true);
+  const [mapStyle, setMapStyle] = useState<
+    "roadmap" | "satellite" | "hybrid" | "terrain"
+  >("roadmap");
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
-  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [hoveredMarker, setHoveredMarker] = useState<string | null>(null);
-  const [mapInstance, setMapInstance] = useState<any>(null);
   const [isAnimating, setIsAnimating] = useState(true);
   const [employees, setEmployees] = useState<any[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
@@ -602,15 +539,6 @@ export default function LiveTracking() {
     useState<RouteHistorySummary | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [officeLocations, setOfficeLocations] = useState<OfficeLocation[]>([]);
-  const [mapLoadError, setMapLoadError] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("google_maps_blocked") === "1"
-      ? "GOOGLE_MAP_BLOCKED"
-      : null;
-  });
-  const [mapStyle, setMapStyle] = useState<
-    "roadmap" | "satellite" | "hybrid" | "terrain"
-  >("roadmap");
   const [visitedLocations, setVisitedLocations] = useState<StopSegment[]>([]);
   const [visitDateRange, setVisitDateRange] = useState<
     "today" | "week" | "month" | "all"
@@ -647,6 +575,20 @@ export default function LiveTracking() {
   const [filterEmployeeId, setFilterEmployeeId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [mapInstance, setMapInstance] = useState<any>(null);
+
+  const mapOptions = useMemo(
+    () => ({
+      mapTypeId: mapStyle,
+      fullscreenControl: false,
+      streetViewControl: false,
+      mapTypeControl: false,
+      scaleControl: true,
+      clickableIcons: false,
+    }),
+    [mapStyle],
+  );
 
   const canViewTracking =
     hasModuleAccess("live_tracking") || hasModuleAccess("attendance");
@@ -756,25 +698,6 @@ export default function LiveTracking() {
     document.body.removeChild(link);
     toast.success("CSV exported successfully!");
   };
-  const shouldUseFallbackMap =
-    !GOOGLE_MAPS_API_KEY ||
-    mapLoadError === "GOOGLE_MAP_BLOCKED" ||
-    Boolean(loadError);
-
-  useEffect(() => {
-    if (!GOOGLE_MAPS_API_KEY) {
-      setMapLoadError("GOOGLE_MAP_BLOCKED");
-      return;
-    }
-
-    if (loadError) {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("google_maps_blocked", "1");
-      }
-      setMapLoadError("GOOGLE_MAP_BLOCKED");
-    }
-  }, [loadError]);
-
   useEffect(() => {
     if (!canViewTracking) return;
 
@@ -1076,6 +999,21 @@ export default function LiveTracking() {
     attendanceLogs,
   ]);
 
+  const googleMapsApiKey = String(
+    import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+  ).trim();
+  const fallbackMapUrl = useMemo(() => {
+    const firstLocation = filteredEmployees.find(
+      (emp) => emp.currentLocation,
+    )?.currentLocation;
+    if (!firstLocation) {
+      return "https://www.openstreetmap.org";
+    }
+    const { latitude, longitude } = firstLocation;
+    const zoom = 12;
+    return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
+  }, [filteredEmployees]);
+
   const exportRows = useMemo(() => {
     return filteredEmployees.map((emp) => {
       const attendanceEmployeeId = emp.dbEmployeeId ?? emp.id;
@@ -1123,16 +1061,252 @@ export default function LiveTracking() {
       : { lat: 13.0827, lng: 80.2707 };
   }, [filteredEmployees, canViewTracking]);
 
-  const fallbackMapUrl = useMemo(() => {
-    const lat = mapCenter.lat;
-    const lng = mapCenter.lng;
-    const delta = 0.08;
-    const left = lng - delta;
-    const right = lng + delta;
-    const top = lat + delta;
-    const bottom = lat - delta;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik`;
-  }, [mapCenter]);
+  const keylessMapPaths = useMemo<KeylessMapPath[]>(() => {
+    const paths: KeylessMapPath[] = [];
+
+    Object.entries(travelPaths).forEach(([empId, pathPoints]) => {
+      if (pathPoints.length < 2) return;
+      if (selectedEmployee && String(selectedEmployee) === String(empId))
+        return;
+      paths.push({
+        id: `path-${empId}`,
+        points: pathPoints.slice(-100),
+        color: "#64748b",
+        opacity: 0.45,
+        width: 3,
+      });
+    });
+
+    if (selectedRoutePoints.length >= 2) {
+      paths.push({
+        id: "selected-route",
+        points: selectedRoutePoints.map((point) => ({
+          lat: point.latitude,
+          lng: point.longitude,
+        })),
+        color: "#4f46e5",
+        opacity: 1,
+        width: 6,
+      });
+    }
+
+    if (
+      hoveredMarker &&
+      hoverTravelPath &&
+      hoverTravelPath.empId === hoveredMarker &&
+      hoverTravelPath.path.length >= 2
+    ) {
+      paths.push({
+        id: "hover-route",
+        points: hoverTravelPath.path,
+        color: "#f59e0b",
+        opacity: 0.8,
+        width: 3,
+      });
+    }
+
+    return paths;
+  }, [
+    hoverTravelPath,
+    hoveredMarker,
+    selectedEmployee,
+    selectedRoutePoints,
+    travelPaths,
+  ]);
+
+  const keylessMapCircles = useMemo<KeylessMapCircle[]>(() => {
+    const circles: KeylessMapCircle[] = [];
+
+    filteredEmployees.forEach((emp) => {
+      if (!emp.currentLocation) return;
+      const lat = toFiniteNumber(emp.currentLocation.latitude);
+      const lng = toFiniteNumber(emp.currentLocation.longitude);
+      if (!isValidLatLng(lat, lng)) return;
+
+      const isCheckedIn = emp.trackingStatus === "checked-in";
+      circles.push({
+        id: `accuracy-${emp.id}`,
+        center: { lat, lng },
+        radiusMeters: Math.max(
+          1,
+          toFiniteNumber(emp.currentLocation.accuracy) ?? 10,
+        ),
+        color: isCheckedIn ? "#10b981" : "#ef4444",
+        fillOpacity: 0.12,
+        strokeOpacity: 0.45,
+      });
+    });
+
+    officeLocations.forEach((office) => {
+      const radius = toFiniteNumber((office as any).radius);
+      if (!radius) return;
+      circles.push({
+        id: `office-radius-${office.id}`,
+        center: { lat: office.latitude, lng: office.longitude },
+        radiusMeters: radius,
+        color: "#0ea5e9",
+        fillOpacity: 0.08,
+        strokeOpacity: 0.45,
+      });
+    });
+
+    return circles;
+  }, [filteredEmployees, officeLocations]);
+
+  const keylessMapMarkers = useMemo<KeylessMapMarker[]>(() => {
+    const markers: KeylessMapMarker[] = [];
+
+    officeLocations.forEach((office) => {
+      markers.push({
+        id: `office-${office.id}`,
+        position: { lat: office.latitude, lng: office.longitude },
+        label: "Office",
+        title: office.name,
+        color: "#0ea5e9",
+        size: 42,
+        popup: (
+          <div className="space-y-1">
+            <div className="font-semibold text-slate-900">{office.name}</div>
+            <div className="text-slate-600">{office.address}</div>
+          </div>
+        ),
+      });
+    });
+
+    if (selectedRoutePoints[0]) {
+      markers.push({
+        id: "route-start",
+        position: {
+          lat: selectedRoutePoints[0].latitude,
+          lng: selectedRoutePoints[0].longitude,
+        },
+        label: "IN",
+        title: selectedRouteSummary?.startAddress || "Start location",
+        color: "#16a34a",
+        size: 36,
+      });
+    }
+
+    const lastRoutePoint = selectedRoutePoints[selectedRoutePoints.length - 1];
+    if (lastRoutePoint) {
+      markers.push({
+        id: "route-end",
+        position: {
+          lat: lastRoutePoint.latitude,
+          lng: lastRoutePoint.longitude,
+        },
+        label: selectedRouteSummary?.endedAt ? "OUT" : "NOW",
+        title: selectedRouteSummary?.endAddress || "Latest location",
+        color: selectedRouteSummary?.endedAt ? "#475569" : "#2563eb",
+        size: 36,
+      });
+    }
+
+    visitedLocations.forEach((visit, index) => {
+      markers.push({
+        id: `selected-stop-${index}`,
+        position: { lat: visit.latitude, lng: visit.longitude },
+        label: `${index + 1}`,
+        title: `${extractLocationName(visit.address)} - ${formatDuration(visit.durationMinutes)}`,
+        color: "#7c3aed",
+        size: 32,
+      });
+    });
+
+    if (
+      hoveredMarker &&
+      hoverStayMarkers &&
+      hoverStayMarkers.empId === hoveredMarker
+    ) {
+      hoverStayMarkers.markers.forEach((marker, index) => {
+        markers.push({
+          id: `stay-${hoverStayMarkers.empId}-${index}`,
+          position: { lat: marker.lat, lng: marker.lng },
+          title: `Stayed ${marker.duration} min: ${marker.address}`,
+          color: "#8b5cf6",
+          size: 30,
+        });
+      });
+    }
+
+    if (hoveredMarker) {
+      const empId = hoveredMarker.replace("emp-", "");
+      const emp = filteredEmployees.find((e) => String(e.id) === empId);
+      if (emp) {
+        const checkInLog = attendanceLogs.find(
+          (log) =>
+            (matchesEmployeeId(log.employee_id, emp.dbEmployeeId) ||
+              matchesEmployeeId(log.employeeId, emp.dbEmployeeId)) &&
+            (log.check_in || log.checkIn),
+        );
+        const checkInLoc = parseStoredLocation(checkInLog?.check_in_location);
+        if (
+          checkInLoc &&
+          isValidLatLng(checkInLoc.latitude, checkInLoc.longitude)
+        ) {
+          markers.push({
+            id: `checkin-${empId}`,
+            position: { lat: checkInLoc.latitude, lng: checkInLoc.longitude },
+            title: `Check-in: ${checkInLoc.address || formatCoordinateLabel(checkInLoc.latitude, checkInLoc.longitude)}`,
+            color: "#10b981",
+            size: 34,
+          });
+        }
+      }
+    }
+
+    filteredEmployees.forEach((emp) => {
+      if (!emp.currentLocation) return;
+      const empLat = toFiniteNumber(emp.currentLocation.latitude);
+      const empLng = toFiniteNumber(emp.currentLocation.longitude);
+      if (!isValidLatLng(empLat, empLng)) return;
+
+      const isCheckedIn = emp.trackingStatus === "checked-in";
+      const isSelectedEmployee =
+        String(selectedEmployee || "") === String(emp.id);
+      const initials =
+        `${String(emp.firstName || "?").charAt(0)}${String(emp.lastName || "?").charAt(0)}`.toUpperCase();
+
+      markers.push({
+        id: `emp-${emp.id}`,
+        position: { lat: empLat, lng: empLng },
+        label: initials,
+        title: `${emp.firstName} ${emp.lastName}`,
+        color: isCheckedIn ? "#10b981" : "#ef4444",
+        size: isSelectedEmployee ? 48 : 40,
+        pulse: isCheckedIn,
+        onClick: () => {
+          setSelectedEmployee(String(emp.id));
+          if (emp.dbEmployeeId) {
+            fetchEmployeeLocationHistory(emp.dbEmployeeId, `emp-${emp.id}`);
+          }
+        },
+        onMouseEnter: () => {
+          setHoveredMarker(`emp-${emp.id}`);
+          if (emp.dbEmployeeId) {
+            fetchEmployeeLocationHistory(emp.dbEmployeeId, `emp-${emp.id}`);
+          }
+        },
+        onMouseLeave: () => {
+          setHoveredMarker(null);
+          setHoverTravelPath(null);
+          setHoverStayMarkers(null);
+        },
+      });
+    });
+
+    return markers;
+  }, [
+    attendanceLogs,
+    filteredEmployees,
+    hoverStayMarkers,
+    hoveredMarker,
+    officeLocations,
+    selectedEmployee,
+    selectedRoutePoints,
+    selectedRouteSummary,
+    visitedLocations,
+  ]);
 
   useEffect(() => {
     if (!canViewTracking) return;
@@ -1181,7 +1355,6 @@ export default function LiveTracking() {
 
     if (firstActiveEmployee) {
       setSelectedEmployee(String(firstActiveEmployee.id));
-      setSelectedMarker(`emp-${firstActiveEmployee.id}`);
     }
   }, [trackedEmployees, selectedEmployee, canViewTracking]);
 
@@ -1284,80 +1457,6 @@ export default function LiveTracking() {
       }
     }
   }, [filterEmployeeId, filterDate, trackedEmployees]);
-
-  useEffect(() => {
-    if (!mapInstance || filteredEmployees.length === 0 || !canViewTracking)
-      return;
-    if (isAnimating) return;
-    if (selectedRoutePoints.length >= 2) return;
-
-    if (
-      typeof window === "undefined" ||
-      !window.google ||
-      !window.google.maps
-    ) {
-      return;
-    }
-
-    try {
-      const bounds = new window.google.maps.LatLngBounds();
-      filteredEmployees.forEach((emp) => {
-        if (emp.currentLocation) {
-          bounds.extend({
-            lat: emp.currentLocation.latitude,
-            lng: emp.currentLocation.longitude,
-          });
-        }
-      });
-
-      officeLocations.forEach((office) => {
-        bounds.extend({ lat: office.latitude, lng: office.longitude });
-      });
-
-      mapInstance.fitBounds(bounds, {
-        top: 50,
-        right: 50,
-        bottom: 50,
-        left: 50,
-      });
-    } catch (error) {
-      console.error("Error fitting map bounds:", error);
-    }
-  }, [
-    mapInstance,
-    filteredEmployees,
-    officeLocations,
-    canViewTracking,
-    isAnimating,
-  ]);
-
-  useEffect(() => {
-    if (!mapInstance || selectedRoutePoints.length < 2) return;
-    if (
-      typeof window === "undefined" ||
-      !window.google ||
-      !window.google.maps
-    ) {
-      return;
-    }
-
-    try {
-      const bounds = new window.google.maps.LatLngBounds();
-
-      selectedRoutePoints.forEach((point) => {
-        bounds.extend({ lat: point.latitude, lng: point.longitude });
-      });
-
-      mapInstance.fitBounds(bounds, {
-        top: 80,
-        right: 80,
-        bottom: 80,
-        left: 80,
-      });
-    } catch (error) {
-      console.error("Error fitting selected route bounds:", error);
-    }
-  }, [mapInstance, selectedRoutePoints]);
 
   // Fetch location history for hover tooltip - get all GPS points with addresses and travel path
   const fetchEmployeeLocationHistory = async (
@@ -2052,17 +2151,6 @@ export default function LiveTracking() {
     );
   };
 
-  const mapOptions = useMemo(() => {
-    if (!canViewTracking) return {};
-    return {
-      zoom: 12,
-      mapTypeControl: true,
-      mapTypeId: mapStyle,
-      streetViewControl: false,
-      fullscreenControl: true,
-    };
-  }, [canViewTracking, mapStyle]);
-
   const noTrackingAccessView = (
     <Layout>
       <div className="space-y-6">
@@ -2604,12 +2692,12 @@ export default function LiveTracking() {
                   No employees match your search criteria
                 </AlertDescription>
               </Alert>
-            ) : shouldUseFallbackMap ? (
+            ) : !googleMapsApiKey ? (
               <div className="space-y-4">
                 <Alert>
                   <AlertCircle className="w-4 h-4" />
                   <AlertDescription>
-                    {!GOOGLE_MAPS_API_KEY
+                    {!googleMapsApiKey
                       ? "Google Maps API key missing. Showing OpenStreetMap fallback."
                       : "Google Maps is blocked for this API key. Showing OpenStreetMap fallback."}
                   </AlertDescription>

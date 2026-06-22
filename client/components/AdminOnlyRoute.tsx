@@ -1,9 +1,9 @@
-import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { useRole } from '@/context/RoleContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { hasSubscriptionAddonModule } from '@/utils/subscriptionModules';
+import React from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useRole } from "@/context/RoleContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { hasSubscriptionAddonModule } from "@/utils/subscriptionModules";
 
 interface AdminOnlyRouteProps {
   children: React.ReactNode;
@@ -30,7 +30,9 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-lg text-muted-foreground">Please login to continue</p>
+          <p className="text-lg text-muted-foreground">
+            Please login to continue
+          </p>
         </div>
       </div>
     );
@@ -38,10 +40,14 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
 
   const moduleForPath = (() => {
     if (location.pathname.startsWith("/tickets")) return "tickets";
-    if (location.pathname.startsWith("/client-attendance-admin")) return "client_attendance_admin";
-    if (location.pathname.startsWith("/sales-attendance-report")) return "client_attendance_admin";
-    if (location.pathname.startsWith("/client-geo-fence")) return "client_attendance_admin";
-    if (location.pathname.startsWith("/client-assignment")) return "client_attendance_admin";
+    if (location.pathname.startsWith("/client-attendance-admin"))
+      return "client_attendance_admin";
+    if (location.pathname.startsWith("/sales-attendance-report"))
+      return "client_attendance_admin";
+    if (location.pathname.startsWith("/client-geo-fence"))
+      return "client_attendance_admin";
+    if (location.pathname.startsWith("/client-assignment"))
+      return "client_attendance_admin";
     if (location.pathname.startsWith("/subscription")) return "role_access";
     return null;
   })();
@@ -51,14 +57,21 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     ...(Array.isArray(user.roles) ? user.roles : []),
     user.role,
   ]
-    .map((role) => String(role || "").trim().toLowerCase())
+    .map((role) =>
+      String(role || "")
+        .trim()
+        .toLowerCase(),
+    )
     .filter(Boolean);
   const isAdmin = allUserRoles.includes("admin");
   const isCeo = allUserRoles.includes("ceo");
-  const isClientAttendanceAdmin = location.pathname.startsWith("/client-attendance-admin");
+  const isClientAttendanceAdmin = location.pathname.startsWith(
+    "/client-attendance-admin",
+  );
   const hasAddonAccess = moduleForPath
     ? hasSubscriptionAddonModule(subscription, moduleForPath, {
-        currentEmployeeId: Number(user.employee_id || user.employeeId || user.id || 0) || null,
+        currentEmployeeId:
+          Number(user.employee_id || user.employeeId || user.id || 0) || null,
         addonAdminBypass: isAdmin || isCeo,
       })
     : false;
@@ -68,21 +81,21 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
 
   // Debug logging
   if (process.env.NODE_ENV === "development") {
-    console.log("=== ADMIN ROUTE DEBUG ===");
-    console.log("User Info:", {
-      name: user.name,
-      roles: user.roles,
-      email: user.email
-    });
-    console.log("Access Check:", {
-      pathname: location.pathname,
-      moduleForPath,
-      hasAccess,
-      isAdmin,
-      isClientAttendanceAdmin,
-      shouldAllow: (isClientAttendanceAdmin && isAdmin) || hasAccess
-    });
-    console.log("=== END ADMIN ROUTE DEBUG ===");
+    // console.log("=== ADMIN ROUTE DEBUG ===");
+    // console.log("User Info:", {
+    //   name: user.name,
+    //   roles: user.roles,
+    //   email: user.email
+    // });
+    // console.log("Access Check:", {
+    //   pathname: location.pathname,
+    //   moduleForPath,
+    //   hasAccess,
+    //   isAdmin,
+    //   isClientAttendanceAdmin,
+    //   shouldAllow: (isClientAttendanceAdmin && isAdmin) || hasAccess
+    // });
+    // console.log("=== END ADMIN ROUTE DEBUG ===");
   }
 
   // Allow access if admin accessing Client Attendance Admin OR has module access
@@ -95,8 +108,12 @@ const AdminOnlyRoute: React.FC<AdminOnlyRouteProps> = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">You do not have permission to access this page.</p>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Access Denied
+          </h1>
+          <p className="text-muted-foreground">
+            You do not have permission to access this page.
+          </p>
         </div>
       </div>
     );

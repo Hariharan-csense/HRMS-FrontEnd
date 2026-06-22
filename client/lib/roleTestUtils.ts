@@ -73,12 +73,7 @@ const roleModulePermissions: RoleModulePermissions = {
     },
   },
   Finance: {
-    modules: [
-      "employees",
-      "payroll",
-      "expenses",
-      "reports",
-    ],
+    modules: ["employees", "payroll", "expenses", "reports"],
     moduleDetails: {
       employees: { view: true, create: false, edit: false, approve: false },
       payroll: { view: true, create: true, edit: true, approve: true },
@@ -87,12 +82,7 @@ const roleModulePermissions: RoleModulePermissions = {
     },
   },
   Employee: {
-    modules: [
-      "attendance",
-      "leave",
-      "expenses",
-      "assets",
-    ],
+    modules: ["attendance", "leave", "expenses", "assets"],
     moduleDetails: {
       attendance: { view: true, create: true, edit: false, approve: false },
       leave: { view: true, create: true, edit: false, approve: false },
@@ -145,7 +135,7 @@ export const debugRoleModuleAccess = () => {
   console.group("🔐 Role Module Access Summary");
   Object.entries(roleModulePermissions).forEach(([role, config]) => {
     console.group(`👤 ${role}`);
-    console.log("Accessible Modules:", config.modules.length, config.modules);
+    // console.log("Accessible Modules:", config.modules.length, config.modules);
     console.table(config.moduleDetails);
     console.groupEnd();
   });

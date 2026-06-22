@@ -85,15 +85,13 @@ export const sequenceApi = {
   },
 
   // ✅ Create sequence
-  createSequence: async (
-    data: {
-      module: string;
-      prefix: string;
-      start_number?: number;
-      current_number?: number;
-      number_length?: number;
-    }
-  ): Promise<{ data?: Sequence; error?: string }> => {
+  createSequence: async (data: {
+    module: string;
+    prefix: string;
+    start_number?: number;
+    current_number?: number;
+    number_length?: number;
+  }): Promise<{ data?: Sequence; error?: string }> => {
     try {
       const response = await ENDPOINTS.createSequence(data);
 
@@ -135,13 +133,13 @@ export const sequenceApi = {
       start_number: number;
       current_number: number;
       number_length: number;
-    }>
+    }>,
   ): Promise<{ data?: Sequence; error?: string }> => {
     try {
-      console.log('Updating sequence:', id, data);
+      // console.log('Updating sequence:', id, data);
       const response = await ENDPOINTS.updateSequence(id, data);
-      console.log('Update response:', response.data);
-      
+      // console.log('Update response:', response.data);
+
       const s = response.data?.data || response.data?.sequence || response.data;
 
       if (s) {
@@ -174,7 +172,7 @@ export const sequenceApi = {
 
   // ✅ Delete sequence
   deleteSequence: async (
-    id: string
+    id: string,
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteSequence(id);

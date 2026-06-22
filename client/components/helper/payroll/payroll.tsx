@@ -25,7 +25,10 @@ export interface SalaryStructure {
 }
 
 export const payrollApi = {
-  getSalaryStructures: async (): Promise<{ data?: SalaryStructure[]; error?: string }> => {
+  getSalaryStructures: async (): Promise<{
+    data?: SalaryStructure[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getSalaryStructure();
       if (response.data) {
@@ -44,7 +47,9 @@ export const payrollApi = {
           pfEnabled: Boolean(item.pf_enabled ?? (parseFloat(item.pf) || 0) > 0),
           pfPercentage: parseFloat(item.pf_percentage) || 0,
           esi: parseFloat(item.esi) || 0,
-          esiEnabled: Boolean(item.esi_enabled ?? (parseFloat(item.esi) || 0) > 0),
+          esiEnabled: Boolean(
+            item.esi_enabled ?? (parseFloat(item.esi) || 0) > 0,
+          ),
           esiPercentage: parseFloat(item.esi_percentage) || 0,
           pt: parseFloat(item.pt) || 0,
           tds: parseFloat(item.tds_percentage ?? item.tds) || 0,
@@ -53,104 +58,124 @@ export const payrollApi = {
         }));
         return { data: transformedData };
       }
-      return { error: 'No salary structure data available' };
+      return { error: "No salary structure data available" };
     } catch (error: any) {
-      console.error('Error fetching salary structures:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to fetch salary structures' 
+      console.error("Error fetching salary structures:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to fetch salary structures",
       };
     }
   },
 
-  createSalaryStructure: async (data: any): Promise<{ data?: any; error?: string }> => {
+  createSalaryStructure: async (
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.createSalaryStructure(data);
       if (response.data?.success) {
         return { data: response.data };
       }
-      return { error: 'Failed to create salary structure' };
+      return { error: "Failed to create salary structure" };
     } catch (error: any) {
-      console.error('Error creating salary structure:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to create salary structure' 
+      console.error("Error creating salary structure:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to create salary structure",
       };
     }
   },
 
-  updateSalaryStructure: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+  updateSalaryStructure: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateSalaryStructure(id, data);
       if (response.data?.success) {
         return { data: response.data };
       }
-      return { error: 'Failed to update salary structure' };
+      return { error: "Failed to update salary structure" };
     } catch (error: any) {
-      console.error('Error updating salary structure:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to update salary structure' 
+      console.error("Error updating salary structure:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to update salary structure",
       };
     }
   },
 
-  deleteSalaryStructure: async (id: string): Promise<{ data?: any; error?: string }> => {
+  deleteSalaryStructure: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteSalaryStructure(id);
       if (response.data?.success) {
         return { data: response.data };
       }
-      return { error: 'Failed to delete salary structure' };
+      return { error: "Failed to delete salary structure" };
     } catch (error: any) {
-      console.error('Error deleting salary structure:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to delete salary structure' 
+      console.error("Error deleting salary structure:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to delete salary structure",
       };
     }
   },
 
-  deletePayslip: async (id: string): Promise<{ data?: any; error?: string }> => {
+  deletePayslip: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deletePayslip(id);
       if (response.data?.success) {
         return { data: response.data };
       }
-      return { error: 'Failed to delete payslip' };
+      return { error: "Failed to delete payslip" };
     } catch (error: any) {
-      console.error('Error deleting payslip:', error);
+      console.error("Error deleting payslip:", error);
       return {
-        error: error.response?.data?.message || 'Failed to delete payslip'
+        error: error.response?.data?.message || "Failed to delete payslip",
       };
     }
   },
 
-  deletePayrollProcessing: async (id: string): Promise<{ data?: any; error?: string }> => {
+  deletePayrollProcessing: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deletePayrollProcessing(id);
       if (response.data?.success) {
         return { data: response.data };
       }
-      return { error: 'Failed to delete payroll processing record' };
+      return { error: "Failed to delete payroll processing record" };
     } catch (error: any) {
-      console.error('Error deleting payroll processing record:', error);
+      console.error("Error deleting payroll processing record:", error);
       return {
-        error: error.response?.data?.message || 'Failed to delete payroll processing record'
+        error:
+          error.response?.data?.message ||
+          "Failed to delete payroll processing record",
       };
     }
   },
 
   getPayrollProcessing: async (): Promise<{ data?: any; error?: string }> => {
     try {
-      console.log('Fetching payroll processing data from /payroll endpoint');
+      // console.log('Fetching payroll processing data from /payroll endpoint');
       const response = await api.get("/payroll");
-      console.log('Raw payroll processing API response:', response.data);
-      
+      // console.log('Raw payroll processing API response:', response.data);
+
       if (response.data && response.data.payrolls) {
-        console.log('Found payrolls array for processing:', response.data.payrolls);
+        // console.log('Found payrolls array for processing:', response.data.payrolls);
         // Transform API response to match the expected payroll processing interface
         const transformedData = response.data.payrolls.map((item: any) => ({
           id: item.id.toString(),
-          employeeId: (item.employee_id || item.employeeId || '').toString(),
+          employeeId: (item.employee_id || item.employeeId || "").toString(),
           employeeCode: item.employee_code || item.employeeCode || null,
-          employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
+          employeeName:
+            item.employeeName ||
+            `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+            `Employee ${item.employee_id || item.employeeId}`,
           month: item.month,
           payableDays: item.payable_days || 0,
           lopDays: parseFloat(item.lop_days) || 0,
@@ -160,19 +185,20 @@ export const payrollApi = {
           tdsAmount: parseFloat(item.tds_amount) || 0,
           deductions: parseFloat(item.deductions) || 0,
           net: parseFloat(item.net) || 0,
-          status: item.status || 'draft',
+          status: item.status || "draft",
           createdAt: item.created_at || new Date().toISOString(),
         }));
-        console.log('Transformed payroll processing data:', transformedData);
+        // console.log('Transformed payroll processing data:', transformedData);
         return { data: transformedData };
       } else if (response.data) {
         return { data: response.data };
       }
-      return { error: 'No payroll processing data available' };
+      return { error: "No payroll processing data available" };
     } catch (error: any) {
-      console.error('Error fetching payroll processing:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to fetch payroll processing' 
+      console.error("Error fetching payroll processing:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to fetch payroll processing",
       };
     }
   },
@@ -180,42 +206,49 @@ export const payrollApi = {
   getPayslip: async (): Promise<{ data?: any; error?: string }> => {
     try {
       let response;
-      
+
       // Check if user has basic payroll access (view only) and use employee-specific endpoint
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const hasBasicPayrollAccess = user.roles && user.roles.length > 0 && 
-        !user.roles.some(role => ["admin", "hr", "finance"].includes(role.toLowerCase()));
-      
+      const hasBasicPayrollAccess =
+        user.roles &&
+        user.roles.length > 0 &&
+        !user.roles.some((role) =>
+          ["admin", "hr", "finance"].includes(role.toLowerCase()),
+        );
+
       if (hasBasicPayrollAccess) {
-        console.log('User with basic payroll access, trying /payroll/employee/payslips endpoint');
+        // console.log('User with basic payroll access, trying /payroll/employee/payslips endpoint');
         try {
           response = await api.get("/payroll/employee/payslips");
         } catch (error) {
-          console.log('Employee payslips endpoint failed, trying general payslips endpoint');
+          // console.log('Employee payslips endpoint failed, trying general payslips endpoint');
           response = await api.get("/payroll/payslips");
         }
       } else {
-        console.log('Admin/HR/Finance user, trying /payroll/payslips endpoint');
+        // console.log('Admin/HR/Finance user, trying /payroll/payslips endpoint');
         try {
           response = await api.get("/payroll/payslips");
         } catch (error) {
-          console.log('/payroll/payslips failed, trying /payroll');
+          // console.log('/payroll/payslips failed, trying /payroll');
           // Fallback to the general payroll endpoint
           response = await api.get("/payroll");
         }
       }
 
-      console.log('Raw API response:', response.data);
-      
+      // console.log('Raw API response:', response.data);
+
       if (response.data && (response.data.payrolls || response.data)) {
         const payrollsData = response.data.payrolls || response.data;
-        console.log('Found payrolls array:', payrollsData);
+        // console.log('Found payrolls array:', payrollsData);
         // Transform API response to match the expected payslip interface
         const transformedData = payrollsData.map((item: any) => ({
           id: item.id.toString(),
-          employeeId: (item.employee_id || item.employeeId || '').toString(),
+          employeeId: (item.employee_id || item.employeeId || "").toString(),
           employeeCode: item.employee_code || item.employeeCode || null,
-          employeeName: item.employeeName || `${item.first_name || ''} ${item.last_name || ''}`.trim() || `Employee ${item.employee_id || item.employeeId}`,
+          employeeName:
+            item.employeeName ||
+            `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+            `Employee ${item.employee_id || item.employeeId}`,
           month: item.month,
           payableDays: item.payable_days || 0,
           lopDays: parseFloat(item.lop_days) || 0,
@@ -225,56 +258,67 @@ export const payrollApi = {
           tdsAmount: parseFloat(item.tds_amount) || 0,
           deductions: parseFloat(item.deductions) || 0,
           net: parseFloat(item.net) || 0,
-          status: item.status || 'draft',
-          number: `PS/${item.month?.replace('-', '/')}/${item.id?.toString().padStart(3, '0') || '001'}`,
-          generatedOn: item.created_at ? new Date(item.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
+          status: item.status || "draft",
+          number: `PS/${item.month?.replace("-", "/")}/${item.id?.toString().padStart(3, "0") || "001"}`,
+          generatedOn: item.created_at
+            ? new Date(item.created_at).toLocaleDateString("en-GB")
+            : new Date().toLocaleDateString("en-GB"),
           createdAt: item.created_at || new Date().toISOString(),
         }));
-        console.log('Transformed data:', transformedData);
+        console.log("Transformed data:", transformedData);
         return { data: transformedData };
       } else if (response.data) {
         return { data: response.data };
       }
-      return { error: 'No payslip data available' };
+      return { error: "No payslip data available" };
     } catch (error: any) {
-      console.error('Error fetching payslips:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to fetch payslips' 
+      console.error("Error fetching payslips:", error);
+      return {
+        error: error.response?.data?.message || "Failed to fetch payslips",
       };
     }
   },
 
-  getPayslipPreview: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
+  getPayslipPreview: async (
+    employeeId: string,
+    month: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.getPayslipPreview(employeeId, month);
       if (response.data) {
         return { data: response.data };
       }
-      return { error: 'No payslip preview data available' };
+      return { error: "No payslip preview data available" };
     } catch (error: any) {
-      console.error('Error fetching payslip preview:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to fetch payslip preview' 
+      console.error("Error fetching payslip preview:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to fetch payslip preview",
       };
     }
   },
 
-  getAttendance: async (employeeId: string, month: string): Promise<{ data?: any; error?: string }> => {
+  getAttendance: async (
+    employeeId: string,
+    month: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await api.get(`/attendance/${employeeId}/${month}`);
       if (response.data && response.data.success) {
         return { data: response.data.attendance };
       }
-      return { error: 'No attendance data available' };
+      return { error: "No attendance data available" };
     } catch (error: any) {
-      console.error('Error fetching attendance:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to fetch attendance' 
+      console.error("Error fetching attendance:", error);
+      return {
+        error: error.response?.data?.message || "Failed to fetch attendance",
       };
     }
   },
 
-  generatePayslip: async (payslipData: any): Promise<{ data?: any; error?: string }> => {
+  generatePayslip: async (
+    payslipData: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await api.post("/payroll/generate", payslipData);
 
@@ -289,11 +333,11 @@ export const payrollApi = {
 
         return { data: response.data };
       }
-      return { error: 'Failed to generate payslip' };
+      return { error: "Failed to generate payslip" };
     } catch (error: any) {
-      console.error('Error generating payslip:', error);
-      return { 
-        error: error.response?.data?.message || 'Failed to generate payslip' 
+      console.error("Error generating payslip:", error);
+      return {
+        error: error.response?.data?.message || "Failed to generate payslip",
       };
     }
   },

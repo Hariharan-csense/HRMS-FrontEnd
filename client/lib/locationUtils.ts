@@ -50,13 +50,13 @@ export const PREDEFINED_OFFICE_LOCATIONS: OfficeLocation[] = [
   },
 ];
 
-// Reverse geocoding through the backend first so provider keys stay server-side.
+// Reverse geocoding through the backend so provider keys stay server-side.
 export const reverseGeocode = async (
   latitude: number,
   longitude: number
 ): Promise<string | null> => {
   try {
-    // Prefer backend proxy (Mappls / MapmyIndia). Keeps API tokens off the client.
+    // Backend proxy keeps Google/Mappls provider tokens off the client.
     const response = await api.get("/geocode/reverse", {
       params: { lat: latitude, lng: longitude, fallback: 1 },
     });
@@ -67,52 +67,8 @@ export const reverseGeocode = async (
 
     return null;
   } catch (error) {
-    // Fallback: Nominatim (only if backend geocoder is unavailable)
-    try {
-      const nominatimResponse = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-      );
-
-      if (!nominatimResponse.ok) {
-        console.error("Reverse geocoding failed:", nominatimResponse.status);
-        return null;
-      }
-
-      const data = await nominatimResponse.json();
-      const address = data.address;
-      if (address) {
-        const sanitizePart = (value: unknown) => {
-          const raw = String(value || "").trim();
-          if (!raw) return "";
-          return raw
-            .replace(/^zone\s*\d+\s*/i, "")
-            .replace(/\s+/g, " ")
-            .trim();
-        };
-
-        const parts = [
-          sanitizePart(address.amenity || address.building || address.shop || ""),
-          sanitizePart(address.house_number || ""),
-          sanitizePart(address.road || address.pedestrian || address.footway || ""),
-          sanitizePart(address.neighbourhood || address.quarter || address.suburb || address.city_district || ""),
-          sanitizePart(address.city || address.town || address.village || ""),
-          sanitizePart(address.state || ""),
-          sanitizePart(address.postcode || ""),
-        ].filter((part) => Boolean(String(part || "").trim()));
-
-        const combined = parts.join(", ");
-        if (combined) return combined;
-
-        const display = sanitizePart(data.display_name) || String(data.display_name || "").trim();
-        return display || null;
-      }
-
-      return data.display_name || null;
-    } catch (fallbackError) {
-      console.error("Error during reverse geocoding:", error);
-      console.error("Fallback reverse geocoding failed:", fallbackError);
-      return null;
-    }
+    console.error("Backend reverse geocoding failed:", error);
+    return null;
   }
 };
 

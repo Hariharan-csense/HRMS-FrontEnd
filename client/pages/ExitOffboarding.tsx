@@ -4,11 +4,27 @@ import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Plus, LogOut, FileDown, FileText, Download, CheckCircle, XCircle } from "lucide-react";
-import { resignationApi, Resignation } from "@/components/helper/resignation/resignation"; // Adjust path as needed
+import {
+  Plus,
+  LogOut,
+  FileDown,
+  FileText,
+  Download,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+import {
+  resignationApi,
+  Resignation,
+} from "@/components/helper/resignation/resignation"; // Adjust path as needed
 import { Loader2 } from "lucide-react";
 import { checklistApi } from "@/components/helper/checklist/checklist";
 import { showToast } from "@/utils/toast";
@@ -51,8 +67,11 @@ export default function ExitOffboarding() {
   const [error, setError] = useState<string | null>(null);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"resignations" | "checklist" | "no-due">("resignations");
-  const [selectedEmployeeForNoDue, setSelectedEmployeeForNoDue] = useState<OffboardingChecklist | null>(null);
+  const [activeTab, setActiveTab] = useState<
+    "resignations" | "checklist" | "no-due"
+  >("resignations");
+  const [selectedEmployeeForNoDue, setSelectedEmployeeForNoDue] =
+    useState<OffboardingChecklist | null>(null);
   const [isNoDueDialogOpen, setIsNoDueDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Resignation>>({});
@@ -108,18 +127,17 @@ export default function ExitOffboarding() {
     // You can also fetch resignations here if needed
   }, []);
 
-
   useEffect(() => {
     const fetchEmployees = async () => {
       setEmployeeLoading(true);
       const result = await resignationApi.getEmployees();
 
-      console.log("Employees API Result:", result);  
-      console.log("Employees array:", result.data);  
+      // console.log("Employees API Result:", result);
+      // console.log("Employees array:", result.data);
 
       if (result.data) {
         setEmployees(result.data);
-        console.log("Employees set:", result.data);  
+        // console.log("Employees set:", result.data);
       } else {
         console.error("Employee fetch error:", result.error);
       }
@@ -129,7 +147,6 @@ export default function ExitOffboarding() {
     fetchEmployees();
   }, []);
 
-
   // Fetch resignations on mount
   useEffect(() => {
     const fetchResignations = async () => {
@@ -137,7 +154,7 @@ export default function ExitOffboarding() {
       setError(null);
 
       const result = await resignationApi.getResignations();
-      console.log("Fetched Resignations:", result);
+      // console.log("Fetched Resignations:", result);
       if (result.data) {
         setResignations(result.data);
       } else {
@@ -155,7 +172,7 @@ export default function ExitOffboarding() {
       setEditingId(resignation.id);
       setFormData({
         ...resignation,
-        status: resignation.status || "pending"
+        status: resignation.status || "pending",
       });
     } else {
       setEditingId(null);
@@ -240,9 +257,11 @@ export default function ExitOffboarding() {
 
       if (result.data) {
         if (editingId) {
-          setResignations(prev => prev.map(r => r.id === editingId ? result.data! : r));
+          setResignations((prev) =>
+            prev.map((r) => (r.id === editingId ? result.data! : r)),
+          );
         } else {
-          setResignations(prev => [...prev, result.data!]);
+          setResignations((prev) => [...prev, result.data!]);
         }
 
         setIsDialogOpen(false);
@@ -265,7 +284,12 @@ export default function ExitOffboarding() {
   // Toggle individual clearance item and update backend
   const toggleChecklistItem = async (
     checklistId: string,
-    field: "hrClearance" | "financeClearance" | "assetReturn" | "itClearance" | "finalSettlement"
+    field:
+      | "hrClearance"
+      | "financeClearance"
+      | "assetReturn"
+      | "itClearance"
+      | "finalSettlement",
   ) => {
     const checklist = checklists.find((c) => c.id === checklistId);
     if (!checklist) return;
@@ -298,7 +322,7 @@ export default function ExitOffboarding() {
     tempUpdated.status = allCompleted ? "completed" : "in-progress";
 
     setChecklists((prev) =>
-      prev.map((c) => (c.id === checklistId ? tempUpdated : c))
+      prev.map((c) => (c.id === checklistId ? tempUpdated : c)),
     );
 
     try {
@@ -310,7 +334,7 @@ export default function ExitOffboarding() {
       if (result.error) {
         // Rollback on error
         setChecklists((prev) =>
-          prev.map((c) => (c.id === checklistId ? checklist : c))
+          prev.map((c) => (c.id === checklistId ? checklist : c)),
         );
         showToast.error(result.error);
         return;
@@ -319,13 +343,13 @@ export default function ExitOffboarding() {
       // Success: update with fresh data from server
       if (result.data) {
         setChecklists((prev) =>
-          prev.map((c) => (c.id === checklistId ? result.data! : c))
+          prev.map((c) => (c.id === checklistId ? result.data! : c)),
         );
       }
     } catch (err) {
       // Rollback
       setChecklists((prev) =>
-        prev.map((c) => (c.id === checklistId ? checklist : c))
+        prev.map((c) => (c.id === checklistId ? checklist : c)),
       );
       showToast.error("Failed to save changes");
     }
@@ -347,35 +371,40 @@ export default function ExitOffboarding() {
             <LogOut className="w-8 h-8 text-primary" />
             Exit & Offboarding
           </h1>
-          <p className="text-muted-foreground mt-2">Manage employee resignations and offboarding</p>
+          <p className="text-muted-foreground mt-2">
+            Manage employee resignations and offboarding
+          </p>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-4 border-b border-border">
           <button
             onClick={() => navigate("/exit/resignations")}
-            className={`px-4 py-2 font-medium transition-colors ${activeTab === "resignations"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground"
-              }`}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "resignations"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground"
+            }`}
           >
             Resignations
           </button>
           <button
             onClick={() => navigate("/exit/checklist")}
-            className={`px-4 py-2 font-medium transition-colors ${activeTab === "checklist"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground"
-              }`}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "checklist"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground"
+            }`}
           >
             Offboarding Checklist
           </button>
           <button
             onClick={() => navigate("/exit/no-due")}
-            className={`px-4 py-2 font-medium transition-colors ${activeTab === "no-due"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground"
-              }`}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "no-due"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground"
+            }`}
           >
             No Due Form
           </button>
@@ -390,9 +419,7 @@ export default function ExitOffboarding() {
         )}
 
         {error && !loading && (
-          <div className="text-red-600 text-center py-4">
-            {error}
-          </div>
+          <div className="text-red-600 text-center py-4">{error}</div>
         )}
 
         {/* Resignations Tab */}
@@ -406,28 +433,45 @@ export default function ExitOffboarding() {
             {/* Mobile Card View */}
             <div className="md:hidden space-y-3">
               {resignations.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No resignations found</p>
+                <p className="text-center text-muted-foreground py-8">
+                  No resignations found
+                </p>
               ) : (
                 resignations.map((res) => (
-                  <div key={res.id} className="border border-border rounded-lg p-4 bg-muted/30">
+                  <div
+                    key={res.id}
+                    className="border border-border rounded-lg p-4 bg-muted/30"
+                  >
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-semibold text-base">{res.employeeName}</h3>
-                      <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(res.status || "pending")}`}>
+                      <h3 className="font-semibold text-base">
+                        {res.employeeName}
+                      </h3>
+                      <span
+                        className={`text-xs px-2 py-1 rounded border ${getStatusColor(res.status || "pending")}`}
+                      >
                         {res.status || "pending"}
                       </span>
                     </div>
                     <div className="space-y-2 text-sm mb-4">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Resignation Date:</span>
-                        <span className="font-medium">{formatDate(res.resignationDate)}</span>
+                        <span className="text-muted-foreground">
+                          Resignation Date:
+                        </span>
+                        <span className="font-medium">
+                          {formatDate(res.resignationDate)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">LWD:</span>
-                        <span className="font-medium">{formatDate(res.lastWorkingDate)}</span>
+                        <span className="font-medium">
+                          {formatDate(res.lastWorkingDate)}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Reason:</span>
-                        <span className="text-xs text-right">{res.reason || "-"}</span>
+                        <span className="text-xs text-right">
+                          {res.reason || "-"}
+                        </span>
                       </div>
                     </div>
                     <div className="pt-3 border-t border-border">
@@ -448,30 +492,56 @@ export default function ExitOffboarding() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-semibold">Employee</th>
-                    <th className="text-left px-4 py-3 font-semibold">Resignation Date</th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Employee
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Resignation Date
+                    </th>
                     <th className="text-left px-4 py-3 font-semibold">LWD</th>
-                    <th className="text-left px-4 py-3 font-semibold">Reason</th>
-                    <th className="text-left px-4 py-3 font-semibold">Status</th>
-                    <th className="text-left px-4 py-3 font-semibold">Actions</th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Reason
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Status
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {resignations.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <td
+                        colSpan={6}
+                        className="text-center py-8 text-muted-foreground"
+                      >
                         No resignations found
                       </td>
                     </tr>
                   ) : (
                     resignations.map((res) => (
-                      <tr key={res.id} className="border-b border-border hover:bg-muted/50">
-                        <td className="px-4 py-3 font-medium">{res.employeeName}</td>
-                        <td className="px-4 py-3">{formatDate(res.resignationDate)}</td>
-                        <td className="px-4 py-3">{formatDate(res.lastWorkingDate)}</td>
-                        <td className="px-4 py-3 text-xs">{res.reason || "-"}</td>
+                      <tr
+                        key={res.id}
+                        className="border-b border-border hover:bg-muted/50"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {res.employeeName}
+                        </td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(res.status || "pending")}`}>
+                          {formatDate(res.resignationDate)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatDate(res.lastWorkingDate)}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {res.reason || "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`text-xs px-2 py-1 rounded border ${getStatusColor(res.status || "pending")}`}
+                          >
                             {res.status || "pending"}
                           </span>
                         </td>
@@ -498,7 +568,9 @@ export default function ExitOffboarding() {
             {checklistLoading ? (
               <div className="text-center py-10">Loading checklists...</div>
             ) : checklistError ? (
-              <div className="text-red-600 text-center py-6">{checklistError}</div>
+              <div className="text-red-600 text-center py-6">
+                {checklistError}
+              </div>
             ) : checklists.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 No offboarding checklists found
@@ -509,16 +581,19 @@ export default function ExitOffboarding() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle>{checklist.employeeName || "Employee"}</CardTitle>
+                        <CardTitle>
+                          {checklist.employeeName || "Employee"}
+                        </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           Checklist ID: {checklist.id}
                         </p>
                       </div>
                       <span
-                        className={`text-xs px-3 py-1 rounded font-medium ${checklist.status === "completed"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                          }`}
+                        className={`text-xs px-3 py-1 rounded font-medium ${
+                          checklist.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
                       >
                         {checklist.status}
                       </span>
@@ -538,20 +613,34 @@ export default function ExitOffboarding() {
                           className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted"
                         >
                           <Checkbox
-                            checked={checklist[item.key as keyof OffboardingChecklist] as boolean}
+                            checked={
+                              checklist[
+                                item.key as keyof OffboardingChecklist
+                              ] as boolean
+                            }
                             onCheckedChange={() =>
                               toggleChecklistItem(
                                 checklist.id,
                                 item.key as keyof Pick<
                                   OffboardingChecklist,
-                                  "hrClearance" | "financeClearance" | "assetReturn" | "itClearance" | "finalSettlement"
-                                >
+                                  | "hrClearance"
+                                  | "financeClearance"
+                                  | "assetReturn"
+                                  | "itClearance"
+                                  | "finalSettlement"
+                                >,
                               )
                             }
                           />
-                          <Label className="cursor-pointer flex-1">{item.label}</Label>
-                          {checklist[item.key as keyof OffboardingChecklist] && (
-                            <span className="text-xs text-green-600 font-medium">✓ Done</span>
+                          <Label className="cursor-pointer flex-1">
+                            {item.label}
+                          </Label>
+                          {checklist[
+                            item.key as keyof OffboardingChecklist
+                          ] && (
+                            <span className="text-xs text-green-600 font-medium">
+                              ✓ Done
+                            </span>
                           )}
                         </div>
                       ))}
@@ -572,17 +661,22 @@ export default function ExitOffboarding() {
                 No Due Certificate
               </h3>
               <p className="text-sm text-blue-700 mt-1">
-                Generate and download No Due forms for employees who have completed all exit formalities.
+                Generate and download No Due forms for employees who have
+                completed all exit formalities.
               </p>
             </div>
 
             {checklistLoading ? (
               <div className="text-center py-10">
                 <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-                <p className="text-muted-foreground mt-2">Loading employee data...</p>
+                <p className="text-muted-foreground mt-2">
+                  Loading employee data...
+                </p>
               </div>
             ) : checklistError ? (
-              <div className="text-red-600 text-center py-6">{checklistError}</div>
+              <div className="text-red-600 text-center py-6">
+                {checklistError}
+              </div>
             ) : checklists.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 No employee data available for No Due forms
@@ -598,11 +692,20 @@ export default function ExitOffboarding() {
                     checklist.finalSettlement;
 
                   return (
-                    <Card key={checklist.id} className={allClearancesCompleted ? "border-green-300" : "border-yellow-300"}>
+                    <Card
+                      key={checklist.id}
+                      className={
+                        allClearancesCompleted
+                          ? "border-green-300"
+                          : "border-yellow-300"
+                      }
+                    >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div>
-                            <CardTitle className="text-base">{checklist.employeeName || "Employee"}</CardTitle>
+                            <CardTitle className="text-base">
+                              {checklist.employeeName || "Employee"}
+                            </CardTitle>
                           </div>
                           {allClearancesCompleted ? (
                             <CheckCircle className="w-5 h-5 text-green-600" />
@@ -614,40 +717,92 @@ export default function ExitOffboarding() {
                       <CardContent>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">HR Clearance:</span>
-                            <span className={checklist.hrClearance ? "text-green-600" : "text-red-500"}>
-                              {checklist.hrClearance ? "✓ Cleared" : "✗ Pending"}
+                            <span className="text-muted-foreground">
+                              HR Clearance:
+                            </span>
+                            <span
+                              className={
+                                checklist.hrClearance
+                                  ? "text-green-600"
+                                  : "text-red-500"
+                              }
+                            >
+                              {checklist.hrClearance
+                                ? "✓ Cleared"
+                                : "✗ Pending"}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Finance:</span>
-                            <span className={checklist.financeClearance ? "text-green-600" : "text-red-500"}>
-                              {checklist.financeClearance ? "✓ Cleared" : "✗ Pending"}
+                            <span className="text-muted-foreground">
+                              Finance:
+                            </span>
+                            <span
+                              className={
+                                checklist.financeClearance
+                                  ? "text-green-600"
+                                  : "text-red-500"
+                              }
+                            >
+                              {checklist.financeClearance
+                                ? "✓ Cleared"
+                                : "✗ Pending"}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Assets:</span>
-                            <span className={checklist.assetReturn ? "text-green-600" : "text-red-500"}>
-                              {checklist.assetReturn ? "✓ Returned" : "✗ Pending"}
+                            <span className="text-muted-foreground">
+                              Assets:
+                            </span>
+                            <span
+                              className={
+                                checklist.assetReturn
+                                  ? "text-green-600"
+                                  : "text-red-500"
+                              }
+                            >
+                              {checklist.assetReturn
+                                ? "✓ Returned"
+                                : "✗ Pending"}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">IT Clearance:</span>
-                            <span className={checklist.itClearance ? "text-green-600" : "text-red-500"}>
-                              {checklist.itClearance ? "✓ Cleared" : "✗ Pending"}
+                            <span className="text-muted-foreground">
+                              IT Clearance:
+                            </span>
+                            <span
+                              className={
+                                checklist.itClearance
+                                  ? "text-green-600"
+                                  : "text-red-500"
+                              }
+                            >
+                              {checklist.itClearance
+                                ? "✓ Cleared"
+                                : "✗ Pending"}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Settlement:</span>
-                            <span className={checklist.finalSettlement ? "text-green-600" : "text-red-500"}>
-                              {checklist.finalSettlement ? "✓ Completed" : "✗ Pending"}
+                            <span className="text-muted-foreground">
+                              Settlement:
+                            </span>
+                            <span
+                              className={
+                                checklist.finalSettlement
+                                  ? "text-green-600"
+                                  : "text-red-500"
+                              }
+                            >
+                              {checklist.finalSettlement
+                                ? "✓ Completed"
+                                : "✗ Pending"}
                             </span>
                           </div>
                         </div>
 
                         <div className="mt-4 pt-3 border-t">
                           <Button
-                            variant={allClearancesCompleted ? "default" : "outline"}
+                            variant={
+                              allClearancesCompleted ? "default" : "outline"
+                            }
                             size="sm"
                             className="w-full gap-2"
                             onClick={() => {
@@ -656,7 +811,9 @@ export default function ExitOffboarding() {
                             }}
                           >
                             <FileDown className="w-4 h-4" />
-                            {allClearancesCompleted ? "Download No Due Form" : "View Status"}
+                            {allClearancesCompleted
+                              ? "Download No Due Form"
+                              : "View Status"}
                           </Button>
                         </div>
                       </CardContent>
@@ -681,20 +838,33 @@ export default function ExitOffboarding() {
             {selectedEmployeeForNoDue && (
               <div className="space-y-6">
                 {/* No Due Form Preview */}
-                <div id="no-due-form" className="border rounded-lg p-6 bg-white">
+                <div
+                  id="no-due-form"
+                  className="border rounded-lg p-6 bg-white"
+                >
                   <div className="text-center border-b pb-4 mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">NO DUE CERTIFICATE</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Exit Clearance Form</p>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      NO DUE CERTIFICATE
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Exit Clearance Form
+                    </p>
                   </div>
 
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Employee Name</p>
-                      <p className="font-semibold text-lg">{selectedEmployeeForNoDue.employeeName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Employee Name
+                      </p>
+                      <p className="font-semibold text-lg">
+                        {selectedEmployeeForNoDue.employeeName}
+                      </p>
                     </div>
 
                     <div>
-                      <p className="text-sm text-muted-foreground mb-2">Clearance Status</p>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Clearance Status
+                      </p>
                       <table className="w-full text-sm border-collapse">
                         <thead>
                           <tr className="border-b">
@@ -708,56 +878,76 @@ export default function ExitOffboarding() {
                             <td className="py-2">HR Department</td>
                             <td className="text-center py-2">
                               {selectedEmployeeForNoDue.hrClearance ? (
-                                <span className="text-green-600 font-medium">✓ Cleared</span>
+                                <span className="text-green-600 font-medium">
+                                  ✓ Cleared
+                                </span>
                               ) : (
                                 <span className="text-red-500">✗ Pending</span>
                               )}
                             </td>
-                            <td className="text-right py-2 text-muted-foreground">-</td>
+                            <td className="text-right py-2 text-muted-foreground">
+                              -
+                            </td>
                           </tr>
                           <tr className="border-b">
                             <td className="py-2">Finance Department</td>
                             <td className="text-center py-2">
                               {selectedEmployeeForNoDue.financeClearance ? (
-                                <span className="text-green-600 font-medium">✓ Cleared</span>
+                                <span className="text-green-600 font-medium">
+                                  ✓ Cleared
+                                </span>
                               ) : (
                                 <span className="text-red-500">✗ Pending</span>
                               )}
                             </td>
-                            <td className="text-right py-2 text-muted-foreground">-</td>
+                            <td className="text-right py-2 text-muted-foreground">
+                              -
+                            </td>
                           </tr>
                           <tr className="border-b">
                             <td className="py-2">IT Department</td>
                             <td className="text-center py-2">
                               {selectedEmployeeForNoDue.itClearance ? (
-                                <span className="text-green-600 font-medium">✓ Cleared</span>
+                                <span className="text-green-600 font-medium">
+                                  ✓ Cleared
+                                </span>
                               ) : (
                                 <span className="text-red-500">✗ Pending</span>
                               )}
                             </td>
-                            <td className="text-right py-2 text-muted-foreground">-</td>
+                            <td className="text-right py-2 text-muted-foreground">
+                              -
+                            </td>
                           </tr>
                           <tr className="border-b">
                             <td className="py-2">Asset Return</td>
                             <td className="text-center py-2">
                               {selectedEmployeeForNoDue.assetReturn ? (
-                                <span className="text-green-600 font-medium">✓ Returned</span>
+                                <span className="text-green-600 font-medium">
+                                  ✓ Returned
+                                </span>
                               ) : (
                                 <span className="text-red-500">✗ Pending</span>
                               )}
                             </td>
-                            <td className="text-right py-2 text-muted-foreground">-</td>
+                            <td className="text-right py-2 text-muted-foreground">
+                              -
+                            </td>
                           </tr>
                           <tr className="border-b">
                             <td className="py-2">Final Settlement</td>
                             <td className="text-center py-2">
                               {selectedEmployeeForNoDue.finalSettlement ? (
-                                <span className="text-green-600 font-medium">✓ Completed</span>
+                                <span className="text-green-600 font-medium">
+                                  ✓ Completed
+                                </span>
                               ) : (
                                 <span className="text-red-500">✗ Pending</span>
                               )}
                             </td>
-                            <td className="text-right py-2 text-muted-foreground">-</td>
+                            <td className="text-right py-2 text-muted-foreground">
+                              -
+                            </td>
                           </tr>
                         </tbody>
                       </table>
@@ -765,33 +955,46 @@ export default function ExitOffboarding() {
 
                     <div className="border-t pt-4 mt-4">
                       <p className="text-sm leading-relaxed">
-                        This is to certify that <strong>{selectedEmployeeForNoDue.employeeName}</strong> has
-                        {selectedEmployeeForNoDue.hrClearance && selectedEmployeeForNoDue.financeClearance && selectedEmployeeForNoDue.itClearance && selectedEmployeeForNoDue.assetReturn && selectedEmployeeForNoDue.finalSettlement
+                        This is to certify that{" "}
+                        <strong>{selectedEmployeeForNoDue.employeeName}</strong>{" "}
+                        has
+                        {selectedEmployeeForNoDue.hrClearance &&
+                        selectedEmployeeForNoDue.financeClearance &&
+                        selectedEmployeeForNoDue.itClearance &&
+                        selectedEmployeeForNoDue.assetReturn &&
+                        selectedEmployeeForNoDue.finalSettlement
                           ? " cleared all dues and formalities with the organization."
-                          : " NOT completed all exit formalities."
-                        }
+                          : " NOT completed all exit formalities."}
                       </p>
 
-                      {selectedEmployeeForNoDue.hrClearance && selectedEmployeeForNoDue.financeClearance && selectedEmployeeForNoDue.itClearance && selectedEmployeeForNoDue.assetReturn && selectedEmployeeForNoDue.finalSettlement && (
-                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
-                          <p className="text-green-800 font-medium text-center">
-                            ✓ NO DUES PENDING - CLEARANCE GRANTED
-                          </p>
-                        </div>
-                      )}
+                      {selectedEmployeeForNoDue.hrClearance &&
+                        selectedEmployeeForNoDue.financeClearance &&
+                        selectedEmployeeForNoDue.itClearance &&
+                        selectedEmployeeForNoDue.assetReturn &&
+                        selectedEmployeeForNoDue.finalSettlement && (
+                          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                            <p className="text-green-800 font-medium text-center">
+                              ✓ NO DUES PENDING - CLEARANCE GRANTED
+                            </p>
+                          </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-8 mt-8 pt-8">
                       <div className="text-center">
                         <div className="border-t border-slate-400 pt-2">
                           <p className="text-sm font-medium">HR Manager</p>
-                          <p className="text-xs text-muted-foreground">Signature & Date</p>
+                          <p className="text-xs text-muted-foreground">
+                            Signature & Date
+                          </p>
                         </div>
                       </div>
                       <div className="text-center">
                         <div className="border-t border-slate-400 pt-2">
                           <p className="text-sm font-medium">Finance Head</p>
-                          <p className="text-xs text-muted-foreground">Signature & Date</p>
+                          <p className="text-xs text-muted-foreground">
+                            Signature & Date
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -800,14 +1003,18 @@ export default function ExitOffboarding() {
 
                 {/* Actions */}
                 <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setIsNoDueDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsNoDueDialogOpen(false)}
+                  >
                     Close
                   </Button>
                   <Button
                     className="gap-2"
                     onClick={() => {
                       // Generate and download the No Due Form as HTML/PDF
-                      const formContent = document.getElementById("no-due-form");
+                      const formContent =
+                        document.getElementById("no-due-form");
                       if (formContent) {
                         const printWindow = window.open("", "_blank");
                         if (printWindow) {
@@ -836,7 +1043,9 @@ export default function ExitOffboarding() {
                           `);
                           printWindow.document.close();
                           printWindow.print();
-                          showToast.success("No Due Form downloaded successfully!");
+                          showToast.success(
+                            "No Due Form downloaded successfully!",
+                          );
                         }
                       }
                     }}
@@ -854,7 +1063,9 @@ export default function ExitOffboarding() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingId ? "Edit Resignation" : "Record Resignation"}</DialogTitle>
+              <DialogTitle>
+                {editingId ? "Edit Resignation" : "Record Resignation"}
+              </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -873,16 +1084,18 @@ export default function ExitOffboarding() {
                     value={formData.employeeName || ""}
                     onChange={(e) => {
                       const selectedName = e.target.value;
-                      console.log('Selected employee name:', selectedName);
-                      const selectedEmployee = employees.find(emp => emp.name === selectedName);
-                      console.log('Found employee:', selectedEmployee);
+                      // console.log("Selected employee name:", selectedName);
+                      const selectedEmployee = employees.find(
+                        (emp) => emp.name === selectedName,
+                      );
+                      // console.log("Found employee:", selectedEmployee);
                       setFormData((prevFormData) => {
                         const newFormData = {
                           ...prevFormData,
                           employeeName: selectedName,
                           employeeId: selectedEmployee?.id || "",
                         };
-                        console.log('Updated formData:', newFormData); // Log the updated formData
+                        // console.log("Updated formData:", newFormData); // Log the updated formData
                         return newFormData;
                       });
                     }}
@@ -905,7 +1118,12 @@ export default function ExitOffboarding() {
                   <Input
                     type="date"
                     value={formData.resignationDate || ""}
-                    onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        resignationDate: e.target.value,
+                      })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -914,7 +1132,12 @@ export default function ExitOffboarding() {
                   <Input
                     type="date"
                     value={formData.lastWorkingDate || ""}
-                    onChange={(e) => setFormData({ ...formData, lastWorkingDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        lastWorkingDate: e.target.value,
+                      })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -924,7 +1147,9 @@ export default function ExitOffboarding() {
                 <Label>Reason</Label>
                 <Input
                   value={formData.reason || ""}
-                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, reason: e.target.value })
+                  }
                   className="mt-2"
                   placeholder="Career growth, relocation, etc."
                 />
@@ -934,7 +1159,9 @@ export default function ExitOffboarding() {
                 <Label>Status</Label>
                 <select
                   value={formData.status || "pending"}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value as any })
+                  }
                   className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
                 >
                   <option value="pending">Pending</option>

@@ -4,6 +4,8 @@ import { AuthContextType, User } from "@/lib/auth";
 import ENDPOINTS, {
   BASE_URL,
   checkAndRefreshTokenIfNeeded,
+  hasRefreshCredential,
+  isAutoLoginPaused,
   refreshAccessToken,
   resolveFileUrl,
 } from "../lib/endpoint";
@@ -30,7 +32,7 @@ type RememberedAuthSession = {
 const setReadableAuthCookie = (
   name: string,
   value: string,
-  maxAgeSeconds: number
+  maxAgeSeconds: number,
 ) => {
   if (typeof document === "undefined") return;
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
@@ -70,7 +72,7 @@ const saveRememberedAuthSession = (session: RememberedAuthSession) => {
       ...getRememberedAuthSession(),
       ...session,
       savedAt: new Date().toISOString(),
-    })
+    }),
   );
 };
 
@@ -133,13 +135,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const storeLogoutFeedback = (message: string) => {
     sessionStorage.setItem(
       "authToast",
-      JSON.stringify({ type: "success", message })
+      JSON.stringify({ type: "success", message }),
     );
   };
 
   const finalizeUserSession = async (
     baseUser: User,
-    options?: { rememberMe?: boolean }
+    options?: { rememberMe?: boolean },
   ): Promise<User> => {
     let resolvedUser = { ...baseUser };
 
@@ -179,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         };
       }
     } catch (error) {
-      console.log("Profile image loading skipped during login");
+      // console.log("Profile image loading skipped during login");
     }
 
     localStorage.setItem("user", JSON.stringify(resolvedUser));
@@ -216,6 +218,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }> => {
     setIsLoading(true);
     try {
+      if (!hasRefreshCredential() || isAutoLoginPaused()) {
+        return {
+          success: false,
+          message: "Please login again.",
+        };
+      }
+
       const newAccessToken = await refreshAccessToken();
       const decoded = decodeJwtPayload(newAccessToken);
       const savedProfile = profileManager.getSavedProfile();
@@ -223,7 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
 
       const normalizedRole = String(
-        decoded?.role || parsedStoredUser?.role || "employee"
+        decoded?.role || parsedStoredUser?.role || "employee",
       ).toLowerCase();
       const normalizedRoles = Array.isArray(decoded?.roles)
         ? decoded.roles.map((role: string) => String(role).toLowerCase())
@@ -233,7 +242,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         id: String(decoded?.id || parsedStoredUser?.id || ""),
         name: savedProfile?.name || parsedStoredUser?.name || "User",
         email:
-          decoded?.email || savedProfile?.email || parsedStoredUser?.email || "",
+          decoded?.email ||
+          savedProfile?.email ||
+          parsedStoredUser?.email ||
+          "",
         employee_id:
           parsedStoredUser?.employee_id ||
           parsedStoredUser?.employeeId ||
@@ -300,7 +312,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           sessionStorage.getItem(SOFT_LOGOUT_PROMPT_KEY) === "true";
 
         if (storedUser && accessToken) {
-          const normalizedStoredUser = normalizeUserAvatar(JSON.parse(storedUser));
+          const normalizedStoredUser = normalizeUserAvatar(
+            JSON.parse(storedUser),
+          );
           setUser(normalizedStoredUser);
           localStorage.setItem("user", JSON.stringify(normalizedStoredUser));
           return;
@@ -315,7 +329,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.setItem("accessToken", rememberedSession.accessToken);
 
           if (rememberedSession.refreshToken) {
-            localStorage.setItem("refreshToken", rememberedSession.refreshToken);
+            localStorage.setItem(
+              "refreshToken",
+              rememberedSession.refreshToken,
+            );
             sessionStorage.removeItem("refreshToken");
           }
 
@@ -323,7 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        if (!shouldShowWelcomeBack) {
+        if (!shouldShowWelcomeBack && hasRefreshCredential()) {
           await autoLogin();
         }
       } catch (error) {
@@ -351,13 +368,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!user) return;
 
-    const refreshInterval = setInterval(async () => {
-      try {
-        await checkAndRefreshTokenIfNeeded();
-      } catch (error) {
-        console.error("Periodic token refresh failed:", error);
-      }
-    }, 4 * 60 * 1000);
+    const refreshInterval = setInterval(
+      async () => {
+        try {
+          await checkAndRefreshTokenIfNeeded();
+        } catch (error) {
+          console.error("Periodic token refresh failed:", error);
+        }
+      },
+      4 * 60 * 1000,
+    );
 
     return () => clearInterval(refreshInterval);
   }, [user]);
@@ -399,7 +419,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (
     email: string,
     password: string,
-    rememberMe: boolean = false
+    rememberMe: boolean = false,
   ): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
@@ -415,9 +435,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (error) => {
           console.error("API call failed:", error);
           throw new Error(
-            error.response?.data?.message || "Failed to connect to the server"
+            error.response?.data?.message || "Failed to connect to the server",
           );
-        }
+        },
       );
 
       if (!response) {
@@ -445,7 +465,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setReadableAuthCookie(
           "refreshToken",
           responseData.refreshToken,
-          7 * 24 * 60 * 60
+          7 * 24 * 60 * 60,
         );
       }
 
@@ -455,14 +475,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.removeItem("rememberMe");
       }
 
-      const normalizedRolesRaw: unknown[] = Array.isArray(responseData.user?.roles)
+      sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
+
+      const normalizedRolesRaw: unknown[] = Array.isArray(
+        responseData.user?.roles,
+      )
         ? responseData.user.roles
         : [responseData.user?.role || responseData.role || "employee"];
       const normalizedRoles: string[] = [
         ...new Set(
           normalizedRolesRaw
             .filter(Boolean)
-            .map((role) => String(role).toLowerCase())
+            .map((role) => String(role).toLowerCase()),
         ),
       ];
 
@@ -484,7 +508,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           responseData.user?.companyName ||
           responseData.company_name ||
           "Company",
-        department: responseData.user?.department || responseData.department || null,
+        department:
+          responseData.user?.department || responseData.department || null,
         type: responseData.user?.type || responseData.type || undefined,
         avatar:
           resolveFileUrl(responseData.user?.avatar || responseData.avatar) ||
@@ -493,7 +518,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const resolvedUser = await finalizeUserSession(
         normalizeUserAvatar(userData) as User,
-        { rememberMe }
+        { rememberMe },
       );
 
       if (rememberMe) {
@@ -524,14 +549,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = async (
-    soft: boolean = false
+    soft: boolean = false,
   ): Promise<{ success: boolean; message: string }> => {
     const hasRememberedIdentity =
       localStorage.getItem("rememberMe") === "true" ||
       profileManager.hasSavedCredentials() ||
       profileManager.hasSavedProfile();
-    const preserveRefreshToken =
-      soft && localStorage.getItem("rememberMe") === "true";
+    const preserveRefreshToken = localStorage.getItem("rememberMe") === "true";
+    const rememberedRefreshToken = preserveRefreshToken
+      ? getStoredRefreshToken() || undefined
+      : undefined;
+    const rememberedUser = preserveRefreshToken
+      ? user || getRememberedAuthSession()?.user || undefined
+      : undefined;
 
     const clearAuthData = () => {
       localStorage.removeItem("user");
@@ -542,6 +572,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (preserveRefreshToken) {
         sessionStorage.setItem(SOFT_LOGOUT_PROMPT_KEY, "true");
+        localStorage.setItem("rememberMe", "true");
+
+        if (rememberedRefreshToken) {
+          localStorage.setItem("refreshToken", rememberedRefreshToken);
+          sessionStorage.removeItem("refreshToken");
+          localStorage.setItem(
+            AUTH_SESSION_KEY,
+            JSON.stringify({
+              refreshToken: rememberedRefreshToken,
+              user: rememberedUser,
+              rememberMe: true,
+              savedAt: new Date().toISOString(),
+            }),
+          );
+        }
+
+        if (rememberedUser) {
+          profileManager.saveProfile(rememberedUser, true);
+        }
       } else {
         localStorage.removeItem("refreshToken");
         sessionStorage.removeItem("refreshToken");
@@ -573,18 +622,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const data = await response.json().catch(() => null);
       message =
         data?.message ||
-        (response.ok ? "Logged out successfully." : "Logout completed locally.");
+        (response.ok
+          ? "Logged out successfully."
+          : "Logout completed locally.");
     } catch (error) {
       console.warn(
         "Logout API call failed, but proceeding with local cleanup",
-        error
+        error,
       );
     } finally {
-      await unregisterStoredWebPushToken();
       clearAuthData();
       storeLogoutFeedback(message);
       setUser(null);
       navigate("/login", { replace: true });
+      unregisterStoredWebPushToken().catch((error) => {
+        console.warn("Push token cleanup skipped after logout", error);
+      });
     }
 
     return { success: true, message };

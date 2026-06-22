@@ -20,16 +20,16 @@ export const profileHelper = {
   // Get user profile
   getProfile: async () => {
     try {
-      console.log("PROFILE HELPER - Fetching profile...");
+      // console.log("PROFILE HELPER - Fetching profile...");
       const response = await ENDPOINTS.getProfile();
-      console.log("PROFILE HELPER - Profile response:", response);
+      // console.log("PROFILE HELPER - Profile response:", response);
 
       if (response.data && response.data.success) {
-        console.log("PROFILE HELPER - Profile loaded successfully:", {
-          employeeId: response.data.data?.id,
-          name: response.data.data?.first_name,
-          email: response.data.data?.email,
-        });
+        // console.log("PROFILE HELPER - Profile loaded successfully:", {
+        //   employeeId: response.data.data?.id,
+        //   name: response.data.data?.first_name,
+        //   email: response.data.data?.email,
+        // });
         return response.data.data || response.data;
       } else {
         console.error("PROFILE HELPER - Profile fetch failed:", response.data);
@@ -57,7 +57,7 @@ export const profileHelper = {
   // Update user profile
   updateProfile: async (data: ProfileData) => {
     try {
-      console.log("PROFILE HELPER - Updating profile with data:", data);
+      // console.log("PROFILE HELPER - Updating profile with data:", data);
       const formData = new FormData();
 
       // Append text fields
@@ -75,13 +75,13 @@ export const profileHelper = {
       }
 
       const response = await ENDPOINTS.updateProfile(formData);
-      console.log("PROFILE HELPER - Profile update response:", response);
+      // console.log("PROFILE HELPER - Profile update response:", response);
 
       if (response.data && response.data.success) {
-        console.log("PROFILE HELPER - Profile updated successfully:", {
-          employeeId: response.data.data?.id,
-          name: response.data.data?.first_name,
-        });
+        // console.log("PROFILE HELPER - Profile updated successfully:", {
+        //   employeeId: response.data.data?.id,
+        //   name: response.data.data?.first_name,
+        // });
         toast.success("Profile updated successfully");
         return response.data.data || response.data;
       } else {

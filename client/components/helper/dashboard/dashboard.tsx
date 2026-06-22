@@ -11,13 +11,31 @@ export interface AdminDashboardData {
     pendingTrend: string;
   };
   charts?: {
-    monthlyAttendance: Array<{ month: string; present: number; absent: number; half: number; late: number }>;
+    monthlyAttendance: Array<{
+      month: string;
+      present: number;
+      absent: number;
+      half: number;
+      late: number;
+    }>;
     departmentData: Array<{ dept: string; count: number }>;
-    departmentAttendanceData: Array<{ dept: string; present: number; absent: number; half: number; late: number; total: number }>;
+    departmentAttendanceData: Array<{
+      dept: string;
+      present: number;
+      absent: number;
+      half: number;
+      late: number;
+      total: number;
+    }>;
     leaveData: Array<{ name: string; value: number; fill: string }>;
   };
   recentActivities?: Array<{ activity: string; time: string; icon: string }>;
-  recentJoinings?: Array<{ name: string; role: string; dept: string; joinDate: string }>;
+  recentJoinings?: Array<{
+    name: string;
+    role: string;
+    dept: string;
+    joinDate: string;
+  }>;
   upcomingBirthdays?: Array<{ name: string; date: string; emoji: string }>;
   upcomingHolidays?: Array<any>;
   presentTodayEmployees?: Array<{
@@ -73,7 +91,13 @@ export interface EmployeeDashboardData {
     description: string;
   };
   monthlyAttendance?: {
-    chartData: Array<{ date: number; present: number; absent: number; half: number; late: number }>;
+    chartData: Array<{
+      date: number;
+      present: number;
+      absent: number;
+      half: number;
+      late: number;
+    }>;
     summary: {
       present: number;
       absent: number;
@@ -142,12 +166,10 @@ export const getAdminDashboardData = async (): Promise<{
   try {
     const response = await ENDPOINTS.getAdminDashboardData();
 
-    console.log("Raw Admin Dashboard API Response:", response.data);
+    // console.log("Raw Admin Dashboard API Response:", response.data);
 
     // Normalize payload
-    const payload =
-      response.data?.data ??
-      response.data;
+    const payload = response.data?.data ?? response.data;
 
     if (!payload || response.data?.success === false) {
       return { error: "Invalid API response" };
@@ -158,23 +180,25 @@ export const getAdminDashboardData = async (): Promise<{
       kpis: payload.kpis || {
         totalEmployees: 0,
         presentToday: 0,
-        presentTrend: '',
+        presentTrend: "",
         onLeave: 0,
-        onLeaveTrend: '',
+        onLeaveTrend: "",
         pendingApprovals: 0,
-        pendingTrend: ''
+        pendingTrend: "",
       },
       charts: {
-        monthlyAttendance: payload.charts?.monthlyAttendance?.map((item: any) => ({
-          ...item,
-          late: item.late || 0
-        })) || [],
+        monthlyAttendance:
+          payload.charts?.monthlyAttendance?.map((item: any) => ({
+            ...item,
+            late: item.late || 0,
+          })) || [],
         departmentData: payload.charts?.departmentData || [],
-        departmentAttendanceData: payload.charts?.departmentAttendanceData?.map((item: any) => ({
-          ...item,
-          late: item.late || 0
-        })) || [],
-        leaveData: payload.charts?.leaveData || []
+        departmentAttendanceData:
+          payload.charts?.departmentAttendanceData?.map((item: any) => ({
+            ...item,
+            late: item.late || 0,
+          })) || [],
+        leaveData: payload.charts?.leaveData || [],
       },
       recentActivities: payload.recentActivities || [],
       recentJoinings: payload.recentJoinings || [],
@@ -185,16 +209,16 @@ export const getAdminDashboardData = async (): Promise<{
       pendingApprovals: payload.pendingApprovals || [],
       teamHealth: payload.teamHealth || {
         overallScore: 0,
-        status: '',
-        trend: '',
-        lastUpdated: '',
+        status: "",
+        trend: "",
+        lastUpdated: "",
         metrics: [],
         strengths: [],
-        improvements: []
-      }
+        improvements: [],
+      },
     };
 
-    console.log("Mapped Admin Dashboard Data:", mapped);
+    // console.log("Mapped Admin Dashboard Data:", mapped);
 
     return { data: mapped };
   } catch (error: any) {
@@ -216,12 +240,10 @@ export const getEmployeeDashboardData = async (): Promise<{
   try {
     const response = await ENDPOINTS.getEmployeeDashboardData();
 
-    console.log("Raw Employee Dashboard API Response:", response.data);
+    // console.log("Raw Employee Dashboard API Response:", response.data);
 
     // Normalize payload
-    const payload =
-      response.data?.data ??
-      response.data;
+    const payload = response.data?.data ?? response.data;
 
     if (!payload || response.data?.success === false) {
       return { error: "Invalid API response" };
@@ -230,16 +252,16 @@ export const getEmployeeDashboardData = async (): Promise<{
     // Map the API response to match the expected data structure
     const mapped: EmployeeDashboardData = {
       todayStatus: payload.todayStatus || {
-        status: 'Not Marked',
-        description: 'Attendance not marked'
+        status: "Not Marked",
+        description: "Attendance not marked",
       },
       leaveBalance: payload.leaveBalance || {
         totalDays: 0,
-        description: 'Days remaining this year'
+        description: "Days remaining this year",
       },
       workingHours: payload.workingHours || {
-        hours: '0',
-        description: 'Hours logged today'
+        hours: "0",
+        description: "Hours logged today",
       },
       monthlyAttendance: payload.monthlyAttendance || {
         chartData: [],
@@ -248,12 +270,12 @@ export const getEmployeeDashboardData = async (): Promise<{
           absent: 0,
           half: 0,
           late: 0,
-          total: 0
-        }
-      }
+          total: 0,
+        },
+      },
     };
 
-    console.log("Mapped Employee Dashboard Data:", mapped);
+    // console.log("Mapped Employee Dashboard Data:", mapped);
 
     return { data: mapped };
   } catch (error: any) {
@@ -275,12 +297,10 @@ export const getManagerDashboardData = async (): Promise<{
   try {
     const response = await ENDPOINTS.getManagerDashboardData();
 
-    console.log("Raw Manager Dashboard API Response:", response.data);
+    // console.log("Raw Manager Dashboard API Response:", response.data);
 
     // Normalize payload
-    const payload =
-      response.data?.data ??
-      response.data;
+    const payload = response.data?.data ?? response.data;
 
     if (!payload || response.data?.success === false) {
       return { error: "Invalid API response" };
@@ -291,38 +311,46 @@ export const getManagerDashboardData = async (): Promise<{
       teamStats: {
         teamSize: payload.managerStats?.totalEmployees || 0,
         presentToday: payload.managerStats?.presentToday || 0,
-        attendanceRate: payload.managerStats?.presentToday && payload.managerStats?.totalEmployees 
-          ? `${Math.round((payload.managerStats.presentToday / payload.managerStats.totalEmployees) * 100)}% attendance`
-          : '0% attendance',
+        attendanceRate:
+          payload.managerStats?.presentToday &&
+          payload.managerStats?.totalEmployees
+            ? `${Math.round((payload.managerStats.presentToday / payload.managerStats.totalEmployees) * 100)}% attendance`
+            : "0% attendance",
         onLeave: payload.managerStats?.onLeaveToday || 0,
-        pendingApprovals: (payload.managerStats?.pendingLeaves || 0) + (payload.managerStats?.pendingExpenses || 0)
+        pendingApprovals:
+          (payload.managerStats?.pendingLeaves || 0) +
+          (payload.managerStats?.pendingExpenses || 0),
       },
       pendingApprovals: [
-        ...(payload.leaves?.map(leave => ({
+        ...(payload.leaves?.map((leave) => ({
           id: leave.id,
           name: `${leave.first_name} ${leave.last_name}`,
-          type: 'Leave Application',
-          category: 'leave',
-          employeeId: leave.employee_id
+          type: "Leave Application",
+          category: "leave",
+          employeeId: leave.employee_id,
         })) || []),
-        ...(payload.expenses?.map(expense => ({
+        ...(payload.expenses?.map((expense) => ({
           id: expense.id,
           name: `${expense.first_name} ${expense.last_name}`,
           type: `Expense Claim - ₹${expense.amount}`,
-          category: 'expense',
-          employeeId: expense.employee_id
-        })) || [])
+          category: "expense",
+          employeeId: expense.employee_id,
+        })) || []),
       ],
-      teamAttendance: payload.monthlyAttendance ? [{
-        date: 1,
-        present: payload.monthlyAttendance.present || 0,
-        absent: payload.monthlyAttendance.absent || 0,
-        half: 0,
-        late: payload.monthlyAttendance.late || 0
-      }] : []
+      teamAttendance: payload.monthlyAttendance
+        ? [
+            {
+              date: 1,
+              present: payload.monthlyAttendance.present || 0,
+              absent: payload.monthlyAttendance.absent || 0,
+              half: 0,
+              late: payload.monthlyAttendance.late || 0,
+            },
+          ]
+        : [],
     };
 
-    console.log("Mapped Manager Dashboard Data:", mapped);
+    // console.log("Mapped Manager Dashboard Data:", mapped);
 
     return { data: mapped };
   } catch (error: any) {
@@ -344,12 +372,10 @@ export const getHRDashboardData = async (): Promise<{
   try {
     const response = await ENDPOINTS.getHRDashboardData();
 
-    console.log("Raw HR Dashboard API Response:", response.data);
+    // console.log("Raw HR Dashboard API Response:", response.data);
 
     // Normalize payload
-    const payload =
-      response.data?.data ??
-      response.data;
+    const payload = response.data?.data ?? response.data;
 
     if (!payload || response.data?.success === false) {
       return { error: "Invalid API response" };
@@ -361,12 +387,12 @@ export const getHRDashboardData = async (): Promise<{
         totalEmployees: 0,
         pendingExits: 0,
         pendingLeaveApprovals: 0,
-        newJoiners: 0
+        newJoiners: 0,
       },
-      departmentData: payload.departmentData || []
+      departmentData: payload.departmentData || [],
     };
 
-    console.log("Mapped HR Dashboard Data:", mapped);
+    // console.log("Mapped HR Dashboard Data:", mapped);
 
     return { data: mapped };
   } catch (error: any) {
@@ -388,12 +414,10 @@ export const getFinanceDashboardData = async (): Promise<{
   try {
     const response = await ENDPOINTS.getFinanceDashboardData();
 
-    console.log("Raw Finance Dashboard API Response:", response.data);
+    // console.log("Raw Finance Dashboard API Response:", response.data);
 
     // Normalize payload
-    const payload =
-      response.data?.data ??
-      response.data;
+    const payload = response.data?.data ?? response.data;
 
     if (!payload || response.data?.success === false) {
       return { error: "Invalid API response" };
@@ -402,15 +426,15 @@ export const getFinanceDashboardData = async (): Promise<{
     // Map the API response to match the expected data structure
     const mapped: FinanceDashboardData = {
       financeStats: payload.financeStats || {
-        monthlyPayroll: '₹0K',
-        pendingExpenses: '₹0K',
+        monthlyPayroll: "₹0K",
+        pendingExpenses: "₹0K",
         payslipsGenerated: 0,
-        budgetUtilization: '0%'
+        budgetUtilization: "0%",
       },
-      payrollTrend: payload.payrollTrend || []
+      payrollTrend: payload.payrollTrend || [],
     };
 
-    console.log("Mapped Finance Dashboard Data:", mapped);
+    // console.log("Mapped Finance Dashboard Data:", mapped);
 
     return { data: mapped };
   } catch (error: any) {

@@ -4,23 +4,62 @@ import { useAuth } from "@/context/AuthContext";
 import { hasRole } from "@/lib/auth";
 import { useRole } from "@/context/RoleContext";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { BASE_URL } from "@/lib/endpoint";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, DollarSign, FileText, Download } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  DollarSign,
+  FileText,
+  Download,
+} from "lucide-react";
 import { mockEmployees } from "@/lib/employees";
-import { calculatePayableDays, getDefaultPayableDays } from "@/lib/payrollUtils";
+import {
+  calculatePayableDays,
+  getDefaultPayableDays,
+} from "@/lib/payrollUtils";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "sonner";
 import employeeApi from "@/components/helper/employee/employee";
-import payrollApi, { SalaryStructure } from "@/components/helper/payroll/payroll";
+import payrollApi, {
+  SalaryStructure,
+} from "@/components/helper/payroll/payroll";
 import axios from "axios";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -76,52 +115,360 @@ interface EmployeeOption {
 // Mock Attendance Data for payable days calculation
 const mockAttendanceRecords = [
   // EMP001 - April 2024
-  { id: "ATT001", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-01", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT002", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-02", status: "present" as const, hoursWorked: 8.5 },
-  { id: "ATT003", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-03", status: "half" as const, hoursWorked: 4 },
-  { id: "ATT004", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-04", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT005", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-05", status: "present" as const, hoursWorked: 8 },
-  { id: "ATT006", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-08", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT007", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-09", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT008", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-10", status: "absent" as const, hoursWorked: 0 },
-  { id: "ATT009", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-11", status: "present" as const, hoursWorked: 8 },
-  { id: "ATT010", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-12", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT011", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-15", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT012", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-16", status: "present" as const, hoursWorked: 8.5 },
-  { id: "ATT013", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-17", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT014", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-18", status: "half" as const, hoursWorked: 4 },
-  { id: "ATT015", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-19", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT016", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-22", status: "present" as const, hoursWorked: 8 },
-  { id: "ATT017", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-23", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT018", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-24", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT019", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-25", status: "present" as const, hoursWorked: 8.5 },
-  { id: "ATT020", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-26", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT021", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-29", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT022", employeeId: "EMP001", employeeName: "John Doe", date: "2024-04-30", status: "present" as const, hoursWorked: 8 },
+  {
+    id: "ATT001",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-01",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT002",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-02",
+    status: "present" as const,
+    hoursWorked: 8.5,
+  },
+  {
+    id: "ATT003",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-03",
+    status: "half" as const,
+    hoursWorked: 4,
+  },
+  {
+    id: "ATT004",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-04",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT005",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-05",
+    status: "present" as const,
+    hoursWorked: 8,
+  },
+  {
+    id: "ATT006",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-08",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT007",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-09",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT008",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-10",
+    status: "absent" as const,
+    hoursWorked: 0,
+  },
+  {
+    id: "ATT009",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-11",
+    status: "present" as const,
+    hoursWorked: 8,
+  },
+  {
+    id: "ATT010",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-12",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT011",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-15",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT012",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-16",
+    status: "present" as const,
+    hoursWorked: 8.5,
+  },
+  {
+    id: "ATT013",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-17",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT014",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-18",
+    status: "half" as const,
+    hoursWorked: 4,
+  },
+  {
+    id: "ATT015",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-19",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT016",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-22",
+    status: "present" as const,
+    hoursWorked: 8,
+  },
+  {
+    id: "ATT017",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-23",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT018",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-24",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT019",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-25",
+    status: "present" as const,
+    hoursWorked: 8.5,
+  },
+  {
+    id: "ATT020",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-26",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT021",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-29",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT022",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    date: "2024-04-30",
+    status: "present" as const,
+    hoursWorked: 8,
+  },
 
   // EMP002 - April 2024
-  { id: "ATT023", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-01", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT024", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-02", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT025", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-03", status: "present" as const, hoursWorked: 8.5 },
-  { id: "ATT026", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-04", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT027", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-05", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT028", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-08", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT029", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-09", status: "present" as const, hoursWorked: 8 },
-  { id: "ATT030", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-10", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT031", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-11", status: "half" as const, hoursWorked: 4 },
-  { id: "ATT032", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-12", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT033", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-15", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT034", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-16", status: "present" as const, hoursWorked: 8.5 },
-  { id: "ATT035", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-17", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT036", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-18", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT037", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-19", status: "present" as const, hoursWorked: 8.5 },
-  { id: "ATT038", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-22", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT039", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-23", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT040", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-24", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT041", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-25", status: "present" as const, hoursWorked: 8 },
-  { id: "ATT042", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-26", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT043", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-29", status: "present" as const, hoursWorked: 9 },
-  { id: "ATT044", employeeId: "EMP002", employeeName: "Sarah Smith", date: "2024-04-30", status: "present" as const, hoursWorked: 9 },
+  {
+    id: "ATT023",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-01",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT024",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-02",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT025",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-03",
+    status: "present" as const,
+    hoursWorked: 8.5,
+  },
+  {
+    id: "ATT026",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-04",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT027",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-05",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT028",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-08",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT029",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-09",
+    status: "present" as const,
+    hoursWorked: 8,
+  },
+  {
+    id: "ATT030",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-10",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT031",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-11",
+    status: "half" as const,
+    hoursWorked: 4,
+  },
+  {
+    id: "ATT032",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-12",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT033",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-15",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT034",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-16",
+    status: "present" as const,
+    hoursWorked: 8.5,
+  },
+  {
+    id: "ATT035",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-17",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT036",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-18",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT037",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-19",
+    status: "present" as const,
+    hoursWorked: 8.5,
+  },
+  {
+    id: "ATT038",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-22",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT039",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-23",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT040",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-24",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT041",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-25",
+    status: "present" as const,
+    hoursWorked: 8,
+  },
+  {
+    id: "ATT042",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-26",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT043",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-29",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
+  {
+    id: "ATT044",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    date: "2024-04-30",
+    status: "present" as const,
+    hoursWorked: 9,
+  },
 ];
 
 // Mock Data
@@ -396,8 +743,12 @@ export default function PayrollSetup() {
   const location = useLocation();
   const { user } = useAuth();
   const { hasSubModuleAccess } = useRole();
-  const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>([]);
-  const [payrollProcessing, setPayrollProcessing] = useState<PayrollProcessing[]>([]);
+  const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>(
+    [],
+  );
+  const [payrollProcessing, setPayrollProcessing] = useState<
+    PayrollProcessing[]
+  >([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -410,7 +761,9 @@ export default function PayrollSetup() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewPayslipOpen, setIsViewPayslipOpen] = useState(false);
-  const [payslipPreviewHtml, setPayslipPreviewHtml] = useState<string | null>(null);
+  const [payslipPreviewHtml, setPayslipPreviewHtml] = useState<string | null>(
+    null,
+  );
 
   const payslipStyles = `
     <style>
@@ -691,7 +1044,6 @@ export default function PayrollSetup() {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
 
-
   // Fetch attendance data when employee and month are selected
   useEffect(() => {
     const fetchAttendanceData = async () => {
@@ -708,23 +1060,31 @@ export default function PayrollSetup() {
       }
 
       try {
-        const result = await payrollApi.getAttendance(formData.employeeId, formData.month);
+        const result = await payrollApi.getAttendance(
+          formData.employeeId,
+          formData.month,
+        );
         if (result.data) {
           setAttendanceData(result.data);
           // Calculate payable days from real attendance
           const presentDays = result.data.filter((record: any) =>
-            ['present', 'late'].includes(String(record.status || '').toLowerCase())
+            ["present", "late"].includes(
+              String(record.status || "").toLowerCase(),
+            ),
           ).length;
 
-          const halfDays = result.data.filter((record: any) =>
-            ['half', 'half_day', 'half-day'].includes(String(record.status || '').toLowerCase())
-          ).length * 0.5;
+          const halfDays =
+            result.data.filter((record: any) =>
+              ["half", "half_day", "half-day"].includes(
+                String(record.status || "").toLowerCase(),
+              ),
+            ).length * 0.5;
 
           const payableDays = presentDays + halfDays;
-          setFormData(prev => ({ ...prev, payableDays }));
+          setFormData((prev) => ({ ...prev, payableDays }));
         }
       } catch (error) {
-        console.error('Error fetching attendance:', error);
+        console.error("Error fetching attendance:", error);
       }
     };
 
@@ -737,39 +1097,40 @@ export default function PayrollSetup() {
       try {
         setEmployeesLoading(true);
         const response = await employeeApi.getEmployees();
-        console.log('Raw employee data:', response); // Debug log
+        // console.log("Raw employee data:", response); // Debug log
 
         // The employeeApi returns { data: employeesArray } format
         const employeesData = response.data || [];
 
-        console.log('Employees data from API:', employeesData);
+        // console.log("Employees data from API:", employeesData);
 
         // Transform the employee data to match the expected format
-        const formattedEmployees = employeesData.map(emp => {
-          console.log('Processing employee:', emp);
+        const formattedEmployees = employeesData.map((emp) => {
+          // console.log("Processing employee:", emp);
 
           // Use employee_id from the API response
-          const employeeId = emp.employee_id || emp.id || '';
+          const employeeId = emp.employee_id || emp.id || "";
 
           // Handle first_name and last_name from the API response
-          const firstName = emp.first_name || '';
-          const lastName = emp.last_name || '';
-          const fullName = `${firstName} ${lastName}`.trim() || `Employee ${employeeId}`;
+          const firstName = emp.first_name || "";
+          const lastName = emp.last_name || "";
+          const fullName =
+            `${firstName} ${lastName}`.trim() || `Employee ${employeeId}`;
 
           return {
             id: employeeId,
             dbId: emp.id ? String(emp.id) : "",
             name: fullName,
             firstName: firstName,
-            lastName: lastName
+            lastName: lastName,
           };
         });
 
-        console.log('Formatted employees:', formattedEmployees);
+        // console.log("Formatted employees:", formattedEmployees);
         setEmployees(formattedEmployees);
       } catch (error) {
-        console.error('Error fetching employees:', error);
-        toast.error('Failed to load employees');
+        console.error("Error fetching employees:", error);
+        toast.error("Failed to load employees");
       } finally {
         setEmployeesLoading(false);
       }
@@ -779,27 +1140,23 @@ export default function PayrollSetup() {
   }, []);
 
   // Check which payroll sub-modules user has access to
-  const canViewSalaryStructure = user && user.roles.some((role) =>
-    !hasRole(user, "employee") // Only non-employees can view salary structure
-  );
-
-  const canViewProcessPayroll = user && user.roles.some((role) =>
-    hasRole(user, "admin") || hasRole(user, "finance") // Only admin and finance can process payroll
-  );
-
-  const canViewPayslips = user && user.roles.some((role) =>
-    hasSubModuleAccess(role, "payroll", "payslips")
-  );
-
-  const canDeletePayslips = Boolean(
+  const canViewSalaryStructure =
     user &&
-    hasRole(user, "admin")
-  );
+    user.roles.some(
+      (role) => !hasRole(user, "employee"), // Only non-employees can view salary structure
+    );
 
+  const canViewProcessPayroll =
+    user &&
+    user.roles.some(
+      (role) => hasRole(user, "admin") || hasRole(user, "finance"), // Only admin and finance can process payroll
+    );
 
+  const canViewPayslips =
+    user &&
+    user.roles.some((role) => hasSubModuleAccess(role, "payroll", "payslips"));
 
-
-
+  const canDeletePayslips = Boolean(user && hasRole(user, "admin"));
 
   // Fetch salary structures on component mount
   useEffect(() => {
@@ -819,8 +1176,8 @@ export default function PayrollSetup() {
           setSalaryStructures(mockSalaryStructures);
         }
       } catch (err) {
-        console.error('Error fetching salary structures:', err);
-        setError('Failed to fetch salary structures. Using mock data instead.');
+        console.error("Error fetching salary structures:", err);
+        setError("Failed to fetch salary structures. Using mock data instead.");
         // Fallback to mock data in case of error
         setSalaryStructures(mockSalaryStructures);
       } finally {
@@ -850,32 +1207,37 @@ export default function PayrollSetup() {
         setActiveTab("payslips");
       }
     }
-  }, [location.pathname, canViewSalaryStructure, canViewProcessPayroll, canViewPayslips]);
+  }, [
+    location.pathname,
+    canViewSalaryStructure,
+    canViewProcessPayroll,
+    canViewPayslips,
+  ]);
 
   // Fetch payslips when payslips tab is active
   useEffect(() => {
     const fetchPayslips = async () => {
       if (activeTab !== "payslips") return;
 
-      console.log('Fetching payslips for payslips tab...');
+      // // console.log("Fetching payslips for payslips tab...");
       setIsLoading(true);
       setError(null);
 
       try {
         const result = await payrollApi.getPayslip();
-        console.log('API result:', result);
+        // console.log("API result:", result);
 
         if (result.data) {
-          console.log('Setting payslips with API data:', result.data);
+          // console.log("Setting payslips with API data:", result.data);
           setPayslips(result.data);
         } else if (result.error) {
-          console.log('API error:', result.error);
+          // console.log("API error:", result.error);
           setError(result.error);
           setPayslips([]);
         }
       } catch (err) {
-        console.error('Error fetching payslips:', err);
-        setError('Failed to fetch payslips.');
+        console.error("Error fetching payslips:", err);
+        setError("Failed to fetch payslips.");
         setPayslips([]);
       } finally {
         setIsLoading(false);
@@ -889,25 +1251,25 @@ export default function PayrollSetup() {
   useEffect(() => {
     if (activeTab === "payslips" && canViewPayslips) {
       const fetchPayslipsData = async () => {
-        console.log('Fetching payslips data for employee...');
+        // console.log("Fetching payslips data for employee...");
         setIsLoading(true);
         setError(null);
 
         try {
           const result = await payrollApi.getPayslip();
-          console.log('Payslips API result:', result);
+          // console.log("Payslips API result:", result);
 
           if (result.data) {
-            console.log('Setting payslips with API data:', result.data);
+            // console.log("Setting payslips with API data:", result.data);
             setPayslips(result.data);
           } else if (result.error) {
-            console.log('API error:', result.error);
+            // console.log("API error:", result.error);
             setError(result.error);
             setPayslips([]);
           }
         } catch (err) {
-          console.error('Error fetching payslips:', err);
-          setError('Failed to fetch payslips.');
+          console.error("Error fetching payslips:", err);
+          setError("Failed to fetch payslips.");
           setPayslips([]);
         } finally {
           setIsLoading(false);
@@ -923,25 +1285,25 @@ export default function PayrollSetup() {
     const fetchPayrollProcessing = async () => {
       if (activeTab !== "processing") return;
 
-      console.log('Fetching payroll processing for processing tab...');
+      // console.log("Fetching payroll processing for processing tab...");
       setIsLoading(true);
       setError(null);
 
       try {
         const result = await payrollApi.getPayrollProcessing();
-        console.log('Payroll processing API result:', result);
+        // console.log("Payroll processing API result:", result);
 
         if (result.data) {
-          console.log('Setting payroll processing with API data:', result.data);
+          // console.log("Setting payroll processing with API data:", result.data);
           setPayrollProcessing(result.data);
         } else if (result.error) {
-          console.log('API error:', result.error);
+          // console.log("API error:", result.error);
           setError(result.error);
           setPayrollProcessing([]);
         }
       } catch (err) {
-        console.error('Error fetching payroll processing:', err);
-        setError('Failed to fetch payroll processing.');
+        console.error("Error fetching payroll processing:", err);
+        setError("Failed to fetch payroll processing.");
         setPayrollProcessing([]);
       } finally {
         setIsLoading(false);
@@ -965,7 +1327,7 @@ export default function PayrollSetup() {
       filtered = filtered.filter(
         (s) =>
           s.employeeId === user?.id || // Own salary
-          s.reportingManager === user?.id // Team salary
+          s.reportingManager === user?.id, // Team salary
       );
     }
     // Admins and HR see all
@@ -973,57 +1335,65 @@ export default function PayrollSetup() {
     // Apply search filter
     return filtered.filter((s) => {
       if (!searchTerm) return true;
-      return s.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.month.includes(searchTerm);
+      return (
+        s.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.month.includes(searchTerm)
+      );
     });
   }, [salaryStructures, searchTerm, user]);
 
   const filteredPayslips = useMemo(() => {
     let filtered = payslips;
 
-    console.log('Original payslips:', payslips);
-    console.log('User object:', user);
-    console.log('User ID type and value:', typeof user?.id, user?.id);
+    // console.log("Original payslips:", payslips);
+  // console.log  ("User object:", user);
+  //   console.log("User ID type and value:", typeof user?.id, user?.id);
 
     // Apply role-based filtering
     if (hasRole(user, "employee") && !hasRole(user, "manager")) {
       // Employees see only their own payslips - compare by employeeId instead of name
-      console.log('Comparing payslip employeeId with user ID:');
-      payslips.forEach(p => {
-        console.log(`Payslip employeeId: ${p.employeeId} (type: ${typeof p.employeeId}), User ID: ${user?.id} (type: ${typeof user?.id}), Match: ${p.employeeId === user?.id?.toString()}`);
+      // console.log("Comparing payslip employeeId with user ID:");
+      payslips.forEach((p) => {
+        // console.log(
+        //   `Payslip employeeId: ${p.employeeId} (type: ${typeof p.employeeId}), User ID: ${user?.id} (type: ${typeof user?.id}), Match: ${p.employeeId === user?.id?.toString()}`,
+        // );
       });
 
       filtered = filtered.filter((p) => p.employeeId === user?.id?.toString());
-      console.log('After employee filtering:', filtered);
+      // console.log("After employee filtering:", filtered);
     } else if (hasRole(user, "manager")) {
       // Managers see their own and their team's payslips
       filtered = filtered.filter(
         (p) =>
           p.employeeId === user?.id?.toString() || // Own payslips
-          p.reportingManager === user?.name // Team payslips
+          p.reportingManager === user?.name, // Team payslips
       );
-      console.log('After manager filtering:', filtered);
+      // console.log("After manager filtering:", filtered);
     }
     // Admins and HR see all
 
     // Apply search filter
-    const finalFiltered = filtered.filter((p) =>
-      p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.month.includes(searchTerm)
+    const finalFiltered = filtered.filter(
+      (p) =>
+        p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.month.includes(searchTerm),
     );
-    console.log('After search filtering:', finalFiltered);
+    // console.log("After search filtering:", finalFiltered);
 
     return finalFiltered;
   }, [payslips, searchTerm, user]);
 
   useEffect(() => {
     setSelectedPayslipIds((current) =>
-      current.filter((id) => filteredPayslips.some((payslip) => payslip.id === id))
+      current.filter((id) =>
+        filteredPayslips.some((payslip) => payslip.id === id),
+      ),
     );
   }, [filteredPayslips]);
 
   const allFilteredPayslipsSelected =
-    filteredPayslips.length > 0 && selectedPayslipIds.length === filteredPayslips.length;
+    filteredPayslips.length > 0 &&
+    selectedPayslipIds.length === filteredPayslips.length;
 
   const togglePayslipSelection = (id: string, checked: boolean) => {
     setSelectedPayslipIds((current) => {
@@ -1033,7 +1403,11 @@ export default function PayrollSetup() {
   };
 
   const handleSelectAllPayslips = () => {
-    setSelectedPayslipIds(allFilteredPayslipsSelected ? [] : filteredPayslips.map((payslip) => payslip.id));
+    setSelectedPayslipIds(
+      allFilteredPayslipsSelected
+        ? []
+        : filteredPayslips.map((payslip) => payslip.id),
+    );
   };
 
   const handleBulkDeletePayslips = () => {
@@ -1058,7 +1432,7 @@ export default function PayrollSetup() {
       filtered = filtered.filter(
         (p) =>
           p.employeeId === user?.id || // Own payroll
-          p.reportingManager === user?.id // Team payroll
+          p.reportingManager === user?.id, // Team payroll
       );
     }
     // Admins and HR see all
@@ -1066,8 +1440,10 @@ export default function PayrollSetup() {
     // Apply search filter
     return filtered.filter((p) => {
       if (!searchTerm) return true;
-      return p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.month.includes(searchTerm);
+      return (
+        p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.month.includes(searchTerm)
+      );
     });
   }, [payrollProcessing, searchTerm, user]);
 
@@ -1086,7 +1462,8 @@ export default function PayrollSetup() {
       list.push({
         id: employeeId,
         dbId: employee?.dbId,
-        name: structure.employeeName || employee?.name || `Employee ${employeeId}`,
+        name:
+          structure.employeeName || employee?.name || `Employee ${employeeId}`,
         firstName: employee?.firstName || "",
         lastName: employee?.lastName || "",
       });
@@ -1097,15 +1474,18 @@ export default function PayrollSetup() {
 
   // Check if payroll already exists for selected employee and month
   const isPayrollProcessed = (employeeId: string, month: string) => {
-    const selectedEmployee = employees.find((e: any) => e.id?.toString() === employeeId?.toString());
+    const selectedEmployee = employees.find(
+      (e: any) => e.id?.toString() === employeeId?.toString(),
+    );
     const possibleIds = new Set(
       [employeeId, selectedEmployee?.dbId]
         .filter(Boolean)
-        .map((id: any) => id.toString())
+        .map((id: any) => id.toString()),
     );
 
-    return payslips.some(payroll =>
-      possibleIds.has(String(payroll.employeeId)) && payroll.month === month
+    return payslips.some(
+      (payroll) =>
+        possibleIds.has(String(payroll.employeeId)) && payroll.month === month,
     );
   };
 
@@ -1123,7 +1503,7 @@ export default function PayrollSetup() {
         withCredentials: true,
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          Accept: "application/json",
         },
       });
 
@@ -1138,7 +1518,9 @@ export default function PayrollSetup() {
 
       const selectedEmployeeIds: string[] =
         formData.employeeId === "__all__"
-          ? processableEmployees.map((employee) => employee.id?.toString()).filter(Boolean)
+          ? processableEmployees
+              .map((employee) => employee.id?.toString())
+              .filter(Boolean)
           : [formData.employeeId];
 
       if (!selectedEmployeeIds.length) {
@@ -1154,7 +1536,7 @@ export default function PayrollSetup() {
 
       for (const employeeId of toProcess) {
         const requestData = { employee_id: employeeId, month };
-        console.log("Sending request data:", requestData);
+        // console.log("Sending request data:", requestData);
 
         try {
           const response = await api.post("/payroll/process", requestData);
@@ -1172,7 +1554,7 @@ export default function PayrollSetup() {
 
       if (successCount > 0) {
         toast.success(
-          `Processed payroll for ${successCount} employee${successCount === 1 ? "" : "s"}${failCount ? `, ${failCount} failed` : ""}`
+          `Processed payroll for ${successCount} employee${successCount === 1 ? "" : "s"}${failCount ? `, ${failCount} failed` : ""}`,
         );
       } else {
         toast.error("Failed to process payroll");
@@ -1192,7 +1574,7 @@ export default function PayrollSetup() {
       // Reset form
       setFormData({ employeeId: "", month: "" });
     } catch (error: any) {
-      console.error('Error processing payroll:', error);
+      console.error("Error processing payroll:", error);
       toast.error(error.response?.data?.message || "Failed to process payroll");
     } finally {
       setLoading(false); // Set loading to false when complete
@@ -1201,25 +1583,26 @@ export default function PayrollSetup() {
 
   // Dialog handlers
   const handleOpenDialog = (item?: any) => {
-    console.log('Current employees state:', employees); // Debug log
-    console.log('Opening dialog for item:', item);
+    // console.log("Current employees state:", employees); // Debug log
+    // console.log("Opening dialog for item:", item);
 
     if (item) {
       setEditingId(item.id);
-      console.log('Editing item:', item);
-      console.log('Item employeeId:', item.employeeId);
-      console.log('Item employeeName:', item.employeeName);
+      // console.log("Editing item:", item);
+      // console.log("Item employeeId:", item.employeeId);
+      // console.log("Item employeeName:", item.employeeName);
 
       // Find the employee in the employees list to get full details
-      const employee = employees.find(emp => emp.id === item.employeeId);
-      console.log('Found employee:', employee);
+      const employee = employees.find((emp) => emp.id === item.employeeId);
+      // console.log("Found employee:", employee);
 
       // Use the employeeName from the item directly, or construct it from employees list
-      const employeeName = item.employeeName ||
-        (employee ? `${employee.firstName} ${employee.lastName}`.trim() : '') ||
+      const employeeName =
+        item.employeeName ||
+        (employee ? `${employee.firstName} ${employee.lastName}`.trim() : "") ||
         `Employee ${item.employeeId}`;
 
-      console.log('Final employeeName:', employeeName);
+      // console.log("Final employeeName:", employeeName);
 
       const basicAmount = Number(item.basic) || 0;
       const pfAmount = Number(item.pf) || 0;
@@ -1227,16 +1610,22 @@ export default function PayrollSetup() {
       const pfEnabled = item.pfEnabled ?? pfAmount > 0;
       const esiEnabled = item.esiEnabled ?? esiAmount > 0;
       const pfPercentage = Number(
-        item.pfPercentage ?? (pfEnabled && basicAmount > 0 ? ((pfAmount / basicAmount) * 100).toFixed(2) : 0)
+        item.pfPercentage ??
+          (pfEnabled && basicAmount > 0
+            ? ((pfAmount / basicAmount) * 100).toFixed(2)
+            : 0),
       );
       const esiPercentage = Number(
-        item.esiPercentage ?? (esiEnabled && basicAmount > 0 ? ((esiAmount / basicAmount) * 100).toFixed(2) : 0)
+        item.esiPercentage ??
+          (esiEnabled && basicAmount > 0
+            ? ((esiAmount / basicAmount) * 100).toFixed(2)
+            : 0),
       );
 
       setFormData({
         ...item,
         // Ensure employeeId is set for the select component
-        employeeId: item.employeeId || '',
+        employeeId: item.employeeId || "",
         // Set the employee name for display
         employeeName: employeeName,
         pfEnabled,
@@ -1266,21 +1655,36 @@ export default function PayrollSetup() {
         pt: "",
         tds: "",
         otherDeductions: "",
-        reportingManager: ""
+        reportingManager: "",
       });
     }
     setIsDialogOpen(true);
   };
 
-  const calculateGross = (gross: number, basic: number, hra: number, lta: number, allowances: number, incentives: number) => {
-    return gross || (basic + hra + lta + allowances + incentives);
+  const calculateGross = (
+    gross: number,
+    basic: number,
+    hra: number,
+    lta: number,
+    allowances: number,
+    incentives: number,
+  ) => {
+    return gross || basic + hra + lta + allowances + incentives;
   };
 
   const calculateTdsAmount = (gross: number, tdsPercentage: number) => {
-    return Number(((toNumber(gross) * toNumber(tdsPercentage)) / 100).toFixed(2));
+    return Number(
+      ((toNumber(gross) * toNumber(tdsPercentage)) / 100).toFixed(2),
+    );
   };
 
-  const calculateTotalDeductions = (pf: number, esi: number, pt: number, tdsAmount: number, other: number) => {
+  const calculateTotalDeductions = (
+    pf: number,
+    esi: number,
+    pt: number,
+    tdsAmount: number,
+    other: number,
+  ) => {
     return pf + esi + pt + tdsAmount + other;
   };
 
@@ -1308,10 +1712,10 @@ export default function PayrollSetup() {
   };
 
   const handleSave = async () => {
-    console.log('handleSave called');
-    console.log('formData:', formData);
-    console.log('formData.employeeId:', formData.employeeId);
-    console.log('formData.employeeName:', formData.employeeName);
+    // console.log("handleSave called");
+    // console.log("formData:", formData);
+    // console.log("formData.employeeId:", formData.employeeId);
+    // console.log("formData.employeeName:", formData.employeeName);
 
     if (!formData.employeeId || !formData.employeeName) {
       toast.error("Please select an employee");
@@ -1327,7 +1731,7 @@ export default function PayrollSetup() {
         recalculatedFormData.hra || 0,
         recalculatedFormData.lta || 0,
         recalculatedFormData.allowances || 0,
-        recalculatedFormData.incentives || 0
+        recalculatedFormData.incentives || 0,
       );
 
       const salaryData = {
@@ -1373,9 +1777,10 @@ export default function PayrollSetup() {
           }
           toast.success("Salary structure created successfully");
           const createdIdRaw = result.data?.structure?.id ?? result.data?.id;
-          const createdId = createdIdRaw !== undefined && createdIdRaw !== null
-            ? String(createdIdRaw)
-            : null;
+          const createdId =
+            createdIdRaw !== undefined && createdIdRaw !== null
+              ? String(createdIdRaw)
+              : null;
           setSalaryStructures((prev) => [
             ...prev,
             {
@@ -1388,12 +1793,14 @@ export default function PayrollSetup() {
           await refreshStructuresFromApi();
         }
       } catch (error) {
-        console.error('Error saving salary structure:', error);
+        console.error("Error saving salary structure:", error);
         toast.error("Failed to save salary structure");
         // Fallback to local state update
         if (editingId) {
           setSalaryStructures((prev) =>
-            prev.map((s) => (s.id === editingId ? { ...recalculatedFormData, gross } : s))
+            prev.map((s) =>
+              s.id === editingId ? { ...recalculatedFormData, gross } : s,
+            ),
           );
         } else {
           setSalaryStructures((prev) => [
@@ -1410,18 +1817,25 @@ export default function PayrollSetup() {
         setIsSavingStructure(false);
       }
     } else if (activeTab === "processing") {
-      const tdsAmount = calculateTdsAmount(formData.gross || 0, formData.tds || 0);
+      const tdsAmount = calculateTdsAmount(
+        formData.gross || 0,
+        formData.tds || 0,
+      );
       const deductions = calculateTotalDeductions(
         formData.pf || 0,
         formData.esi || 0,
         formData.pt || 0,
         tdsAmount,
-        formData.otherDeductions || 0
+        formData.otherDeductions || 0,
       );
       const net = (formData.gross || 0) - deductions;
       if (editingId) {
         setPayrollProcessing((prev) =>
-          prev.map((p) => (p.id === editingId ? { ...formData, tdsAmount, deductions, net } : p))
+          prev.map((p) =>
+            p.id === editingId
+              ? { ...formData, tdsAmount, deductions, net }
+              : p,
+          ),
         );
       } else {
         setPayrollProcessing((prev) => [
@@ -1440,7 +1854,7 @@ export default function PayrollSetup() {
       const number = `PS/${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}/${String(payslips.length + 1).padStart(3, "0")}`;
       if (editingId) {
         setPayslips((prev) =>
-          prev.map((p) => (p.id === editingId ? { ...formData, number } : p))
+          prev.map((p) => (p.id === editingId ? { ...formData, number } : p)),
         );
       } else {
         setPayslips((prev) => [
@@ -1476,7 +1890,7 @@ export default function PayrollSetup() {
         }
         setSalaryStructures((prev) => prev.filter((s) => s.id !== deleteId));
       } catch (error) {
-        console.error('Error deleting salary structure:', error);
+        console.error("Error deleting salary structure:", error);
         toast.error("Failed to delete salary structure");
         // Still remove from local state even if API fails
         setSalaryStructures((prev) => prev.filter((s) => s.id !== deleteId));
@@ -1493,12 +1907,16 @@ export default function PayrollSetup() {
         }
         setPayrollProcessing((prev) => prev.filter((p) => p.id !== deleteId));
       } catch (error) {
-        console.error('Error deleting payroll processing record:', error);
+        console.error("Error deleting payroll processing record:", error);
         toast.error("Failed to delete payroll processing record");
       }
     } else if (activeTab === "payslips") {
       try {
-        const idsToDelete = isBulkPayslipDelete ? selectedPayslipIds : (deleteId ? [deleteId] : []);
+        const idsToDelete = isBulkPayslipDelete
+          ? selectedPayslipIds
+          : deleteId
+            ? [deleteId]
+            : [];
         if (idsToDelete.length === 0) {
           setIsDeleteDialogOpen(false);
           return;
@@ -1513,15 +1931,21 @@ export default function PayrollSetup() {
         }
 
         if (failedIds.length > 0) {
-          toast.error(`Failed to delete ${failedIds.length} payslip${failedIds.length === 1 ? "" : "s"}`);
+          toast.error(
+            `Failed to delete ${failedIds.length} payslip${failedIds.length === 1 ? "" : "s"}`,
+          );
           return;
         }
 
         setPayslips((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
-        setSelectedPayslipIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
-        toast.success(`${idsToDelete.length} payslip${idsToDelete.length === 1 ? "" : "s"} deleted successfully`);
+        setSelectedPayslipIds((prev) =>
+          prev.filter((id) => !idsToDelete.includes(id)),
+        );
+        toast.success(
+          `${idsToDelete.length} payslip${idsToDelete.length === 1 ? "" : "s"} deleted successfully`,
+        );
       } catch (error) {
-        console.error('Error deleting payslip:', error);
+        console.error("Error deleting payslip:", error);
         toast.error("Failed to delete payslip");
       }
     }
@@ -1531,45 +1955,45 @@ export default function PayrollSetup() {
 
   const handleDownloadPayslip = async () => {
     if (!payslipPreviewHtml) {
-      toast.error('No payslip data available for download');
+      toast.error("No payslip data available for download");
       return;
     }
 
     try {
       // Create a temporary div to render the payslip
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      tempDiv.style.width = '1200px';
+      const tempDiv = document.createElement("div");
+      tempDiv.style.position = "absolute";
+      tempDiv.style.left = "-9999px";
+      tempDiv.style.top = "0";
+      tempDiv.style.width = "1200px";
       tempDiv.innerHTML = payslipStyles + processImageUrls(payslipPreviewHtml);
       document.body.appendChild(tempDiv);
 
       // Show loading toast
-      toast.loading('Generating PDF...');
+      toast.loading("Generating PDF...");
 
       // Wait for content to render
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Capture the payslip as canvas
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: "#ffffff",
         width: 1200,
-        windowWidth: 1200
+        windowWidth: 1200,
       });
 
       // Remove temporary div
       document.body.removeChild(tempDiv);
 
       // Create PDF
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
       });
 
       // Calculate dimensions to fit A4 page
@@ -1579,42 +2003,54 @@ export default function PayrollSetup() {
       const imgHeight = canvas.height;
       const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 25.4; // Convert to mm
 
-      const imgX = (pdfWidth - imgWidth * ratio / 25.4) / 2;
+      const imgX = (pdfWidth - (imgWidth * ratio) / 25.4) / 2;
       const imgY = 10;
 
       // Add image to PDF
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio / 25.4, imgHeight * ratio / 25.4);
+      pdf.addImage(
+        imgData,
+        "PNG",
+        imgX,
+        imgY,
+        (imgWidth * ratio) / 25.4,
+        (imgHeight * ratio) / 25.4,
+      );
 
       // Generate filename
-      const filename = `payslip-${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = `payslip-${new Date().toISOString().split("T")[0]}.pdf`;
 
       // Download the PDF
       pdf.save(filename);
 
       // Show success message
       toast.dismiss();
-      toast.success('Payslip downloaded successfully!');
-
+      toast.success("Payslip downloaded successfully!");
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating PDF:", error);
       toast.dismiss();
-      toast.error('Failed to generate PDF. Please try again.');
+      toast.error("Failed to generate PDF. Please try again.");
     }
   };
 
   // Function to process image URLs to make them absolute
   const processImageUrls = (html: string): string => {
     // Convert relative URLs to absolute URLs
-    const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+    const baseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
 
     return html.replace(/src="([^"]+)"/g, (match, src) => {
       // If it's already an absolute URL (starts with http or data:), leave it as is
-      if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('//')) {
+      if (
+        src.startsWith("http") ||
+        src.startsWith("data:") ||
+        src.startsWith("//")
+      ) {
         return match;
       }
 
       // Convert relative URL to absolute URL
-      const absoluteSrc = src.startsWith('/') ? baseUrl + src : baseUrl + '/' + src;
+      const absoluteSrc = src.startsWith("/")
+        ? baseUrl + src
+        : baseUrl + "/" + src;
       return `src="${absoluteSrc}"`;
     });
   };
@@ -1628,19 +2064,20 @@ export default function PayrollSetup() {
 
     try {
       // Prepare CSV data
-      const csvData = filteredProcessing.map(process => ({
+      const csvData = filteredProcessing.map((process) => ({
         "Employee Name": process.employeeName,
         "Employee ID": process.employeeId,
-        "Month": process.month,
+        Month: process.month,
         "Payable Days": process.payableDays,
         "Unpayable Days": process.unpayableDays ?? process.lopDays ?? 0,
         "LOP Amount": process.lopAmount || 0,
         "Gross Salary": process.gross,
-        "TDS": process.tdsAmount || 0,
-        "Deductions": process.deductions,
+        TDS: process.tdsAmount || 0,
+        Deductions: process.deductions,
         "Net Salary": process.net,
-        "Status": process.status.charAt(0).toUpperCase() + process.status.slice(1),
-        "Reporting Manager": process.reportingManager || ""
+        Status:
+          process.status.charAt(0).toUpperCase() + process.status.slice(1),
+        "Reporting Manager": process.reportingManager || "",
       }));
 
       // Create worksheet
@@ -1651,7 +2088,7 @@ export default function PayrollSetup() {
       XLSX.utils.book_append_sheet(wb, ws, "Payroll Processing");
 
       // Generate filename with current date
-      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDate = new Date().toISOString().split("T")[0];
       const fileName = `Payroll_Processing_${currentDate}.csv`;
 
       // Write file
@@ -1673,7 +2110,9 @@ export default function PayrollSetup() {
             <DollarSign className="w-6 md:w-8 h-6 md:h-8 text-primary flex-shrink-0" />
             <span>Payroll Management</span>
           </h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">Manage salary structures, process payroll, and generate payslips</p>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">
+            Manage salary structures, process payroll, and generate payslips
+          </p>
         </div>
 
         {/* Search Card - Removed for responsiveness */}
@@ -1699,15 +2138,35 @@ export default function PayrollSetup() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full gap-2 bg-muted p-1 ${canViewSalaryStructure && canViewProcessPayroll && canViewPayslips ? 'grid-cols-3' :
-            (canViewSalaryStructure || canViewProcessPayroll || canViewPayslips) &&
-              ((canViewSalaryStructure && canViewProcessPayroll) ||
-                (canViewSalaryStructure && canViewPayslips) ||
-                (canViewProcessPayroll && canViewPayslips)) ? 'grid-cols-2' : 'grid-cols-1'
-            }`}>
-            {canViewSalaryStructure && <TabsTrigger value="structure" className="text-xs md:text-sm">Salary Structure</TabsTrigger>}
-            {canViewProcessPayroll && <TabsTrigger value="processing" className="text-xs md:text-sm">Processing</TabsTrigger>}
-            {canViewPayslips && <TabsTrigger value="payslips" className="text-xs md:text-sm">Payslips</TabsTrigger>}
+          <TabsList
+            className={`grid w-full gap-2 bg-muted p-1 ${
+              canViewSalaryStructure && canViewProcessPayroll && canViewPayslips
+                ? "grid-cols-3"
+                : (canViewSalaryStructure ||
+                      canViewProcessPayroll ||
+                      canViewPayslips) &&
+                    ((canViewSalaryStructure && canViewProcessPayroll) ||
+                      (canViewSalaryStructure && canViewPayslips) ||
+                      (canViewProcessPayroll && canViewPayslips))
+                  ? "grid-cols-2"
+                  : "grid-cols-1"
+            }`}
+          >
+            {canViewSalaryStructure && (
+              <TabsTrigger value="structure" className="text-xs md:text-sm">
+                Salary Structure
+              </TabsTrigger>
+            )}
+            {canViewProcessPayroll && (
+              <TabsTrigger value="processing" className="text-xs md:text-sm">
+                Processing
+              </TabsTrigger>
+            )}
+            {canViewPayslips && (
+              <TabsTrigger value="payslips" className="text-xs md:text-sm">
+                Payslips
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Salary Structure Tab */}
@@ -1717,7 +2176,9 @@ export default function PayrollSetup() {
                 <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
                   {/* Header with Add Button */}
                   <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-slate-900">Salary Structures</h2>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Salary Structures
+                    </h2>
                     <Button
                       onClick={() => handleOpenDialog()}
                       className="bg-[#17c491] hover:bg-[#15b381] text-white"
@@ -1730,14 +2191,29 @@ export default function PayrollSetup() {
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-4">
                     {filteredStructures.map((struct) => {
-                      const tdsAmount = calculateTdsAmount(struct.gross, struct.tds);
-                      const totalDeductions = struct.pf + struct.esi + struct.pt + tdsAmount + struct.otherDeductions;
+                      const tdsAmount = calculateTdsAmount(
+                        struct.gross,
+                        struct.tds,
+                      );
+                      const totalDeductions =
+                        struct.pf +
+                        struct.esi +
+                        struct.pt +
+                        tdsAmount +
+                        struct.otherDeductions;
                       return (
-                        <div key={struct.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                        <div
+                          key={struct.id}
+                          className="border border-slate-200 rounded-lg p-4 bg-slate-50"
+                        >
                           <div className="flex items-start justify-between mb-4">
                             <div>
-                              <p className="font-bold text-base text-slate-900">{struct.employeeName}</p>
-                              <p className="text-xs text-slate-600 mt-1">ID: {struct.employeeId}</p>
+                              <p className="font-bold text-base text-slate-900">
+                                {struct.employeeName}
+                              </p>
+                              <p className="text-xs text-slate-600 mt-1">
+                                ID: {struct.employeeId}
+                              </p>
                             </div>
                             <div className="flex gap-2">
                               <button
@@ -1759,31 +2235,53 @@ export default function PayrollSetup() {
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-slate-600">Basic:</span>
-                              <span className="font-semibold text-slate-900">₹{struct.basic.toLocaleString()}</span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{struct.basic.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">HRA:</span>
-                              <span className="font-semibold text-slate-900">₹{struct.hra.toLocaleString()}</span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{struct.hra.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-600">Allowances:</span>
-                              <span className="font-semibold text-slate-900">₹{struct.allowances.toLocaleString()}</span>
+                              <span className="text-slate-600">
+                                Allowances:
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{struct.allowances.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-600">Incentives:</span>
-                              <span className="font-semibold text-slate-900">₹{struct.incentives.toLocaleString()}</span>
+                              <span className="text-slate-600">
+                                Incentives:
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{struct.incentives.toLocaleString()}
+                              </span>
                             </div>
                             <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-blue-50 -mx-4 px-4 py-2">
-                              <span className="font-bold text-slate-900">Gross:</span>
-                              <span className="font-bold text-slate-900">₹{struct.gross.toLocaleString()}</span>
+                              <span className="font-bold text-slate-900">
+                                Gross:
+                              </span>
+                              <span className="font-bold text-slate-900">
+                                ₹{struct.gross.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-600">Deductions:</span>
-                              <span className="font-semibold text-slate-900">₹{totalDeductions.toLocaleString()}</span>
+                              <span className="text-slate-600">
+                                Deductions:
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{totalDeductions.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">TDS:</span>
-                              <span className="font-semibold text-slate-900">₹{tdsAmount.toLocaleString()}</span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{tdsAmount.toLocaleString()}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1796,31 +2294,76 @@ export default function PayrollSetup() {
                     <table className="w-full text-sm border-collapse">
                       <thead>
                         <tr className="border-b-2 border-slate-300 bg-slate-100">
-                          <th className="text-left px-6 py-4 font-bold text-slate-900">Employee</th>
-                          <th className="text-right px-4 py-4 font-bold text-slate-900">Basic</th>
-                          <th className="text-right px-4 py-4 font-bold text-slate-900">HRA</th>
-                          <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">Allowances</th>
-                          <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">Incentives</th>
-                          <th className="text-right px-4 py-4 font-bold text-slate-900">Gross</th>
-                          <th className="text-right px-4 py-4 font-bold text-slate-900">TDS</th>
-                          <th className="text-right px-4 py-4 font-bold text-slate-900">Deductions</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900">Actions</th>
+                          <th className="text-left px-6 py-4 font-bold text-slate-900">
+                            Employee
+                          </th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">
+                            Basic
+                          </th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">
+                            HRA
+                          </th>
+                          <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">
+                            Allowances
+                          </th>
+                          <th className="hidden lg:table-cell text-right px-4 py-4 font-bold text-slate-900">
+                            Incentives
+                          </th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">
+                            Gross
+                          </th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">
+                            TDS
+                          </th>
+                          <th className="text-right px-4 py-4 font-bold text-slate-900">
+                            Deductions
+                          </th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredStructures.map((struct) => {
-                          const tdsAmount = calculateTdsAmount(struct.gross, struct.tds);
-                          const totalDeductions = struct.pf + struct.esi + struct.pt + tdsAmount + struct.otherDeductions;
+                          const tdsAmount = calculateTdsAmount(
+                            struct.gross,
+                            struct.tds,
+                          );
+                          const totalDeductions =
+                            struct.pf +
+                            struct.esi +
+                            struct.pt +
+                            tdsAmount +
+                            struct.otherDeductions;
                           return (
-                            <tr key={struct.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 font-semibold text-slate-900">{struct.employeeName}</td>
-                              <td className="px-4 py-4 text-slate-700 text-right">₹{struct.basic.toLocaleString()}</td>
-                              <td className="px-4 py-4 text-slate-700 text-right">₹{struct.hra.toLocaleString()}</td>
-                              <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">₹{struct.allowances.toLocaleString()}</td>
-                              <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">₹{struct.incentives.toLocaleString()}</td>
-                              <td className="px-4 py-4 text-slate-900 text-right font-bold bg-blue-100">₹{struct.gross.toLocaleString()}</td>
-                              <td className="px-4 py-4 text-slate-700 text-right">₹{tdsAmount.toLocaleString()}</td>
-                              <td className="px-4 py-4 text-slate-900 text-right font-bold bg-orange-100">₹{totalDeductions.toLocaleString()}</td>
+                            <tr
+                              key={struct.id}
+                              className="border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                            >
+                              <td className="px-6 py-4 font-semibold text-slate-900">
+                                {struct.employeeName}
+                              </td>
+                              <td className="px-4 py-4 text-slate-700 text-right">
+                                ₹{struct.basic.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-4 text-slate-700 text-right">
+                                ₹{struct.hra.toLocaleString()}
+                              </td>
+                              <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">
+                                ₹{struct.allowances.toLocaleString()}
+                              </td>
+                              <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">
+                                ₹{struct.incentives.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-4 text-slate-900 text-right font-bold bg-blue-100">
+                                ₹{struct.gross.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-4 text-slate-700 text-right">
+                                ₹{tdsAmount.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-4 text-slate-900 text-right font-bold bg-orange-100">
+                                ₹{totalDeductions.toLocaleString()}
+                              </td>
                               <td className="px-4 py-4">
                                 <div className="flex gap-2 justify-center">
                                   <button
@@ -1857,14 +2400,16 @@ export default function PayrollSetup() {
                 <CardContent className="pt-4 md:pt-6 px-0 md:px-6">
                   {/* Process Payroll Form */}
                   <div className="mb-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">Process Payroll</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-slate-900">
+                      Process Payroll
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="employee-select">Employee(s) *</Label>
                         <Select
                           value={formData.employeeId || ""}
                           onValueChange={(employeeId) => {
-                            console.log('Employee selected:', employeeId);
+                            // // console.log("Employee selected:", employeeId);
                             setFormData({ ...formData, employeeId });
                           }}
                         >
@@ -1876,9 +2421,14 @@ export default function PayrollSetup() {
                             showScrollButtons={false}
                             viewportClassName="h-auto max-h-52 overflow-y-scroll pr-2 [scrollbar-color:#64748b_#f1f5f9] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500"
                           >
-                            <SelectItem value="__all__">All employees</SelectItem>
+                            <SelectItem value="__all__">
+                              All employees
+                            </SelectItem>
                             {processableEmployees.map((emp) => (
-                              <SelectItem key={emp.id} value={emp.id.toString()}>
+                              <SelectItem
+                                key={emp.id}
+                                value={emp.id.toString()}
+                              >
                                 {emp.name}
                               </SelectItem>
                             ))}
@@ -1897,7 +2447,7 @@ export default function PayrollSetup() {
                           type="month"
                           value={formData.month || ""}
                           onChange={(e) => {
-                            console.log('Month selected:', e.target.value);
+                            // console.log("Month selected:", e.target.value);
                             setFormData({ ...formData, month: e.target.value });
                           }}
                           className="mt-2"
@@ -1912,7 +2462,8 @@ export default function PayrollSetup() {
                             !formData.employeeId ||
                             !formData.month ||
                             loading ||
-                            (formData.employeeId === "__all__" && processableEmployees.length === 0)
+                            (formData.employeeId === "__all__" &&
+                              processableEmployees.length === 0)
                           }
                         >
                           <Plus className="w-4 h-4" />
@@ -1920,7 +2471,10 @@ export default function PayrollSetup() {
                             ? "Sending..."
                             : formData.employeeId === "__all__"
                               ? "Process All Payroll"
-                              : isPayrollProcessed(formData.employeeId, formData.month)
+                              : isPayrollProcessed(
+                                    formData.employeeId,
+                                    formData.month,
+                                  )
                                 ? "Reprocess Payroll"
                                 : "Process Payroll"}
                         </Button>
@@ -1945,11 +2499,18 @@ export default function PayrollSetup() {
                   <div className="md:hidden space-y-4">
                     {filteredProcessing.map((process) => {
                       return (
-                        <div key={process.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                        <div
+                          key={process.id}
+                          className="border border-slate-200 rounded-lg p-4 bg-slate-50"
+                        >
                           <div className="flex items-start justify-between mb-4">
                             <div>
-                              <p className="font-bold text-base text-slate-900">{process.employeeName}</p>
-                              <p className="text-xs text-slate-600 mt-1">{process.month}</p>
+                              <p className="font-bold text-base text-slate-900">
+                                {process.employeeName}
+                              </p>
+                              <p className="text-xs text-slate-600 mt-1">
+                                {process.month}
+                              </p>
                             </div>
                             <div className="flex gap-2">
                               <button
@@ -1970,46 +2531,72 @@ export default function PayrollSetup() {
                           </div>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-slate-600">Payable Days:</span>
-                              <span className="font-semibold text-slate-900">{process.payableDays}</span>
+                              <span className="text-slate-600">
+                                Payable Days:
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                {process.payableDays}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">Lop Days:</span>
-                              <span className={`font-semibold ${(process.unpayableDays ?? process.lopDays ?? 0) > 0 ? "text-red-600" : "text-green-600"}`}>
+                              <span
+                                className={`font-semibold ${(process.unpayableDays ?? process.lopDays ?? 0) > 0 ? "text-red-600" : "text-green-600"}`}
+                              >
                                 {process.unpayableDays ?? process.lopDays ?? 0}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-600">LOP Amount:</span>
-                              <span className={`font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</span>
+                              <span className="text-slate-600">
+                                LOP Amount:
+                              </span>
+                              <span
+                                className={`font-semibold ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}
+                              >
+                                ₹{process.lopAmount?.toLocaleString() || 0}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">Gross:</span>
-                              <span className="font-semibold text-slate-900">₹{process.gross.toLocaleString()}</span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{process.gross.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">TDS:</span>
-                              <span className="font-semibold text-slate-900">₹{(process.tdsAmount || 0).toLocaleString()}</span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{(process.tdsAmount || 0).toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-slate-600">Deductions:</span>
-                              <span className="font-semibold text-slate-900">₹{process.deductions.toLocaleString()}</span>
+                              <span className="text-slate-600">
+                                Deductions:
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                ₹{process.deductions.toLocaleString()}
+                              </span>
                             </div>
                             <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-green-50 -mx-4 px-4 py-2">
-                              <span className="font-bold text-slate-900">Net:</span>
-                              <span className="font-bold text-slate-900">₹{process.net.toLocaleString()}</span>
+                              <span className="font-bold text-slate-900">
+                                Net:
+                              </span>
+                              <span className="font-bold text-slate-900">
+                                ₹{process.net.toLocaleString()}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">Status:</span>
                               <span
-                                className={`text-xs font-semibold px-3 py-1 rounded-full ${process.status === "paid"
-                                  ? "bg-green-100 text-green-800"
-                                  : process.status === "final"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                  }`}
+                                className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                                  process.status === "paid"
+                                    ? "bg-green-100 text-green-800"
+                                    : process.status === "final"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                }`}
                               >
-                                {process.status.charAt(0).toUpperCase() + process.status.slice(1)}
+                                {process.status.charAt(0).toUpperCase() +
+                                  process.status.slice(1)}
                               </span>
                             </div>
                           </div>
@@ -2023,40 +2610,83 @@ export default function PayrollSetup() {
                     <table className="w-full min-w-[1040px] text-sm border-collapse">
                       <thead>
                         <tr className="border-b-2 border-slate-300 bg-slate-100">
-                          <th className="text-left px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Employee</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Month</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Payable Days</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">LOP Amt</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Gross</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">TDS</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Deductions</th>
-                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">Net</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Status</th>
-                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">Actions</th>
+                          <th className="text-left px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Employee
+                          </th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Month
+                          </th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Payable Days
+                          </th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            LOP Amt
+                          </th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Gross
+                          </th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            TDS
+                          </th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Deductions
+                          </th>
+                          <th className="text-right px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Net
+                          </th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Status
+                          </th>
+                          <th className="text-center px-4 py-4 font-bold text-slate-900 whitespace-nowrap">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredProcessing.map((process) => {
                           return (
-                            <tr key={process.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">{process.employeeName}</td>
-                              <td className="px-4 py-4 text-slate-700 text-center whitespace-nowrap">{process.month}</td>
-                              <td className="px-4 py-4 text-slate-700 text-center font-medium whitespace-nowrap">{process.payableDays}</td>
-                              <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}>₹{process.lopAmount?.toLocaleString() || 0}</td>
-                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">₹{process.gross.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">₹{(process.tdsAmount || 0).toLocaleString()}</td>
-                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">₹{process.deductions.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-slate-900 text-right font-bold bg-green-100 whitespace-nowrap">₹{process.net.toLocaleString()}</td>
+                            <tr
+                              key={process.id}
+                              className="border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                            >
+                              <td className="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">
+                                {process.employeeName}
+                              </td>
+                              <td className="px-4 py-4 text-slate-700 text-center whitespace-nowrap">
+                                {process.month}
+                              </td>
+                              <td className="px-4 py-4 text-slate-700 text-center font-medium whitespace-nowrap">
+                                {process.payableDays}
+                              </td>
+                              <td
+                                className={`px-6 py-4 text-right font-semibold whitespace-nowrap ${process.lopAmount > 0 ? "text-red-600" : "text-green-600"}`}
+                              >
+                                ₹{process.lopAmount?.toLocaleString() || 0}
+                              </td>
+                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">
+                                ₹{process.gross.toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">
+                                ₹{(process.tdsAmount || 0).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 text-slate-700 text-right whitespace-nowrap">
+                                ₹{process.deductions.toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 text-slate-900 text-right font-bold bg-green-100 whitespace-nowrap">
+                                ₹{process.net.toLocaleString()}
+                              </td>
                               <td className="px-4 py-4 text-center">
                                 <span
-                                  className={`inline-flex items-center justify-center min-w-[86px] whitespace-nowrap text-xs font-semibold px-3 py-1.5 rounded-full ${process.status === "paid"
-                                    ? "bg-green-100 text-green-800"
-                                    : process.status === "final"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                    }`}
+                                  className={`inline-flex items-center justify-center min-w-[86px] whitespace-nowrap text-xs font-semibold px-3 py-1.5 rounded-full ${
+                                    process.status === "paid"
+                                      ? "bg-green-100 text-green-800"
+                                      : process.status === "final"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                  }`}
                                 >
-                                  {process.status.charAt(0).toUpperCase() + process.status.slice(1)}
+                                  {process.status.charAt(0).toUpperCase() +
+                                    process.status.slice(1)}
                                 </span>
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap">
@@ -2089,12 +2719,13 @@ export default function PayrollSetup() {
                   {filteredPayslips.length === 0 ? (
                     <div className="text-center py-12">
                       <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-600 mb-2">No Payslips Found</h3>
+                      <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                        No Payslips Found
+                      </h3>
                       <p className="text-gray-500">
                         {payslips.length === 0
                           ? "No payslips have been generated yet. Process payroll to create payslips."
-                          : "No payslips match your current filters or search criteria."
-                        }
+                          : "No payslips match your current filters or search criteria."}
                       </p>
                     </div>
                   ) : (
@@ -2107,8 +2738,13 @@ export default function PayrollSetup() {
                             onClick={handleSelectAllPayslips}
                             className="gap-2"
                           >
-                            <Checkbox checked={allFilteredPayslipsSelected} className="pointer-events-none" />
-                            {allFilteredPayslipsSelected ? "Clear Selection" : "Select All"}
+                            <Checkbox
+                              checked={allFilteredPayslipsSelected}
+                              className="pointer-events-none"
+                            />
+                            {allFilteredPayslipsSelected
+                              ? "Clear Selection"
+                              : "Select All"}
                           </Button>
                           <Button
                             type="button"
@@ -2122,111 +2758,151 @@ export default function PayrollSetup() {
                           </Button>
                         </div>
                       )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {filteredPayslips.map((payslip) => (
-                        <div key={payslip.id} className="border border-border rounded-lg p-6 hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50">
-                          {canDeletePayslips && (
-                            <div className="mb-3 flex items-center gap-2">
-                              <Checkbox
-                                checked={selectedPayslipIds.includes(payslip.id)}
-                                onCheckedChange={(checked) => togglePayslipSelection(payslip.id, checked === true)}
-                                aria-label={`Select payslip ${payslip.number || payslip.id}`}
-                              />
-                              <span className="text-sm text-slate-600">Select</span>
-                            </div>
-                          )}
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <p className="font-bold text-lg text-slate-900">{payslip.employeeName}</p>
-                              <p className="text-sm text-slate-600 mt-1">Payslip #{payslip.number}</p>
-                            </div>
-                            <span className="text-sm font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-md whitespace-nowrap">
-                              {payslip.month}
-                            </span>
-                          </div>
-                          <div className="space-y-3 mb-4 pt-3 border-t border-border">
-                            <div className="flex justify-between items-center">
-                              <p className="text-sm text-slate-600">Generated On:</p>
-                              <p className="text-sm font-medium text-slate-900">{payslip.generatedOn}</p>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <p className="text-sm text-slate-600">Employee ID:</p>
-                              <p className="text-sm font-medium text-slate-900">{payslip.employeeCode || payslip.employeeId}</p>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  setPayslipPreviewHtml(null);
-                                  const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
-                                  if (result.data) {
-                                    setPayslipPreviewHtml(result.data);
-                                    setIsViewPayslipOpen(true);
-                                  } else if (result.error) {
-                                    setIsViewPayslipOpen(false);
-                                    toast.error(result.error);
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {filteredPayslips.map((payslip) => (
+                          <div
+                            key={payslip.id}
+                            className="border border-border rounded-lg p-6 hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50"
+                          >
+                            {canDeletePayslips && (
+                              <div className="mb-3 flex items-center gap-2">
+                                <Checkbox
+                                  checked={selectedPayslipIds.includes(
+                                    payslip.id,
+                                  )}
+                                  onCheckedChange={(checked) =>
+                                    togglePayslipSelection(
+                                      payslip.id,
+                                      checked === true,
+                                    )
                                   }
-                                } catch (error) {
-                                  console.error('Error fetching payslip preview:', error);
-                                  setIsViewPayslipOpen(false);
-                                  toast.error('Failed to load payslip preview');
-                                }
-                              }}
-                              className="w-full inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
-                            >
-                              <FileText className="w-4 h-4" />
-                              View Payslip
-                            </button>
-                            {payslip.pdfUrl ? (
-                              <a
-                                href={payslip.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
-                              >
-                                <Download className="w-4 h-4" />
-                                Download PDF
-                              </a>
-                            ) : (
+                                  aria-label={`Select payslip ${payslip.number || payslip.id}`}
+                                />
+                                <span className="text-sm text-slate-600">
+                                  Select
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <p className="font-bold text-lg text-slate-900">
+                                  {payslip.employeeName}
+                                </p>
+                                <p className="text-sm text-slate-600 mt-1">
+                                  Payslip #{payslip.number}
+                                </p>
+                              </div>
+                              <span className="text-sm font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-md whitespace-nowrap">
+                                {payslip.month}
+                              </span>
+                            </div>
+                            <div className="space-y-3 mb-4 pt-3 border-t border-border">
+                              <div className="flex justify-between items-center">
+                                <p className="text-sm text-slate-600">
+                                  Generated On:
+                                </p>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {payslip.generatedOn}
+                                </p>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <p className="text-sm text-slate-600">
+                                  Employee ID:
+                                </p>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {payslip.employeeCode || payslip.employeeId}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
                               <button
                                 onClick={async () => {
                                   try {
                                     setPayslipPreviewHtml(null);
-                                    const result = await payrollApi.getPayslipPreview(payslip.employeeId, payslip.month);
+                                    const result =
+                                      await payrollApi.getPayslipPreview(
+                                        payslip.employeeId,
+                                        payslip.month,
+                                      );
                                     if (result.data) {
                                       setPayslipPreviewHtml(result.data);
-                                      // Trigger download directly
-                                      setTimeout(() => {
-                                        handleDownloadPayslip();
-                                      }, 100);
+                                      setIsViewPayslipOpen(true);
                                     } else if (result.error) {
+                                      setIsViewPayslipOpen(false);
                                       toast.error(result.error);
                                     }
                                   } catch (error) {
-                                    console.error('Error downloading payslip:', error);
-                                    toast.error('Failed to download payslip');
+                                    console.error(
+                                      "Error fetching payslip preview:",
+                                      error,
+                                    );
+                                    setIsViewPayslipOpen(false);
+                                    toast.error(
+                                      "Failed to load payslip preview",
+                                    );
                                   }
                                 }}
-                                className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                                className="w-full inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
                               >
-                                <Download className="w-4 h-4" />
-                                Download PDF
+                                <FileText className="w-4 h-4" />
+                                View Payslip
                               </button>
-                            )}
-                            {canDeletePayslips && (
-                              <button
-                                onClick={() => handleDelete(payslip.id)}
-                                className="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm border border-red-200"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Delete Payslip
-                              </button>
-                            )}
+                              {payslip.pdfUrl ? (
+                                <a
+                                  href={payslip.pdfUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download PDF
+                                </a>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      setPayslipPreviewHtml(null);
+                                      const result =
+                                        await payrollApi.getPayslipPreview(
+                                          payslip.employeeId,
+                                          payslip.month,
+                                        );
+                                      if (result.data) {
+                                        setPayslipPreviewHtml(result.data);
+                                        // Trigger download directly
+                                        setTimeout(() => {
+                                          handleDownloadPayslip();
+                                        }, 100);
+                                      } else if (result.error) {
+                                        toast.error(result.error);
+                                      }
+                                    } catch (error) {
+                                      console.error(
+                                        "Error downloading payslip:",
+                                        error,
+                                      );
+                                      toast.error("Failed to download payslip");
+                                    }
+                                  }}
+                                  className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download PDF
+                                </button>
+                              )}
+                              {canDeletePayslips && (
+                                <button
+                                  onClick={() => handleDelete(payslip.id)}
+                                  className="w-full inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm border border-red-200"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete Payslip
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
                     </>
                   )}
                 </CardContent>
@@ -2241,14 +2917,18 @@ export default function PayrollSetup() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Edit" : "Add New"} {activeTab === "structure" ? "Salary Structure" : activeTab === "processing" ? "Payroll Processing" : "Payslip"}
+              {editingId ? "Edit" : "Add New"}{" "}
+              {activeTab === "structure"
+                ? "Salary Structure"
+                : activeTab === "processing"
+                  ? "Payroll Processing"
+                  : "Payslip"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             {activeTab === "structure" && (
               <>
-
                 <div>
                   <Label>Employee *</Label>
                   {editingId ? (
@@ -2259,28 +2939,43 @@ export default function PayrollSetup() {
                         readOnly
                         className="bg-gray-50"
                       />
-                      <input type="hidden" name="employeeId" value={formData.employeeId} />
+                      <input
+                        type="hidden"
+                        name="employeeId"
+                        value={formData.employeeId}
+                      />
                     </div>
                   ) : (
                     // Show as dropdown when adding new
                     <Select
                       value={formData.employeeId || ""}
                       onValueChange={(employeeId) => {
-                        console.log('Select onValueChange called with:', employeeId);
-                        const employee = employees.find(emp => emp.id === employeeId);
-                        console.log('Found employee for selection:', employee);
+                        // console.log(
+                        //   "Select onValueChange called with:",
+                        //   employeeId,
+                        // );
+                        const employee = employees.find(
+                          (emp) => emp.id === employeeId,
+                        );
+                        // console.log("Found employee for selection:", employee);
                         if (employee) {
                           setFormData({
                             ...formData,
                             employeeId: employeeId,
-                            employeeName: employee.name
+                            employeeName: employee.name,
                           });
                         }
                       }}
                       disabled={employeesLoading}
                     >
                       <SelectTrigger className="mt-2">
-                        <SelectValue placeholder={employeesLoading ? "Loading employees..." : "Select employee..."} />
+                        <SelectValue
+                          placeholder={
+                            employeesLoading
+                              ? "Loading employees..."
+                              : "Select employee..."
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {employeesLoading ? (
@@ -2301,11 +2996,13 @@ export default function PayrollSetup() {
                       </SelectContent>
                     </Select>
                   )}
-                  {employees.length === 0 && !employeesLoading && !editingId && (
-                    <p className="text-xs text-red-500 mt-1">
-                      No employees available. Please add employees first.
-                    </p>
-                  )}
+                  {employees.length === 0 &&
+                    !employeesLoading &&
+                    !editingId && (
+                      <p className="text-xs text-red-500 mt-1">
+                        No employees available. Please add employees first.
+                      </p>
+                    )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -2321,7 +3018,7 @@ export default function PayrollSetup() {
                             basic: grossValue * 0.6,
                             hra: grossValue * 0.3,
                             lta: grossValue * 0.1,
-                          })
+                          }),
                         );
                       }}
                       type="number"
@@ -2358,7 +3055,12 @@ export default function PayrollSetup() {
                     <Label>Other Allowances</Label>
                     <Input
                       value={formData.allowances || ""}
-                      onChange={(e) => setFormData({ ...formData, allowances: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          allowances: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       className="mt-2"
                     />
@@ -2367,7 +3069,12 @@ export default function PayrollSetup() {
                     <Label>Incentives</Label>
                     <Input
                       value={formData.incentives || ""}
-                      onChange={(e) => setFormData({ ...formData, incentives: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          incentives: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       className="mt-2"
                     />
@@ -2388,8 +3095,11 @@ export default function PayrollSetup() {
                                 recalculatePfEsiFromState({
                                   ...prev,
                                   pfEnabled: checked === true,
-                                  pfPercentage: checked === true ? toNumber(prev.pfPercentage) : 0,
-                                })
+                                  pfPercentage:
+                                    checked === true
+                                      ? toNumber(prev.pfPercentage)
+                                      : 0,
+                                }),
                               )
                             }
                           />
@@ -2404,14 +3114,20 @@ export default function PayrollSetup() {
                               recalculatePfEsiFromState({
                                 ...prev,
                                 pfPercentage: parseFloat(e.target.value) || 0,
-                              })
+                              }),
                             )
                           }
                           type="number"
                           placeholder="PF %"
                           disabled={!formData.pfEnabled}
                         />
-                        <Input value={formData.pf || 0} type="number" readOnly disabled className="bg-gray-50" />
+                        <Input
+                          value={formData.pf || 0}
+                          type="number"
+                          readOnly
+                          disabled
+                          className="bg-gray-50"
+                        />
                       </div>
                     </div>
                     <div>
@@ -2426,8 +3142,11 @@ export default function PayrollSetup() {
                                 recalculatePfEsiFromState({
                                   ...prev,
                                   esiEnabled: checked === true,
-                                  esiPercentage: checked === true ? toNumber(prev.esiPercentage) : 0,
-                                })
+                                  esiPercentage:
+                                    checked === true
+                                      ? toNumber(prev.esiPercentage)
+                                      : 0,
+                                }),
                               )
                             }
                           />
@@ -2442,21 +3161,32 @@ export default function PayrollSetup() {
                               recalculatePfEsiFromState({
                                 ...prev,
                                 esiPercentage: parseFloat(e.target.value) || 0,
-                              })
+                              }),
                             )
                           }
                           type="number"
                           placeholder="ESI %"
                           disabled={!formData.esiEnabled}
                         />
-                        <Input value={formData.esi || 0} type="number" readOnly disabled className="bg-gray-50" />
+                        <Input
+                          value={formData.esi || 0}
+                          type="number"
+                          readOnly
+                          disabled
+                          className="bg-gray-50"
+                        />
                       </div>
                     </div>
                     <div>
                       <Label>PT</Label>
                       <Input
                         value={formData.pt || ""}
-                        onChange={(e) => setFormData({ ...formData, pt: parseFloat(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            pt: parseFloat(e.target.value) || 0,
+                          })
+                        }
                         type="number"
                         className="mt-2"
                       />
@@ -2465,7 +3195,12 @@ export default function PayrollSetup() {
                       <Label>TDS %</Label>
                       <Input
                         value={formData.tds || ""}
-                        onChange={(e) => setFormData({ ...formData, tds: parseFloat(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            tds: parseFloat(e.target.value) || 0,
+                          })
+                        }
                         type="number"
                         placeholder="TDS %"
                         className="mt-2"
@@ -2476,7 +3211,12 @@ export default function PayrollSetup() {
                     <Label>Other Deductions</Label>
                     <Input
                       value={formData.otherDeductions || ""}
-                      onChange={(e) => setFormData({ ...formData, otherDeductions: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          otherDeductions: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       className="mt-2"
                     />
@@ -2492,7 +3232,9 @@ export default function PayrollSetup() {
                   <Select
                     value={formData.employeeId || ""}
                     onValueChange={(employeeId) => {
-                      const salaryStructure = salaryStructures.find(s => s.employeeId === employeeId);
+                      const salaryStructure = salaryStructures.find(
+                        (s) => s.employeeId === employeeId,
+                      );
                       if (salaryStructure) {
                         // Calculate payable days if month is already selected
                         let calculatedDays = formData.payableDays || 26; // Use real-time calculated days
@@ -2506,8 +3248,9 @@ export default function PayrollSetup() {
                           employeeId: salaryStructure.employeeId,
                           employeeName: salaryStructure.employeeName,
                           gross: salaryStructure.gross,
-                          reportingManager: salaryStructure.reportingManager || "",
-                          payableDays: calculatedDays
+                          reportingManager:
+                            salaryStructure.reportingManager || "",
+                          payableDays: calculatedDays,
                         });
                       }
                     }}
@@ -2518,7 +3261,8 @@ export default function PayrollSetup() {
                     <SelectContent>
                       {salaryStructures.map((s) => (
                         <SelectItem key={s.id} value={s.employeeId}>
-                          {s.employeeName} ({s.employeeId}) - Gross: ₹{s.gross.toLocaleString()}
+                          {s.employeeName} ({s.employeeId}) - Gross: ₹
+                          {s.gross.toLocaleString()}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -2535,7 +3279,11 @@ export default function PayrollSetup() {
                         // Auto-calculate payable days when month changes
                         let payableDays = formData.payableDays || 26;
                         if (formData.employeeId && month) {
-                          const result = calculatePayableDays(formData.employeeId, month, mockAttendanceRecords);
+                          const result = calculatePayableDays(
+                            formData.employeeId,
+                            month,
+                            mockAttendanceRecords,
+                          );
                           payableDays = result.payableDays;
                         }
 
@@ -2547,17 +3295,29 @@ export default function PayrollSetup() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Gross Salary * (Auto-filled from Salary Structure)</Label>
+                      <Label>
+                        Gross Salary * (Auto-filled from Salary Structure)
+                      </Label>
                       <Input
                         value={formData.gross || ""}
-                        onChange={(e) => setFormData({ ...formData, gross: parseFloat(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            gross: parseFloat(e.target.value) || 0,
+                          })
+                        }
                         type="number"
                         className="mt-2 bg-slate-50"
                       />
                     </div>
                     <div>
                       <Label>Status *</Label>
-                      <Select value={formData.status || ""} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                      <Select
+                        value={formData.status || ""}
+                        onValueChange={(val) =>
+                          setFormData({ ...formData, status: val })
+                        }
+                      >
                         <SelectTrigger className="mt-2">
                           <SelectValue placeholder="Select status..." />
                         </SelectTrigger>
@@ -2568,17 +3328,29 @@ export default function PayrollSetup() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Label>Gross Salary * (Auto-filled from Salary Structure)</Label>
+                    <Label>
+                      Gross Salary * (Auto-filled from Salary Structure)
+                    </Label>
                     <Input
                       value={formData.gross || ""}
-                      onChange={(e) => setFormData({ ...formData, gross: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          gross: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       className="mt-2 bg-slate-50"
                     />
                   </div>
                   <div>
                     <Label>Status *</Label>
-                    <Select value={formData.status || ""} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                    <Select
+                      value={formData.status || ""}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, status: val })
+                      }
+                    >
                       <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select status..." />
                       </SelectTrigger>
@@ -2603,10 +3375,16 @@ export default function PayrollSetup() {
                         <span className="text-sm font-medium">
                           {formData.employeeName}
                         </span>
-                        <input type="hidden" name="employeeId" value={formData.employeeId} />
+                        <input
+                          type="hidden"
+                          name="employeeId"
+                          value={formData.employeeId}
+                        />
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-500">No employee selected</span>
+                      <span className="text-sm text-gray-500">
+                        No employee selected
+                      </span>
                     )}
                   </div>
                 </div>
@@ -2614,7 +3392,9 @@ export default function PayrollSetup() {
                   <Label>Month *</Label>
                   <Input
                     value={formData.month || ""}
-                    onChange={(e) => setFormData({ ...formData, month: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, month: e.target.value })
+                    }
                     type="month"
                     className="mt-2"
                   />
@@ -2623,7 +3403,9 @@ export default function PayrollSetup() {
                   <Label>PDF URL (Optional)</Label>
                   <Input
                     value={formData.pdfUrl || ""}
-                    onChange={(e) => setFormData({ ...formData, pdfUrl: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, pdfUrl: e.target.value })
+                    }
                     className="mt-2"
                     placeholder="/payslips/PS-XXXX-XX-XXX.pdf"
                   />
@@ -2632,7 +3414,9 @@ export default function PayrollSetup() {
                   <Label>Generated On *</Label>
                   <Input
                     value={formData.generatedOn || ""}
-                    onChange={(e) => setFormData({ ...formData, generatedOn: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, generatedOn: e.target.value })
+                    }
                     type="date"
                     className="mt-2"
                   />
@@ -2645,7 +3429,10 @@ export default function PayrollSetup() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={activeTab === "structure" && isSavingStructure}>
+            <Button
+              onClick={handleSave}
+              disabled={activeTab === "structure" && isSavingStructure}
+            >
               {activeTab === "structure" && isSavingStructure
                 ? editingId
                   ? "Updating..."
@@ -2657,14 +3444,32 @@ export default function PayrollSetup() {
       </Dialog>
 
       {/* Delete Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {activeTab === "structure" ? "Salary Structure" : activeTab === "processing" ? "Payroll Record" : isBulkPayslipDelete ? "Selected Payslips" : "Payslip"}
+              Delete{" "}
+              {activeTab === "structure"
+                ? "Salary Structure"
+                : activeTab === "processing"
+                  ? "Payroll Record"
+                  : isBulkPayslipDelete
+                    ? "Selected Payslips"
+                    : "Payslip"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {activeTab === "structure" ? "this salary structure" : activeTab === "processing" ? "this payroll record" : isBulkPayslipDelete ? `${selectedPayslipIds.length} selected payslip${selectedPayslipIds.length === 1 ? "" : "s"}` : "this payslip"}? This action cannot be undone.
+              Are you sure you want to delete{" "}
+              {activeTab === "structure"
+                ? "this salary structure"
+                : activeTab === "processing"
+                  ? "this payroll record"
+                  : isBulkPayslipDelete
+                    ? `${selectedPayslipIds.length} selected payslip${selectedPayslipIds.length === 1 ? "" : "s"}`
+                    : "this payslip"}
+              ? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">
@@ -2689,7 +3494,9 @@ export default function PayrollSetup() {
       >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
-            <DialogTitle className="text-xl font-bold">Payslip Preview</DialogTitle>
+            <DialogTitle className="text-xl font-bold">
+              Payslip Preview
+            </DialogTitle>
             <div className="flex gap-2">
               <Button
                 onClick={handleDownloadPayslip}
@@ -2698,7 +3505,10 @@ export default function PayrollSetup() {
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
               </Button>
-              <Button variant="outline" onClick={() => setIsViewPayslipOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsViewPayslipOpen(false)}
+              >
                 Close
               </Button>
             </div>
@@ -2706,7 +3516,9 @@ export default function PayrollSetup() {
           <div className="p-6">
             {payslipPreviewHtml && (
               <div
-                dangerouslySetInnerHTML={{ __html: `${payslipStyles}${processImageUrls(payslipPreviewHtml)}` }}
+                dangerouslySetInnerHTML={{
+                  __html: `${payslipStyles}${processImageUrls(payslipPreviewHtml)}`,
+                }}
                 className="w-full h-full"
               />
             )}

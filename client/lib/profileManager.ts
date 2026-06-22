@@ -10,8 +10,8 @@ interface SavedProfile {
 }
 
 class ProfileManager {
-  private readonly PROFILE_KEY = 'savedProfile';
-  private readonly CREDENTIALS_KEY = 'savedCredentials';
+  private readonly PROFILE_KEY = "savedProfile";
+  private readonly CREDENTIALS_KEY = "savedCredentials";
 
   // Save user profile when remember me is checked
   saveProfile(user: any, rememberMe: boolean): void {
@@ -24,11 +24,11 @@ class ProfileManager {
         employee_id: user.employee_id || user.employeeId,
         employeeId: user.employee_id || user.employeeId,
         lastLogin: new Date().toISOString(),
-        rememberMe: true
+        rememberMe: true,
       };
-      
+
       localStorage.setItem(this.PROFILE_KEY, JSON.stringify(profile));
-      console.log('Profile saved for remember me:', profile);
+      // console.log('Profile saved for remember me:', profile);
     } else if (!rememberMe) {
       // Clear saved profile if remember me is unchecked
       this.clearSavedProfile();
@@ -41,12 +41,12 @@ class ProfileManager {
       const credentials = {
         email: email,
         rememberMe: true,
-        savedAt: new Date().toISOString()
+        savedAt: new Date().toISOString(),
       };
-      
+
       localStorage.setItem(this.CREDENTIALS_KEY, JSON.stringify(credentials));
 
-      console.log('Credentials saved for remember me:', { email: email.substring(0, 3) + '***' });
+      // console.log('Credentials saved for remember me:', { email: email.substring(0, 3) + '***' });
     } else if (!rememberMe) {
       this.clearSavedCredentials();
     }
@@ -70,7 +70,7 @@ class ProfileManager {
         const lastLogin = new Date(profile.lastLogin);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
+
         if (lastLogin > thirtyDaysAgo) {
           return profile;
         } else {
@@ -80,14 +80,18 @@ class ProfileManager {
         }
       }
     } catch (error) {
-      console.error('Error loading saved profile:', error);
+      console.error("Error loading saved profile:", error);
       this.clearSavedProfile();
     }
     return null;
   }
 
   // Get saved credentials
-  getSavedCredentials(): { email: string; rememberMe: boolean; savedAt?: string } | null {
+  getSavedCredentials(): {
+    email: string;
+    rememberMe: boolean;
+    savedAt?: string;
+  } | null {
     try {
       const saved = localStorage.getItem(this.CREDENTIALS_KEY);
       if (saved) {
@@ -96,12 +100,12 @@ class ProfileManager {
         const savedAt = new Date(credentials.savedAt);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
+
         if (savedAt > thirtyDaysAgo) {
           return {
             email: credentials.email,
             rememberMe: credentials.rememberMe,
-            savedAt: credentials.savedAt
+            savedAt: credentials.savedAt,
           };
         } else {
           // Clear old credentials
@@ -110,7 +114,7 @@ class ProfileManager {
         }
       }
     } catch (error) {
-      console.error('Error loading saved credentials:', error);
+      console.error("Error loading saved credentials:", error);
       this.clearSavedCredentials();
     }
     return null;
@@ -119,19 +123,19 @@ class ProfileManager {
   // Clear saved profile
   clearSavedProfile(): void {
     localStorage.removeItem(this.PROFILE_KEY);
-    console.log('Saved profile cleared');
+    // console.log('Saved profile cleared');
   }
 
   // Clear saved credentials
   clearSavedCredentials(): void {
     localStorage.removeItem(this.CREDENTIALS_KEY);
-    console.log('Saved credentials cleared');
+    // console.log('Saved credentials cleared');
   }
 
   // Clear legacy password entries from older builds
   clearSavedPassword(): void {
-    localStorage.removeItem('savedPassword');
-    console.log('Saved password cleared');
+    localStorage.removeItem("savedPassword");
+    // console.log('Saved password cleared');
   }
 
   // Clear all saved data

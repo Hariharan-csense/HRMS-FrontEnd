@@ -46,7 +46,11 @@ export interface ExpenseDraft {
 
 const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
-  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+  if (
+    path.startsWith("http://") ||
+    path.startsWith("https://") ||
+    path.startsWith("data:")
+  ) {
     return path;
   }
 
@@ -55,7 +59,10 @@ const resolveFileUrl = (path?: string | null): string | undefined => {
     try {
       return `${new URL(BASE_URL).origin}${normalizedPath}`;
     } catch {
-      const normalizedBaseUrl = BASE_URL.replace(/\/backend\/?$/, "").replace(/\/+$/, "");
+      const normalizedBaseUrl = BASE_URL.replace(/\/backend\/?$/, "").replace(
+        /\/+$/,
+        "",
+      );
       return `${normalizedBaseUrl}${normalizedPath}`;
     }
   }
@@ -77,7 +84,7 @@ const expenseApi = {
     try {
       const response = await ENDPOINTS.getExpense();
 
-      console.log("Raw Expense API Response:", response.data);
+      // console.log("Raw Expense API Response:", response.data);
 
       // The response structure is: { success: true, count: 3, expenses: [...] }
       const payload = response.data;
@@ -100,10 +107,7 @@ const expenseApi = {
           undefined;
 
         // Normalize date
-        const expenseDate =
-          e.expense_date ||
-          e.date ||
-          undefined;
+        const expenseDate = e.expense_date || e.date || undefined;
 
         return {
           id: e.expense_id?.toString() || e.id?.toString(),
@@ -127,7 +131,7 @@ const expenseApi = {
         };
       });
 
-      console.log("Mapped Expenses:", mapped);
+      // console.log("Mapped Expenses:", mapped);
 
       return { data: mapped };
     } catch (error: any) {
@@ -144,11 +148,14 @@ const expenseApi = {
   /**
    * Get pending expenses for manager approval
    */
-  getPendingExpenses: async (): Promise<{ data?: Expense[]; error?: string }> => {
+  getPendingExpenses: async (): Promise<{
+    data?: Expense[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getPendingExpenses();
 
-      console.log("Raw Pending Expenses API Response:", response.data);
+      // console.log("Raw Pending Expenses API Response:", response.data);
 
       // The response structure should be: { success: true, expenses: [...] }
       const payload = response.data;
@@ -172,10 +179,7 @@ const expenseApi = {
 
         // Normalize date
         const expenseDate =
-          e.expense_date ||
-          e.date ||
-          e.created_at ||
-          undefined;
+          e.expense_date || e.date || e.created_at || undefined;
 
         return {
           id: e.expense_id?.toString() || e.id?.toString(),
@@ -199,7 +203,7 @@ const expenseApi = {
         };
       });
 
-      console.log("Mapped Pending Expenses:", mapped);
+      // console.log("Mapped Pending Expenses:", mapped);
 
       return { data: mapped };
     } catch (error: any) {
@@ -225,23 +229,26 @@ const expenseApi = {
     }
   },
 
-  getAssignedClients: async (): Promise<{ data?: AssignedClient[]; error?: string }> => {
+  getAssignedClients: async (): Promise<{
+    data?: AssignedClient[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getExpenseAssignedClients();
       const payload = response.data;
 
       if (!payload?.success || !Array.isArray(payload.clients)) {
-        return { error: 'Invalid API response' };
+        return { error: "Invalid API response" };
       }
 
       return { data: payload.clients };
     } catch (error: any) {
-      console.error('Error fetching assigned clients:', error);
+      console.error("Error fetching assigned clients:", error);
       return {
         error:
           error.response?.data?.message ||
           error.message ||
-          'Failed to load assigned clients',
+          "Failed to load assigned clients",
       };
     }
   },
@@ -252,58 +259,67 @@ const expenseApi = {
       const payload = response.data;
 
       if (!payload?.success) {
-        return { error: 'Invalid API response' };
+        return { error: "Invalid API response" };
       }
 
       return { data: Array.isArray(payload.drafts) ? payload.drafts : [] };
     } catch (error: any) {
-      console.error('Error fetching expense draft:', error);
+      console.error("Error fetching expense draft:", error);
       return {
         error:
           error.response?.data?.message ||
           error.message ||
-          'Failed to load draft',
+          "Failed to load draft",
       };
     }
   },
 
-  saveDraft: async (data: FormData): Promise<{ data?: any; error?: string }> => {
+  saveDraft: async (
+    data: FormData,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.saveExpenseDraft(data);
       return { data: response.data };
     } catch (error: any) {
-      console.error('Error saving expense draft:', error);
+      console.error("Error saving expense draft:", error);
       return {
-        error: error.response?.data?.message || 'Failed to save draft',
+        error: error.response?.data?.message || "Failed to save draft",
       };
     }
   },
 
-  clearDraft: async (draftId?: string | number): Promise<{ data?: any; error?: string }> => {
+  clearDraft: async (
+    draftId?: string | number,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteExpenseDraft(draftId);
       return { data: response.data };
     } catch (error: any) {
-      console.error('Error clearing expense draft:', error);
+      console.error("Error clearing expense draft:", error);
       return {
-        error: error.response?.data?.message || 'Failed to clear draft',
+        error: error.response?.data?.message || "Failed to clear draft",
       };
     }
   },
 
-  createExpensesBulk: async (formData: FormData): Promise<{ data?: any; error?: string }> => {
+  createExpensesBulk: async (
+    formData: FormData,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.createExpensesBulk(formData);
       return { data: response.data };
     } catch (error: any) {
-      console.error('Error creating bulk expenses:', error);
+      console.error("Error creating bulk expenses:", error);
       return {
-        error: error.response?.data?.message || 'Failed to submit expenses',
+        error: error.response?.data?.message || "Failed to submit expenses",
       };
     }
   },
 
-  updateExpense: async (id: string, data: any): Promise<{ data?: any; error?: string }> => {
+  updateExpense: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       // Make sure you're hitting the correct endpoint, e.g., `/expenses/:id`
       const response = await ENDPOINTS.updateExpense(id, data);
@@ -311,12 +327,15 @@ const expenseApi = {
     } catch (error: any) {
       console.error("Error updating expense:", error);
       return {
-        error: error.response?.data?.message || "Failed to update expense status",
+        error:
+          error.response?.data?.message || "Failed to update expense status",
       };
     }
   },
 
-  deleteExpense: async (id: string): Promise<{ data?: any; error?: string }> => {
+  deleteExpense: async (
+    id: string,
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteExpense(id);
       return { data: response.data };
@@ -343,7 +362,7 @@ const expenseApi = {
   exportExpenses: async (exportData: {
     employeeIds: string[];
     expenseIds?: string[];
-    format: 'csv' | 'json';
+    format: "csv" | "json";
     statusFilter?: string;
     dateFilter?: {
       startDate?: string;

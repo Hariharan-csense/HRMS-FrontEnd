@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GoogleMap, Marker, Circle, useJsApiLoader } from "@react-google-maps/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, ShieldCheck, AlertCircle } from "lucide-react";
 import ENDPOINTS from "@/lib/endpoint";
-import { GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/googleMaps";
+import KeylessMap, { KeylessMapCircle, KeylessMapMarker } from "@/components/KeylessMap";
 import { useLiveLocationPing } from "@/hooks/useLiveLocationPing";
 
 type LatLngLiteral = { lat: number; lng: number; accuracy?: number };
@@ -17,11 +16,6 @@ type AttendanceMapProps = {
    * on geofence enter/exit using attendance endpoints.
    */
   enableAutoCheck?: boolean;
-};
-
-const containerStyle = {
-  width: "100%",
-  height: "400px",
 };
 
 const DEFAULT_RADIUS = 200; // meters
@@ -46,8 +40,6 @@ export default function AttendanceMap({
   radiusMeters = DEFAULT_RADIUS,
   enableAutoCheck = false,
 }: AttendanceMapProps) {
-  const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
-
   const [employeeLocation, setEmployeeLocation] = useState<LatLngLiteral | null>(null);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -68,10 +60,10 @@ export default function AttendanceMap({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           accuracy: position.coords.accuracy,
-        } as LatLngLiteral & { accuracy?: number };
+        };
         setEmployeeLocation(coords);
         setDistanceKm(
-          haversineDistanceInKm(coords.lat, coords.lng, officeLocation.lat, officeLocation.lng)
+          haversineDistanceInKm(coords.lat, coords.lng, officeLocation.lat, officeLocation.lng),
         );
         setGeoError(null);
       },
@@ -82,35 +74,20 @@ export default function AttendanceMap({
         enableHighAccuracy: true,
         maximumAge: 10000,
         timeout: 20000,
-      }
+      },
     );
 
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [officeLocation?.lat, officeLocation?.lng]);
-
-  const circleOptions = useMemo(
-    () => ({
-      strokeColor: "#10b981",
-      strokeOpacity: 0.9,
-      strokeWeight: 1.5,
-      fillColor: "#10b981",
-      fillOpacity: 0.12,
-      clickable: false,
-    }),
-    []
-  );
+  }, [officeLocation]);
 
   const distanceMeters = distanceKm !== null ? distanceKm * 1000 : null;
   const isInside = distanceMeters !== null ? distanceMeters <= radiusMeters : null;
   const statusVariant = isInside === null ? "pending" : isInside ? "inside" : "outside";
-  const mapKey = officeLocation ? `${officeLocation.lat},${officeLocation.lng},${radiusMeters}` : "empty";
 
-  // Push live location to backend while enabled
   useLiveLocationPing(employeeLocation, Boolean(enableAutoCheck));
 
-  // Auto check-in / check-out based on geofence
   useEffect(() => {
     if (!officeLocation) return;
 
@@ -122,8 +99,8 @@ export default function AttendanceMap({
         formData.append("longitude", employeeLocation.lng.toString());
         formData.append("note", "Auto geo-fence");
         formData.append("source", "auto");
-        if ((employeeLocation as any).accuracy) {
-          formData.append("accuracy", (employeeLocation as any).accuracy.toString());
+        if (employeeLocation.accuracy) {
+          formData.append("accuracy", employeeLocation.accuracy.toString());
         }
 
         if (action === "check-in") {
@@ -138,24 +115,60 @@ export default function AttendanceMap({
       }
     };
 
-    if (statusVariant === "inside" && lastStatus.current !== "inside") {
-      if (!hasAutoCheckedIn.current) {
-        attemptAutoAttendance("check-in");
-      }
+    if (statusVariant === "inside" && lastStatus.current !== "inside" && !hasAutoCheckedIn.current) {
+      attemptAutoAttendance("check-in");
     }
 
-    if (statusVariant === "outside" && lastStatus.current === "inside") {
-      if (!hasAutoCheckedOut.current) {
-        attemptAutoAttendance("check-out");
-      }
+    if (statusVariant === "outside" && lastStatus.current === "inside" && !hasAutoCheckedOut.current) {
+      attemptAutoAttendance("check-out");
     }
 
     if (statusVariant !== "pending") {
       lastStatus.current = statusVariant;
     }
-  }, [statusVariant, enableAutoCheck, employeeLocation]);
+  }, [statusVariant, enableAutoCheck, employeeLocation, officeLocation]);
 
-  const canRenderMap = isLoaded && typeof window !== "undefined" && (window as any).google && officeLocation;
+  const mapMarkers = useMemo<KeylessMapMarker[]>(() => {
+    if (!officeLocation) return [];
+    const markers: KeylessMapMarker[] = [
+      {
+        id: "office",
+        position: officeLocation,
+        label: "Office",
+        title: officeName,
+        color: "#0ea5e9",
+        size: 42,
+      },
+    ];
+
+    if (employeeLocation) {
+      markers.push({
+        id: "employee",
+        position: employeeLocation,
+        label: "You",
+        title: "Your current location",
+        color: "#10b981",
+        size: 38,
+        pulse: statusVariant === "inside",
+      });
+    }
+
+    return markers;
+  }, [employeeLocation, officeLocation, officeName, statusVariant]);
+
+  const mapCircles = useMemo<KeylessMapCircle[]>(() => {
+    if (!officeLocation) return [];
+    return [
+      {
+        id: "office-radius",
+        center: officeLocation,
+        radiusMeters,
+        color: "#10b981",
+        fillOpacity: 0.12,
+        strokeOpacity: 0.9,
+      },
+    ];
+  }, [officeLocation, radiusMeters]);
 
   return (
     <Card className="chart-container border-0 shadow-xl">
@@ -175,38 +188,17 @@ export default function AttendanceMap({
 
       <CardContent className="p-6 space-y-4">
         {!officeLocation ? (
-          <p className="text-sm text-gray-600">Office location not configured yet. Add a branch to set office geo-fence.</p>
-        ) : !canRenderMap ? (
           <p className="text-sm text-gray-600">
-            {loadError ? "Failed to load Google Maps." : "Loading map…"}
+            Office location not configured yet. Add a branch to set office geo-fence.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-emerald-100 shadow-sm">
-            <GoogleMap
-              key={mapKey}
-              mapContainerStyle={containerStyle}
-              center={employeeLocation || officeLocation}
-              zoom={15}
-              options={{
-                disableDefaultUI: true,
-                clickableIcons: false,
-                streetViewControl: false,
-                mapTypeControl: false,
-              }}
-            >
-              <Circle center={officeLocation} radius={radiusMeters} options={circleOptions} />
-              <Marker position={officeLocation} label="Office" />
-              {employeeLocation && (
-                <Marker
-                  position={employeeLocation}
-                  label="You"
-                  icon={{
-                    url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                  }}
-                />
-              )}
-            </GoogleMap>
-          </div>
+          <KeylessMap
+            center={employeeLocation || officeLocation}
+            markers={mapMarkers}
+            circles={mapCircles}
+            height={400}
+            className="shadow-sm"
+          />
         )}
 
         {officeLocation && (
@@ -227,7 +219,7 @@ export default function AttendanceMap({
                 Distance from office
               </p>
               <p className="mt-2 text-lg font-bold text-gray-900">
-                {distanceMeters !== null ? `${distanceMeters.toFixed(0)} m` : "Awaiting location…"}
+                {distanceMeters !== null ? `${distanceMeters.toFixed(0)} m` : "Awaiting location..."}
               </p>
               <p className="text-xs text-gray-600 mt-1">
                 Uses Haversine formula with high-accuracy GPS.

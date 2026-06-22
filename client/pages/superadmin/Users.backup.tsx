@@ -172,7 +172,7 @@ export const Users: React.FC = () => {
   // Handle role change
   const handleRoleChange = (userId: string, newRole: string) => {
     // Implement role update logic here
-    console.log(`Updating user ${userId} role to ${newRole}`);
+    // console.log(`Updating user ${userId} role to ${newRole}`);
     // Update local state for demo purposes
     setUsers(users.map(user => 
       user.id === userId ? { ...user, role: newRole } : user
@@ -182,7 +182,7 @@ export const Users: React.FC = () => {
   // Handle status change
   const handleStatusChange = (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
     // Implement status update logic here
-    console.log(`Updating user ${userId} status to ${newStatus}`);
+    // console.log(`Updating user ${userId} status to ${newStatus}`);
     // Update local state for demo purposes
     setUsers(users.map(user => 
       user.id === userId ? { ...user, status: newStatus } : user

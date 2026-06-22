@@ -17,6 +17,7 @@ import logo from "../assets/logo.png";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
 import { isCordovaIOS } from "@/lib/platform";
+import { hasRefreshCredential, isAutoLoginPaused } from "@/lib/endpoint";
 
 const styles = `
   @keyframes fadeInDown {
@@ -133,10 +134,7 @@ export default function Login() {
 
     if (attemptedSessionRestore) return;
 
-    const hasRememberedSession =
-      localStorage.getItem("auth:session") ||
-      localStorage.getItem("refreshToken") ||
-      (localStorage.getItem("user") && localStorage.getItem("accessToken"));
+    const hasRememberedSession = hasRefreshCredential() && !isAutoLoginPaused();
 
     if (!hasRememberedSession) return;
 
@@ -208,7 +206,16 @@ export default function Login() {
   const handleYesThisIsMe = async () => {
     if (!savedProfile?.email) return;
 
+    if (!hasRefreshCredential()) {
+      showToast.info("Please enter your password to continue.");
+      setEmail(savedProfile.email);
+      setRememberMe(true);
+      setShowLoginForm(true);
+      return;
+    }
+
     try {
+      sessionStorage.removeItem("auth:showWelcomeBack");
       setIsAutoLoggingIn(true);
       const result = await autoLogin();
       if (result.success) {

@@ -1,57 +1,57 @@
-import React from 'react';
-import { PdfExportService } from '@/services/pdfExportService';
+import React from "react";
+import { PdfExportService } from "@/services/pdfExportService";
 
 const PDFExportTest = () => {
   const pdfService = PdfExportService.getInstance();
 
   const testSingleExport = async () => {
     const testExpense = {
-      id: 'test-123',
-      employeeName: 'John Doe',
-      category: 'Travel',
+      id: "test-123",
+      employeeName: "John Doe",
+      category: "Travel",
       amount: 1500,
-      date: '2024-01-15',
-      description: 'Business trip to Mumbai for client meeting',
-      receipt_url: 'https://via.placeholder.com/300x200',
-      company_id: 1
+      date: "2024-01-15",
+      description: "Business trip to Mumbai for client meeting",
+      receipt_url: "https://via.placeholder.com/300x200",
+      company_id: 1,
     };
 
     try {
       await pdfService.exportSingleExpense(testExpense);
-      console.log('Single PDF export successful');
+      // console.log('Single PDF export successful');
     } catch (error) {
-      console.error('Single PDF export failed:', error);
+      console.error("Single PDF export failed:", error);
     }
   };
 
   const testMultipleExport = async () => {
     const testExpenses = [
       {
-        id: 'test-123',
-        employeeName: 'John Doe',
-        category: 'Travel',
+        id: "test-123",
+        employeeName: "John Doe",
+        category: "Travel",
         amount: 1500,
-        date: '2024-01-15',
-        description: 'Business trip to Mumbai for client meeting',
-        receipt_url: 'https://via.placeholder.com/300x200',
-        company_id: 1
+        date: "2024-01-15",
+        description: "Business trip to Mumbai for client meeting",
+        receipt_url: "https://via.placeholder.com/300x200",
+        company_id: 1,
       },
       {
-        id: 'test-456',
-        employeeName: 'Jane Smith',
-        category: 'Meals',
+        id: "test-456",
+        employeeName: "Jane Smith",
+        category: "Meals",
         amount: 500,
-        date: '2024-01-16',
-        description: 'Team lunch at restaurant',
-        company_id: 1
-      }
+        date: "2024-01-16",
+        description: "Team lunch at restaurant",
+        company_id: 1,
+      },
     ];
 
     try {
       await pdfService.exportMultipleExpenses(testExpenses);
-      console.log('Multiple PDF export successful');
+      // console.log('Multiple PDF export successful');
     } catch (error) {
-      console.error('Multiple PDF export failed:', error);
+      console.error("Multiple PDF export failed:", error);
     }
   };
 

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from "react";
+import { Layout } from "@/components/Layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -13,26 +13,26 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { 
-  Users, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle, 
+} from "@/components/ui/select";
+import {
+  Users,
+  CheckCircle,
+  Clock,
+  AlertCircle,
   FileText,
   Calendar,
   Mail,
@@ -43,33 +43,33 @@ import {
   Eye,
   Edit,
   Trash2,
-  Check
-} from 'lucide-react';
-import { 
-  onboardingAPI, 
-  onboardingUtils, 
-  OnboardingEmployee, 
-  OnboardingTask, 
+  Check,
+} from "lucide-react";
+import {
+  onboardingAPI,
+  onboardingUtils,
+  OnboardingEmployee,
+  OnboardingTask,
   CreateEmployeeData,
-  OnboardingStats 
-} from '@/lib/onboardingEndpoints';
-import { isValidEmail, isValidPhone, normalizeEmail } from '@/lib/validation';
+  OnboardingStats,
+} from "@/lib/onboardingEndpoints";
+import { isValidEmail, isValidPhone, normalizeEmail } from "@/lib/validation";
 
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
+type TaskStatus = "pending" | "in_progress" | "completed";
 
 // Helper function to format date
 export const formatDate = (dateString: string | null | undefined) => {
-  if (!dateString) return '-';
+  if (!dateString) return "-";
   try {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   } catch (e) {
-    console.error('Error formatting date:', e);
-    return '-';
+    console.error("Error formatting date:", e);
+    return "-";
   }
 };
 
@@ -77,30 +77,31 @@ const HROnboarding: React.FC = () => {
   const [employees, setEmployees] = useState<OnboardingEmployee[]>([]);
   const [stats, setStats] = useState<OnboardingStats | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<OnboardingEmployee | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedEmployee, setSelectedEmployee] =
+    useState<OnboardingEmployee | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    position: '',
-    department: '',
-    startDate: '',
-    assignedHR: '',
+    name: "",
+    email: "",
+    phone: "",
+    position: "",
+    department: "",
+    startDate: "",
+    assignedHR: "",
   });
 
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [taskFormData, setTaskFormData] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    assignee: '',
+    title: "",
+    description: "",
+    dueDate: "",
+    assignee: "",
   });
 
   // Fetch employees and stats on component mount
@@ -114,20 +115,22 @@ const HROnboarding: React.FC = () => {
       setError(null);
       const [employeesResponse, statsResponse] = await Promise.all([
         onboardingAPI.getEmployees(),
-        onboardingAPI.getStats()
+        onboardingAPI.getStats(),
       ]);
-      
+
       // Ensure we always set an array, even if the response is malformed
-      const employeesData = Array.isArray(employeesResponse) 
-        ? employeesResponse 
-        : (employeesResponse?.data || []);
+      const employeesData = Array.isArray(employeesResponse)
+        ? employeesResponse
+        : employeesResponse?.data || [];
       const statsData = statsResponse;
-      
+
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
       setStats(statsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch onboarding data');
-      console.error('Error fetching onboarding data:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch onboarding data",
+      );
+      console.error("Error fetching onboarding data:", err);
     } finally {
       setLoading(false);
     }
@@ -137,10 +140,14 @@ const HROnboarding: React.FC = () => {
 
   const getStatusIcon = (status: TaskStatus) => {
     switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'in_progress': return <AlertCircle className="w-4 h-4" />;
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case "pending":
+        return <Clock className="w-4 h-4" />;
+      case "in_progress":
+        return <AlertCircle className="w-4 h-4" />;
+      case "completed":
+        return <CheckCircle className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -149,25 +156,25 @@ const HROnboarding: React.FC = () => {
     setError(null);
 
     if (!isValidEmail(formData.email)) {
-      setError('Please enter a valid email address');
+      setError("Please enter a valid email address");
       return;
     }
     if (!isValidPhone(formData.phone)) {
-      setError('Phone number must be 10 digits and start with 6, 7, 8, or 9');
+      setError("Phone number must be 10 digits and start with 6, 7, 8, or 9");
       return;
     }
-    
+
     setIsCreatingEmployee(true);
     try {
       // Format the date to YYYY-MM-DD format for the backend
-      let formattedStartDate = '';
+      let formattedStartDate = "";
       if (formData.startDate) {
         // Create a date object from the input (local time)
         const date = new Date(formData.startDate);
         // Get the local date parts (this handles timezone correctly)
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         formattedStartDate = `${year}-${month}-${day}`;
       }
 
@@ -182,31 +189,39 @@ const HROnboarding: React.FC = () => {
       };
 
       const newEmployee = await onboardingAPI.createEmployee(employeeData);
-      setEmployees(prev => Array.isArray(prev) ? [...prev, newEmployee] : [newEmployee]);
-      
+      setEmployees((prev) =>
+        Array.isArray(prev) ? [...prev, newEmployee] : [newEmployee],
+      );
+
       // Reset form
       setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        position: '',
-        department: '',
-        startDate: '',
-        assignedHR: '',
+        name: "",
+        email: "",
+        phone: "",
+        position: "",
+        department: "",
+        startDate: "",
+        assignedHR: "",
       });
       setIsDialogOpen(false);
-      
+
       // Refresh stats
       fetchOnboardingData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create employee');
-      console.error('Error creating employee:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to create employee",
+      );
+      console.error("Error creating employee:", err);
     } finally {
       setIsCreatingEmployee(false);
     }
   };
 
-  const filteredEmployees = onboardingUtils.filterEmployees(employees, searchTerm, statusFilter);
+  const filteredEmployees = onboardingUtils.filterEmployees(
+    employees,
+    searchTerm,
+    statusFilter,
+  );
 
   const getStatusCount = (status: string) => {
     return onboardingUtils.getStatusCount(employees, status);
@@ -214,9 +229,9 @@ const HROnboarding: React.FC = () => {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedEmployee) return;
-    
+
     setIsCreatingTask(true);
     try {
       const taskData = {
@@ -226,149 +241,188 @@ const HROnboarding: React.FC = () => {
         assignee: taskFormData.assignee,
       };
 
-      const newTask = await onboardingAPI.createTask(selectedEmployee.id, taskData);
-      
+      const newTask = await onboardingAPI.createTask(
+        selectedEmployee.id,
+        taskData,
+      );
+
       // Update selected employee with new task
-      setSelectedEmployee(prev => prev ? {
-        ...prev,
-        tasks: Array.isArray(prev.tasks) ? [...prev.tasks, newTask] : [newTask]
-      } : null);
-      
+      setSelectedEmployee((prev) =>
+        prev
+          ? {
+              ...prev,
+              tasks: Array.isArray(prev.tasks)
+                ? [...prev.tasks, newTask]
+                : [newTask],
+            }
+          : null,
+      );
+
       // Update employees list
-      setEmployees(prev => Array.isArray(prev) ? prev.map(emp => 
-        emp.id === selectedEmployee.id 
-          ? { ...emp, tasks: Array.isArray(emp.tasks) ? [...emp.tasks, newTask] : [newTask] }
-          : emp
-      ) : []);
-      
+      setEmployees((prev) =>
+        Array.isArray(prev)
+          ? prev.map((emp) =>
+              emp.id === selectedEmployee.id
+                ? {
+                    ...emp,
+                    tasks: Array.isArray(emp.tasks)
+                      ? [...emp.tasks, newTask]
+                      : [newTask],
+                  }
+                : emp,
+            )
+          : [],
+      );
+
       // Reset task form
       setTaskFormData({
-        title: '',
-        description: '',
-        dueDate: '',
-        assignee: '',
+        title: "",
+        description: "",
+        dueDate: "",
+        assignee: "",
       });
       setTaskDialogOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create task');
-      console.error('Error creating task:', err);
+      setError(err instanceof Error ? err.message : "Failed to create task");
+      console.error("Error creating task:", err);
     } finally {
       setIsCreatingTask(false);
     }
   };
 
- const toggleTaskStatus = async (taskId: string) => {
-  if (!taskId) {
-    console.error('Error: Task ID is undefined or empty');
-    setError('Failed to update task: Missing task ID');
-    return;
-  }
+  const toggleTaskStatus = async (taskId: string) => {
+    if (!taskId) {
+      console.error("Error: Task ID is undefined or empty");
+      setError("Failed to update task: Missing task ID");
+      return;
+    }
 
-  console.log('Toggling task status for task ID:', taskId);
-  
-  // Find the current task to get current status
-  const currentTask = selectedEmployee?.tasks?.find(t => t.id === taskId);
-  if (!currentTask) {
-    console.error('Task not found in current selection:', taskId);
-    setError('Task not found');
-    return;
-  }
+    // console.log("Toggling task status for task ID:", taskId);
 
-  const newCompletedStatus = !currentTask.completed;
-  const newStatus = newCompletedStatus ? 'completed' : 'pending';
+    // Find the current task to get current status
+    const currentTask = selectedEmployee?.tasks?.find((t) => t.id === taskId);
+    if (!currentTask) {
+      console.error("Task not found in current selection:", taskId);
+      setError("Task not found");
+      return;
+    }
 
-  // Optimistically update the UI
-  const optimisticTask: OnboardingTask = {
-    ...currentTask,
-    completed: newCompletedStatus,
-    status: newStatus
-  };
+    const newCompletedStatus = !currentTask.completed;
+    const newStatus = newCompletedStatus ? "completed" : "pending";
 
-  // Update selected employee tasks optimistically
-  setSelectedEmployee(prev => {
-    if (!prev || !Array.isArray(prev.tasks)) return prev;
-    return {
-      ...prev,
-      tasks: prev.tasks.map(t => t.id === taskId ? optimisticTask : t)
+    // Optimistically update the UI
+    const optimisticTask: OnboardingTask = {
+      ...currentTask,
+      completed: newCompletedStatus,
+      status: newStatus,
     };
-  });
-  
-  try {
-    // Make the API call with current completed status
-    const response = await onboardingAPI.toggleTaskCompletion(taskId, currentTask.completed);
-    
-    if (!response?.success) {
-      throw new Error(response?.message || 'Failed to update task status');
-    }
-    
-    const updatedTask = response.data;
-    console.log('Successfully updated task:', updatedTask);
-    
-    // Update the employee's progress if available in the response
-    if (updatedTask.employee_progress !== undefined && selectedEmployee) {
-      setSelectedEmployee(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          progress: updatedTask.employee_progress,
-          status: (updatedTask.employee_status as 'pending' | 'in_progress' | 'completed') || prev.status,
-          tasks: prev.tasks?.map(t => 
-            t.id === taskId ? { 
-              ...t, 
-              completed: updatedTask.completed,
-              status: updatedTask.status
-            } : t
-          )
-        };
-      });
 
-      // Also update in the employees list
-      setEmployees(prev => 
-        prev.map(emp => 
-          emp.id === selectedEmployee.id
-            ? {
-                ...emp,
-                progress: updatedTask.employee_progress,
-                status: (updatedTask.employee_status as 'pending' | 'in_progress' | 'completed') || emp.status,
-                tasks: emp.tasks?.map(t => 
-                  t.id === taskId 
-                    ? { ...t, completed: updatedTask.completed, status: updatedTask.status }
-                    : t
-                )
-              }
-            : emp
-        )
-      );
-    }
-    
-  } catch (err) {
-    // Revert optimistic update on error
-    setSelectedEmployee(prev => {
+    // Update selected employee tasks optimistically
+    setSelectedEmployee((prev) => {
       if (!prev || !Array.isArray(prev.tasks)) return prev;
       return {
         ...prev,
-        tasks: prev.tasks.map(t => t.id === taskId ? currentTask : t)
+        tasks: prev.tasks.map((t) => (t.id === taskId ? optimisticTask : t)),
       };
     });
-    
-    const errorMessage = err instanceof Error ? err.message : 'Failed to update task';
-    console.error('Error updating task:', errorMessage, err);
-    setError(`Error: ${errorMessage}`);
-    
-    // Re-fetch the latest data to ensure consistency
-    if (selectedEmployee?.id) {
-      try {
-        const freshData = await onboardingAPI.getEmployeeById(selectedEmployee.id);
-        setSelectedEmployee(freshData);
-        setEmployees(prev => 
-          prev.map(emp => emp.id === selectedEmployee.id ? freshData : emp)
+
+    try {
+      // Make the API call with current completed status
+      const response = await onboardingAPI.toggleTaskCompletion(
+        taskId,
+        currentTask.completed,
+      );
+
+      if (!response?.success) {
+        throw new Error(response?.message || "Failed to update task status");
+      }
+
+      const updatedTask = response.data;
+      // console.log("Successfully updated task:", updatedTask);
+
+      // Update the employee's progress if available in the response
+      if (updatedTask.employee_progress !== undefined && selectedEmployee) {
+        setSelectedEmployee((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            progress: updatedTask.employee_progress,
+            status:
+              (updatedTask.employee_status as
+                | "pending"
+                | "in_progress"
+                | "completed") || prev.status,
+            tasks: prev.tasks?.map((t) =>
+              t.id === taskId
+                ? {
+                    ...t,
+                    completed: updatedTask.completed,
+                    status: updatedTask.status,
+                  }
+                : t,
+            ),
+          };
+        });
+
+        // Also update in the employees list
+        setEmployees((prev) =>
+          prev.map((emp) =>
+            emp.id === selectedEmployee.id
+              ? {
+                  ...emp,
+                  progress: updatedTask.employee_progress,
+                  status:
+                    (updatedTask.employee_status as
+                      | "pending"
+                      | "in_progress"
+                      | "completed") || emp.status,
+                  tasks: emp.tasks?.map((t) =>
+                    t.id === taskId
+                      ? {
+                          ...t,
+                          completed: updatedTask.completed,
+                          status: updatedTask.status,
+                        }
+                      : t,
+                  ),
+                }
+              : emp,
+          ),
         );
-      } catch (fetchErr) {
-        console.error('Failed to refresh task data:', fetchErr);
+      }
+    } catch (err) {
+      // Revert optimistic update on error
+      setSelectedEmployee((prev) => {
+        if (!prev || !Array.isArray(prev.tasks)) return prev;
+        return {
+          ...prev,
+          tasks: prev.tasks.map((t) => (t.id === taskId ? currentTask : t)),
+        };
+      });
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update task";
+      console.error("Error updating task:", errorMessage, err);
+      setError(`Error: ${errorMessage}`);
+
+      // Re-fetch the latest data to ensure consistency
+      if (selectedEmployee?.id) {
+        try {
+          const freshData = await onboardingAPI.getEmployeeById(
+            selectedEmployee.id,
+          );
+          setSelectedEmployee(freshData);
+          setEmployees((prev) =>
+            prev.map((emp) =>
+              emp.id === selectedEmployee.id ? freshData : emp,
+            ),
+          );
+        } catch (fetchErr) {
+          console.error("Failed to refresh task data:", fetchErr);
+        }
       }
     }
-  }
-};
+  };
 
   return (
     <Layout>
@@ -377,15 +431,13 @@ const HROnboarding: React.FC = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
-            <button 
+            <button
               onClick={() => setError(null)}
               className="ml-4 text-red-500 hover:text-red-700"
-            >
-              
-            </button>
+            ></button>
           </div>
         )}
-        
+
         {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center py-8">
@@ -394,10 +446,17 @@ const HROnboarding: React.FC = () => {
         )}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold break-words">Employee Onboarding</h1>
-            <p className="text-gray-600 text-sm sm:text-base mt-1">Manage new employee onboarding process</p>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold break-words">
+              Employee Onboarding
+            </h1>
+            <p className="text-gray-600 text-sm sm:text-base mt-1">
+              Manage new employee onboarding process
+            </p>
           </div>
-          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="w-full sm:w-auto"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add New Employee
           </Button>
@@ -409,8 +468,12 @@ const HROnboarding: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Onboarding</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total || employees.length}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Onboarding
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">
+                    {stats?.total || employees.length}
+                  </p>
                 </div>
                 <div className="bg-blue-100 p-3 rounded-full">
                   <Users className="w-6 h-6 text-blue-600" />
@@ -423,7 +486,9 @@ const HROnboarding: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.pending || getStatusCount('pending')}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">
+                    {stats?.pending || getStatusCount("pending")}
+                  </p>
                 </div>
                 <div className="bg-yellow-100 p-3 rounded-full">
                   <Clock className="w-6 h-6 text-yellow-600" />
@@ -435,8 +500,12 @@ const HROnboarding: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">In Progress</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.inProgress || getStatusCount('in_progress')}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    In Progress
+                  </p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">
+                    {stats?.inProgress || getStatusCount("in_progress")}
+                  </p>
                 </div>
                 <div className="bg-blue-100 p-3 rounded-full">
                   <AlertCircle className="w-6 h-6 text-blue-600" />
@@ -449,7 +518,9 @@ const HROnboarding: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.completed || getStatusCount('completed')}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">
+                    {stats?.completed || getStatusCount("completed")}
+                  </p>
                 </div>
                 <div className="bg-green-100 p-3 rounded-full">
                   <CheckCircle className="w-6 h-6 text-green-600" />
@@ -493,7 +564,9 @@ const HROnboarding: React.FC = () => {
         {/* Employees Table */}
         <Card className="shadow-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-900">Onboarding Employees</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-900">
+              Onboarding Employees
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
             {/* Mobile Card Layout */}
@@ -503,40 +576,60 @@ const HROnboarding: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-base">{employee.name}</h3>
-                        <p className="text-sm text-gray-500">{employee.email}</p>
-                        <p className="text-sm text-gray-600 mt-1">{employee.position}</p>
-                        <p className="text-xs text-gray-500">{employee.department}</p>
+                        <h3 className="font-semibold text-gray-900 text-base">
+                          {employee.name}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {employee.email}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {employee.position}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {employee.department}
+                        </p>
                       </div>
-                      <Badge className={`${getStatusColor(employee.status || '')} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
-                        {(employee.status || '').replace('_', ' ')}
+                      <Badge
+                        className={`${getStatusColor(employee.status || "")} px-2 py-1 text-xs font-medium rounded-full capitalize`}
+                      >
+                        {(employee.status || "").replace("_", " ")}
                       </Badge>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Start Date</span>
-                        <span className="text-sm text-gray-900">{formatDate(employee.start_date)}</span>
+                        <span className="text-sm text-gray-600">
+                          Start Date
+                        </span>
+                        <span className="text-sm text-gray-900">
+                          {formatDate(employee.start_date)}
+                        </span>
                       </div>
-                      
+
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Progress</span>
                         <div className="flex items-center gap-2">
                           <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
                               style={{ width: `${employee.progress}%` }}
                             ></div>
                           </div>
-                          <span className="text-xs text-gray-600">{employee.progress}%</span>
+                          <span className="text-xs text-gray-600">
+                            {employee.progress}%
+                          </span>
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">HR Assignee</span>
-                        <span className="text-sm text-gray-900">{employee.assignedHR}</span>
+                        <span className="text-sm text-gray-600">
+                          HR Assignee
+                        </span>
+                        <span className="text-sm text-gray-900">
+                          {employee.assignedHR}
+                        </span>
                       </div>
-                      
+
                       <div className="flex justify-end space-x-2 pt-2 border-t">
                         <Button
                           variant="outline"
@@ -558,47 +651,80 @@ const HROnboarding: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-gray-200">
-                    <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</TableHead>
-                    <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Position</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Start Date</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Progress</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
-                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
+                    <TableHead className="min-w-[140px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Employee
+                    </TableHead>
+                    <TableHead className="min-w-[120px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                      Position
+                    </TableHead>
+                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                      Start Date
+                    </TableHead>
+                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                      Progress
+                    </TableHead>
+                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </TableHead>
+                    <TableHead className="min-w-[100px] py-3 px-2 sm:px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white divide-y divide-gray-200">
                   {filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id} className="hover:bg-gray-50 transition-colors">
+                    <TableRow
+                      key={employee.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                         <div>
-                          <div className="font-semibold text-gray-900 text-sm">{employee.name}</div>
-                          <div className="text-xs sm:text-sm text-gray-500 mt-1">{employee.email}</div>
-                          <div className="text-xs text-gray-600 mt-1 sm:hidden">{employee.position}</div>
+                          <div className="font-semibold text-gray-900 text-sm">
+                            {employee.name}
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-500 mt-1">
+                            {employee.email}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1 sm:hidden">
+                            {employee.position}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden sm:table-cell">
                         <div>
-                          <div className="font-medium text-gray-900 text-sm">{employee.position}</div>
-                          <div className="text-sm text-gray-500 mt-1">{employee.department}</div>
+                          <div className="font-medium text-gray-900 text-sm">
+                            {employee.position}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {employee.department}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden md:table-cell">
-                        <span className="text-sm text-gray-600">{formatDate(employee.start_date)}</span>
+                        <span className="text-sm text-gray-600">
+                          {formatDate(employee.start_date)}
+                        </span>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden lg:table-cell">
                         <div className="flex items-center gap-2">
                           <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
                               style={{ width: `${employee.progress}%` }}
                             ></div>
                           </div>
-                          <span className="text-xs text-gray-600">{employee.progress}%</span>
+                          <span className="text-xs text-gray-600">
+                            {employee.progress}%
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                        <Badge className={`${getStatusColor(employee.status || '')} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
-                          {employee.status ? employee.status.replace('_', ' ') : 'pending'}
+                        <Badge
+                          className={`${getStatusColor(employee.status || "")} px-2 py-1 text-xs font-medium rounded-full capitalize`}
+                        >
+                          {employee.status
+                            ? employee.status.replace("_", " ")
+                            : "pending"}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
@@ -634,7 +760,9 @@ const HROnboarding: React.FC = () => {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
                     required
                   />
                 </div>
@@ -644,7 +772,12 @@ const HROnboarding: React.FC = () => {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -659,7 +792,12 @@ const HROnboarding: React.FC = () => {
                     inputMode="numeric"
                     maxLength={10}
                     value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -668,7 +806,12 @@ const HROnboarding: React.FC = () => {
                   <Input
                     id="position"
                     value={formData.position}
-                    onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        position: e.target.value,
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -677,13 +820,20 @@ const HROnboarding: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="department">Department</Label>
-                  <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, department: value }))
+                    }
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Engineering">Engineering</SelectItem>
-                      <SelectItem value="Human Resources">Human Resources</SelectItem>
+                      <SelectItem value="Human Resources">
+                        Human Resources
+                      </SelectItem>
                       <SelectItem value="Sales">Sales</SelectItem>
                       <SelectItem value="Marketing">Marketing</SelectItem>
                       <SelectItem value="Finance">Finance</SelectItem>
@@ -697,7 +847,12 @@ const HROnboarding: React.FC = () => {
                     id="startDate"
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        startDate: e.target.value,
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -708,14 +863,23 @@ const HROnboarding: React.FC = () => {
                 <Input
                   id="assignedHR"
                   value={formData.assignedHR}
-                  onChange={(e) => setFormData(prev => ({ ...prev, assignedHR: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      assignedHR: e.target.value,
+                    }))
+                  }
                   placeholder="HR representative name"
                   required
                 />
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isCreatingEmployee}>
@@ -727,10 +891,15 @@ const HROnboarding: React.FC = () => {
         </Dialog>
 
         {/* Employee Details Dialog */}
-        <Dialog open={!!selectedEmployee} onOpenChange={() => setSelectedEmployee(null)}>
+        <Dialog
+          open={!!selectedEmployee}
+          onOpenChange={() => setSelectedEmployee(null)}
+        >
           <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto mx-auto">
             <DialogHeader>
-              <DialogTitle>Onboarding Details - {selectedEmployee?.name}</DialogTitle>
+              <DialogTitle>
+                Onboarding Details - {selectedEmployee?.name}
+              </DialogTitle>
             </DialogHeader>
             {selectedEmployee && (
               <div className="space-y-6">
@@ -738,44 +907,62 @@ const HROnboarding: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Personal Information</CardTitle>
+                      <CardTitle className="text-lg">
+                        Personal Information
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Mail className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">{selectedEmployee.email}</span>
+                        <span className="text-sm">
+                          {selectedEmployee.email}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">{selectedEmployee.phone}</span>
+                        <span className="text-sm">
+                          {selectedEmployee.phone}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Briefcase className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">{selectedEmployee.position}</span>
+                        <span className="text-sm">
+                          {selectedEmployee.position}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">{selectedEmployee.department}</span>
+                        <span className="text-sm">
+                          {selectedEmployee.department}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Onboarding Status</CardTitle>
+                      <CardTitle className="text-lg">
+                        Onboarding Status
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">Start: {formatDate(selectedEmployee.start_date)}</span>
+                        <span className="text-sm">
+                          Start: {formatDate(selectedEmployee.start_date)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm">HR: {selectedEmployee.assignedHR}</span>
+                        <span className="text-sm">
+                          HR: {selectedEmployee.assignedHR}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={`${getStatusColor(selectedEmployee.status)}`}>
-                          {selectedEmployee.status.replace('_', ' ')}
+                        <Badge
+                          className={`${getStatusColor(selectedEmployee.status)}`}
+                        >
+                          {selectedEmployee.status.replace("_", " ")}
                         </Badge>
                       </div>
                       <div className="space-y-2">
@@ -784,8 +971,8 @@ const HROnboarding: React.FC = () => {
                           <span>{selectedEmployee.progress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
                             style={{ width: `${selectedEmployee.progress}%` }}
                           ></div>
                         </div>
@@ -798,8 +985,8 @@ const HROnboarding: React.FC = () => {
                 <Card>
                   <CardHeader className="flex justify-between items-center">
                     <CardTitle className="text-lg">Onboarding Tasks</CardTitle>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       onClick={() => setTaskDialogOpen(true)}
                       className="h-8"
                     >
@@ -809,72 +996,99 @@ const HROnboarding: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {selectedEmployee.tasks && selectedEmployee.tasks.length > 0 ? (
+                      {selectedEmployee.tasks &&
+                      selectedEmployee.tasks.length > 0 ? (
                         selectedEmployee.tasks.map((task) => {
-                          console.log('Rendering task:', { 
-                            taskId: task.id, 
-                            hasId: !!task.id,
-                            taskTitle: task.title,
-                            taskStatus: task.status
-                          });
+                          // console.log("Rendering task:", {
+                          //   taskId: task.id,
+                          //   hasId: !!task.id,
+                          //   taskTitle: task.title,
+                          //   taskStatus: task.status,
+                          // });
 
                           return (
-                            <div 
+                            <div
                               key={task.id}
                               className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                                task.completed ? 'bg-green-50' : 'hover:bg-gray-50'
+                                task.completed
+                                  ? "bg-green-50"
+                                  : "hover:bg-gray-50"
                               }`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!task.id) {
-                                  console.error('Cannot toggle task: Task ID is missing', task);
-                                  setError('Failed to update task: Missing task ID');
+                                  console.error(
+                                    "Cannot toggle task: Task ID is missing",
+                                    task,
+                                  );
+                                  setError(
+                                    "Failed to update task: Missing task ID",
+                                  );
                                   return;
                                 }
                                 toggleTaskStatus(task.id);
                               }}
                             >
                               <div className="flex items-center">
-                                <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${
-                                  task.completed 
-                                    ? 'bg-green-500 border-green-600' 
-                                    : 'border-gray-300'
-                                }`}>
+                                <div
+                                  className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${
+                                    task.completed
+                                      ? "bg-green-500 border-green-600"
+                                      : "border-gray-300"
+                                  }`}
+                                >
                                   {task.completed && (
                                     <Check className="w-3 h-3 text-white" />
                                   )}
                                 </div>
                                 <div className="flex-1">
-                                  <h4 className={`font-medium ${
-                                    task.completed ? 'text-gray-500 line-through' : 'text-gray-900'
-                                  }`}>
+                                  <h4
+                                    className={`font-medium ${
+                                      task.completed
+                                        ? "text-gray-500 line-through"
+                                        : "text-gray-900"
+                                    }`}
+                                  >
                                     {task.title}
                                   </h4>
                                   {task.description && (
-                                    <p className={`text-sm ${
-                                      task.completed ? 'text-gray-400' : 'text-gray-600'
-                                    }`}>
+                                    <p
+                                      className={`text-sm ${
+                                        task.completed
+                                          ? "text-gray-400"
+                                          : "text-gray-600"
+                                      }`}
+                                    >
                                       {task.description}
                                     </p>
                                   )}
                                   {task.dueDate && (
-                                    <p className={`text-xs mt-1 ${
-                                      task.completed ? 'text-gray-400' : 'text-gray-500'
-                                    }`}>
+                                    <p
+                                      className={`text-xs mt-1 ${
+                                        task.completed
+                                          ? "text-gray-400"
+                                          : "text-gray-500"
+                                      }`}
+                                    >
                                       Due: {task.dueDate}
                                     </p>
                                   )}
                                 </div>
                               </div>
-                              <Badge 
+                              <Badge
                                 className={`ml-4 ${
-                                  task.completed 
-                                    ? 'bg-green-100 text-green-800 hover:bg-green-100' 
-                                    : getStatusColor(task.status || 'pending')
+                                  task.completed
+                                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                    : getStatusColor(task.status || "pending")
                                 }`}
-                                variant={!task.id ? 'destructive' : 'default'}
+                                variant={!task.id ? "destructive" : "default"}
                               >
-                                {task.completed ? 'Completed' : (task.status || 'pending').replace('_', ' ')}
+                                {task.completed
+                                  ? "Completed"
+                                  : (task.status || "pending").replace(
+                                      "_",
+                                      " ",
+                                    )}
                               </Badge>
                             </div>
                           );
@@ -883,7 +1097,9 @@ const HROnboarding: React.FC = () => {
                         <div className="text-center py-8 text-gray-500">
                           <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                           <p>No tasks assigned yet</p>
-                          <p className="text-sm">Click "Add Task" to create the first task</p>
+                          <p className="text-sm">
+                            Click "Add Task" to create the first task
+                          </p>
                         </div>
                       )}
                     </div>
@@ -902,7 +1118,12 @@ const HROnboarding: React.FC = () => {
                         <Input
                           id="taskTitle"
                           value={taskFormData.title}
-                          onChange={(e) => setTaskFormData(prev => ({ ...prev, title: e.target.value }))}
+                          onChange={(e) =>
+                            setTaskFormData((prev) => ({
+                              ...prev,
+                              title: e.target.value,
+                            }))
+                          }
                           required
                         />
                       </div>
@@ -911,7 +1132,12 @@ const HROnboarding: React.FC = () => {
                         <Textarea
                           id="taskDescription"
                           value={taskFormData.description}
-                          onChange={(e) => setTaskFormData(prev => ({ ...prev, description: e.target.value }))}
+                          onChange={(e) =>
+                            setTaskFormData((prev) => ({
+                              ...prev,
+                              description: e.target.value,
+                            }))
+                          }
                           rows={3}
                         />
                       </div>
@@ -921,7 +1147,12 @@ const HROnboarding: React.FC = () => {
                           id="taskDueDate"
                           type="date"
                           value={taskFormData.dueDate}
-                          onChange={(e) => setTaskFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                          onChange={(e) =>
+                            setTaskFormData((prev) => ({
+                              ...prev,
+                              dueDate: e.target.value,
+                            }))
+                          }
                           required
                         />
                       </div>
@@ -930,12 +1161,21 @@ const HROnboarding: React.FC = () => {
                         <Input
                           id="taskAssignee"
                           value={taskFormData.assignee}
-                          onChange={(e) => setTaskFormData(prev => ({ ...prev, assignee: e.target.value }))}
+                          onChange={(e) =>
+                            setTaskFormData((prev) => ({
+                              ...prev,
+                              assignee: e.target.value,
+                            }))
+                          }
                           placeholder="Task assignee name"
                         />
                       </div>
                       <div className="flex justify-end space-x-2 pt-4">
-                        <Button type="button" variant="outline" onClick={() => setTaskDialogOpen(false)}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setTaskDialogOpen(false)}
+                        >
                           Cancel
                         </Button>
                         <Button type="submit" disabled={isCreatingTask}>

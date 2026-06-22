@@ -1,19 +1,38 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Layout } from "../components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import { 
-  FileSpreadsheet, 
-  Download, 
-  Users, 
-  Search, 
-  Filter, 
+import {
+  FileSpreadsheet,
+  Download,
+  Users,
+  Search,
+  Filter,
   Loader2,
   AlertTriangle,
   Crown,
@@ -22,7 +41,7 @@ import {
   Building,
   FileText,
   FolderOpen,
-  CheckSquare
+  CheckSquare,
 } from "lucide-react";
 import { showToast } from "@/utils/toast";
 import employeeApi from "../components/helper/employee/employee";
@@ -46,8 +65,8 @@ const extractDatePart = (dateString: string | null | undefined): string => {
 
     // Get the date parts in local timezone
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
   } catch (error) {
@@ -60,7 +79,11 @@ interface ReportSection {
   id: string;
   name: string;
   icon: React.ReactNode;
-  fields: { key: keyof Employee; label: string; transform?: (value: any) => string }[];
+  fields: {
+    key: keyof Employee;
+    label: string;
+    transform?: (value: any) => string;
+  }[];
 }
 
 const reportSections: ReportSection[] = [
@@ -80,7 +103,7 @@ const reportSections: ReportSection[] = [
       { key: "maritalStatus", label: "Marital Status" },
       { key: "emergencyContact", label: "Emergency Contact" },
       { key: "emergencyPhone", label: "Emergency Phone" },
-    ]
+    ],
   },
   {
     id: "employment",
@@ -95,7 +118,7 @@ const reportSections: ReportSection[] = [
       { key: "role", label: "Role" },
       { key: "location", label: "Location" },
       { key: "salary", label: "Salary" },
-    ]
+    ],
   },
   {
     id: "statutory",
@@ -106,7 +129,7 @@ const reportSections: ReportSection[] = [
       { key: "pan", label: "PAN" },
       { key: "uan", label: "UAN" },
       { key: "esic", label: "ESIC" },
-    ]
+    ],
   },
   {
     id: "bank",
@@ -117,7 +140,7 @@ const reportSections: ReportSection[] = [
       { key: "bankName", label: "Bank Name" },
       { key: "accountNumber", label: "Account Number" },
       { key: "ifscCode", label: "IFSC Code" },
-    ]
+    ],
   },
   {
     id: "documents",
@@ -130,8 +153,8 @@ const reportSections: ReportSection[] = [
       { key: "offerLetterUrl", label: "Offer Letter" },
       { key: "certificatesUrl", label: "Certificates" },
       { key: "bankProofUrl", label: "Bank Proof" },
-    ]
-  }
+    ],
+  },
 ];
 
 export default function EmployeeReports() {
@@ -142,32 +165,52 @@ export default function EmployeeReports() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDept, setFilterDept] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<EmployeeStatus | "all">("all");
-  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
-  const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set(["personal", "employment"]));
+  const [filterStatus, setFilterStatus] = useState<EmployeeStatus | "all">(
+    "all",
+  );
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedSections, setSelectedSections] = useState<Set<string>>(
+    new Set(["personal", "employment"]),
+  );
   const [exporting, setExporting] = useState(false);
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   // Check if user can access reports
   const userPrimaryRole = user?.roles[0];
-  const canAccessReports = userPrimaryRole ? canPerformAction(userPrimaryRole, "reports", "view") : false;
+  const canAccessReports = userPrimaryRole
+    ? canPerformAction(userPrimaryRole, "reports", "view")
+    : false;
 
   // Get subscription status
-  const { isTrialExpired, isTrialEndingSoon, isUserLimitExceeded, currentEmployeeCount, subscription } = useSubscription();
+  const {
+    isTrialExpired,
+    isTrialEndingSoon,
+    isUserLimitExceeded,
+    currentEmployeeCount,
+    subscription,
+  } = useSubscription();
 
   // Show subscription warning if trial expired, ending soon, or user limit exceeded
-  const showSubscriptionWarning = isTrialExpired || isTrialEndingSoon || isUserLimitExceeded;
+  const showSubscriptionWarning =
+    isTrialExpired || isTrialEndingSoon || isUserLimitExceeded;
 
   // Fetch employees
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      console.log("EmployeeReports: Starting to fetch employees...");
+      // console.log("EmployeeReports: Starting to fetch employees...");
       const result = await employeeApi.getEmployees();
-      console.log("EmployeeReports: Raw API result:", result);
-      
+      // console.log("EmployeeReports: Raw API result:", result);
+
       const apiEmployees = result.data || [];
-      console.log("EmployeeReports: Employees array length:", apiEmployees.length);
+      // console.log(
+      //   "EmployeeReports: Employees array length:",
+      //   apiEmployees.length,
+      // );
 
       if (Array.isArray(apiEmployees) && apiEmployees.length > 0) {
         const transformedEmployees = apiEmployees.map((emp: any) => {
@@ -228,10 +271,18 @@ export default function EmployeeReports() {
             bankName: emp.bankDetails?.bank_name || "",
             accountNumber: emp.bankDetails?.account_number || "",
             ifscCode: emp.bankDetails?.ifsc_code || "",
-            photoUrl: emp.documents?.find((d: any) => d.fieldname === "photo")?.file_path || "",
-            idProofUrl: emp.documents?.find((d: any) => d.fieldname === "id_proof")?.file_path || "",
-            addressProofUrl: emp.documents?.find((d: any) => d.fieldname === "address_proof")?.file_path || "",
-            offerLetterUrl: emp.documents?.find((d: any) => d.fieldname === "offer_letter")?.file_path || "",
+            photoUrl:
+              emp.documents?.find((d: any) => d.fieldname === "photo")
+                ?.file_path || "",
+            idProofUrl:
+              emp.documents?.find((d: any) => d.fieldname === "id_proof")
+                ?.file_path || "",
+            addressProofUrl:
+              emp.documents?.find((d: any) => d.fieldname === "address_proof")
+                ?.file_path || "",
+            offerLetterUrl:
+              emp.documents?.find((d: any) => d.fieldname === "offer_letter")
+                ?.file_path || "",
             certificatesUrl: "",
             bankProofUrl: "",
             salary: emp.salary || 0,
@@ -243,7 +294,9 @@ export default function EmployeeReports() {
 
         setEmployees(transformedEmployees);
       } else {
-        console.error("EmployeeReports: No employees found or invalid data format");
+        console.error(
+          "EmployeeReports: No employees found or invalid data format",
+        );
         // Use mock data for testing when backend is not available
         const mockEmployees: Employee[] = [
           {
@@ -325,12 +378,14 @@ export default function EmployeeReports() {
             bankProofUrl: "",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         ];
-        
-        console.log("EmployeeReports: Using mock data for testing");
+
+        // console.log("EmployeeReports: Using mock data for testing");
         setEmployees(mockEmployees);
-        setError("Backend server not available. Using sample data for testing.");
+        setError(
+          "Backend server not available. Using sample data for testing.",
+        );
       }
     } catch (err) {
       console.error("EmployeeReports: Error fetching employees:", err);
@@ -345,13 +400,16 @@ export default function EmployeeReports() {
   const fetchDepartments = async () => {
     try {
       const deptResult = await employeeApi.getDepartments();
-      console.log("Raw departments response:", deptResult);
-      
+      // console.log("Raw departments response:", deptResult);
+
       // Response is { success: true, departments: [...] }
-      if (deptResult.data?.departments && Array.isArray(deptResult.data.departments)) {
+      if (
+        deptResult.data?.departments &&
+        Array.isArray(deptResult.data.departments)
+      ) {
         const formattedDepts = deptResult.data.departments.map((dept: any) => ({
           id: dept.id.toString(),
-          name: dept.name || "Unknown"
+          name: dept.name || "Unknown",
         }));
         setDepartments(formattedDepts);
       } else {
@@ -363,7 +421,7 @@ export default function EmployeeReports() {
           { id: "3", name: "Finance" },
           { id: "4", name: "Sales" },
           { id: "5", name: "Operations" },
-          { id: "6", name: "Marketing" }
+          { id: "6", name: "Marketing" },
         ];
         setDepartments(mockDepartments);
       }
@@ -376,7 +434,7 @@ export default function EmployeeReports() {
         { id: "3", name: "Finance" },
         { id: "4", name: "Sales" },
         { id: "5", name: "Operations" },
-        { id: "6", name: "Marketing" }
+        { id: "6", name: "Marketing" },
       ];
       setDepartments(mockDepartments);
     }
@@ -397,8 +455,10 @@ export default function EmployeeReports() {
         (emp.email?.toLowerCase() || "").includes(searchLower) ||
         (emp.employeeId?.toLowerCase() || "").includes(searchLower);
 
-      const matchesDept = filterDept === "all" || emp.departmentId === filterDept;
-      const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
+      const matchesDept =
+        filterDept === "all" || emp.departmentId === filterDept;
+      const matchesStatus =
+        filterStatus === "all" || emp.status === filterStatus;
 
       return matchesSearch && matchesDept && matchesStatus;
     });
@@ -406,7 +466,7 @@ export default function EmployeeReports() {
 
   // Handle employee selection
   const handleSelectEmployee = (employeeId: string) => {
-    setSelectedEmployees(prev => {
+    setSelectedEmployees((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(employeeId)) {
         newSet.delete(employeeId);
@@ -421,13 +481,13 @@ export default function EmployeeReports() {
     if (selectedEmployees.size === filteredEmployees.length) {
       setSelectedEmployees(new Set());
     } else {
-      setSelectedEmployees(new Set(filteredEmployees.map(emp => emp.id)));
+      setSelectedEmployees(new Set(filteredEmployees.map((emp) => emp.id)));
     }
   };
 
   // Handle section selection
   const handleSelectSection = (sectionId: string) => {
-    setSelectedSections(prev => {
+    setSelectedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(sectionId)) {
         newSet.delete(sectionId);
@@ -442,20 +502,23 @@ export default function EmployeeReports() {
     if (selectedSections.size === reportSections.length) {
       setSelectedSections(new Set());
     } else {
-      setSelectedSections(new Set(reportSections.map(section => section.id)));
+      setSelectedSections(new Set(reportSections.map((section) => section.id)));
     }
   };
 
   // Generate CSV content
-  const generateCSV = (employeesToExport: Employee[], sectionsToExport: string[]) => {
+  const generateCSV = (
+    employeesToExport: Employee[],
+    sectionsToExport: string[],
+  ) => {
     const rows: string[] = [];
-    
+
     // Add header - use field labels directly instead of section names
     const headers: string[] = [];
-    sectionsToExport.forEach(sectionId => {
-      const section = reportSections.find(s => s.id === sectionId);
+    sectionsToExport.forEach((sectionId) => {
+      const section = reportSections.find((s) => s.id === sectionId);
       if (section) {
-        section.fields.forEach(field => {
+        section.fields.forEach((field) => {
           headers.push(field.label);
         });
       }
@@ -463,19 +526,22 @@ export default function EmployeeReports() {
     rows.push(headers.join(","));
 
     // Add data rows
-    employeesToExport.forEach(employee => {
+    employeesToExport.forEach((employee) => {
       const row: string[] = [];
-      sectionsToExport.forEach(sectionId => {
-        const section = reportSections.find(s => s.id === sectionId);
+      sectionsToExport.forEach((sectionId) => {
+        const section = reportSections.find((s) => s.id === sectionId);
         if (section) {
-          section.fields.forEach(field => {
+          section.fields.forEach((field) => {
             let value = employee[field.key] || "";
             // Handle special formatting
             if (field.key === "salary" && value) {
               value = value.toString();
             }
             // Escape commas and quotes in CSV
-            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+            if (
+              typeof value === "string" &&
+              (value.includes(",") || value.includes('"'))
+            ) {
               value = `"${value.replace(/"/g, '""')}"`;
             }
             row.push(value.toString());
@@ -502,17 +568,27 @@ export default function EmployeeReports() {
 
     setExporting(true);
     try {
-      const employeesToExport = filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
+      const employeesToExport = filteredEmployees.filter((emp) =>
+        selectedEmployees.has(emp.id),
+      );
 
       if (type === "individual") {
         // Export each employee as separate file
         for (const employee of employeesToExport) {
-          const csvContent = generateCSV([employee], Array.from(selectedSections));
-          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const csvContent = generateCSV(
+            [employee],
+            Array.from(selectedSections),
+          );
+          const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+          });
           const link = document.createElement("a");
           const url = URL.createObjectURL(blob);
           link.setAttribute("href", url);
-          link.setAttribute("download", `${employee.employeeId}_${employee.firstName}_${employee.lastName}_report.csv`);
+          link.setAttribute(
+            "download",
+            `${employee.employeeId}_${employee.firstName}_${employee.lastName}_report.csv`,
+          );
           link.style.visibility = "hidden";
           document.body.appendChild(link);
           link.click();
@@ -520,12 +596,20 @@ export default function EmployeeReports() {
         }
       } else {
         // Export all selected employees as combined file
-        const csvContent = generateCSV(employeesToExport, Array.from(selectedSections));
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const csvContent = generateCSV(
+          employeesToExport,
+          Array.from(selectedSections),
+        );
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        link.setAttribute("download", `employee_reports_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute(
+          "download",
+          `employee_reports_${new Date().toISOString().split("T")[0]}.csv`,
+        );
         link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
@@ -545,8 +629,12 @@ export default function EmployeeReports() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
-            <p className="text-gray-500">You don't have permission to access employee reports.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Access Denied
+            </h3>
+            <p className="text-gray-500">
+              You don't have permission to access employee reports.
+            </p>
           </div>
         </div>
       </Layout>
@@ -562,40 +650,52 @@ export default function EmployeeReports() {
             <FileSpreadsheet className="w-8 h-8" />
             <h1 className="text-2xl font-bold">Employee Reports</h1>
           </div>
-          <p className="text-blue-100">Generate and export comprehensive employee reports</p>
+          <p className="text-blue-100">
+            Generate and export comprehensive employee reports
+          </p>
         </div>
 
         {/* Subscription Warning Banner */}
         {showSubscriptionWarning && (
-          <Card className={`${isTrialExpired ? 'border-red-200 bg-red-50' : isTrialEndingSoon ? 'border-orange-200 bg-orange-50' : 'border-yellow-200 bg-yellow-50'}`}>
+          <Card
+            className={`${isTrialExpired ? "border-red-200 bg-red-50" : isTrialEndingSoon ? "border-orange-200 bg-orange-50" : "border-yellow-200 bg-yellow-50"}`}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <AlertTriangle className={`w-5 h-5 ${isTrialExpired ? 'text-red-600' : isTrialEndingSoon ? 'text-orange-600' : 'text-yellow-600'} flex-shrink-0`} />
+                <AlertTriangle
+                  className={`w-5 h-5 ${isTrialExpired ? "text-red-600" : isTrialEndingSoon ? "text-orange-600" : "text-yellow-600"} flex-shrink-0`}
+                />
                 <div className="flex-1">
-                  <p className={`font-medium ${isTrialExpired ? 'text-red-800' : isTrialEndingSoon ? 'text-orange-800' : 'text-yellow-800'}`}>
-                    {isTrialExpired 
-                      ? "Your free trial has ended" 
-                      : isTrialEndingSoon 
-                      ? `Trial ending in ${subscription?.trial_days_remaining || 0} days`
-                      : `User limit exceeded (${currentEmployeeCount}/${subscription?.max_users || 0})`
-                    }
+                  <p
+                    className={`font-medium ${isTrialExpired ? "text-red-800" : isTrialEndingSoon ? "text-orange-800" : "text-yellow-800"}`}
+                  >
+                    {isTrialExpired
+                      ? "Your free trial has ended"
+                      : isTrialEndingSoon
+                        ? `Trial ending in ${subscription?.trial_days_remaining || 0} days`
+                        : `User limit exceeded (${currentEmployeeCount}/${subscription?.max_users || 0})`}
                   </p>
-                  <p className={`text-sm ${isTrialExpired ? 'text-red-600' : isTrialEndingSoon ? 'text-orange-600' : 'text-yellow-600'}`}>
-                    {isTrialExpired 
-                      ? "Please subscribe to continue using all features" 
-                      : isTrialEndingSoon 
-                      ? "Upgrade now to continue without interruption"
-                      : "Upgrade your plan to add more employees"
-                    }
+                  <p
+                    className={`text-sm ${isTrialExpired ? "text-red-600" : isTrialEndingSoon ? "text-orange-600" : "text-yellow-600"}`}
+                  >
+                    {isTrialExpired
+                      ? "Please subscribe to continue using all features"
+                      : isTrialEndingSoon
+                        ? "Upgrade now to continue without interruption"
+                        : "Upgrade your plan to add more employees"}
                   </p>
                 </div>
-                <Button 
-                  size="sm" 
-                  onClick={() => window.location.href = '/subscription/plans'}
-                  className={`${isTrialExpired ? 'bg-red-600 hover:bg-red-700' : isTrialEndingSoon ? 'bg-orange-600 hover:bg-orange-700' : 'bg-yellow-600 hover:bg-yellow-700'} text-white`}
+                <Button
+                  size="sm"
+                  onClick={() => (window.location.href = "/subscription/plans")}
+                  className={`${isTrialExpired ? "bg-red-600 hover:bg-red-700" : isTrialEndingSoon ? "bg-orange-600 hover:bg-orange-700" : "bg-yellow-600 hover:bg-yellow-700"} text-white`}
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {isTrialExpired ? 'Subscribe Now' : isTrialEndingSoon ? 'Upgrade Now' : 'Upgrade Plan'}
+                  {isTrialExpired
+                    ? "Subscribe Now"
+                    : isTrialEndingSoon
+                      ? "Upgrade Now"
+                      : "Upgrade Plan"}
                 </Button>
               </div>
             </CardContent>
@@ -608,8 +708,12 @@ export default function EmployeeReports() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                  <p className="text-2xl font-bold text-gray-900">{employees.length}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Employees
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {employees.length}
+                  </p>
                 </div>
                 <Users className="w-8 h-8 text-blue-600" />
               </div>
@@ -620,7 +724,9 @@ export default function EmployeeReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Filtered</p>
-                  <p className="text-2xl font-bold text-gray-900">{filteredEmployees.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {filteredEmployees.length}
+                  </p>
                 </div>
                 <Filter className="w-8 h-8 text-green-600" />
               </div>
@@ -631,7 +737,9 @@ export default function EmployeeReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Selected</p>
-                  <p className="text-2xl font-bold text-gray-900">{selectedEmployees.size}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {selectedEmployees.size}
+                  </p>
                 </div>
                 <CheckSquare className="w-8 h-8 text-purple-600" />
               </div>
@@ -642,7 +750,9 @@ export default function EmployeeReports() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Sections</p>
-                  <p className="text-2xl font-bold text-gray-900">{selectedSections.size}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {selectedSections.size}
+                  </p>
                 </div>
                 <FileText className="w-8 h-8 text-orange-600" />
               </div>
@@ -674,7 +784,9 @@ export default function EmployeeReports() {
                 </div>
               </div>
               <div>
-                <label className="text-s font-medium mb-1 block">Department</label>
+                <label className="text-s font-medium mb-1 block">
+                  Department
+                </label>
                 <Select value={filterDept} onValueChange={setFilterDept}>
                   <SelectTrigger>
                     <SelectValue placeholder="All departments" />
@@ -691,7 +803,10 @@ export default function EmployeeReports() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Status</label>
-                <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+                <Select
+                  value={filterStatus}
+                  onValueChange={(value: any) => setFilterStatus(value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All status" />
                   </SelectTrigger>
@@ -721,7 +836,9 @@ export default function EmployeeReports() {
                   onClick={handleSelectAllSections}
                   className="text-xs"
                 >
-                  {selectedSections.size === reportSections.length ? "Deselect All" : "Select All"}
+                  {selectedSections.size === reportSections.length
+                    ? "Deselect All"
+                    : "Select All"}
                 </Button>
               </CardTitle>
             </CardHeader>
@@ -759,7 +876,11 @@ export default function EmployeeReports() {
             <CardContent className="space-y-3">
               <Button
                 onClick={() => handleExport("combined")}
-                disabled={exporting || selectedEmployees.size === 0 || selectedSections.size === 0}
+                disabled={
+                  exporting ||
+                  selectedEmployees.size === 0 ||
+                  selectedSections.size === 0
+                }
                 className="w-full"
               >
                 {exporting ? (
@@ -776,7 +897,11 @@ export default function EmployeeReports() {
               </Button>
               <Button
                 onClick={() => handleExport("individual")}
-                disabled={exporting || selectedEmployees.size === 0 || selectedSections.size === 0}
+                disabled={
+                  exporting ||
+                  selectedEmployees.size === 0 ||
+                  selectedSections.size === 0
+                }
                 variant="outline"
                 className="w-full"
               >
@@ -814,7 +939,9 @@ export default function EmployeeReports() {
                 onClick={handleSelectAllEmployees}
                 className="text-xs"
               >
-                {selectedEmployees.size === filteredEmployees.length ? "Deselect All" : "Select All"}
+                {selectedEmployees.size === filteredEmployees.length
+                  ? "Deselect All"
+                  : "Select All"}
               </Button>
             </CardTitle>
           </CardHeader>
@@ -839,22 +966,40 @@ export default function EmployeeReports() {
                       <TableRow>
                         <TableHead className="w-12 whitespace-nowrap text-left align-middle">
                           <Checkbox
-                            checked={selectedEmployees.size === filteredEmployees.length && filteredEmployees.length > 0}
+                            checked={
+                              selectedEmployees.size ===
+                                filteredEmployees.length &&
+                              filteredEmployees.length > 0
+                            }
                             onCheckedChange={handleSelectAllEmployees}
                           />
                         </TableHead>
-                        <TableHead className="whitespace-nowrap text-left align-middle">Employee ID</TableHead>
-                        <TableHead className="whitespace-nowrap text-left align-middle">Name</TableHead>
-                        <TableHead className="whitespace-nowrap text-left align-middle min-w-[240px]">Email</TableHead>
-                        <TableHead className="text-left align-middle w-[150px] min-w-[150px]">
-                          <span className="inline-block !whitespace-nowrap">Department</span>
+                        <TableHead className="whitespace-nowrap text-left align-middle">
+                          Employee ID
                         </TableHead>
-                        <TableHead className="whitespace-nowrap text-left align-middle min-w-[280px]">Designation</TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle">
+                          Name
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle min-w-[240px]">
+                          Email
+                        </TableHead>
+                        <TableHead className="text-left align-middle w-[150px] min-w-[150px]">
+                          <span className="inline-block !whitespace-nowrap">
+                            Department
+                          </span>
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap text-left align-middle min-w-[280px]">
+                          Designation
+                        </TableHead>
                         <TableHead className="text-left align-middle w-[130px] min-w-[130px]">
-                          <span className="inline-block !whitespace-nowrap">Status</span>
+                          <span className="inline-block !whitespace-nowrap">
+                            Status
+                          </span>
                         </TableHead>
                         <TableHead className="text-left align-middle w-[200px] min-w-[200px] pr-8">
-                          <span className="inline-block !whitespace-nowrap">Employment Type</span>
+                          <span className="inline-block !whitespace-nowrap">
+                            Employment Type
+                          </span>
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -864,30 +1009,42 @@ export default function EmployeeReports() {
                           <TableCell className="align-top">
                             <Checkbox
                               checked={selectedEmployees.has(employee.id)}
-                              onCheckedChange={() => handleSelectEmployee(employee.id)}
+                              onCheckedChange={() =>
+                                handleSelectEmployee(employee.id)
+                              }
                             />
                           </TableCell>
-                          <TableCell className="font-medium whitespace-nowrap align-top">{employee.employeeId}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap align-top">
+                            {employee.employeeId}
+                          </TableCell>
                           <TableCell className="align-top">{`${employee.firstName} ${employee.lastName}`}</TableCell>
-                          <TableCell className="align-top break-all">{employee.email}</TableCell>
-                          <TableCell className="align-top whitespace-nowrap">{employee.department}</TableCell>
-                          <TableCell className="align-top">{employee.designation}</TableCell>
+                          <TableCell className="align-top break-all">
+                            {employee.email}
+                          </TableCell>
+                          <TableCell className="align-top whitespace-nowrap">
+                            {employee.department}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            {employee.designation}
+                          </TableCell>
                           <TableCell className="align-top w-[130px] min-w-[130px]">
                             <span
                               className={`inline-flex min-w-[88px] justify-center px-2 py-1 rounded-full text-xs font-medium capitalize !whitespace-nowrap break-normal [word-break:normal] [overflow-wrap:normal] ${
                                 employee.status === "active"
                                   ? "bg-green-100 text-green-800"
                                   : employee.status === "inactive"
-                                  ? "bg-gray-100 text-gray-800"
-                                  : employee.status === "on-leave"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
+                                    ? "bg-gray-100 text-gray-800"
+                                    : employee.status === "on-leave"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
                               }`}
                             >
                               {employee.status}
                             </span>
                           </TableCell>
-                          <TableCell className="align-top capitalize whitespace-nowrap w-[200px] min-w-[200px] pr-8">{employee.employmentType}</TableCell>
+                          <TableCell className="align-top capitalize whitespace-nowrap w-[200px] min-w-[200px] pr-8">
+                            {employee.employmentType}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -899,27 +1056,40 @@ export default function EmployeeReports() {
                   {/* Select All Checkbox for Mobile */}
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <Checkbox
-                      checked={selectedEmployees.size === filteredEmployees.length && filteredEmployees.length > 0}
+                      checked={
+                        selectedEmployees.size === filteredEmployees.length &&
+                        filteredEmployees.length > 0
+                      }
                       onCheckedChange={handleSelectAllEmployees}
                     />
                     <span className="font-medium text-sm">
-                      {selectedEmployees.size === filteredEmployees.length ? "Deselect All" : "Select All"} ({selectedEmployees.size} selected)
+                      {selectedEmployees.size === filteredEmployees.length
+                        ? "Deselect All"
+                        : "Select All"}{" "}
+                      ({selectedEmployees.size} selected)
                     </span>
                   </div>
 
                   {filteredEmployees.map((employee) => (
-                    <div key={employee.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <div
+                      key={employee.id}
+                      className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <Checkbox
                             checked={selectedEmployees.has(employee.id)}
-                            onCheckedChange={() => handleSelectEmployee(employee.id)}
+                            onCheckedChange={() =>
+                              handleSelectEmployee(employee.id)
+                            }
                           />
                           <div>
                             <h3 className="font-semibold text-gray-900">
                               {`${employee.firstName} ${employee.lastName}`}
                             </h3>
-                            <p className="text-sm text-gray-500">{employee.employeeId}</p>
+                            <p className="text-sm text-gray-500">
+                              {employee.employeeId}
+                            </p>
                           </div>
                         </div>
                         <span
@@ -927,32 +1097,48 @@ export default function EmployeeReports() {
                             employee.status === "active"
                               ? "bg-green-100 text-green-800"
                               : employee.status === "inactive"
-                              ? "bg-gray-100 text-gray-800"
-                              : employee.status === "on-leave"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
+                                ? "bg-gray-100 text-gray-800"
+                                : employee.status === "on-leave"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
                           }`}
                         >
                           {employee.status}
                         </span>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 gap-3 text-sm">
                         <div className="flex flex-col">
-                          <span className="text-gray-500 font-medium">Email</span>
-                          <span className="text-gray-900 break-all">{employee.email}</span>
+                          <span className="text-gray-500 font-medium">
+                            Email
+                          </span>
+                          <span className="text-gray-900 break-all">
+                            {employee.email}
+                          </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 font-medium">Department</span>
-                          <span className="text-gray-900">{employee.department}</span>
+                          <span className="text-gray-500 font-medium">
+                            Department
+                          </span>
+                          <span className="text-gray-900">
+                            {employee.department}
+                          </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 font-medium">Designation</span>
-                          <span className="text-gray-900">{employee.designation}</span>
+                          <span className="text-gray-500 font-medium">
+                            Designation
+                          </span>
+                          <span className="text-gray-900">
+                            {employee.designation}
+                          </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 font-medium">Employment Type</span>
-                          <span className="text-gray-900">{employee.employmentType}</span>
+                          <span className="text-gray-500 font-medium">
+                            Employment Type
+                          </span>
+                          <span className="text-gray-900">
+                            {employee.employmentType}
+                          </span>
                         </div>
                       </div>
                     </div>

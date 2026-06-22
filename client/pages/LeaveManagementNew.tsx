@@ -3,21 +3,72 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { hasRole } from "@/lib/auth";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Upload, Mail, X, RefreshCw, Loader2, Clock, FileText, UserRound, Layers3, WalletCards, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Upload,
+  Mail,
+  X,
+  RefreshCw,
+  Loader2,
+  Clock,
+  FileText,
+  UserRound,
+  Layers3,
+  WalletCards,
+  ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
 import { employeeApi } from "@/components/helper/employee/employee";
-import { departmentApi, Department } from "@/components/helper/department/department";
-import { designationApi, Designation } from "@/components/helper/designation/designation";
+import {
+  departmentApi,
+  Department,
+} from "@/components/helper/department/department";
+import {
+  designationApi,
+  Designation,
+} from "@/components/helper/designation/designation";
 import {
   getLeaveApplicationDateBounds,
   isLeaveDateWithinApplicationWindow,
@@ -65,9 +116,14 @@ interface LeaveApplication {
   createdAt: string;
 }
 
-const getLeaveDurationLabel = (days: number, halfDaySession?: string | null) => {
+const getLeaveDurationLabel = (
+  days: number,
+  halfDaySession?: string | null,
+) => {
   if (Number(days) === 0.5) {
-    return halfDaySession === "second_half" ? "0.5 (Second Half)" : "0.5 (First Half)";
+    return halfDaySession === "second_half"
+      ? "0.5 (Second Half)"
+      : "0.5 (First Half)";
   }
   return String(days);
 };
@@ -121,10 +177,46 @@ const mockLeaveTypes: LeaveType[] = [
 ];
 
 const mockLeaveBalances: LeaveBalance[] = [
-  { id: "LB001", employeeId: "EMP001", employeeName: "John Doe", leaveType: "Casual Leave", opening: 12, availed: 3, available: 9, createdAt: "2024-01-01" },
-  { id: "LB002", employeeId: "EMP001", employeeName: "John Doe", leaveType: "Sick Leave", opening: 10, availed: 2, available: 8, createdAt: "2024-01-01" },
-  { id: "LB003", employeeId: "EMP002", employeeName: "Sarah Smith", leaveType: "Casual Leave", opening: 12, availed: 5, available: 7, createdAt: "2024-01-01" },
-  { id: "LB004", employeeId: "EMP003", employeeName: "Michael Johnson", leaveType: "Annual Leave", opening: 20, availed: 8, available: 12, createdAt: "2024-01-01" },
+  {
+    id: "LB001",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    leaveType: "Casual Leave",
+    opening: 12,
+    availed: 3,
+    available: 9,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "LB002",
+    employeeId: "EMP001",
+    employeeName: "John Doe",
+    leaveType: "Sick Leave",
+    opening: 10,
+    availed: 2,
+    available: 8,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "LB003",
+    employeeId: "EMP002",
+    employeeName: "Sarah Smith",
+    leaveType: "Casual Leave",
+    opening: 12,
+    availed: 5,
+    available: 7,
+    createdAt: "2024-01-01",
+  },
+  {
+    id: "LB004",
+    employeeId: "EMP003",
+    employeeName: "Michael Johnson",
+    leaveType: "Annual Leave",
+    opening: 20,
+    availed: 8,
+    available: 12,
+    createdAt: "2024-01-01",
+  },
 ];
 
 const mockLeaveApplications: LeaveApplication[] = [
@@ -171,7 +263,9 @@ export default function LeaveManagement() {
   const { user } = useAuth();
   //const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(mockLeaveTypes);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
-  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
+  const [leaveApplications, setLeaveApplications] = useState<
+    LeaveApplication[]
+  >([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -183,7 +277,9 @@ export default function LeaveManagement() {
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [reportingManagers, setReportingManagers] = useState<any[]>([]);
   const [currentUserEmployee, setCurrentUserEmployee] = useState<any>(null);
-  const [dialogMode, setDialogMode] = useState<"types" | "applications">("types");
+  const [dialogMode, setDialogMode] = useState<"types" | "applications">(
+    "types",
+  );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -193,159 +289,207 @@ export default function LeaveManagement() {
   };
 
   // Find current user's employee data and set reporting managers
-const findCurrentUserAndSetManagers = async () => {
-  // Leave Apply dialog now uses API-based approver list.
-  // Prevent legacy employee/designation logic from overwriting API results.
-  if (dialogMode === "applications") {
-    return;
-  }
+  const findCurrentUserAndSetManagers = async () => {
+    // Leave Apply dialog now uses API-based approver list.
+    // Prevent legacy employee/designation logic from overwriting API results.
+    if (dialogMode === "applications") {
+      return;
+    }
 
-  if (!user || employees.length === 0 || departments.length === 0 || designations.length === 0) {
-    setReportingManagers([]);
-    return;
-  }
+    if (
+      !user ||
+      employees.length === 0 ||
+      departments.length === 0 ||
+      designations.length === 0
+    ) {
+      setReportingManagers([]);
+      return;
+    }
 
-  const userEmployeeId = (user as any)?.employee_id || user?.id;
-  const currentUser = employees.find(emp =>
-    emp.id == userEmployeeId ||
-    emp.id == user?.id ||
-    emp.employee_id === userEmployeeId?.toString() ||
-    emp.employee_id === user?.id?.toString() ||
-    emp.id === userEmployeeId?.toString() ||
-    emp.id === user?.id?.toString()
-  );
+    const userEmployeeId = (user as any)?.employee_id || user?.id;
+    const currentUser = employees.find(
+      (emp) =>
+        emp.id == userEmployeeId ||
+        emp.id == user?.id ||
+        emp.employee_id === userEmployeeId?.toString() ||
+        emp.employee_id === user?.id?.toString() ||
+        emp.id === userEmployeeId?.toString() ||
+        emp.id === user?.id?.toString(),
+    );
 
-  if (!currentUser) {
-    setReportingManagers([]);
-    return;
-  }
+    if (!currentUser) {
+      setReportingManagers([]);
+      return;
+    }
 
-  setCurrentUserEmployee(currentUser);
-  const userDeptId = currentUser.department_id;
+    setCurrentUserEmployee(currentUser);
+    const userDeptId = currentUser.department_id;
 
-  let managers: any[] = [];
+    let managers: any[] = [];
 
-  if (hasRole(user, "admin") || hasRole(user, "manager")) {
-    // Admins & managers see all HR (role or designation)
-    managers = employees
-      .filter(emp => {
-        if (emp.id === currentUser.id) return false;
-        const designation = designations.find(d => d.id == emp.designation_id);
-        const desigName = (designation?.name || '').toLowerCase();
-        return emp.role === 'hr' || desigName.includes('hr');
-      })
-      .map(emp => {
-        const designation = designations.find(d => d.id == emp.designation_id);
-        const dept = departments.find(d => d.id == emp.department_id);
-        return {
-          ...emp,
-          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
-          designationName: designation?.name || 'Unknown',
-          departmentName: dept?.name || 'Unknown',
-        };
+    if (hasRole(user, "admin") || hasRole(user, "manager")) {
+      // Admins & managers see all HR (role or designation)
+      managers = employees
+        .filter((emp) => {
+          if (emp.id === currentUser.id) return false;
+          const designation = designations.find(
+            (d) => d.id == emp.designation_id,
+          );
+          const desigName = (designation?.name || "").toLowerCase();
+          return emp.role === "hr" || desigName.includes("hr");
+        })
+        .map((emp) => {
+          const designation = designations.find(
+            (d) => d.id == emp.designation_id,
+          );
+          const dept = departments.find((d) => d.id == emp.department_id);
+          return {
+            ...emp,
+            fullName:
+              `${emp.first_name || ""} ${emp.last_name || ""}`.trim() ||
+              `Employee ${emp.id}`,
+            designationName: designation?.name || "Unknown",
+            departmentName: dept?.name || "Unknown",
+          };
+        });
+    } else if (inferUserRole(currentUser) === "employee") {
+      // Employees see: same-dept managers/leads + all HR
+      managers = employees
+        .filter((emp) => {
+          if (emp.id === currentUser.id) return false;
+          const designation = designations.find(
+            (d) => d.id == emp.designation_id,
+          );
+          const desigName = (designation?.name || "").toLowerCase();
+          const isHR = emp.role === "hr" || desigName.includes("hr");
+          const isManager =
+            emp.role === "manager" ||
+            desigName.includes("manager") ||
+            desigName.includes("lead");
+          const sameDept = emp.department_id == userDeptId;
+          return isHR || (isManager && sameDept);
+        })
+        .map((emp) => {
+          const designation = designations.find(
+            (d) => d.id == emp.designation_id,
+          );
+          const dept = departments.find((d) => d.id == emp.department_id);
+          const desigName = (designation?.name || "").toLowerCase();
+          const isHR = emp.role === "hr" || desigName.includes("hr");
+          const isManager =
+            emp.role === "manager" ||
+            desigName.includes("manager") ||
+            desigName.includes("lead");
+          return {
+            ...emp,
+            fullName:
+              `${emp.first_name || ""} ${emp.last_name || ""}`.trim() ||
+              `Employee ${emp.id}`,
+            designationName: designation?.name || "Unknown",
+            departmentName: dept?.name || "Unknown",
+            isHR,
+            isManager,
+            isSameDepartment: emp.department_id == userDeptId,
+          };
+        });
+
+      // Sort: same-dept managers first, then HR, then others
+      managers.sort((a, b) => {
+        if (
+          a.isManager &&
+          a.isSameDepartment &&
+          !(b.isManager && b.isSameDepartment)
+        )
+          return -1;
+        if (
+          !(a.isManager && a.isSameDepartment) &&
+          b.isManager &&
+          b.isSameDepartment
+        )
+          return 1;
+        if (a.isHR && !b.isHR) return -1;
+        if (!a.isHR && b.isHR) return 1;
+        return 0;
       });
-  } else if (inferUserRole(currentUser) === 'employee') {
-    // Employees see: same-dept managers/leads + all HR
-    managers = employees
-      .filter(emp => {
-        if (emp.id === currentUser.id) return false;
-        const designation = designations.find(d => d.id == emp.designation_id);
-        const desigName = (designation?.name || '').toLowerCase();
-        const isHR = emp.role === 'hr' || desigName.includes('hr');
-        const isManager = emp.role === 'manager' || desigName.includes('manager') || desigName.includes('lead');
-        const sameDept = emp.department_id == userDeptId;
-        return isHR || (isManager && sameDept);
-      })
-      .map(emp => {
-        const designation = designations.find(d => d.id == emp.designation_id);
-        const dept = departments.find(d => d.id == emp.department_id);
-        const desigName = (designation?.name || '').toLowerCase();
-        const isHR = emp.role === 'hr' || desigName.includes('hr');
-        const isManager = emp.role === 'manager' || desigName.includes('manager') || desigName.includes('lead');
-        return {
-          ...emp,
-          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
-          designationName: designation?.name || 'Unknown',
-          departmentName: dept?.name || 'Unknown',
-          isHR,
-          isManager,
-          isSameDepartment: emp.department_id == userDeptId,
-        };
-      });
+    }
 
-    // Sort: same-dept managers first, then HR, then others
-    managers.sort((a, b) => {
-      if (a.isManager && a.isSameDepartment && !(b.isManager && b.isSameDepartment)) return -1;
-      if (!(a.isManager && a.isSameDepartment) && b.isManager && b.isSameDepartment) return 1;
-      if (a.isHR && !b.isHR) return -1;
-      if (!a.isHR && b.isHR) return 1;
-      return 0;
-    });
-  }
-
-  // === Always ensure the assigned reporting manager is included (top of list) ===
-  if (currentUser.reporting_manager_id) {
-    const assignedId = currentUser.reporting_manager_id;
-    if (!managers.some(m => m.id === assignedId)) {
-      const assignedEmp = employees.find(emp => emp.id === assignedId);
-      if (assignedEmp) {
-        const designation = designations.find(d => d.id == assignedEmp.designation_id);
-        const dept = departments.find(d => d.id == assignedEmp.department_id);
-        const mapped = {
-          ...assignedEmp,
-          fullName: `${assignedEmp.first_name || ''} ${assignedEmp.last_name || ''}`.trim() || 'Assigned Manager',
-          designationName: designation?.name || 'Unknown',
-          departmentName: dept?.name || 'Unknown',
-        };
-        managers.unshift(mapped); // Add to top
+    // === Always ensure the assigned reporting manager is included (top of list) ===
+    if (currentUser.reporting_manager_id) {
+      const assignedId = currentUser.reporting_manager_id;
+      if (!managers.some((m) => m.id === assignedId)) {
+        const assignedEmp = employees.find((emp) => emp.id === assignedId);
+        if (assignedEmp) {
+          const designation = designations.find(
+            (d) => d.id == assignedEmp.designation_id,
+          );
+          const dept = departments.find(
+            (d) => d.id == assignedEmp.department_id,
+          );
+          const mapped = {
+            ...assignedEmp,
+            fullName:
+              `${assignedEmp.first_name || ""} ${assignedEmp.last_name || ""}`.trim() ||
+              "Assigned Manager",
+            designationName: designation?.name || "Unknown",
+            departmentName: dept?.name || "Unknown",
+          };
+          managers.unshift(mapped); // Add to top
+        }
       }
     }
-  }
 
-  // === Final fallback: if still empty, show all other employees ===
-  if (managers.length === 0 && employees.length > 1) {
-    managers = employees
-      .filter(emp => emp.id !== currentUser.id)
-      .map(emp => {
-        const designation = designations.find(d => d.id == emp.designation_id);
-        const dept = departments.find(d => d.id == emp.department_id);
-        return {
-          ...emp,
-          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || `Employee ${emp.id}`,
-          designationName: designation?.name || 'Unknown',
-          departmentName: dept?.name || 'Unknown',
-        };
-      })
-      .sort((a, b) => a.fullName.localeCompare(b.fullName));
-  }
+    // === Final fallback: if still empty, show all other employees ===
+    if (managers.length === 0 && employees.length > 1) {
+      managers = employees
+        .filter((emp) => emp.id !== currentUser.id)
+        .map((emp) => {
+          const designation = designations.find(
+            (d) => d.id == emp.designation_id,
+          );
+          const dept = departments.find((d) => d.id == emp.department_id);
+          return {
+            ...emp,
+            fullName:
+              `${emp.first_name || ""} ${emp.last_name || ""}`.trim() ||
+              `Employee ${emp.id}`,
+            designationName: designation?.name || "Unknown",
+            departmentName: dept?.name || "Unknown",
+          };
+        })
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }
 
-  setReportingManagers(managers);
-};
+    setReportingManagers(managers);
+  };
 
   // Load employees
   const loadEmployees = async () => {
     try {
-      console.log("Fetching employees...");
+      // console.log("Fetching employees...");
       const result = await employeeApi.getEmployees();
-      
-      console.log("Employees Result:", result);
-      
+
+      // console.log("Employees Result:", result);
+
       if (result && result.error) {
         console.error("API Error:", result.error);
         toast.error(result.error);
         return;
       }
-      
+
       // Handle the actual API response structure
       let employeesData = [];
-      if (result && (result as any).employees && Array.isArray((result as any).employees)) {
+      if (
+        result &&
+        (result as any).employees &&
+        Array.isArray((result as any).employees)
+      ) {
         employeesData = (result as any).employees;
       } else if (result && result.data && Array.isArray(result.data)) {
         employeesData = result.data;
       } else if (Array.isArray(result)) {
         employeesData = result;
       }
-      
+
       if (employeesData.length > 0) {
         setEmployees(employeesData);
         toast.success(`Loaded ${employeesData.length} employees`);
@@ -355,24 +499,26 @@ const findCurrentUserAndSetManagers = async () => {
       }
     } catch (error: any) {
       console.error("Fetch Employees Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+      toast.error(
+        "Failed to connect to server: " + (error.message || "Network error"),
+      );
     }
   };
 
   // Load departments
   const loadDepartments = async () => {
     try {
-      console.log("Fetching departments...");
+      // console.log("Fetching departments...");
       const result = await departmentApi.getdepartment();
-      
-      console.log("Departments Result:", result);
-      
+
+      // console.log("Departments Result:", result);
+
       if (result && result.error) {
         console.error("API Error:", result.error);
         toast.error(result.error);
         return;
       }
-      
+
       if (result && result.data && Array.isArray(result.data)) {
         setDepartments(result.data);
         toast.success(`Loaded ${result.data.length} departments`);
@@ -382,24 +528,26 @@ const findCurrentUserAndSetManagers = async () => {
       }
     } catch (error: any) {
       console.error("Fetch Departments Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+      toast.error(
+        "Failed to connect to server: " + (error.message || "Network error"),
+      );
     }
   };
 
   // Load designations
   const loadDesignations = async () => {
     try {
-      console.log("Fetching designations...");
+      // console.log("Fetching designations...");
       const result = await designationApi.getDesignations();
-      
-      console.log("Designations Result:", result);
-      
+
+      // console.log("Designations Result:", result);
+
       if (result && result.error) {
         console.error("API Error:", result.error);
         toast.error(result.error);
         return;
       }
-      
+
       if (result && result.data && Array.isArray(result.data)) {
         setDesignations(result.data);
         toast.success(`Loaded ${result.data.length} designations`);
@@ -409,24 +557,26 @@ const findCurrentUserAndSetManagers = async () => {
       }
     } catch (error: any) {
       console.error("Fetch Designations Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+      toast.error(
+        "Failed to connect to server: " + (error.message || "Network error"),
+      );
     }
   };
 
   // Load leave applications
   const loadLeaveApplications = async () => {
     try {
-      console.log("Fetching leave applications...");
+      // console.log("Fetching leave applications...");
       const result = await leaveTypeApi.getLeaveApplications();
-      
-      console.log("Leave Applications Result:", result);
-      
+
+      // console.log("Leave Applications Result:", result);
+
       if (result && result.error) {
         console.error("API Error:", result.error);
         toast.error(result.error);
         return;
       }
-      
+
       if (result && result.data && Array.isArray(result.data)) {
         setLeaveApplications(result.data);
         toast.success(`Loaded ${result.data.length} leave applications`);
@@ -436,24 +586,26 @@ const findCurrentUserAndSetManagers = async () => {
       }
     } catch (error: any) {
       console.error("Fetch Leave Applications Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+      toast.error(
+        "Failed to connect to server: " + (error.message || "Network error"),
+      );
     }
   };
 
   // Load leave balances
   const loadLeaveBalances = async () => {
     try {
-      console.log("Fetching leave balances...");
+      // console.log("Fetching leave balances...");
       const result = await leaveTypeApi.getLeaveBalances();
-      
-      console.log("Leave Balances Result:", result);
-      
+
+      // console.log("Leave Balances Result:", result);
+
       if (result && result.error) {
         console.error("API Error:", result.error);
         toast.error(result.error);
         return;
       }
-      
+
       if (result && result.data && Array.isArray(result.data)) {
         // The API helper already processes the response and returns { data: [...] }
         // with the correct LeaveBalance format
@@ -465,83 +617,89 @@ const findCurrentUserAndSetManagers = async () => {
       }
     } catch (error: any) {
       console.error("Fetch Leave Balances Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+      toast.error(
+        "Failed to connect to server: " + (error.message || "Network error"),
+      );
     }
   };
 
-useEffect(() => {
-  const loadLeaveTypes = async () => {
-    try {
-      setLoading(true);
-      console.log("Fetching leave types...");
+  useEffect(() => {
+    const loadLeaveTypes = async () => {
+      try {
+        setLoading(true);
+        // console.log("Fetching leave types...");
 
-      const result = await leaveTypeApi.getLeaveTypes();
+        const result = await leaveTypeApi.getLeaveTypes();
 
-      console.log("Raw API Result:", result);
+        // console.log("Raw API Result:", result);
 
-      // API helper already processes the response and returns { data: [...] }
-      let leaveTypesData = [];
-      
-      if (result && result.error) {
-        console.error("API Error:", result.error);
-        toast.error(result.error);
+        // API helper already processes the response and returns { data: [...] }
+        let leaveTypesData = [];
+
+        if (result && result.error) {
+          console.error("API Error:", result.error);
+          toast.error(result.error);
+          setLoading(false);
+          return;
+        }
+
+        if (result && result.data && Array.isArray(result.data)) {
+          leaveTypesData = result.data;
+        } else if (Array.isArray(result)) {
+          leaveTypesData = result;
+        } else {
+          console.error("Unexpected API response format:", result);
+          toast.error("Invalid data format from server");
+          setLoading(false);
+          return;
+        }
+
+        // The API helper already maps the data, but to different field names
+        // We need to map from API helper format to component format
+        const mappedTypes = leaveTypesData.map((item: any) => {
+          // console.log("API Helper Item:", item);
+          const mapped = {
+            id: item.id,
+            name: item.name,
+            isPaid: item.isPaid,
+            annualLimit: item.maxDays, // API helper uses maxDays from annual_limit
+            carryForward: item.carryForwardLimit || 0, // API helper uses carryForwardLimit from carry_forward
+            encashable: item.encashable, // API helper now includes encashable field
+            createdAt: item.createdAt || new Date().toISOString(),
+          };
+          // console.log("Component Mapped:", mapped);
+          return mapped;
+        });
+
+        // console.log("Mapped Leave Types:", mappedTypes);
+        setLeaveTypes(mappedTypes);
+        toast.success(`Loaded ${mappedTypes.length} leave types`);
+      } catch (error: any) {
+        console.error("Fetch Error:", error);
+        toast.error(
+          "Failed to connect to server: " + (error.message || "Network error"),
+        );
+      } finally {
         setLoading(false);
-        return;
       }
-      
-      if (result && result.data && Array.isArray(result.data)) {
-        leaveTypesData = result.data;
-      } else if (Array.isArray(result)) {
-        leaveTypesData = result;
-      } else {
-        console.error("Unexpected API response format:", result);
-        toast.error("Invalid data format from server");
-        setLoading(false);
-        return;
-      }
+    };
 
-      // The API helper already maps the data, but to different field names
-      // We need to map from API helper format to component format
-      const mappedTypes = leaveTypesData.map((item: any) => {
-        console.log("API Helper Item:", item);
-        const mapped = {
-          id: item.id,
-          name: item.name,
-          isPaid: item.isPaid,
-          annualLimit: item.maxDays, // API helper uses maxDays from annual_limit
-          carryForward: item.carryForwardLimit || 0, // API helper uses carryForwardLimit from carry_forward
-          encashable: item.encashable, // API helper now includes encashable field
-          createdAt: item.createdAt || new Date().toISOString(),
-        };
-        console.log("Component Mapped:", mapped);
-        return mapped;
-      });
+    loadLeaveTypes();
+  }, []);
 
-      console.log("Mapped Leave Types:", mappedTypes);
-      setLeaveTypes(mappedTypes);
-      toast.success(`Loaded ${mappedTypes.length} leave types`);
-
-    } catch (error: any) {
-      console.error("Fetch Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
-    } finally {
-      setLoading(false);
+  // Pre-fill employee data for all users
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        employeeName:
+          `${(user as any)?.first_name || ""} ${(user as any)?.last_name || ""}`.trim() ||
+          (user as any)?.name ||
+          "Current User",
+        employeeId: (user as any)?.employee_id || user?.id,
+      }));
     }
-  };
-
-  loadLeaveTypes();
-}, []);
-
-// Pre-fill employee data for all users
-useEffect(() => {
-  if (user) {
-    setFormData(prev => ({
-      ...prev,
-      employeeName: `${(user as any)?.first_name || ''} ${(user as any)?.last_name || ''}`.trim() || (user as any)?.name || 'Current User',
-      employeeId: (user as any)?.employee_id || user?.id,
-    }));
-  }
-}, [user]);
+  }, [user]);
 
   // Detect route and set active tab
   useEffect(() => {
@@ -579,7 +737,12 @@ useEffect(() => {
 
   // Find current user and set reporting managers when all data is loaded
   useEffect(() => {
-    if (dialogMode !== "applications" && employees.length > 0 && departments.length > 0 && designations.length > 0) {
+    if (
+      dialogMode !== "applications" &&
+      employees.length > 0 &&
+      departments.length > 0 &&
+      designations.length > 0
+    ) {
       findCurrentUserAndSetManagers();
     }
   }, [user, employees, departments, designations, dialogMode]);
@@ -598,34 +761,56 @@ useEffect(() => {
     }
   }, [activeTab]);
 
-  const inferUserRole = (candidate: any): "admin" | "ceo" | "hr" | "manager" | "employee" | "" => {
+  const inferUserRole = (
+    candidate: any,
+  ): "admin" | "ceo" | "hr" | "manager" | "employee" | "" => {
     const roleText = String(candidate?.role || "").toLowerCase();
     const designationText = String(
       candidate?.designation ||
-      candidate?.designationName ||
-      candidate?.designation_name ||
-      ""
+        candidate?.designationName ||
+        candidate?.designation_name ||
+        "",
     ).toLowerCase();
     const typeText = String(candidate?.type || "").toLowerCase();
-    const departmentText = String(candidate?.department || candidate?.department_name || "").toLowerCase();
+    const departmentText = String(
+      candidate?.department || candidate?.department_name || "",
+    ).toLowerCase();
     const rolesArrayText = Array.isArray(candidate?.roles)
       ? candidate.roles.join(" ").toLowerCase()
       : "";
-    const combined = `${roleText} ${designationText} ${typeText} ${departmentText} ${rolesArrayText}`.trim();
+    const combined =
+      `${roleText} ${designationText} ${typeText} ${departmentText} ${rolesArrayText}`.trim();
 
     if (combined.includes("ceo")) return "ceo";
-    if (candidate?.isHR || combined.includes("human resource") || combined.includes(" hr ") || combined.startsWith("hr") || combined.endsWith("hr")) return "hr";
+    if (
+      candidate?.isHR ||
+      combined.includes("human resource") ||
+      combined.includes(" hr ") ||
+      combined.startsWith("hr") ||
+      combined.endsWith("hr")
+    )
+      return "hr";
     if (candidate?.isAdmin || combined.includes("admin")) return "admin";
-    if (candidate?.isManager || combined.includes("manager") || combined.includes("lead")) return "manager";
-    if (combined.includes("employee") || typeText === "employee") return "employee";
+    if (
+      candidate?.isManager ||
+      combined.includes("manager") ||
+      combined.includes("lead")
+    )
+      return "manager";
+    if (combined.includes("employee") || typeText === "employee")
+      return "employee";
     return "";
   };
 
   const filterRelevantUsersForLeave = (users: any[]) => {
-    const currentRoles = (user?.roles || []).map((r: string) => String(r).toLowerCase());
+    const currentRoles = (user?.roles || []).map((r: string) =>
+      String(r).toLowerCase(),
+    );
     const isAdminUser = currentRoles.some((r: string) => r.includes("admin"));
     const isHrUser = currentRoles.some((r: string) => r.includes("hr"));
-    const isEmployeeUser = currentRoles.some((r: string) => r.includes("employee"));
+    const isEmployeeUser = currentRoles.some((r: string) =>
+      r.includes("employee"),
+    );
 
     const currentUserId = String((user as any)?.employee_id || user?.id || "");
     const currentUserEmail = String((user as any)?.email || "").toLowerCase();
@@ -633,15 +818,20 @@ useEffect(() => {
     const baseUsers = users.filter((u: any) => {
       const candidateId = String(u?.employeeId || u?.id || "");
       const candidateEmail = String(u?.email || "").toLowerCase();
-      return candidateId !== currentUserId && candidateEmail !== currentUserEmail;
+      return (
+        candidateId !== currentUserId && candidateEmail !== currentUserEmail
+      );
     });
 
     if (isAdminUser && !isHrUser) {
       const filtered = baseUsers.filter((u: any) => inferUserRole(u) === "hr");
-      return filtered.length > 0 ? filtered : baseUsers.filter((u: any) => {
-        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
-        return txt.includes("hr");
-      });
+      return filtered.length > 0
+        ? filtered
+        : baseUsers.filter((u: any) => {
+            const txt =
+              `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+            return txt.includes("hr");
+          });
     }
 
     if (isHrUser && !isAdminUser) {
@@ -649,16 +839,20 @@ useEffect(() => {
       if (admins.length > 0) return admins;
 
       const adminByText = baseUsers.filter((u: any) => {
-        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+        const txt =
+          `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
         return txt.includes("admin");
       });
       if (adminByText.length > 0) return adminByText;
 
-      const managers = baseUsers.filter((u: any) => inferUserRole(u) === "manager");
+      const managers = baseUsers.filter(
+        (u: any) => inferUserRole(u) === "manager",
+      );
       if (managers.length > 0) return managers;
 
       const managerByText = baseUsers.filter((u: any) => {
-        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+        const txt =
+          `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
         return txt.includes("manager") || txt.includes("lead");
       });
       if (managerByText.length > 0) return managerByText;
@@ -669,12 +863,26 @@ useEffect(() => {
     if (isEmployeeUser && !isAdminUser && !isHrUser) {
       const filtered = baseUsers.filter((u: any) => {
         const role = inferUserRole(u);
-        return role === "admin" || role === "ceo" || role === "hr" || role === "manager";
+        return (
+          role === "admin" ||
+          role === "ceo" ||
+          role === "hr" ||
+          role === "manager"
+        );
       });
-      return filtered.length > 0 ? filtered : baseUsers.filter((u: any) => {
-        const txt = `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
-        return txt.includes("admin") || txt.includes("ceo") || txt.includes("hr") || txt.includes("manager") || txt.includes("lead");
-      });
+      return filtered.length > 0
+        ? filtered
+        : baseUsers.filter((u: any) => {
+            const txt =
+              `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
+            return (
+              txt.includes("admin") ||
+              txt.includes("ceo") ||
+              txt.includes("hr") ||
+              txt.includes("manager") ||
+              txt.includes("lead")
+            );
+          });
     }
 
     return baseUsers;
@@ -683,29 +891,38 @@ useEffect(() => {
   // Load relevant users for leave (reporting managers, HR) using the new API
   const loadLeaveUsers = async () => {
     try {
-      console.log("Fetching leave users...");
+      // console.log("Fetching leave users...");
       const result = await leaveTypeApi.getLeaveUsers();
-      
-      console.log("Leave Users Result:", result);
-      
+
+      // console.log("Leave Users Result:", result);
+
       if (result && result.error) {
         console.error("API Error:", result.error);
         toast.error(result.error);
         return;
       }
-      
+
       if (result && result.data && Array.isArray(result.data)) {
         const filteredUsers = filterRelevantUsersForLeave(result.data);
-        const currentUserId = String((user as any)?.employee_id || user?.id || "");
-        const currentUserEmail = String((user as any)?.email || "").toLowerCase();
+        const currentUserId = String(
+          (user as any)?.employee_id || user?.id || "",
+        );
+        const currentUserEmail = String(
+          (user as any)?.email || "",
+        ).toLowerCase();
         const fallbackUsers = result.data.filter((u: any) => {
-          const candidateId = String(u?.employeeId || u?.employee_id || u?.id || "");
+          const candidateId = String(
+            u?.employeeId || u?.employee_id || u?.id || "",
+          );
           const candidateEmail = String(u?.email || "").toLowerCase();
-          return candidateId !== currentUserId && candidateEmail !== currentUserEmail;
+          return (
+            candidateId !== currentUserId && candidateEmail !== currentUserEmail
+          );
         });
 
-        const finalUsers = filteredUsers.length > 0 ? filteredUsers : fallbackUsers;
-        console.log("Setting reporting managers:", filteredUsers);
+        const finalUsers =
+          filteredUsers.length > 0 ? filteredUsers : fallbackUsers;
+        // console.log("Setting reporting managers:", filteredUsers);
         if (finalUsers.length > 0) {
           setReportingManagers(finalUsers);
         } else {
@@ -713,17 +930,27 @@ useEffect(() => {
           // Clear stale data instead of keeping a previous employee's list.
           setReportingManagers([]);
         }
-        
-        const managerCount = finalUsers.filter((u: any) => inferUserRole(u) === "manager").length;
-        const hrCount = finalUsers.filter((u: any) => inferUserRole(u) === "hr").length;
-        const adminCount = finalUsers.filter((u: any) => inferUserRole(u) === "admin").length;
-        
+
+        const managerCount = finalUsers.filter(
+          (u: any) => inferUserRole(u) === "manager",
+        ).length;
+        const hrCount = finalUsers.filter(
+          (u: any) => inferUserRole(u) === "hr",
+        ).length;
+        const adminCount = finalUsers.filter(
+          (u: any) => inferUserRole(u) === "admin",
+        ).length;
+
         if (filteredUsers.length > 0) {
-          toast.success(`Loaded ${managerCount} manager(s), ${hrCount} HR, ${adminCount} admin`);
+          toast.success(
+            `Loaded ${managerCount} manager(s), ${hrCount} HR, ${adminCount} admin`,
+          );
         } else if (fallbackUsers.length > 0) {
           toast.warning("Role mapping mismatch; loaded fallback approver list");
         } else {
-          toast.warning("No approver available for your role. Please contact admin.");
+          toast.warning(
+            "No approver available for your role. Please contact admin.",
+          );
         }
       } else {
         console.error("No leave users found in response:", result);
@@ -731,7 +958,9 @@ useEffect(() => {
       }
     } catch (error: any) {
       console.error("Fetch Leave Users Error:", error);
-      toast.error("Failed to connect to server: " + (error.message || "Network error"));
+      toast.error(
+        "Failed to connect to server: " + (error.message || "Network error"),
+      );
     }
   };
 
@@ -745,22 +974,29 @@ useEffect(() => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
-  const [selectedReportingManagers, setSelectedReportingManagers] = useState<string[]>([]);
-  const [applicationErrors, setApplicationErrors] = useState<Record<string, string>>({});
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectedReportingManagers, setSelectedReportingManagers] = useState<
+    string[]
+  >([]);
+  const [applicationErrors, setApplicationErrors] = useState<
+    Record<string, string>
+  >({});
 
   const parseIsoDate = parseIsoDateOnly;
   const leaveDateBounds = getLeaveApplicationDateBounds();
 
   const validateLeaveApplicationForm = () => {
     const errors: Record<string, string> = {};
-    const employeeIdField = formData.employeeId || currentUserEmployee?.id || user?.id;
+    const employeeIdField =
+      formData.employeeId || currentUserEmployee?.id || user?.id;
     const reason = String(formData.reason || "").trim();
-    const approversSelected = (
-      (formData.reportingManagerIds && formData.reportingManagerIds.length > 0) ||
+    const approversSelected =
+      (formData.reportingManagerIds &&
+        formData.reportingManagerIds.length > 0) ||
       (selectedReportingManagers && selectedReportingManagers.length > 0) ||
-      !!formData.reportingManagerName
-    );
+      !!formData.reportingManagerName;
 
     if (!employeeIdField) {
       errors.employeeId = "Employee selection is required";
@@ -778,7 +1014,8 @@ useEffect(() => {
       errors.reason = "Reason is required";
     }
     if (!approversSelected) {
-      errors.reportingManager = "Please select at least one approver (manager or HR)";
+      errors.reportingManager =
+        "Please select at least one approver (manager or HR)";
     }
 
     if (formData.fromDate) {
@@ -809,7 +1046,11 @@ useEffect(() => {
       if (!formData.halfDaySession) {
         errors.halfDaySession = "Please select first half or second half";
       }
-      if (formData.fromDate && formData.toDate && formData.fromDate !== formData.toDate) {
+      if (
+        formData.fromDate &&
+        formData.toDate &&
+        formData.fromDate !== formData.toDate
+      ) {
         errors.toDate = "Half-day leave must be for a single date";
       }
     }
@@ -820,47 +1061,54 @@ useEffect(() => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const dropdown = document.getElementById('manager-dropdown');
+      const dropdown = document.getElementById("manager-dropdown");
       const button = event.target as HTMLElement;
-      
-      if (dropdown && !dropdown.contains(button) && !button.closest('button')) {
-        dropdown.classList.add('hidden');
+
+      if (dropdown && !dropdown.contains(button) && !button.closest("button")) {
+        dropdown.classList.add("hidden");
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Update form data when selected managers change
   useEffect(() => {
     if (selectedReportingManagers.length > 0) {
-      const selectedManagers = reportingManagers.filter(m => selectedReportingManagers.includes(String(m.id)));
-      const managerNames = selectedManagers.map(m => m.fullName || m.name).join(', ');
-      const managerEmails = selectedManagers.map(m => m.email).filter(Boolean).join(', ');
-      
-      setFormData(prev => ({
+      const selectedManagers = reportingManagers.filter((m) =>
+        selectedReportingManagers.includes(String(m.id)),
+      );
+      const managerNames = selectedManagers
+        .map((m) => m.fullName || m.name)
+        .join(", ");
+      const managerEmails = selectedManagers
+        .map((m) => m.email)
+        .filter(Boolean)
+        .join(", ");
+
+      setFormData((prev) => ({
         ...prev,
         reportingManagerIds: selectedReportingManagers,
-        reportingManagerId: selectedReportingManagers.join(','),
+        reportingManagerId: selectedReportingManagers.join(","),
         reportingManagerName: managerNames,
-        reportingManagerEmail: managerEmails
+        reportingManagerEmail: managerEmails,
       }));
-      setApplicationErrors(prev => ({ ...prev, reportingManager: "" }));
+      setApplicationErrors((prev) => ({ ...prev, reportingManager: "" }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         reportingManagerIds: [],
-        reportingManagerId: '',
-        reportingManagerName: '',
-        reportingManagerEmail: ''
+        reportingManagerId: "",
+        reportingManagerName: "",
+        reportingManagerEmail: "",
       }));
     }
   }, [selectedReportingManagers, reportingManagers]);
 
   // Toggle employee expansion
   const toggleEmployeeExpansion = (employeeId: string) => {
-    setExpandedEmployees(prev => {
+    setExpandedEmployees((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(employeeId)) {
         newSet.delete(employeeId);
@@ -873,8 +1121,11 @@ useEffect(() => {
 
   // Filter functions
   const filteredLeaveTypes = useMemo(
-    () => leaveTypes.filter((lt) => lt.name.toLowerCase().includes(searchTerm.toLowerCase())),
-    [leaveTypes, searchTerm]
+    () =>
+      leaveTypes.filter((lt) =>
+        lt.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [leaveTypes, searchTerm],
   );
 
   const leaveTypeSummary = useMemo(
@@ -884,7 +1135,7 @@ useEffect(() => {
       unpaid: filteredLeaveTypes.filter((lt) => !lt.isPaid).length,
       encashable: filteredLeaveTypes.filter((lt) => lt.encashable).length,
     }),
-    [filteredLeaveTypes]
+    [filteredLeaveTypes],
   );
 
   const filteredLeaveBalances = useMemo(() => {
@@ -896,10 +1147,11 @@ useEffect(() => {
       filtered = filtered.filter((lb) => lb.employeeId === employeeId);
     } else if (hasRole(user, "admin")) {
       // For admins, apply search filter to see all
-      filtered = filtered.filter((lb) => 
-        lb.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        lb.leaveType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lb.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (lb) =>
+          lb.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lb.leaveType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lb.employeeId.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -909,7 +1161,7 @@ useEffect(() => {
   // Group leave balances by employee for admin view
   const groupedLeaveBalances = useMemo(() => {
     const grouped: Record<string, LeaveBalance[]> = {};
-    filteredLeaveBalances.forEach(lb => {
+    filteredLeaveBalances.forEach((lb) => {
       if (!grouped[lb.employeeId]) {
         grouped[lb.employeeId] = [];
       }
@@ -922,10 +1174,16 @@ useEffect(() => {
     () => ({
       employees: Object.keys(groupedLeaveBalances).length,
       leaveTypes: filteredLeaveBalances.length,
-      opening: filteredLeaveBalances.reduce((sum, lb) => sum + Number(lb.opening || 0), 0),
-      available: filteredLeaveBalances.reduce((sum, lb) => sum + Number(lb.available || 0), 0),
+      opening: filteredLeaveBalances.reduce(
+        (sum, lb) => sum + Number(lb.opening || 0),
+        0,
+      ),
+      available: filteredLeaveBalances.reduce(
+        (sum, lb) => sum + Number(lb.available || 0),
+        0,
+      ),
     }),
-    [filteredLeaveBalances, groupedLeaveBalances]
+    [filteredLeaveBalances, groupedLeaveBalances],
   );
 
   const filteredLeaveApplications = useMemo(() => {
@@ -940,25 +1198,36 @@ useEffect(() => {
       filtered = filtered.filter(
         (la) =>
           la.employeeName === user?.name || // Show their own
-          la.reportingManagerName === user?.name // Show their direct reports
+          la.reportingManagerName === user?.name, // Show their direct reports
       );
     } else {
       // For admins, apply search filter to see all
-      filtered = filtered.filter((la) => la.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || la.reason.toLowerCase().includes(searchTerm.toLowerCase()));
+      filtered = filtered.filter(
+        (la) =>
+          la.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          la.reason.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
     }
 
     return filtered;
   }, [leaveApplications, searchTerm, user]);
 
-  const pendingApplications = leaveApplications.filter((la) => la.status === "applied");
+  const pendingApplications = leaveApplications.filter(
+    (la) => la.status === "applied",
+  );
   const applicationSummary = useMemo(
     () => ({
       total: filteredLeaveApplications.length,
-      pending: filteredLeaveApplications.filter((la) => la.status === "applied").length,
-      approved: filteredLeaveApplications.filter((la) => la.status === "approved").length,
-      rejected: filteredLeaveApplications.filter((la) => la.status === "rejected").length,
+      pending: filteredLeaveApplications.filter((la) => la.status === "applied")
+        .length,
+      approved: filteredLeaveApplications.filter(
+        (la) => la.status === "approved",
+      ).length,
+      rejected: filteredLeaveApplications.filter(
+        (la) => la.status === "rejected",
+      ).length,
     }),
-    [filteredLeaveApplications]
+    [filteredLeaveApplications],
   );
 
   // Dialog handlers
@@ -973,11 +1242,13 @@ useEffect(() => {
       dialogModeToUse = "applications";
     }
     setDialogMode(dialogModeToUse);
-    
+
     if (item) {
       setEditingId(item.id);
       setFormData({ ...item });
-      setSelectedReportingManagers((item.reportingManagerIds || []).map((id: any) => String(id)));
+      setSelectedReportingManagers(
+        (item.reportingManagerIds || []).map((id: any) => String(id)),
+      );
     } else {
       setEditingId(null);
       setSelectedReportingManagers([]);
@@ -991,7 +1262,11 @@ useEffect(() => {
           halfDaySession: "first_half",
         });
       } else {
-        setFormData(dialogModeToUse === "applications" ? { leaveDuration: "full_day", halfDaySession: "first_half" } : {});
+        setFormData(
+          dialogModeToUse === "applications"
+            ? { leaveDuration: "full_day", halfDaySession: "first_half" }
+            : {},
+        );
       }
     }
     setApplicationErrors({});
@@ -1003,7 +1278,7 @@ useEffect(() => {
     if (e) {
       e.preventDefault();
     }
-    
+
     if (dialogMode === "applications") {
       const validationErrors = validateLeaveApplicationForm();
       setApplicationErrors(validationErrors);
@@ -1015,10 +1290,12 @@ useEffect(() => {
 
       try {
         setLoading(true);
-        
+
         // Find the selected leave type to get its ID
-        const selectedLeaveType = leaveTypes.find(lt => lt.name === formData.leaveType);
-        
+        const selectedLeaveType = leaveTypes.find(
+          (lt) => lt.name === formData.leaveType,
+        );
+
         if (!selectedLeaveType) {
           toast.error("Please select a valid leave type");
           return;
@@ -1041,15 +1318,23 @@ useEffect(() => {
         const isHalfDay = formData.leaveDuration === "half_day";
         const calculatedDays = isHalfDay
           ? 0.5
-          : Math.floor((parsedToDate.getTime() - parsedFromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          : Math.floor(
+              (parsedToDate.getTime() - parsedFromDate.getTime()) /
+                (1000 * 60 * 60 * 24),
+            ) + 1;
 
         // Get reporting manager details from form or current user data
         const reportingManagerId =
           (selectedReportingManagers.length > 0
-            ? selectedReportingManagers.join(',')
-            : formData.reportingManagerId) || currentUserEmployee?.reporting_manager_id;
-        const reportingManagerName = formData.reportingManagerName || currentUserEmployee?.reporting_manager_name;
-        const reportingManagerEmail = formData.reportingManagerEmail || currentUserEmployee?.reporting_manager_email;
+            ? selectedReportingManagers.join(",")
+            : formData.reportingManagerId) ||
+          currentUserEmployee?.reporting_manager_id;
+        const reportingManagerName =
+          formData.reportingManagerName ||
+          currentUserEmployee?.reporting_manager_name;
+        const reportingManagerEmail =
+          formData.reportingManagerEmail ||
+          currentUserEmployee?.reporting_manager_email;
 
         // Prepare leave application data in the format expected by the backend
         const leaveData = {
@@ -1057,36 +1342,39 @@ useEffect(() => {
           from_date: formData.fromDate,
           to_date: formData.toDate,
           reason: formData.reason,
-          employee_id: formData.employeeId || currentUserEmployee?.id || '',
-          employee_name: formData.employeeName || currentUserEmployee?.name || user?.name || '',
-          status: 'applied',
+          employee_id: formData.employeeId || currentUserEmployee?.id || "",
+          employee_name:
+            formData.employeeName ||
+            currentUserEmployee?.name ||
+            user?.name ||
+            "",
+          status: "applied",
           days: calculatedDays,
-          leave_duration: isHalfDay ? 'half_day' : 'full_day',
+          leave_duration: isHalfDay ? "half_day" : "full_day",
           half_day_session: isHalfDay ? formData.halfDaySession : null,
           // Include reporting manager details for notification
           reporting_manager_id: reportingManagerId,
           reporting_manager_name: reportingManagerName,
           reporting_manager_email: reportingManagerEmail,
           // Include leave type name for the email
-          leave_type_name: selectedLeaveType.name
+          leave_type_name: selectedLeaveType.name,
         };
-        
-        console.log("Sending leave data:", leaveData);
+
+        // console.log("Sending leave data:", leaveData);
 
         setSubmitting(true);
         // Call the applyLeave function
         const result = await leaveTypeApi.applyLeave(leaveData);
-        
+
         if (result.error) {
           throw new Error(result.error);
         }
 
         toast.success("Leave application submitted successfully!");
         setIsDialogOpen(false);
-        
+
         // Refresh the leave applications list
         await loadLeaveApplications();
-        
       } catch (error: any) {
         console.error("Error applying for leave:", error);
         toast.error(error.message || "Failed to submit leave application");
@@ -1094,7 +1382,7 @@ useEffect(() => {
         setLoading(false);
         setSubmitting(false);
       }
-      
+
       return;
     }
 
@@ -1141,14 +1429,14 @@ useEffect(() => {
             const result = await leaveTypeApi.getLeaveTypes();
 
             let leaveTypesData = [];
-            
+
             if (result && result.error) {
               console.error("API Error:", result.error);
               toast.error(result.error);
               setLoading(false);
               return;
             }
-            
+
             if (result && result.data && Array.isArray(result.data)) {
               leaveTypesData = result.data;
             } else if (Array.isArray(result)) {
@@ -1173,24 +1461,36 @@ useEffect(() => {
             setLeaveTypes(mappedTypes);
           } catch (error: any) {
             console.error("Fetch Error:", error);
-            toast.error("Failed to connect to server: " + (error.message || "Network error"));
+            toast.error(
+              "Failed to connect to server: " +
+                (error.message || "Network error"),
+            );
           } finally {
             setLoading(false);
           }
         };
-        
+
         await refreshData();
         setIsDialogOpen(false);
       } catch (error: any) {
         console.error("Save Error:", error);
-        toast.error("Failed to save leave type: " + (error.message || "Unknown error"));
+        toast.error(
+          "Failed to save leave type: " + (error.message || "Unknown error"),
+        );
       }
     } else if (dialogMode === "applications") {
       // Handle leave applications (existing logic)
       if (editingId) {
-        setLeaveApplications((prev) => prev.map((la) => (la.id === editingId ? { ...la, ...formData } : la)));
+        setLeaveApplications((prev) =>
+          prev.map((la) => (la.id === editingId ? { ...la, ...formData } : la)),
+        );
       } else {
-        const days = Math.ceil((new Date(formData.toDate).getTime() - new Date(formData.fromDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const days =
+          Math.ceil(
+            (new Date(formData.toDate).getTime() -
+              new Date(formData.fromDate).getTime()) /
+              (1000 * 60 * 60 * 24),
+          ) + 1;
         const newApplication = {
           id: `LA${String(leaveApplications.length + 1).padStart(3, "0")}`,
           ...formData,
@@ -1203,10 +1503,13 @@ useEffect(() => {
 
         // Send email to reporting manager/HR
         if (formData.reportingManagerEmail) {
-          toast.success(`Leave request submitted! Email sent to ${formData.reportingManagerName}`, {
-            description: `Notification sent to ${formData.reportingManagerEmail}`,
-            icon: <Mail className="w-4 h-4" />,
-          });
+          toast.success(
+            `Leave request submitted! Email sent to ${formData.reportingManagerName}`,
+            {
+              description: `Notification sent to ${formData.reportingManagerEmail}`,
+              icon: <Mail className="w-4 h-4" />,
+            },
+          );
         }
       }
       setIsDialogOpen(false);
@@ -1227,27 +1530,27 @@ useEffect(() => {
           return;
         }
         toast.success("Leave type deleted successfully");
-        
+
         // Refresh list
         const refreshLeaveTypes = async () => {
           try {
             setLoading(true);
-            console.log("Fetching leave types...");
+            // console.log("Fetching leave types...");
 
             const result = await leaveTypeApi.getLeaveTypes();
 
-            console.log("Raw API Result:", result);
+            // console.log("Raw API Result:", result);
 
             // API helper already processes the response and returns { data: [...] }
             let leaveTypesData = [];
-            
+
             if (result && result.error) {
               console.error("API Error:", result.error);
               toast.error(result.error);
               setLoading(false);
               return;
             }
-            
+
             if (result && result.data && Array.isArray(result.data)) {
               leaveTypesData = result.data;
             } else if (Array.isArray(result)) {
@@ -1262,7 +1565,7 @@ useEffect(() => {
             // The API helper already maps the data, but to different field names
             // We need to map from API helper format to component format
             const mappedTypes = leaveTypesData.map((item: any) => {
-              console.log("API Helper Item:", item);
+              // console.log("API Helper Item:", item);
               const mapped = {
                 id: item.id,
                 name: item.name,
@@ -1272,25 +1575,30 @@ useEffect(() => {
                 encashable: item.encashable, // API helper now includes encashable field
                 createdAt: item.createdAt || new Date().toISOString(),
               };
-              console.log("Component Mapped:", mapped);
+              // console.log("Component Mapped:", mapped);
               return mapped;
             });
 
-            console.log("Mapped Leave Types:", mappedTypes);
+            // console.log("Mapped Leave Types:", mappedTypes);
             setLeaveTypes(mappedTypes);
           } catch (error: any) {
             console.error("Fetch Error:", error);
-            toast.error("Failed to connect to server: " + (error.message || "Network error"));
+            toast.error(
+              "Failed to connect to server: " +
+                (error.message || "Network error"),
+            );
           } finally {
             setLoading(false);
           }
         };
-        
+
         await refreshLeaveTypes();
         setIsDeleteDialogOpen(false);
       } catch (error: any) {
         console.error("Delete Error:", error);
-        toast.error("Failed to delete leave type: " + (error.message || "Unknown error"));
+        toast.error(
+          "Failed to delete leave type: " + (error.message || "Unknown error"),
+        );
       }
     } else if (dialogMode === "applications") {
       setLeaveApplications((prev) => prev.filter((la) => la.id !== deleteId));
@@ -1300,7 +1608,11 @@ useEffect(() => {
 
   const handleApproveReject = (id: string, approved: boolean) => {
     setLeaveApplications((prev) =>
-      prev.map((la) => (la.id === id ? { ...la, status: approved ? "approved" : "rejected" } : la))
+      prev.map((la) =>
+        la.id === id
+          ? { ...la, status: approved ? "approved" : "rejected" }
+          : la,
+      ),
     );
   };
 
@@ -1316,9 +1628,15 @@ useEffect(() => {
                 <span className="hidden sm:inline">Leave Management</span>
                 <span className="sm:hidden">Leave Mgmt</span>
               </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Apply and manage employee leaves</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+                Apply and manage employee leaves
+              </p>
             </div>
-            <Button type="button" onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+            <Button
+              type="button"
+              onClick={() => handleOpenDialog(undefined, "applications")}
+              className="gap-2 h-8 sm:h-10 text-xs sm:text-sm"
+            >
               <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Apply Leave</span>
               <span className="sm:hidden">Apply</span>
@@ -1347,21 +1665,33 @@ useEffect(() => {
 
         {/* Search Card for Employee - removed redundant Apply Leave button */}
 
-        
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 gap-1 rounded-lg bg-muted p-1 h-auto min-w-max md:min-w-full">
-            <TabsTrigger value="types" className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="types"
+              className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            >
               <span className="sm:hidden">Types</span>
-              <span className="hidden sm:inline">Leave Types ({leaveTypes.length})</span>
+              <span className="hidden sm:inline">
+                Leave Types ({leaveTypes.length})
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="balance" className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="balance"
+              className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            >
               <span className="sm:hidden">Bal</span>
               <span className="hidden sm:inline">Balance</span>
             </TabsTrigger>
-            <TabsTrigger value="applications" className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger
+              value="applications"
+              className="text-xs md:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            >
               <span className="sm:hidden">Apps</span>
-              <span className="hidden sm:inline">Applications ({leaveApplications.length})</span>
+              <span className="hidden sm:inline">
+                Applications ({leaveApplications.length})
+              </span>
             </TabsTrigger>
           </TabsList>
 
@@ -1375,37 +1705,54 @@ useEffect(() => {
                       <Layers3 className="h-4 w-4" />
                       Total Types
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">{leaveTypeSummary.total}</p>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">
+                      {leaveTypeSummary.total}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
                       <CheckCircle className="h-4 w-4" />
                       Paid
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-emerald-800">{leaveTypeSummary.paid}</p>
+                    <p className="mt-2 text-2xl font-bold text-emerald-800">
+                      {leaveTypeSummary.paid}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
                       <XCircle className="h-4 w-4" />
                       Unpaid
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-slate-800">{leaveTypeSummary.unpaid}</p>
+                    <p className="mt-2 text-2xl font-bold text-slate-800">
+                      {leaveTypeSummary.unpaid}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-sky-700">
                       <WalletCards className="h-4 w-4" />
                       Encashable
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-sky-800">{leaveTypeSummary.encashable}</p>
+                    <p className="mt-2 text-2xl font-bold text-sky-800">
+                      {leaveTypeSummary.encashable}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900">Leave Types</h2>
-                    <p className="text-xs text-muted-foreground">Configure annual limits, carry forward, and encashment rules.</p>
+                    <h2 className="text-base font-semibold text-slate-900">
+                      Leave Types
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Configure annual limits, carry forward, and encashment
+                      rules.
+                    </p>
                   </div>
-                  <Button type="button" onClick={() => handleOpenDialog()} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm sm:w-auto">
+                  <Button
+                    type="button"
+                    onClick={() => handleOpenDialog()}
+                    className="gap-2 h-8 sm:h-10 text-xs sm:text-sm sm:w-auto"
+                  >
                     <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                     Add Leave Type
                   </Button>
@@ -1414,11 +1761,18 @@ useEffect(() => {
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {filteredLeaveTypes.map((lt) => (
-                    <div key={lt.id} className="rounded-lg border border-border bg-white p-3 shadow-sm">
+                    <div
+                      key={lt.id}
+                      className="rounded-lg border border-border bg-white p-3 shadow-sm"
+                    >
                       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-sm sm:text-base break-words">{lt.name}</h3>
-                          <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                          <h3 className="font-semibold text-sm sm:text-base break-words">
+                            {lt.name}
+                          </h3>
+                          <span
+                            className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                          >
                             {lt.isPaid ? "Paid" : "Unpaid"}
                           </span>
                         </div>
@@ -1439,16 +1793,28 @@ useEffect(() => {
                       </div>
                       <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Annual Limit</span>
-                          <span className="font-medium text-right">{lt.annualLimit} days</span>
+                          <span className="text-muted-foreground flex-shrink-0">
+                            Annual Limit
+                          </span>
+                          <span className="font-medium text-right">
+                            {lt.annualLimit} days
+                          </span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Carry Fwd</span>
-                          <span className="font-medium text-right">{lt.carryForward} days</span>
+                          <span className="text-muted-foreground flex-shrink-0">
+                            Carry Fwd
+                          </span>
+                          <span className="font-medium text-right">
+                            {lt.carryForward} days
+                          </span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Encashable</span>
-                          <span className="font-medium text-right">{lt.encashable ? "Yes" : "No"}</span>
+                          <span className="text-muted-foreground flex-shrink-0">
+                            Encashable
+                          </span>
+                          <span className="font-medium text-right">
+                            {lt.encashable ? "Yes" : "No"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1460,27 +1826,52 @@ useEffect(() => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-slate-50">
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Name</th>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Type</th>
-                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Annual Limit</th>
-                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Carry Fwd</th>
-                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Encash</th>
-                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Actions</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                          Name
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                          Type
+                        </th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                          Annual Limit
+                        </th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                          Carry Fwd
+                        </th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                          Encash
+                        </th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredLeaveTypes.map((lt) => (
-                        <tr key={lt.id} className="border-b border-border last:border-0 hover:bg-slate-50/80">
-                          <td className="px-4 py-3 font-semibold text-slate-900">{lt.name}</td>
+                        <tr
+                          key={lt.id}
+                          className="border-b border-border last:border-0 hover:bg-slate-50/80"
+                        >
+                          <td className="px-4 py-3 font-semibold text-slate-900">
+                            {lt.name}
+                          </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                            >
                               {lt.isPaid ? "Paid" : "Unpaid"}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center font-medium">{lt.annualLimit} days</td>
-                          <td className="px-4 py-3 text-center font-medium">{lt.carryForward} days</td>
+                          <td className="px-4 py-3 text-center font-medium">
+                            {lt.annualLimit} days
+                          </td>
+                          <td className="px-4 py-3 text-center font-medium">
+                            {lt.carryForward} days
+                          </td>
                           <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex min-w-[52px] justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${lt.encashable ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-700"}`}>
+                            <span
+                              className={`inline-flex min-w-[52px] justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${lt.encashable ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-700"}`}
+                            >
                               {lt.encashable ? "Yes" : "No"}
                             </span>
                           </td>
@@ -1519,28 +1910,36 @@ useEffect(() => {
                       <UserRound className="h-4 w-4" />
                       Employees
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">{balanceSummary.employees}</p>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">
+                      {balanceSummary.employees}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-sky-700">
                       <Layers3 className="h-4 w-4" />
                       Balance Rows
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-sky-800">{balanceSummary.leaveTypes}</p>
+                    <p className="mt-2 text-2xl font-bold text-sky-800">
+                      {balanceSummary.leaveTypes}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-indigo-700">
                       <WalletCards className="h-4 w-4" />
                       Opening
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-indigo-800">{balanceSummary.opening}</p>
+                    <p className="mt-2 text-2xl font-bold text-indigo-800">
+                      {balanceSummary.opening}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
                       <CheckCircle className="h-4 w-4" />
                       Available
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-emerald-800">{balanceSummary.available}</p>
+                    <p className="mt-2 text-2xl font-bold text-emerald-800">
+                      {balanceSummary.available}
+                    </p>
                   </div>
                 </div>
 
@@ -1548,8 +1947,12 @@ useEffect(() => {
                   // Employee View - Simple and clean
                   <div className="space-y-3">
                     <div className="mb-6">
-                      <h2 className="text-base font-semibold text-slate-900">Your Leave Balances</h2>
-                      <p className="text-xs text-muted-foreground">Track opening, availed, and currently available leave.</p>
+                      <h2 className="text-base font-semibold text-slate-900">
+                        Your Leave Balances
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Track opening, availed, and currently available leave.
+                      </p>
                       {filteredLeaveBalances.length > 0 && (
                         <div className="mt-3 flex items-center">
                           <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-medium text-sm">
@@ -1560,9 +1963,14 @@ useEffect(() => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredLeaveBalances.map((lb) => (
-                        <div key={lb.id} className="rounded-lg border border-border bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                        <div
+                          key={lb.id}
+                          className="rounded-lg border border-border bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                        >
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-semibold text-slate-900">{lb.leaveType}</h4>
+                            <h4 className="font-semibold text-slate-900">
+                              {lb.leaveType}
+                            </h4>
                             <div className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-full font-semibold">
                               Available
                             </div>
@@ -1571,8 +1979,18 @@ useEffect(() => {
                             {lb.available} days
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-md bg-slate-50 p-2 text-slate-700">Opening: <span className="font-semibold">{lb.opening}</span></div>
-                            <div className="rounded-md bg-amber-50 p-2 text-amber-700">Availed: <span className="font-semibold">{lb.availed}</span></div>
+                            <div className="rounded-md bg-slate-50 p-2 text-slate-700">
+                              Opening:{" "}
+                              <span className="font-semibold">
+                                {lb.opening}
+                              </span>
+                            </div>
+                            <div className="rounded-md bg-amber-50 p-2 text-amber-700">
+                              Availed:{" "}
+                              <span className="font-semibold">
+                                {lb.availed}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1583,53 +2001,87 @@ useEffect(() => {
                   <>
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-2 sm:space-y-3">
-                      {Object.entries(groupedLeaveBalances).map(([employeeId, balances]) => (
-                        <div key={employeeId} className="rounded-lg border border-border bg-white shadow-sm">
-                          <div 
-                            className="p-3 sm:p-4 cursor-pointer hover:bg-slate-50 transition-colors"
-                            onClick={() => toggleEmployeeExpansion(employeeId)}
+                      {Object.entries(groupedLeaveBalances).map(
+                        ([employeeId, balances]) => (
+                          <div
+                            key={employeeId}
+                            className="rounded-lg border border-border bg-white shadow-sm"
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="min-w-0">
-                                <h3 className="truncate font-semibold text-sm sm:text-base">{balances[0].employeeName}</h3>
-                                <p className="text-xs text-muted-foreground">
-                                  {balances.reduce((sum, lb) => sum + Number(lb.available || 0), 0)} days available
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                                  {balances.length} leave type{balances.length > 1 ? 's' : ''}
-                                </span>
-                                <ChevronDown className={`h-4 w-4 transition-transform ${expandedEmployees.has(employeeId) ? 'rotate-180' : ''}`} />
+                            <div
+                              className="p-3 sm:p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                              onClick={() =>
+                                toggleEmployeeExpansion(employeeId)
+                              }
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="min-w-0">
+                                  <h3 className="truncate font-semibold text-sm sm:text-base">
+                                    {balances[0].employeeName}
+                                  </h3>
+                                  <p className="text-xs text-muted-foreground">
+                                    {balances.reduce(
+                                      (sum, lb) =>
+                                        sum + Number(lb.available || 0),
+                                      0,
+                                    )}{" "}
+                                    days available
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                                    {balances.length} leave type
+                                    {balances.length > 1 ? "s" : ""}
+                                  </span>
+                                  <ChevronDown
+                                    className={`h-4 w-4 transition-transform ${expandedEmployees.has(employeeId) ? "rotate-180" : ""}`}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          
-                          {expandedEmployees.has(employeeId) && (
-                            <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
-                              {balances.map((lb) => (
-                                <div key={lb.id} className="border-t border-border pt-2 sm:pt-3">
-                                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">{lb.leaveType}</p>
-                                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                                    <div className="bg-indigo-50 rounded p-2 sm:p-3 text-center">
-                                      <p className="text-xs text-muted-foreground mb-1">Opening</p>
-                                      <p className="text-lg sm:text-xl font-bold text-indigo-700">{lb.opening}</p>
-                                    </div>
-                                    <div className="bg-amber-50 rounded p-2 sm:p-3 text-center">
-                                      <p className="text-xs text-muted-foreground mb-1">Availed</p>
-                                      <p className="text-lg sm:text-xl font-bold text-amber-700">{lb.availed}</p>
-                                    </div>
-                                    <div className="bg-green-50 rounded p-2 sm:p-3 text-center">
-                                      <p className="text-xs text-muted-foreground mb-1">Available</p>
-                                      <p className="text-lg sm:text-xl font-bold text-green-700">{lb.available}</p>
+
+                            {expandedEmployees.has(employeeId) && (
+                              <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
+                                {balances.map((lb) => (
+                                  <div
+                                    key={lb.id}
+                                    className="border-t border-border pt-2 sm:pt-3"
+                                  >
+                                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">
+                                      {lb.leaveType}
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                                      <div className="bg-indigo-50 rounded p-2 sm:p-3 text-center">
+                                        <p className="text-xs text-muted-foreground mb-1">
+                                          Opening
+                                        </p>
+                                        <p className="text-lg sm:text-xl font-bold text-indigo-700">
+                                          {lb.opening}
+                                        </p>
+                                      </div>
+                                      <div className="bg-amber-50 rounded p-2 sm:p-3 text-center">
+                                        <p className="text-xs text-muted-foreground mb-1">
+                                          Availed
+                                        </p>
+                                        <p className="text-lg sm:text-xl font-bold text-amber-700">
+                                          {lb.availed}
+                                        </p>
+                                      </div>
+                                      <div className="bg-green-50 rounded p-2 sm:p-3 text-center">
+                                        <p className="text-xs text-muted-foreground mb-1">
+                                          Available
+                                        </p>
+                                        <p className="text-lg sm:text-xl font-bold text-green-700">
+                                          {lb.available}
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ),
+                      )}
                     </div>
 
                     {/* Desktop Table View */}
@@ -1637,61 +2089,97 @@ useEffect(() => {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-border bg-slate-50">
-                            <th className="text-left px-4 py-3 font-semibold text-slate-700">Employee</th>
-                            <th className="text-left px-4 py-3 font-semibold text-slate-700">Leave Types</th>
-                            <th className="text-center px-4 py-3 font-semibold text-slate-700">Total Available</th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Employee
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Leave Types
+                            </th>
+                            <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                              Total Available
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.entries(groupedLeaveBalances).map(([employeeId, balances]) => (
-                            <React.Fragment key={employeeId}>
-                              <tr
-                                className="border-b border-border hover:bg-slate-50/80 cursor-pointer"
-                                onClick={() => toggleEmployeeExpansion(employeeId)}
-                              >
-                                <td className="px-4 py-3 font-semibold text-slate-900">{balances[0].employeeName}</td>
-                                <td className="px-4 py-3">
-                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                    {balances.length} leave type{balances.length > 1 ? 's' : ''}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className="inline-flex min-w-[92px] justify-center rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                                    {balances.reduce((sum, lb) => sum + lb.available, 0)} days
-                                  </span>
-                                </td>
-                              </tr>
-                              
-                              {expandedEmployees.has(employeeId) && (
-                                <tr>
-                                  <td colSpan={3} className="px-0 py-0">
-                                    <div className="bg-slate-50/80 border-l-4 border-primary">
-                                      <table className="w-full text-sm">
-                                        <thead>
-                                          <tr className="bg-white">
-                                            <th className="text-left px-4 py-2 font-semibold text-xs text-slate-700">Leave Type</th>
-                                            <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">Opening</th>
-                                            <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">Availed</th>
-                                            <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">Available</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {balances.map((lb) => (
-                                            <tr key={lb.id} className="border-t border-border">
-                                              <td className="px-4 py-2 font-medium">{lb.leaveType}</td>
-                                              <td className="px-4 py-2 text-center text-indigo-700">{lb.opening}</td>
-                                              <td className="px-4 py-2 text-center text-amber-700">{lb.availed}</td>
-                                              <td className="px-4 py-2 text-center font-semibold text-green-700">{lb.available}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
+                          {Object.entries(groupedLeaveBalances).map(
+                            ([employeeId, balances]) => (
+                              <React.Fragment key={employeeId}>
+                                <tr
+                                  className="border-b border-border hover:bg-slate-50/80 cursor-pointer"
+                                  onClick={() =>
+                                    toggleEmployeeExpansion(employeeId)
+                                  }
+                                >
+                                  <td className="px-4 py-3 font-semibold text-slate-900">
+                                    {balances[0].employeeName}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                      {balances.length} leave type
+                                      {balances.length > 1 ? "s" : ""}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="inline-flex min-w-[92px] justify-center rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                                      {balances.reduce(
+                                        (sum, lb) => sum + lb.available,
+                                        0,
+                                      )}{" "}
+                                      days
+                                    </span>
                                   </td>
                                 </tr>
-                              )}
-                            </React.Fragment>
-                          ))}
+
+                                {expandedEmployees.has(employeeId) && (
+                                  <tr>
+                                    <td colSpan={3} className="px-0 py-0">
+                                      <div className="bg-slate-50/80 border-l-4 border-primary">
+                                        <table className="w-full text-sm">
+                                          <thead>
+                                            <tr className="bg-white">
+                                              <th className="text-left px-4 py-2 font-semibold text-xs text-slate-700">
+                                                Leave Type
+                                              </th>
+                                              <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">
+                                                Opening
+                                              </th>
+                                              <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">
+                                                Availed
+                                              </th>
+                                              <th className="text-center px-4 py-2 font-semibold text-xs text-slate-700">
+                                                Available
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {balances.map((lb) => (
+                                              <tr
+                                                key={lb.id}
+                                                className="border-t border-border"
+                                              >
+                                                <td className="px-4 py-2 font-medium">
+                                                  {lb.leaveType}
+                                                </td>
+                                                <td className="px-4 py-2 text-center text-indigo-700">
+                                                  {lb.opening}
+                                                </td>
+                                                <td className="px-4 py-2 text-center text-amber-700">
+                                                  {lb.availed}
+                                                </td>
+                                                <td className="px-4 py-2 text-center font-semibold text-green-700">
+                                                  {lb.available}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            ),
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1711,35 +2199,47 @@ useEffect(() => {
                       <FileText className="h-4 w-4" />
                       Total
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">{applicationSummary.total}</p>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">
+                      {applicationSummary.total}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-amber-700">
                       <Clock className="h-4 w-4" />
                       Pending
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-amber-800">{applicationSummary.pending}</p>
+                    <p className="mt-2 text-2xl font-bold text-amber-800">
+                      {applicationSummary.pending}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
                       <CheckCircle className="h-4 w-4" />
                       Approved
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-emerald-800">{applicationSummary.approved}</p>
+                    <p className="mt-2 text-2xl font-bold text-emerald-800">
+                      {applicationSummary.approved}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
                     <div className="flex items-center gap-2 text-xs font-medium text-rose-700">
                       <XCircle className="h-4 w-4" />
                       Rejected
                     </div>
-                    <p className="mt-2 text-2xl font-bold text-rose-800">{applicationSummary.rejected}</p>
+                    <p className="mt-2 text-2xl font-bold text-rose-800">
+                      {applicationSummary.rejected}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900">Leave Applications</h2>
-                    <p className="text-xs text-muted-foreground">Review request dates, reasons, and approval status.</p>
+                    <h2 className="text-base font-semibold text-slate-900">
+                      Leave Applications
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Review request dates, reasons, and approval status.
+                    </p>
                   </div>
                   <Button
                     type="button"
@@ -1753,15 +2253,19 @@ useEffect(() => {
                 </div>
                 {/* Existing action row kept mounted for logic parity, hidden after refreshed toolbar above. */}
                 <div className="hidden">
-                  <Button type="button" onClick={() => handleOpenDialog(undefined, "applications")} className="gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+                  <Button
+                    type="button"
+                    onClick={() => handleOpenDialog(undefined, "applications")}
+                    className="gap-2 h-8 sm:h-10 text-xs sm:text-sm"
+                  >
                     <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Apply Leave</span>
                     <span className="sm:hidden">Apply</span>
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => loadLeaveApplications()} 
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => loadLeaveApplications()}
                     className="gap-2 h-8 sm:h-10 text-xs sm:text-sm"
                   >
                     <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1769,19 +2273,26 @@ useEffect(() => {
                     <span className="sm:hidden">↻</span>
                   </Button>
                 </div>
-                
+
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-2 sm:space-y-3">
                   {filteredLeaveApplications.map((la) => (
-                    <div key={la.id} className="rounded-lg border border-border bg-white p-3 shadow-sm">
+                    <div
+                      key={la.id}
+                      className="rounded-lg border border-border bg-white p-3 shadow-sm"
+                    >
                       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <UserRound className="h-4 w-4" />
                           </div>
                           <div className="min-w-0">
-                            <h3 className="truncate font-semibold text-sm sm:text-base">{la.employeeName}</h3>
-                            <p className="text-xs text-muted-foreground">{la.leaveType || "Leave request"}</p>
+                            <h3 className="truncate font-semibold text-sm sm:text-base">
+                              {la.employeeName}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              {la.leaveType || "Leave request"}
+                            </p>
                           </div>
                         </div>
                         <span
@@ -1789,29 +2300,42 @@ useEffect(() => {
                             la.status === "applied"
                               ? "bg-yellow-100 text-yellow-800"
                               : la.status === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {la.status.charAt(0).toUpperCase() + la.status.slice(1)}
+                          {la.status.charAt(0).toUpperCase() +
+                            la.status.slice(1)}
                         </span>
                       </div>
                       <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm mb-2 sm:mb-3">
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">From</span>
+                          <span className="text-muted-foreground flex-shrink-0">
+                            From
+                          </span>
                           <span className="font-medium text-right">
-                            {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''}
+                            {la.fromDate
+                              ? new Date(la.fromDate).toLocaleDateString()
+                              : ""}
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">To</span>
+                          <span className="text-muted-foreground flex-shrink-0">
+                            To
+                          </span>
                           <span className="font-medium text-right">
-                            {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
+                            {la.toDate
+                              ? new Date(la.toDate).toLocaleDateString()
+                              : ""}
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground flex-shrink-0">Days</span>
-                          <span className="font-medium text-right">{getLeaveDurationLabel(la.days, la.halfDaySession)}</span>
+                          <span className="text-muted-foreground flex-shrink-0">
+                            Days
+                          </span>
+                          <span className="font-medium text-right">
+                            {getLeaveDurationLabel(la.days, la.halfDaySession)}
+                          </span>
                         </div>
                         <div className="rounded-md bg-muted/60 p-2">
                           <span className="text-muted-foreground">Reason</span>
@@ -1834,26 +2358,52 @@ useEffect(() => {
                     </colgroup>
                     <thead>
                       <tr className="border-b border-border bg-slate-50">
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Employee</th>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">From - To</th>
-                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Days</th>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">Reason</th>
-                        <th className="text-center px-4 py-3 font-semibold text-slate-700">Status</th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                          Employee
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                          From - To
+                        </th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                          Days
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                          Reason
+                        </th>
+                        <th className="text-center px-4 py-3 font-semibold text-slate-700">
+                          Status
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredLeaveApplications.map((la) => (
-                        <tr key={la.id} className="border-b border-border last:border-0 hover:bg-slate-50/80">
+                        <tr
+                          key={la.id}
+                          className="border-b border-border last:border-0 hover:bg-slate-50/80"
+                        >
                           <td className="px-4 py-3 font-semibold break-words text-slate-900">
                             <div>{la.employeeName}</div>
-                            <div className="mt-1 text-xs font-normal text-muted-foreground">{la.leaveType || "Leave"}</div>
+                            <div className="mt-1 text-xs font-normal text-muted-foreground">
+                              {la.leaveType || "Leave"}
+                            </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-slate-700">
-                            {la.fromDate ? new Date(la.fromDate).toLocaleDateString() : ''} → {la.toDate ? new Date(la.toDate).toLocaleDateString() : ''}
+                            {la.fromDate
+                              ? new Date(la.fromDate).toLocaleDateString()
+                              : ""}{" "}
+                            →{" "}
+                            {la.toDate
+                              ? new Date(la.toDate).toLocaleDateString()
+                              : ""}
                           </td>
-                          <td className="px-4 py-3 text-center font-medium">{getLeaveDurationLabel(la.days, la.halfDaySession)}</td>
+                          <td className="px-4 py-3 text-center font-medium">
+                            {getLeaveDurationLabel(la.days, la.halfDaySession)}
+                          </td>
                           <td className="px-4 py-3 align-middle">
-                            <p className="line-clamp-2 whitespace-normal break-words leading-5" title={la.reason}>
+                            <p
+                              className="line-clamp-2 whitespace-normal break-words leading-5"
+                              title={la.reason}
+                            >
                               {la.reason || "-"}
                             </p>
                           </td>
@@ -1863,11 +2413,12 @@ useEffect(() => {
                                 la.status === "applied"
                                   ? "bg-yellow-100 text-yellow-800"
                                   : la.status === "approved"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
                               }`}
                             >
-                              {la.status.charAt(0).toUpperCase() + la.status.slice(1)}
+                              {la.status.charAt(0).toUpperCase() +
+                                la.status.slice(1)}
                             </span>
                           </td>
                         </tr>
@@ -1892,11 +2443,12 @@ useEffect(() => {
               </div>
               <div className="flex-1">
                 <DialogTitle className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                  {editingId ? "Edit" : "Request"} {dialogMode === "types" ? "Leave Type" : "Leave Request"}
+                  {editingId ? "Edit" : "Request"}{" "}
+                  {dialogMode === "types" ? "Leave Type" : "Leave Request"}
                 </DialogTitle>
                 <DialogDescription className="text-emerald-100 text-base mt-2 font-medium">
-                  {dialogMode === "applications" 
-                    ? "Fill in the details below to submit your leave request" 
+                  {dialogMode === "applications"
+                    ? "Fill in the details below to submit your leave request"
                     : "Configure leave type settings and permissions"}
                 </DialogDescription>
               </div>
@@ -1913,22 +2465,30 @@ useEffect(() => {
                   </Label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="h-12 text-base border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
                     placeholder="e.g., Casual Leave, Sick Leave"
                   />
                 </div>
-                
+
                 <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 shadow-sm">
                   <Checkbox
                     checked={formData.isPaid || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, isPaid: checked })}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, isPaid: checked })
+                    }
                     className="w-6 h-6 text-blue-600 border-blue-400 rounded-lg focus:ring-blue-500/20"
                   />
-                  <Label className="text-base font-semibold text-gray-800">Paid Leave</Label>
-                  <span className="ml-auto text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">Recommended</span>
+                  <Label className="text-base font-semibold text-gray-800">
+                    Paid Leave
+                  </Label>
+                  <span className="ml-auto text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">
+                    Recommended
+                  </span>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
@@ -1959,22 +2519,33 @@ useEffect(() => {
                     </Label>
                     <Input
                       value={formData.carryForward || ""}
-                      onChange={(e) => setFormData({ ...formData, carryForward: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          carryForward: parseInt(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       className="h-12 text-base border-gray-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all shadow-sm"
                       placeholder="5"
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 shadow-sm">
                   <Checkbox
                     checked={formData.encashable || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, encashable: checked })}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, encashable: checked })
+                    }
                     className="w-6 h-6 text-green-600 border-green-400 rounded-lg focus:ring-green-500/20"
                   />
-                  <Label className="text-base font-semibold text-gray-800">Encashable</Label>
-                  <span className="ml-auto text-sm text-green-600 font-medium bg-green-100 px-3 py-1 rounded-full">Optional</span>
+                  <Label className="text-base font-semibold text-gray-800">
+                    Encashable
+                  </Label>
+                  <span className="ml-auto text-sm text-green-600 font-medium bg-green-100 px-3 py-1 rounded-full">
+                    Optional
+                  </span>
                 </div>
               </>
             )}
@@ -1989,38 +2560,62 @@ useEffect(() => {
                   </Label>
                   <div className="flex items-center gap-4 mt-4">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                      {((formData.employeeName || (user as any)?.name || 'Current User').charAt(0) || 'U').toUpperCase()}
+                      {(
+                        (
+                          formData.employeeName ||
+                          (user as any)?.name ||
+                          "Current User"
+                        ).charAt(0) || "U"
+                      ).toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-gray-800 text-lg">
-                        {formData.employeeName || (user as any)?.name || 'Current User'}
+                        {formData.employeeName ||
+                          (user as any)?.name ||
+                          "Current User"}
                       </p>
                     </div>
                     <div className="bg-purple-100 px-4 py-2 rounded-full">
-                      <span className="text-purple-700 font-semibold text-sm">Current User</span>
+                      <span className="text-purple-700 font-semibold text-sm">
+                        Current User
+                      </span>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                     Leave Type *
                   </Label>
-                  <Select value={formData.leaveType || ""} onValueChange={(val) => {
-                    setFormData({ ...formData, leaveType: val });
-                    if (applicationErrors.leaveType) {
-                      setApplicationErrors(prev => ({ ...prev, leaveType: "" }));
-                    }
-                  }}>
-                    <SelectTrigger className={`h-12 text-base rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm ${
-                      applicationErrors.leaveType ? "border-red-500" : "border-gray-300"
-                    }`}>
+                  <Select
+                    value={formData.leaveType || ""}
+                    onValueChange={(val) => {
+                      setFormData({ ...formData, leaveType: val });
+                      if (applicationErrors.leaveType) {
+                        setApplicationErrors((prev) => ({
+                          ...prev,
+                          leaveType: "",
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      className={`h-12 text-base rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm ${
+                        applicationErrors.leaveType
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                    >
                       <SelectValue placeholder="Select leave type..." />
                     </SelectTrigger>
                     <SelectContent className="z-50 max-h-60 overflow-auto border-gray-200 rounded-xl shadow-lg">
                       {leaveTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.name} className="text-base py-3">
+                        <SelectItem
+                          key={type.id}
+                          value={type.name}
+                          className="text-base py-3"
+                        >
                           <div className="flex items-center gap-3">
                             <span className="font-medium">{type.name}</span>
                             {type.isPaid && (
@@ -2034,10 +2629,12 @@ useEffect(() => {
                     </SelectContent>
                   </Select>
                   {applicationErrors.leaveType && (
-                    <p className="text-sm text-red-600">{applicationErrors.leaveType}</p>
+                    <p className="text-sm text-red-600">
+                      {applicationErrors.leaveType}
+                    </p>
                   )}
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
@@ -2062,21 +2659,29 @@ useEffect(() => {
                           toDate: nextToDate,
                         });
                         if (applicationErrors.fromDate) {
-                          setApplicationErrors(prev => ({ ...prev, fromDate: "" }));
+                          setApplicationErrors((prev) => ({
+                            ...prev,
+                            fromDate: "",
+                          }));
                         }
                       }}
                       type="date"
                       min={leaveDateBounds.min}
                       max={leaveDateBounds.max}
                       className={`h-12 text-base rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all shadow-sm ${
-                        applicationErrors.fromDate ? "border-red-500" : "border-gray-300"
+                        applicationErrors.fromDate
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                     />
                     <p className="text-xs text-muted-foreground">
-                      You can apply for past dates within the last month (e.g. emergency leave from yesterday).
+                      You can apply for past dates within the last month (e.g.
+                      emergency leave from yesterday).
                     </p>
                     {applicationErrors.fromDate && (
-                      <p className="text-sm text-red-600">{applicationErrors.fromDate}</p>
+                      <p className="text-sm text-red-600">
+                        {applicationErrors.fromDate}
+                      </p>
                     )}
                   </div>
                   <div className="space-y-3">
@@ -2089,23 +2694,31 @@ useEffect(() => {
                       onChange={(e) => {
                         setFormData({ ...formData, toDate: e.target.value });
                         if (applicationErrors.toDate) {
-                          setApplicationErrors(prev => ({ ...prev, toDate: "" }));
+                          setApplicationErrors((prev) => ({
+                            ...prev,
+                            toDate: "",
+                          }));
                         }
                       }}
                       type="date"
                       min={
-                        formData.fromDate && formData.fromDate > leaveDateBounds.min
+                        formData.fromDate &&
+                        formData.fromDate > leaveDateBounds.min
                           ? formData.fromDate
                           : leaveDateBounds.min
                       }
                       max={leaveDateBounds.max}
                       disabled={formData.leaveDuration === "half_day"}
                       className={`h-12 text-base rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all shadow-sm ${
-                        applicationErrors.toDate ? "border-red-500" : "border-gray-300"
+                        applicationErrors.toDate
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                     />
                     {applicationErrors.toDate && (
-                      <p className="text-sm text-red-600">{applicationErrors.toDate}</p>
+                      <p className="text-sm text-red-600">
+                        {applicationErrors.toDate}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -2122,18 +2735,32 @@ useEffect(() => {
                         setFormData({
                           ...formData,
                           leaveDuration: val,
-                          halfDaySession: val === "half_day" ? (formData.halfDaySession || "first_half") : null,
-                          toDate: val === "half_day" ? (formData.fromDate || formData.toDate || "") : formData.toDate,
+                          halfDaySession:
+                            val === "half_day"
+                              ? formData.halfDaySession || "first_half"
+                              : null,
+                          toDate:
+                            val === "half_day"
+                              ? formData.fromDate || formData.toDate || ""
+                              : formData.toDate,
                         });
-                        setApplicationErrors(prev => ({ ...prev, halfDaySession: "", toDate: "" }));
+                        setApplicationErrors((prev) => ({
+                          ...prev,
+                          halfDaySession: "",
+                          toDate: "",
+                        }));
                       }}
                     >
                       <SelectTrigger className="h-12 text-base rounded-xl focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all shadow-sm border-gray-300">
                         <SelectValue placeholder="Select duration..." />
                       </SelectTrigger>
                       <SelectContent className="z-50 border-gray-200 rounded-xl shadow-lg">
-                        <SelectItem value="full_day" className="text-base py-3">Full Day</SelectItem>
-                        <SelectItem value="half_day" className="text-base py-3">Half Day</SelectItem>
+                        <SelectItem value="full_day" className="text-base py-3">
+                          Full Day
+                        </SelectItem>
+                        <SelectItem value="half_day" className="text-base py-3">
+                          Half Day
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2149,27 +2776,46 @@ useEffect(() => {
                         onValueChange={(val) => {
                           setFormData({ ...formData, halfDaySession: val });
                           if (applicationErrors.halfDaySession) {
-                            setApplicationErrors(prev => ({ ...prev, halfDaySession: "" }));
+                            setApplicationErrors((prev) => ({
+                              ...prev,
+                              halfDaySession: "",
+                            }));
                           }
                         }}
                       >
-                        <SelectTrigger className={`h-12 text-base rounded-xl focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm ${
-                          applicationErrors.halfDaySession ? "border-red-500" : "border-gray-300"
-                        }`}>
+                        <SelectTrigger
+                          className={`h-12 text-base rounded-xl focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm ${
+                            applicationErrors.halfDaySession
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          }`}
+                        >
                           <SelectValue placeholder="Select half..." />
                         </SelectTrigger>
                         <SelectContent className="z-50 border-gray-200 rounded-xl shadow-lg">
-                          <SelectItem value="first_half" className="text-base py-3">First Half</SelectItem>
-                          <SelectItem value="second_half" className="text-base py-3">Second Half</SelectItem>
+                          <SelectItem
+                            value="first_half"
+                            className="text-base py-3"
+                          >
+                            First Half
+                          </SelectItem>
+                          <SelectItem
+                            value="second_half"
+                            className="text-base py-3"
+                          >
+                            Second Half
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       {applicationErrors.halfDaySession && (
-                        <p className="text-sm text-red-600">{applicationErrors.halfDaySession}</p>
+                        <p className="text-sm text-red-600">
+                          {applicationErrors.halfDaySession}
+                        </p>
                       )}
                     </div>
                   )}
                 </div>
-                
+
                 <div className="space-y-3">
                   <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
@@ -2180,67 +2826,99 @@ useEffect(() => {
                     onChange={(e) => {
                       setFormData({ ...formData, reason: e.target.value });
                       if (applicationErrors.reason) {
-                        setApplicationErrors(prev => ({ ...prev, reason: "" }));
+                        setApplicationErrors((prev) => ({
+                          ...prev,
+                          reason: "",
+                        }));
                       }
                     }}
                     required
                     className={`h-12 text-base rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-sm ${
-                      applicationErrors.reason ? "border-red-500" : "border-gray-300"
+                      applicationErrors.reason
+                        ? "border-red-500"
+                        : "border-gray-300"
                     }`}
                     placeholder="Please provide a reason for your leave request..."
                   />
                   {applicationErrors.reason && (
-                    <p className="text-sm text-red-600">{applicationErrors.reason}</p>
+                    <p className="text-sm text-red-600">
+                      {applicationErrors.reason}
+                    </p>
                   )}
                 </div>
-                
+
                 <div className="space-y-3">
                   <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
                     Reporting Manager/HR *
                   </Label>
-                  
+
                   {/* Multi-select Dropdown */}
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => {
-                        const dropdown = document.getElementById('manager-dropdown');
+                        const dropdown =
+                          document.getElementById("manager-dropdown");
                         if (dropdown) {
-                          dropdown.classList.toggle('hidden');
+                          dropdown.classList.toggle("hidden");
                         }
-                        
                       }}
                       className={`w-full h-12 text-base bg-white rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all px-4 py-3 text-left flex items-center justify-between hover:border-indigo-400 shadow-sm ${
-                        applicationErrors.reportingManager ? "border-red-500" : "border-gray-300"
+                        applicationErrors.reportingManager
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
-                       
                     >
                       <div className="flex flex-wrap gap-2">
                         {selectedReportingManagers.length > 0 ? (
                           selectedReportingManagers.map((managerId) => {
-                            const manager = reportingManagers.find((r) => String(r.id) === managerId);
+                            const manager = reportingManagers.find(
+                              (r) => String(r.id) === managerId,
+                            );
                             return manager ? (
-                              <span key={manager.id} className="flex items-center gap-2 bg-gradient-to-r from-indigo-100 to-blue-100 px-3 py-1.5 rounded-full text-sm font-bold text-indigo-700">
+                              <span
+                                key={manager.id}
+                                className="flex items-center gap-2 bg-gradient-to-r from-indigo-100 to-blue-100 px-3 py-1.5 rounded-full text-sm font-bold text-indigo-700"
+                              >
                                 {manager.fullName || manager.name}
-                                {manager.role === 'hr' && <span className="text-indigo-600 font-bold">(HR)</span>}
-                                {manager.role === 'manager' && <span className="text-green-600 font-bold">(M)</span>}
-                                {manager.role === 'ceo' && <span className="text-amber-600 font-bold">(CEO)</span>}
+                                {manager.role === "hr" && (
+                                  <span className="text-indigo-600 font-bold">
+                                    (HR)
+                                  </span>
+                                )}
+                                {manager.role === "manager" && (
+                                  <span className="text-green-600 font-bold">
+                                    (M)
+                                  </span>
+                                )}
+                                {manager.role === "ceo" && (
+                                  <span className="text-amber-600 font-bold">
+                                    (CEO)
+                                  </span>
+                                )}
                               </span>
                             ) : null;
                           })
                         ) : (
-                          <span className="text-gray-400">Select manager(s) or HR...</span>
+                          <span className="text-gray-400">
+                            Select manager(s) or HR...
+                          </span>
                         )}
                       </div>
                       <span className="ml-2 text-gray-400 text-lg">▼</span>
                     </button>
                     {applicationErrors.reportingManager && (
-                      <p className="mt-2 text-sm text-red-600">{applicationErrors.reportingManager}</p>
+                      <p className="mt-2 text-sm text-red-600">
+                        {applicationErrors.reportingManager}
+                      </p>
                     )}
-                    
+
                     {/* Dropdown Content */}
-                    <div id="manager-dropdown" className="hidden absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-auto">
+                    <div
+                      id="manager-dropdown"
+                      className="hidden absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-auto"
+                    >
                       {reportingManagers.length > 0 ? (
                         reportingManagers.map((manager) => (
                           <div
@@ -2248,56 +2926,74 @@ useEffect(() => {
                             className="flex items-center gap-4 p-4 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 cursor-pointer border-b last:border-b-0 transition-all"
                             onClick={() => {
                               const managerId = String(manager.id);
-                              const isSelected = selectedReportingManagers.includes(managerId);
+                              const isSelected =
+                                selectedReportingManagers.includes(managerId);
                               if (isSelected) {
-                                setSelectedReportingManagers(prev => prev.filter(id => id !== managerId));
+                                setSelectedReportingManagers((prev) =>
+                                  prev.filter((id) => id !== managerId),
+                                );
                               } else {
-                                setSelectedReportingManagers(prev => [...prev, managerId]);
+                                setSelectedReportingManagers((prev) => [
+                                  ...prev,
+                                  managerId,
+                                ]);
                               }
                             }}
                           >
                             <Checkbox
-                              checked={selectedReportingManagers.includes(String(manager.id))}
+                              checked={selectedReportingManagers.includes(
+                                String(manager.id),
+                              )}
                               onClick={(event) => event.stopPropagation()}
                               onCheckedChange={() => {
                                 const managerId = String(manager.id);
-                                const isSelected = selectedReportingManagers.includes(managerId);
-                                setSelectedReportingManagers(prev =>
+                                const isSelected =
+                                  selectedReportingManagers.includes(managerId);
+                                setSelectedReportingManagers((prev) =>
                                   isSelected
-                                    ? prev.filter(id => id !== managerId)
-                                    : [...prev, managerId]
+                                    ? prev.filter((id) => id !== managerId)
+                                    : [...prev, managerId],
                                 );
                               }}
                               className="w-5 h-5 text-indigo-600 border-gray-400 rounded-lg focus:ring-indigo-500/20"
                             />
                             <div className="flex items-center gap-3 flex-1">
                               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                                {(manager.fullName || manager.name || 'U').charAt(0).toUpperCase()}
+                                {(manager.fullName || manager.name || "U")
+                                  .charAt(0)
+                                  .toUpperCase()}
                               </div>
                               <div className="flex flex-col items-start flex-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-sm text-gray-800">{manager.fullName || manager.name}</span>
-                                  {manager.role === 'hr' && (
+                                  <span className="font-bold text-sm text-gray-800">
+                                    {manager.fullName || manager.name}
+                                  </span>
+                                  {manager.role === "hr" && (
                                     <span className="px-2 py-1 bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 text-xs rounded-full font-bold">
                                       HR
                                     </span>
                                   )}
-                                  {manager.role === 'manager' && (
+                                  {manager.role === "manager" && (
                                     <span className="px-2 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 text-xs rounded-full font-bold">
                                       Manager
                                     </span>
                                   )}
-                                  {manager.role === 'ceo' && (
+                                  {manager.role === "ceo" && (
                                     <span className="px-2 py-1 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 text-xs rounded-full font-bold">
                                       CEO
                                     </span>
                                   )}
                                 </div>
-                                {(manager.designation || manager.department) && (
+                                {(manager.designation ||
+                                  manager.department) && (
                                   <span className="text-xs text-gray-500 mt-1">
-                                    {manager.designation && `${manager.designation}`}
-                                    {manager.designation && manager.department && ' • '}
-                                    {manager.department && `${manager.department}`}
+                                    {manager.designation &&
+                                      `${manager.designation}`}
+                                    {manager.designation &&
+                                      manager.department &&
+                                      " • "}
+                                    {manager.department &&
+                                      `${manager.department}`}
                                   </span>
                                 )}
                                 {manager.email && (
@@ -2315,15 +3011,19 @@ useEffect(() => {
                             <div className="w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
                               <span className="text-2xl">👥</span>
                             </div>
-                            <span className="font-bold text-gray-700">No approvers found</span>
-                            <span className="text-xs text-gray-400">Contact admin to set up reporting structure</span>
+                            <span className="font-bold text-gray-700">
+                              No approvers found
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              Contact admin to set up reporting structure
+                            </span>
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-                
+
                 {formData.reportingManagerName && (
                   <div className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl border border-blue-200 shadow-sm">
                     <p className="text-base font-bold text-blue-800 mb-4 flex items-center gap-2">
@@ -2335,18 +3035,19 @@ useEffect(() => {
                         {formData.reportingManagerName}
                       </p>
                       {formData.reportingManagerEmail && (
-                        <p className="text-sm text-gray-600">{formData.reportingManagerEmail}</p>
+                        <p className="text-sm text-gray-600">
+                          {formData.reportingManagerEmail}
+                        </p>
                       )}
                       <p className="text-sm text-blue-700 mt-4 font-bold bg-blue-100 px-4 py-2 rounded-lg inline-block">
-                        {hasRole(user, 'admin') || hasRole(user, 'manager') 
-                          ? `You will be notified about this leave application (${selectedReportingManagers.length} recipient${selectedReportingManagers.length > 1 ? 's' : ''})`
-                          : `Email will be sent on submission (${selectedReportingManagers.length} recipient${selectedReportingManagers.length > 1 ? 's' : ''})`
-                        }
+                        {hasRole(user, "admin") || hasRole(user, "manager")
+                          ? `You will be notified about this leave application (${selectedReportingManagers.length} recipient${selectedReportingManagers.length > 1 ? "s" : ""})`
+                          : `Email will be sent on submission (${selectedReportingManagers.length} recipient${selectedReportingManagers.length > 1 ? "s" : ""})`}
                       </p>
                     </div>
                   </div>
                 )}
-                
+
                 <div className="space-y-3">
                   <Label className="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-2 h-2 bg-gray-600 rounded-full"></span>
@@ -2354,7 +3055,9 @@ useEffect(() => {
                   </Label>
                   <label className="flex items-center gap-4 px-6 py-4 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
                     <Upload className="w-6 h-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                    <span className="text-base text-gray-600 group-hover:text-blue-600 transition-colors font-medium">Choose file or drag and drop...</span>
+                    <span className="text-base text-gray-600 group-hover:text-blue-600 transition-colors font-medium">
+                      Choose file or drag and drop...
+                    </span>
                     <input type="file" className="hidden" />
                   </label>
                 </div>
@@ -2363,17 +3066,17 @@ useEffect(() => {
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-4 justify-end p-8 pt-0 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-b-2xl">
-            <Button 
+            <Button
               type="button"
-              variant="outline" 
-              onClick={() => setIsDialogOpen(false)} 
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
               className="w-full sm:w-auto h-12 text-base font-bold border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all rounded-xl px-8"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="button"
-              onClick={handleSave} 
+              onClick={handleSave}
               disabled={submitting}
               className="w-full sm:w-auto h-12 text-base font-bold bg-gradient-to-r from-[#17c491] via-[#14b389] to-[#0fa372] text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 rounded-xl px-8 disabled:opacity-60 disabled:cursor-not-allowed"
             >
@@ -2382,8 +3085,10 @@ useEffect(() => {
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Submitting...
                 </span>
+              ) : dialogMode === "applications" ? (
+                "Submit Request"
               ) : (
-                dialogMode === "applications" ? "Submit Request" : "Save"
+                "Save"
               )}
             </Button>
           </div>
@@ -2391,7 +3096,10 @@ useEffect(() => {
       </Dialog>
 
       {/* Delete Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent className="w-full max-w-sm p-4 sm:p-6">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg">Delete Item</AlertDialogTitle>
@@ -2400,7 +3108,9 @@ useEffect(() => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { GoogleMap, Marker, Circle, InfoWindow, Polyline, useJsApiLoader } from "@react-google-maps/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { liveApi } from "@/components/helper/livetracking/livetracking";
 import branchApi, { Branch } from "@/components/helper/branch/branch";
 import { MapPin, Users, Navigation2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { GOOGLE_MAPS_LOADER_OPTIONS } from "@/lib/googleMaps";
+import KeylessMap, {
+  KeylessMapCircle,
+  KeylessMapMarker,
+  KeylessMapPath,
+} from "@/components/KeylessMap";
 
 type LatLngLiteral = { lat: number; lng: number };
 const FALLBACK_RADIUS = 200;
@@ -23,11 +26,6 @@ type TrackedEmployee = {
   accuracy?: number | null;
 };
 
-const containerStyle = {
-  width: "100%",
-  height: "420px",
-};
-
 const parseCoords = (coordinates?: string): LatLngLiteral | null => {
   if (!coordinates) return null;
   const [lat, lng] = coordinates.split(",").map((v) => Number(v.trim()));
@@ -37,37 +35,18 @@ const parseCoords = (coordinates?: string): LatLngLiteral | null => {
   return null;
 };
 
-const buildIcon = (emp: TrackedEmployee): google.maps.Icon => {
-  const name = emp.name || `${emp.first_name || ""} ${emp.last_name || ""}`.trim() || "EMP";
-  const initials = name
+const getEmployeeName = (emp?: TrackedEmployee | null) =>
+  emp?.name || `${emp?.first_name || ""} ${emp?.last_name || ""}`.trim() || "Employee";
+
+const getInitials = (name: string) =>
+  name
     .split(" ")
     .filter(Boolean)
-    .map((p) => p[0]?.toUpperCase())
+    .map((part) => part[0]?.toUpperCase())
     .join("")
     .slice(0, 2) || "E";
 
-  const active = emp.trackingStatus === "active";
-  const color = active ? "#0ea5e9" : "#94a3b8";
-
-  const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80">
-      <ellipse cx="32" cy="72" rx="20" ry="4" fill="rgba(0,0,0,0.12)"/>
-      <circle cx="32" cy="32" r="26" fill="white" stroke="${color}" stroke-width="3"/>
-      <text x="32" y="38" font-size="18" font-weight="bold" text-anchor="middle" fill="${color}">${initials}</text>
-      <circle cx="52" cy="50" r="8" fill="${color}" stroke="white" stroke-width="2"/>
-    </svg>
-  `;
-
-  return {
-    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`,
-    scaledSize: new google.maps.Size(64, 80),
-    anchor: new google.maps.Point(32, 80),
-  };
-};
-
 export default function AdminRealTimeMap() {
-  const { isLoaded, loadError } = useJsApiLoader(GOOGLE_MAPS_LOADER_OPTIONS);
-
   const { user } = useAuth();
 
   const [officeLocation, setOfficeLocation] = useState<LatLngLiteral | null>(null);
@@ -78,14 +57,12 @@ export default function AdminRealTimeMap() {
   const [selectedEmp, setSelectedEmp] = useState<string | number | null>(null);
   const [travelPaths, setTravelPaths] = useState<Record<string, Array<{ lat: number; lng: number }>>>({});
 
-  // Load office geofence from branches
   useEffect(() => {
     const loadBranches = async () => {
       const result = await branchApi.getBranches();
       if (result.data) {
         setBranches(result.data);
         if (!selectedBranchId && result.data.length > 0) {
-          // Prefer user's own branch if available, otherwise fall back to first branch
           const userBranchId =
             (user as any)?.branch_id ||
             (user as any)?.branchId ||
@@ -96,7 +73,7 @@ export default function AdminRealTimeMap() {
             ? result.data.find(
                 (b) =>
                   b.id?.toString() === String(userBranchId) ||
-                  (b.branchId && b.branchId.toString() === String(userBranchId))
+                  (b.branchId && b.branchId.toString() === String(userBranchId)),
               )
             : null;
 
@@ -110,7 +87,6 @@ export default function AdminRealTimeMap() {
     loadBranches();
   }, [selectedBranchId, user]);
 
-  // When user selects branch, set location
   useEffect(() => {
     if (!selectedBranchId) {
       setOfficeLocation(null);
@@ -130,7 +106,6 @@ export default function AdminRealTimeMap() {
     }
   }, [selectedBranchId, branches]);
 
-  // Load employees + refresh every 15s
   useEffect(() => {
     let active = true;
     const fetchEmployees = async () => {
@@ -152,7 +127,6 @@ export default function AdminRealTimeMap() {
           }));
         setEmployees(mapped);
 
-        // Build travel paths (retain last 200 points per employee)
         setTravelPaths((prev) => {
           const next = { ...prev };
           mapped.forEach((emp) => {
@@ -175,24 +149,82 @@ export default function AdminRealTimeMap() {
     };
   }, []);
 
-  const circleOptions = useMemo(
-    () => ({
-      strokeColor: "#10b981",
-      strokeOpacity: 0.9,
-      strokeWeight: 1.5,
-      fillColor: "#10b981",
-      fillOpacity: 0.08,
-      clickable: false,
-    }),
-    []
-  );
-
   const trackedCount = employees.length;
   const activeCount = employees.filter((e) => e.trackingStatus === "active").length;
 
-  const canRenderMap =
-    isLoaded && typeof window !== "undefined" && (window as any).google && officeLocation && radius;
-  const mapKey = officeLocation ? `${officeLocation.lat},${officeLocation.lng},${radius}` : "empty";
+  const mapMarkers = useMemo<KeylessMapMarker[]>(() => {
+    const markers: KeylessMapMarker[] = [];
+
+    if (officeLocation) {
+      markers.push({
+        id: "office",
+        position: officeLocation,
+        label: "Office",
+        title: "Office",
+        color: "#0ea5e9",
+        size: 42,
+      });
+    }
+
+    employees.forEach((emp) => {
+      if (!emp.latitude || !emp.longitude) return;
+      const name = getEmployeeName(emp);
+      const isSelected = selectedEmp === emp.id;
+      markers.push({
+        id: `emp-${emp.id}`,
+        position: { lat: emp.latitude, lng: emp.longitude },
+        label: getInitials(name),
+        title: name,
+        color: emp.trackingStatus === "active" ? "#0ea5e9" : "#94a3b8",
+        size: isSelected ? 46 : 38,
+        pulse: emp.trackingStatus === "active",
+        onClick: () => setSelectedEmp(isSelected ? null : emp.id),
+        popup: isSelected ? (
+          <div className="space-y-1">
+            <p className="font-semibold text-slate-900">{name}</p>
+            <p className="text-slate-600">
+              {emp.trackingStatus === "active" ? "Active" : "Offline"}
+            </p>
+            {emp.locationTimestamp && (
+              <p className="text-xs text-slate-500">
+                Updated {new Date(emp.locationTimestamp).toLocaleString()}
+              </p>
+            )}
+          </div>
+        ) : null,
+      });
+    });
+
+    return markers;
+  }, [employees, officeLocation, selectedEmp]);
+
+  const mapCircles = useMemo<KeylessMapCircle[]>(() => {
+    if (!officeLocation || !radius) return [];
+    return [
+      {
+        id: "office-radius",
+        center: officeLocation,
+        radiusMeters: radius,
+        color: "#10b981",
+        fillOpacity: 0.08,
+        strokeOpacity: 0.9,
+      },
+    ];
+  }, [officeLocation, radius]);
+
+  const mapPaths = useMemo<KeylessMapPath[]>(
+    () =>
+      Object.entries(travelPaths)
+        .filter(([, path]) => path.length > 1)
+        .map(([empId, points]) => ({
+          id: `path-${empId}`,
+          points,
+          color: "#f59e0b",
+          width: 2,
+          opacity: 0.6,
+        })),
+    [travelPaths],
+  );
 
   return (
     <Card className="border-0 shadow-xl chart-container">
@@ -235,78 +267,15 @@ export default function AdminRealTimeMap() {
           <p className="text-sm text-gray-600">
             Office geofence not set. Choose a branch above (no default).
           </p>
-        ) : !canRenderMap ? (
-          <p className="text-sm text-gray-600">
-            {loadError ? "Failed to load Google Maps." : "Loading map…"}
-          </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-gray-100 shadow-sm">
-            <GoogleMap
-              key={mapKey}
-              mapContainerStyle={containerStyle}
-              center={officeLocation}
-              zoom={14}
-              options={{
-                disableDefaultUI: true,
-                clickableIcons: false,
-              }}
-            >
-              {radius && <Circle center={officeLocation} radius={radius} options={circleOptions} />}
-              <Marker position={officeLocation} label="Office" />
-              {Object.entries(travelPaths).map(([empId, path]) =>
-                path.length > 1 ? (
-                  <Polyline
-                    key={`path-${empId}`}
-                    path={path}
-                    options={{
-                      strokeColor: "#f59e0b",
-                      strokeOpacity: 0.6,
-                      strokeWeight: 2,
-                      geodesic: true,
-                    }}
-                  />
-                ) : null
-              )}
-              {employees.map((emp) => (
-                <Marker
-                  key={emp.id}
-                  position={{ lat: emp.latitude || 0, lng: emp.longitude || 0 }}
-                  icon={buildIcon(emp)}
-                  onClick={() => setSelectedEmp(emp.id)}
-                />
-              ))}
-              {selectedEmp && (
-                <InfoWindow
-                  position={{
-                    lat: employees.find((e) => e.id === selectedEmp)?.latitude || officeLocation.lat,
-                    lng: employees.find((e) => e.id === selectedEmp)?.longitude || officeLocation.lng,
-                  }}
-                  onCloseClick={() => setSelectedEmp(null)}
-                >
-                  <div className="text-sm space-y-1">
-                    <p className="font-semibold">
-                      {employees.find((e) => e.id === selectedEmp)?.name ||
-                        `${employees.find((e) => e.id === selectedEmp)?.first_name || ""} ${
-                          employees.find((e) => e.id === selectedEmp)?.last_name || ""
-                        }`}
-                    </p>
-                    <p className="text-gray-600">
-                      {employees.find((e) => e.id === selectedEmp)?.trackingStatus === "active"
-                        ? "Active"
-                        : "Offline"}
-                    </p>
-                    {employees.find((e) => e.id === selectedEmp)?.locationTimestamp && (
-                      <p className="text-gray-500 text-xs">
-                        Updated {new Date(
-                          employees.find((e) => e.id === selectedEmp)?.locationTimestamp || ""
-                        ).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                </InfoWindow>
-              )}
-            </GoogleMap>
-          </div>
+          <KeylessMap
+            center={officeLocation}
+            markers={mapMarkers}
+            circles={mapCircles}
+            paths={mapPaths}
+            height={420}
+            className="shadow-sm"
+          />
         )}
       </CardContent>
     </Card>

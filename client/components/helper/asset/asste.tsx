@@ -1,7 +1,7 @@
 // assetApi.ts
 
-import ENDPOINTS  from '@/lib/endpoint'; // Adjust if your endpoints are imported differently
-import { en } from 'zod/v4/locales';
+import ENDPOINTS from "@/lib/endpoint"; // Adjust if your endpoints are imported differently
+import { en } from "zod/v4/locales";
 
 // OR if you use a direct api instance:
 // import api from '@/api';
@@ -19,7 +19,6 @@ export interface Asset {
   // Add other fields as per your backend response
   [key: string]: any;
 }
-
 
 export interface Asset {
   id: string;
@@ -63,67 +62,67 @@ export interface UpdateAssetData {
 }
 
 const assetApi = {
- 
-getAssets: async (): Promise<{ data?: Asset[]; error?: string }> => {
-  try {
-    const response = await ENDPOINTS.getAsset();
-    // அல்லது api.get("/asset") இருந்தா அத use பண்ணலாம்
+  getAssets: async (): Promise<{ data?: Asset[]; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getAsset();
+      // அல்லது api.get("/asset") இருந்தா அத use பண்ணலாம்
 
-    console.log("Raw Asset API Response:", response.data); // Debug purpose
+      // console.log("Raw Asset API Response:", response.data); // Debug purpose
 
-    let rawArray: any[] = [];
+      let rawArray: any[] = [];
 
-    // Primary case: { success: true, assets: [...] }
-    if (response.data?.success && Array.isArray(response.data.assets)) {
-      rawArray = response.data.assets;
+      // Primary case: { success: true, assets: [...] }
+      if (response.data?.success && Array.isArray(response.data.assets)) {
+        rawArray = response.data.assets;
+      }
+      // Fallback: direct array
+      else if (Array.isArray(response.data)) {
+        rawArray = response.data;
+      }
+      // Fallback: { data: [...] } format (rare case)
+      else if (Array.isArray(response.data?.data)) {
+        rawArray = response.data.data;
+      } else {
+        console.warn("Unexpected asset response format:", response.data);
+        return { error: "Invalid response format: expected 'assets' array" };
+      }
+
+      const mapped: Asset[] = rawArray.map((a: any) => ({
+        id: a.id?.toString() || "",
+        assetId: a.asset_id || "", // ← AST0001
+        name: a.name || "",
+        type: (a.type || "other").toLowerCase(), // ← "LAPTOP" → "laptop" for dropdown
+        serial: a.serial_number || "",
+        assignedEmployee: a.assigned_employee_id?.toString() || "",
+        assignedEmployeeName: a.assigned_employee_name || null,
+        issueDate: a.issue_date
+          ? new Date(a.issue_date).toISOString().split("T")[0]
+          : "",
+        status: (a.status || "active").toLowerCase(), // ← "Active" → "active"
+        location: a.location || "",
+        value: parseFloat(a.value || "0") || 0,
+        description: a.description || "",
+        createdAt: a.created_at || "",
+        updatedAt: a.updated_at || "",
+      }));
+
+      // console.log("Mapped Assets for UI:", mapped);
+
+      return { data: mapped };
+    } catch (error: any) {
+      console.error("Error fetching assets:", error);
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to load assets",
+      };
     }
-    // Fallback: direct array
-    else if (Array.isArray(response.data)) {
-      rawArray = response.data;
-    }
-    // Fallback: { data: [...] } format (rare case)
-    else if (Array.isArray(response.data?.data)) {
-      rawArray = response.data.data;
-    }
-    else {
-      console.warn("Unexpected asset response format:", response.data);
-      return { error: "Invalid response format: expected 'assets' array" };
-    }
+  },
 
-    const mapped: Asset[] = rawArray.map((a: any) => ({
-      id: a.id?.toString() || '',
-      assetId: a.asset_id || '',                        // ← AST0001
-      name: a.name || '',
-      type: (a.type || 'other').toLowerCase(),          // ← "LAPTOP" → "laptop" for dropdown
-      serial: a.serial_number || '',
-      assignedEmployee: a.assigned_employee_id?.toString() || '',
-      assignedEmployeeName: a.assigned_employee_name || null,
-      issueDate: a.issue_date
-        ? new Date(a.issue_date).toISOString().split("T")[0]
-        : '',
-      status: (a.status || 'active').toLowerCase(),     // ← "Active" → "active"
-      location: a.location || '',
-      value: parseFloat(a.value || "0") || 0,
-      description: a.description || '',
-      createdAt: a.created_at || '',
-      updatedAt: a.updated_at || '',
-    }));
-
-    console.log("Mapped Assets for UI:", mapped);
-
-    return { data: mapped };
-  } catch (error: any) {
-    console.error("Error fetching assets:", error);
-    return {
-      error:
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to load assets",
-    };
-  }
-},
-
-createAsset: async (data: CreateAssetData): Promise<{ data?: Asset; error?: string }> => {
+  createAsset: async (
+    data: CreateAssetData,
+  ): Promise<{ data?: Asset; error?: string }> => {
     try {
       const response = await ENDPOINTS.createAsset(data);
 
@@ -151,7 +150,10 @@ createAsset: async (data: CreateAssetData): Promise<{ data?: Asset; error?: stri
   /**
    * Update an existing asset
    */
-  updateAsset: async (id: string, data: UpdateAssetData): Promise<{ data?: Asset; error?: string }> => {
+  updateAsset: async (
+    id: string,
+    data: UpdateAssetData,
+  ): Promise<{ data?: Asset; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateAsset(id, data);
 
@@ -178,11 +180,17 @@ createAsset: async (data: CreateAssetData): Promise<{ data?: Asset; error?: stri
   /**
    * Delete an asset
    */
-  deleteAsset: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  deleteAsset: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteAsset(id);
 
-      if (response.data?.success || response.status === 200 || response.status === 204) {
+      if (
+        response.data?.success ||
+        response.status === 200 ||
+        response.status === 204
+      ) {
         return { success: true };
       }
 
@@ -197,7 +205,6 @@ createAsset: async (data: CreateAssetData): Promise<{ data?: Asset; error?: stri
       return { error: errorMessage };
     }
   },
-
 };
 
 export default assetApi;

@@ -1,20 +1,62 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Search, Building2, AlertCircle, Upload, X, Hash } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  Building2,
+  AlertCircle,
+  Upload,
+  X,
+  Hash,
+} from "lucide-react";
 import { companyApi, Company } from "@/components/helper/company/company";
 import { branchApi, Branch } from "@/components/helper/branch/branch";
-import { departmentApi, Department } from "@/components/helper/department/department";
-import { designationApi, Designation } from "@/components/helper/designation/designation";
+import {
+  departmentApi,
+  Department,
+} from "@/components/helper/department/department";
+import {
+  designationApi,
+  Designation,
+} from "@/components/helper/designation/designation";
 import { sequenceApi, Sequence } from "@/components/helper/range/range";
 import { employeeApi, Employee } from "@/components/helper/employee/employee";
 import { showToast } from "@/utils/toast";
@@ -54,9 +96,27 @@ const mockBranches: Branch[] = [
 ];
 
 const mockDepartments: Department[] = [
-  { id: "D001", name: "Engineering", costCenter: "CC001", head: "Sarah Smith", headId: "1" },
-  { id: "D002", name: "Sales", costCenter: "CC002", head: "Emma Wilson", headId: "2" },
-  { id: "D003", name: "HR", costCenter: "CC003", head: "David Brown", headId: "3" },
+  {
+    id: "D001",
+    name: "Engineering",
+    costCenter: "CC001",
+    head: "Sarah Smith",
+    headId: "1",
+  },
+  {
+    id: "D002",
+    name: "Sales",
+    costCenter: "CC002",
+    head: "Emma Wilson",
+    headId: "2",
+  },
+  {
+    id: "D003",
+    name: "HR",
+    costCenter: "CC003",
+    head: "David Brown",
+    headId: "3",
+  },
 ];
 
 const mockDesignations: Designation[] = [
@@ -64,7 +124,6 @@ const mockDesignations: Designation[] = [
   { id: "DG002", name: "Senior Developer" },
   { id: "DG003", name: "Manager" },
 ];
-
 
 const mockSequences: Sequence[] = [
   {
@@ -207,105 +266,113 @@ export default function OrganizationSetup() {
 
   // Data fetching functions
   const fetchCompany = async () => {
-    setLoading(prev => ({ ...prev, company: true }));
-    setError(prev => ({ ...prev, company: '' }));
+    setLoading((prev) => ({ ...prev, company: true }));
+    setError((prev) => ({ ...prev, company: "" }));
     try {
       const result = await companyApi.getCompany();
       if (result.data) {
         setCompany(result.data);
       } else if (result.error) {
-        setError(prev => ({ ...prev, company: result.error }));
+        setError((prev) => ({ ...prev, company: result.error }));
       }
     } catch (err) {
-      setError(prev => ({ ...prev, company: 'Failed to fetch company data' }));
+      setError((prev) => ({
+        ...prev,
+        company: "Failed to fetch company data",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, company: false }));
+      setLoading((prev) => ({ ...prev, company: false }));
     }
   };
 
   const fetchBranches = async () => {
-    setLoading(prev => ({ ...prev, branches: true }));
-    setError(prev => ({ ...prev, branches: '' }));
+    setLoading((prev) => ({ ...prev, branches: true }));
+    setError((prev) => ({ ...prev, branches: "" }));
     try {
       const result = await branchApi.getBranches();
       if (result.data) {
         setBranches(result.data);
       } else if (result.error) {
-        setError(prev => ({ ...prev, branches: result.error }));
+        setError((prev) => ({ ...prev, branches: result.error }));
       }
     } catch (err) {
-      setError(prev => ({ ...prev, branches: 'Failed to fetch branches' }));
+      setError((prev) => ({ ...prev, branches: "Failed to fetch branches" }));
     } finally {
-      setLoading(prev => ({ ...prev, branches: false }));
+      setLoading((prev) => ({ ...prev, branches: false }));
     }
   };
 
   const fetchDepartments = async () => {
-    setLoading(prev => ({ ...prev, departments: true }));
-    setError(prev => ({ ...prev, departments: '' }));
+    setLoading((prev) => ({ ...prev, departments: true }));
+    setError((prev) => ({ ...prev, departments: "" }));
     try {
       const result = await departmentApi.getdepartment();
       if (result.data) {
         setDepartments(result.data);
       } else if (result.error) {
-        setError(prev => ({ ...prev, departments: result.error }));
+        setError((prev) => ({ ...prev, departments: result.error }));
       }
     } catch (err) {
-      setError(prev => ({ ...prev, departments: 'Failed to fetch departments' }));
+      setError((prev) => ({
+        ...prev,
+        departments: "Failed to fetch departments",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, departments: false }));
+      setLoading((prev) => ({ ...prev, departments: false }));
     }
   };
 
   const fetchDesignations = async () => {
-    setLoading(prev => ({ ...prev, designations: true }));
-    setError(prev => ({ ...prev, designations: '' }));
+    setLoading((prev) => ({ ...prev, designations: true }));
+    setError((prev) => ({ ...prev, designations: "" }));
     try {
       const result = await designationApi.getDesignations();
       if (result.data) {
         setDesignations(result.data);
       } else if (result.error) {
-        setError(prev => ({ ...prev, designations: result.error }));
+        setError((prev) => ({ ...prev, designations: result.error }));
       }
     } catch (err) {
-      setError(prev => ({ ...prev, designations: 'Failed to fetch designations' }));
+      setError((prev) => ({
+        ...prev,
+        designations: "Failed to fetch designations",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, designations: false }));
+      setLoading((prev) => ({ ...prev, designations: false }));
     }
   };
 
-
   const fetchSequences = async () => {
-    setLoading(prev => ({ ...prev, sequences: true }));
-    setError(prev => ({ ...prev, sequences: '' }));
+    setLoading((prev) => ({ ...prev, sequences: true }));
+    setError((prev) => ({ ...prev, sequences: "" }));
     try {
       const result = await sequenceApi.getSequences();
       if (result.data) {
         setSequences(result.data);
       } else if (result.error) {
-        setError(prev => ({ ...prev, sequences: result.error }));
+        setError((prev) => ({ ...prev, sequences: result.error }));
       }
     } catch (err) {
-      setError(prev => ({ ...prev, sequences: 'Failed to fetch sequences' }));
+      setError((prev) => ({ ...prev, sequences: "Failed to fetch sequences" }));
     } finally {
-      setLoading(prev => ({ ...prev, sequences: false }));
+      setLoading((prev) => ({ ...prev, sequences: false }));
     }
   };
 
   const fetchEmployees = async () => {
-    setLoading(prev => ({ ...prev, employees: true }));
-    setError(prev => ({ ...prev, employees: '' }));
+    setLoading((prev) => ({ ...prev, employees: true }));
+    setError((prev) => ({ ...prev, employees: "" }));
     try {
       const result = await employeeApi.getEmployees();
       if (result.data) {
         setEmployees(result.data);
       } else if (result.error) {
-        setError(prev => ({ ...prev, employees: result.error }));
+        setError((prev) => ({ ...prev, employees: result.error }));
       }
     } catch (err) {
-      setError(prev => ({ ...prev, employees: 'Failed to fetch employees' }));
+      setError((prev) => ({ ...prev, employees: "Failed to fetch employees" }));
     } finally {
-      setLoading(prev => ({ ...prev, employees: false }));
+      setLoading((prev) => ({ ...prev, employees: false }));
     }
   };
 
@@ -322,34 +389,43 @@ export default function OrganizationSetup() {
   // Debug formData changes for sequences
   useEffect(() => {
     if (activeTab === "sequences") {
-      console.log('FormData changed:', formData);
+      // console.log("FormData changed:", formData);
     }
   }, [formData, activeTab]);
 
-
   // Filter functions
   const filteredBranches = useMemo(
-    () => branches.filter((b) => b.name.toLowerCase().includes(searchTerm.toLowerCase())),
-    [branches, searchTerm]
+    () =>
+      branches.filter((b) =>
+        b.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [branches, searchTerm],
   );
 
   const filteredDepartments = useMemo(
-    () => departments.filter((d) => d.name.toLowerCase().includes(searchTerm.toLowerCase())),
-    [departments, searchTerm]
+    () =>
+      departments.filter((d) =>
+        d.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [departments, searchTerm],
   );
 
   const filteredDesignations = useMemo(
-    () => designations.filter((d) => d.name.toLowerCase().includes(searchTerm.toLowerCase())),
-    [designations, searchTerm]
+    () =>
+      designations.filter((d) =>
+        d.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [designations, searchTerm],
   );
 
-
   const filteredSequences = useMemo(
-    () => sequences.filter((s) =>
-      s.module.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.prefix.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    [sequences, searchTerm]
+    () =>
+      sequences.filter(
+        (s) =>
+          s.module.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.prefix.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [sequences, searchTerm],
   );
 
   // Dialog handlers
@@ -368,7 +444,11 @@ export default function OrganizationSetup() {
   };
 
   const handleSave = async () => {
-    if (!formData.name && activeTab !== "company" && activeTab !== "sequences") {
+    if (
+      !formData.name &&
+      activeTab !== "company" &&
+      activeTab !== "sequences"
+    ) {
       showToast.error("Please fill in all required fields");
       return;
     }
@@ -408,7 +488,7 @@ export default function OrganizationSetup() {
         const data = {
           name: formData.name,
           costCenter: formData.costCenter,
-          headId: formData.headId || undefined
+          headId: formData.headId || undefined,
         };
         if (editingId) {
           const result = await departmentApi.updateDepartment(editingId, data);
@@ -429,10 +509,13 @@ export default function OrganizationSetup() {
         }
       } else if (activeTab === "designations") {
         const data = {
-          name: formData.name
+          name: formData.name,
         };
         if (editingId) {
-          const result = await designationApi.updateDesignation(editingId, data);
+          const result = await designationApi.updateDesignation(
+            editingId,
+            data,
+          );
           if (result.data) {
             await fetchDesignations();
           } else if (result.error) {
@@ -449,7 +532,7 @@ export default function OrganizationSetup() {
           }
         }
       } else if (activeTab === "sequences") {
-        console.log('Saving sequence data:', formData);
+        // console.log("Saving sequence data:", formData);
         if (editingId) {
           const result = await sequenceApi.updateSequence(editingId, formData);
           if (result.data) {
@@ -531,15 +614,27 @@ export default function OrganizationSetup() {
     const file = event.target.files?.[0];
     if (file) {
       const previewUrl = URL.createObjectURL(file);
-      setFormData({ ...formData, logo: previewUrl, logoFile: file, removeLogo: false });
+      setFormData({
+        ...formData,
+        logo: previewUrl,
+        logoFile: file,
+        removeLogo: false,
+      });
     }
   };
 
-  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSignatureUpload = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       const previewUrl = URL.createObjectURL(file);
-      setFormData({ ...formData, signature: previewUrl, signatureFile: file, removeSignature: false });
+      setFormData({
+        ...formData,
+        signature: previewUrl,
+        signatureFile: file,
+        removeSignature: false,
+      });
     }
   };
 
@@ -564,11 +659,16 @@ export default function OrganizationSetup() {
   const handleModulePermissionChange = (
     module: string,
     permission: "view" | "create" | "edit" | "approve",
-    checked: boolean
+    checked: boolean,
   ) => {
     const modules = formData.modules || {};
     if (!modules[module]) {
-      modules[module] = { view: false, create: false, edit: false, approve: false };
+      modules[module] = {
+        view: false,
+        create: false,
+        edit: false,
+        approve: false,
+      };
     }
     modules[module][permission] = checked;
     setFormData({ ...formData, modules });
@@ -581,10 +681,14 @@ export default function OrganizationSetup() {
         <div className="px-1">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
             <Building2 className="w-6 md:w-8 h-6 md:h-8 text-primary flex-shrink-0" />
-            <span className="hidden sm:inline">Organization & Master Setup</span>
+            <span className="hidden sm:inline">
+              Organization & Master Setup
+            </span>
             <span className="sm:hidden">Organization Setup</span>
           </h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">Configure company structure, master data, and access controls</p>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">
+            Configure company structure, master data, and access controls
+          </p>
         </div>
 
         {/* Search Card (hidden for Company tab) */}
@@ -601,14 +705,22 @@ export default function OrganizationSetup() {
                     className="pl-10 text-sm"
                   />
                 </div>
-                <Button onClick={() => handleOpenDialog()} disabled={loading[activeTab]} className="gap-2 whitespace-nowrap">
+                <Button
+                  onClick={() => handleOpenDialog()}
+                  disabled={loading[activeTab]}
+                  className="gap-2 whitespace-nowrap"
+                >
                   {loading[activeTab] ? (
                     <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
                   ) : (
                     <Plus className="w-4 h-4 hidden sm:inline" />
                   )}
-                  <span className="hidden sm:inline">{loading[activeTab] ? 'Loading...' : 'Add'}</span>
-                  <span className="sm:hidden">{loading[activeTab] ? '+' : '+'}</span>
+                  <span className="hidden sm:inline">
+                    {loading[activeTab] ? "Loading..." : "Add"}
+                  </span>
+                  <span className="sm:hidden">
+                    {loading[activeTab] ? "+" : "+"}
+                  </span>
                 </Button>
               </div>
             </CardContent>
@@ -619,23 +731,46 @@ export default function OrganizationSetup() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="overflow-x-auto">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-1 md:gap-2 bg-muted p-1 h-auto min-w-max md:min-w-full">
-              <TabsTrigger value="company" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">Company</TabsTrigger>
-              <TabsTrigger value="branches" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">
+              <TabsTrigger
+                value="company"
+                className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap"
+              >
+                Company
+              </TabsTrigger>
+              <TabsTrigger
+                value="branches"
+                className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap"
+              >
                 <span className="hidden sm:inline">Branches</span>
                 <span className="sm:hidden">Branch</span>
                 <span className="hidden md:inline"> ({branches.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="departments" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">
+              <TabsTrigger
+                value="departments"
+                className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap"
+              >
                 <span className="hidden sm:inline">Departments</span>
                 <span className="sm:hidden">Depts</span>
-                <span className="hidden md:inline"> ({departments.length})</span>
+                <span className="hidden md:inline">
+                  {" "}
+                  ({departments.length})
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="designations" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">
+              <TabsTrigger
+                value="designations"
+                className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap"
+              >
                 <span className="hidden sm:inline">Designations</span>
                 <span className="sm:hidden">Desig</span>
-                <span className="hidden md:inline"> ({designations.length})</span>
+                <span className="hidden md:inline">
+                  {" "}
+                  ({designations.length})
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="sequences" className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap">
+              <TabsTrigger
+                value="sequences"
+                className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap"
+              >
                 <span className="hidden sm:inline">Sequences</span>
                 <span className="sm:hidden">Seq</span>
                 <span className="hidden md:inline"> ({sequences.length})</span>
@@ -657,8 +792,8 @@ export default function OrganizationSetup() {
                           alt="Company Logo"
                           className="h-16 w-16 shrink-0 rounded-lg border-2 border-white object-cover shadow-md"
                           onError={(e) => {
-                            console.error('Logo failed to load:', company.logo);
-                            e.currentTarget.style.display = 'none';
+                            console.error("Logo failed to load:", company.logo);
+                            e.currentTarget.style.display = "none";
                           }}
                         />
                       )}
@@ -669,9 +804,13 @@ export default function OrganizationSetup() {
                               <Building2 className="w-6 h-6 text-white" />
                             </div>
                           )}
-                          <span className="truncate">{company?.name || 'Company Information'}</span>
+                          <span className="truncate">
+                            {company?.name || "Company Information"}
+                          </span>
                         </h2>
-                        <p className="mt-1 truncate text-gray-600">{company?.legalName}</p>
+                        <p className="mt-1 truncate text-gray-600">
+                          {company?.legalName}
+                        </p>
                       </div>
                     </div>
                     <Button
@@ -697,12 +836,20 @@ export default function OrganizationSetup() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="rounded-lg border border-gray-100 bg-gray-50/70 px-4 py-3 shadow-sm">
-                      <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">Industry</Label>
-                      <p className="text-base font-semibold text-gray-950">{company?.industry || "Not specified"}</p>
+                      <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                        Industry
+                      </Label>
+                      <p className="text-base font-semibold text-gray-950">
+                        {company?.industry || "Not specified"}
+                      </p>
                     </div>
                     <div className="rounded-lg border border-[#17c491]/20 bg-white px-4 py-3 shadow-sm">
-                      <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">GSTIN/PAN</Label>
-                      <p className="break-words text-base font-bold text-[#075c46]">{company?.gstin || "Not specified"}</p>
+                      <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">
+                        GSTIN/PAN
+                      </Label>
+                      <p className="break-words text-base font-bold text-[#075c46]">
+                        {company?.gstin || "Not specified"}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -718,17 +865,28 @@ export default function OrganizationSetup() {
                   <CardContent>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="rounded-lg border border-[#17c491]/20 bg-white px-4 py-3 shadow-sm">
-                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Payroll Cycle</Label>
-                        <p className="text-base font-semibold text-gray-950">{company?.payrollCycle || "Not specified"}</p>
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">
+                          Payroll Cycle
+                        </Label>
+                        <p className="text-base font-semibold text-gray-950">
+                          {company?.payrollCycle || "Not specified"}
+                        </p>
                       </div>
                       <div className="rounded-lg border border-[#17c491]/20 bg-white px-4 py-3 shadow-sm">
-                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Timezone</Label>
-                        <p className="text-base font-semibold text-gray-950">{company?.timezone || "Not specified"}</p>
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">
+                          Timezone
+                        </Label>
+                        <p className="text-base font-semibold text-gray-950">
+                          {company?.timezone || "Not specified"}
+                        </p>
                       </div>
                       <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 px-4 py-3 shadow-sm sm:col-span-2">
-                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Salary Calculation Period</Label>
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">
+                          Salary Calculation Period
+                        </Label>
                         <p className="text-base font-semibold text-gray-950">
-                          Day {company?.payrollStartDay || 1} to Day {company?.payrollEndDay || 31}
+                          Day {company?.payrollStartDay || 1} to Day{" "}
+                          {company?.payrollEndDay || 31}
                         </p>
                       </div>
                     </div>
@@ -751,8 +909,12 @@ export default function OrganizationSetup() {
                         <Building2 className="w-5 h-5 text-white" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">Registered Address</Label>
-                        <p className="text-base leading-relaxed text-gray-950">{company?.address || "Not specified"}</p>
+                        <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#0b6f53]">
+                          Registered Address
+                        </Label>
+                        <p className="text-base leading-relaxed text-gray-950">
+                          {company?.address || "Not specified"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -774,13 +936,18 @@ export default function OrganizationSetup() {
                         alt="Authorized Signature"
                         className="h-16 max-w-64 object-contain"
                         onError={(e) => {
-                          console.error('Signature failed to load:', company.signature);
-                          e.currentTarget.style.display = 'none';
+                          console.error(
+                            "Signature failed to load:",
+                            company.signature,
+                          );
+                          e.currentTarget.style.display = "none";
                         }}
                       />
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No signature uploaded yet.</p>
+                    <p className="text-sm text-gray-500">
+                      No signature uploaded yet.
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -799,13 +966,19 @@ export default function OrganizationSetup() {
                         <Building2 className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-gray-900">Branches</h2>
-                        <p className="text-gray-600 text-sm mt-1">Manage office locations and geographical boundaries</p>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          Branches
+                        </h2>
+                        <p className="text-gray-600 text-sm mt-1">
+                          Manage office locations and geographical boundaries
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c491]">{branches.length}</p>
+                        <p className="text-2xl font-bold text-[#17c491]">
+                          {branches.length}
+                        </p>
                         <p className="text-xs text-gray-500">Total Branches</p>
                       </div>
                     </div>
@@ -824,21 +997,28 @@ export default function OrganizationSetup() {
                   {loading.branches ? (
                     <div className="flex justify-center items-center py-8">
                       <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-                      <span className="ml-2 text-sm text-muted-foreground">Loading branches...</span>
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        Loading branches...
+                      </span>
                     </div>
                   ) : (
                     <>
                       {/* Mobile Card View */}
                       <div className="md:hidden space-y-3">
                         {filteredBranches.map((branch) => (
-                          <div key={branch.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
+                          <div
+                            key={branch.id}
+                            className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200"
+                          >
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                     <Building2 className="w-4 h-4 text-[#17c491]" />
                                   </div>
-                                  <h3 className="font-bold text-base text-gray-900">{branch.name}</h3>
+                                  <h3 className="font-bold text-base text-gray-900">
+                                    {branch.name}
+                                  </h3>
                                 </div>
                               </div>
                               <div className="flex gap-2 flex-shrink-0">
@@ -858,16 +1038,26 @@ export default function OrganizationSetup() {
                             </div>
                             <div className="space-y-3">
                               <div className="flex items-start justify-between p-3 bg-white rounded-lg border border-gray-100">
-                                <span className="text-sm font-medium text-gray-500">Address</span>
-                                <span className="font-medium text-gray-900 text-right ml-2">{branch.address}</span>
+                                <span className="text-sm font-medium text-gray-500">
+                                  Address
+                                </span>
+                                <span className="font-medium text-gray-900 text-right ml-2">
+                                  {branch.address}
+                                </span>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                                  <span className="text-sm font-medium text-gray-500">Coordinates</span>
-                                  <span className="font-mono text-xs font-bold text-[#17c491]">{branch.coordinates}</span>
+                                  <span className="text-sm font-medium text-gray-500">
+                                    Coordinates
+                                  </span>
+                                  <span className="font-mono text-xs font-bold text-[#17c491]">
+                                    {branch.coordinates}
+                                  </span>
                                 </div>
                                 <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                                  <span className="text-sm font-medium text-gray-500">Radius</span>
+                                  <span className="text-sm font-medium text-gray-500">
+                                    Radius
+                                  </span>
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
                                     {branch.radius} m
                                   </span>
@@ -884,25 +1074,43 @@ export default function OrganizationSetup() {
                           <table className="w-full">
                             <thead>
                               <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Branch Name</th>
-                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Address</th>
-                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Coordinates</th>
-                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">Radius</th>
-                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                                  Branch Name
+                                </th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                                  Address
+                                </th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                                  Coordinates
+                                </th>
+                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                                  Radius
+                                </th>
+                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                                  Actions
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
                               {filteredBranches.map((branch, index) => (
-                                <tr key={branch.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                <tr
+                                  key={branch.id}
+                                  className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}
+                                >
                                   <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                       <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                         <Building2 className="w-4 h-4 text-[#17c491]" />
                                       </div>
-                                      <span className="font-semibold text-gray-900">{branch.name}</span>
+                                      <span className="font-semibold text-gray-900">
+                                        {branch.name}
+                                      </span>
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4 text-gray-900 max-w-xs truncate" title={branch.address}>
+                                  <td
+                                    className="px-6 py-4 text-gray-900 max-w-xs truncate"
+                                    title={branch.address}
+                                  >
                                     {branch.address}
                                   </td>
                                   <td className="px-6 py-4">
@@ -956,14 +1164,22 @@ export default function OrganizationSetup() {
                         <Building2 className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-gray-900">Departments</h2>
-                        <p className="text-gray-600 text-sm mt-1">Manage organizational departments and cost centers</p>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          Departments
+                        </h2>
+                        <p className="text-gray-600 text-sm mt-1">
+                          Manage organizational departments and cost centers
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c491]">{departments.length}</p>
-                        <p className="text-xs text-gray-500">Total Departments</p>
+                        <p className="text-2xl font-bold text-[#17c491]">
+                          {departments.length}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Total Departments
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -975,27 +1191,36 @@ export default function OrganizationSetup() {
                 <CardContent className="pt-6">
                   {error.departments && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-600">{error.departments}</p>
+                      <p className="text-sm text-red-600">
+                        {error.departments}
+                      </p>
                     </div>
                   )}
                   {loading.departments ? (
                     <div className="flex justify-center items-center py-8">
                       <div className="w-8 h-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-                      <span className="ml-2 text-sm text-muted-foreground">Loading departments...</span>
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        Loading departments...
+                      </span>
                     </div>
                   ) : (
                     <>
                       {/* Mobile Card View */}
                       <div className="md:hidden space-y-3">
                         {filteredDepartments.map((dept) => (
-                          <div key={dept.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-md transition-all duration-200">
+                          <div
+                            key={dept.id}
+                            className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-md transition-all duration-200"
+                          >
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                     <Building2 className="w-4 h-4 text-[#17c491]" />
                                   </div>
-                                  <h3 className="font-bold text-base text-gray-900">{dept.name}</h3>
+                                  <h3 className="font-bold text-base text-gray-900">
+                                    {dept.name}
+                                  </h3>
                                 </div>
                               </div>
                               <div className="flex gap-2 flex-shrink-0">
@@ -1015,12 +1240,20 @@ export default function OrganizationSetup() {
                             </div>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                                <span className="text-sm font-medium text-gray-500">Cost Center</span>
-                                <span className="font-bold text-[#17c491]">{dept.costCenter}</span>
+                                <span className="text-sm font-medium text-gray-500">
+                                  Cost Center
+                                </span>
+                                <span className="font-bold text-[#17c491]">
+                                  {dept.costCenter}
+                                </span>
                               </div>
                               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
-                                <span className="text-sm font-medium text-gray-500">Department Head</span>
-                                <span className="font-bold text-gray-900">{dept.head}</span>
+                                <span className="text-sm font-medium text-gray-500">
+                                  Department Head
+                                </span>
+                                <span className="font-bold text-gray-900">
+                                  {dept.head}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -1033,21 +1266,34 @@ export default function OrganizationSetup() {
                           <table className="w-full">
                             <thead>
                               <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Name</th>
-                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Cost Center</th>
-                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">Department Head</th>
-                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                                  Department Name
+                                </th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                                  Cost Center
+                                </th>
+                                <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                                  Department Head
+                                </th>
+                                <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                                  Actions
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
                               {filteredDepartments.map((dept, index) => (
-                                <tr key={dept.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                <tr
+                                  key={dept.id}
+                                  className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}
+                                >
                                   <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                       <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                         <Building2 className="w-4 h-4 text-[#17c491]" />
                                       </div>
-                                      <span className="font-semibold text-gray-900">{dept.name}</span>
+                                      <span className="font-semibold text-gray-900">
+                                        {dept.name}
+                                      </span>
                                     </div>
                                   </td>
                                   <td className="px-6 py-4">
@@ -1055,7 +1301,9 @@ export default function OrganizationSetup() {
                                       {dept.costCenter}
                                     </span>
                                   </td>
-                                  <td className="px-6 py-4 font-medium text-gray-900">{dept.head}</td>
+                                  <td className="px-6 py-4 font-medium text-gray-900">
+                                    {dept.head}
+                                  </td>
                                   <td className="px-6 py-4">
                                     <div className="flex items-center justify-center gap-2">
                                       <button
@@ -1097,14 +1345,22 @@ export default function OrganizationSetup() {
                         <Hash className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-gray-900">Designations</h2>
-                        <p className="text-gray-600 text-sm mt-1">Manage job roles and career levels</p>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          Designations
+                        </h2>
+                        <p className="text-gray-600 text-sm mt-1">
+                          Manage job roles and career levels
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c491]">{designations.length}</p>
-                        <p className="text-xs text-gray-500">Total Designations</p>
+                        <p className="text-2xl font-bold text-[#17c491]">
+                          {designations.length}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Total Designations
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1117,14 +1373,19 @@ export default function OrganizationSetup() {
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-3">
                     {filteredDesignations.map((des) => (
-                      <div key={des.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
+                      <div
+                        key={des.id}
+                        className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200"
+                      >
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                 <Hash className="w-4 h-4 text-[#17c491]" />
                               </div>
-                              <h3 className="font-bold text-base text-gray-900">{des.name}</h3>
+                              <h3 className="font-bold text-base text-gray-900">
+                                {des.name}
+                              </h3>
                             </div>
                           </div>
                           <div className="flex gap-2 flex-shrink-0">
@@ -1142,8 +1403,7 @@ export default function OrganizationSetup() {
                             </button>
                           </div>
                         </div>
-                        <div className="space-y-3">
-                        </div>
+                        <div className="space-y-3"></div>
                       </div>
                     ))}
                   </div>
@@ -1154,19 +1414,28 @@ export default function OrganizationSetup() {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Designation Name</th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                              Designation Name
+                            </th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredDesignations.map((des, index) => (
-                            <tr key={des.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                            <tr
+                              key={des.id}
+                              className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}
+                            >
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                   <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                     <Hash className="w-4 h-4 text-[#17c491]" />
                                   </div>
-                                  <span className="font-semibold text-gray-900">{des.name}</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {des.name}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-4">
@@ -1196,7 +1465,6 @@ export default function OrganizationSetup() {
             </div>
           </TabsContent>
 
-
           {/* Sequences Tab */}
           <TabsContent value="sequences">
             <div className="space-y-4">
@@ -1209,14 +1477,22 @@ export default function OrganizationSetup() {
                         <Hash className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-gray-900">Sequences</h2>
-                        <p className="text-gray-600 text-sm mt-1">Manage ID generation patterns and formats</p>
+                        <h2 className="text-xl font-bold text-gray-900">
+                          Sequences
+                        </h2>
+                        <p className="text-gray-600 text-sm mt-1">
+                          Manage ID generation patterns and formats
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c491]">{sequences.length}</p>
-                        <p className="text-xs text-gray-500">Active Sequences</p>
+                        <p className="text-2xl font-bold text-[#17c491]">
+                          {sequences.length}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Active Sequences
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1229,16 +1505,26 @@ export default function OrganizationSetup() {
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-3">
                     {filteredSequences.map((seq) => (
-                      <div key={seq.id} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200">
+                      <div
+                        key={seq.id}
+                        className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200"
+                      >
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
                               <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                 <Hash className="w-4 h-4 text-[#17c491]" />
                               </div>
-                              <h3 className="font-bold text-base text-gray-900 capitalize">{seq.module}</h3>
+                              <h3 className="font-bold text-base text-gray-900 capitalize">
+                                {seq.module}
+                              </h3>
                             </div>
-                            <p className="text-xs text-gray-500 font-mono">Prefix: <span className="font-bold text-[#17c491]">{seq.prefix}</span></p>
+                            <p className="text-xs text-gray-500 font-mono">
+                              Prefix:{" "}
+                              <span className="font-bold text-[#17c491]">
+                                {seq.prefix}
+                              </span>
+                            </p>
                           </div>
                           <div className="flex gap-2 flex-shrink-0">
                             <button
@@ -1259,21 +1545,33 @@ export default function OrganizationSetup() {
                           <div className="grid grid-cols-3 gap-2">
                             <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
                               <p className="text-xs text-gray-500">Start</p>
-                              <p className="font-bold text-[#17c491]">{seq.start_number}</p>
+                              <p className="font-bold text-[#17c491]">
+                                {seq.start_number}
+                              </p>
                             </div>
                             <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
                               <p className="text-xs text-gray-500">Current</p>
-                              <p className="font-bold text-[#17c491]">{seq.current_number}</p>
+                              <p className="font-bold text-[#17c491]">
+                                {seq.current_number}
+                              </p>
                             </div>
                             <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
                               <p className="text-xs text-gray-500">Length</p>
-                              <p className="font-bold text-[#17c491]">{seq.number_length}</p>
+                              <p className="font-bold text-[#17c491]">
+                                {seq.number_length}
+                              </p>
                             </div>
                           </div>
                           <div className="border-t pt-3">
-                            <p className="text-xs text-gray-500 mb-2">Sample Format:</p>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Sample Format:
+                            </p>
                             <div className="bg-[#17c491] text-white p-2 rounded font-mono text-sm text-center">
-                              {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
+                              {seq.prefix}
+                              {String(seq.current_number).padStart(
+                                seq.number_length,
+                                "0",
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1287,24 +1585,43 @@ export default function OrganizationSetup() {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Module</th>
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Prefix</th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Start</th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Current</th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Length</th>
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">Sample Format</th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">Actions</th>
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                              Module
+                            </th>
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                              Prefix
+                            </th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                              Start
+                            </th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                              Current
+                            </th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                              Length
+                            </th>
+                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
+                              Sample Format
+                            </th>
+                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredSequences.map((seq, index) => (
-                            <tr key={seq.id} className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                            <tr
+                              key={seq.id}
+                              className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}
+                            >
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                   <div className="p-2 bg-[#17c491]/10 rounded-lg">
                                     <Hash className="w-4 h-4 text-[#17c491]" />
                                   </div>
-                                  <span className="font-semibold text-gray-900 capitalize">{seq.module}</span>
+                                  <span className="font-semibold text-gray-900 capitalize">
+                                    {seq.module}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-4">
@@ -1329,7 +1646,11 @@ export default function OrganizationSetup() {
                               </td>
                               <td className="px-6 py-4">
                                 <div className="bg-[#17c491] text-white px-3 py-1 rounded font-mono text-sm text-center">
-                                  {seq.prefix}{String(seq.current_number).padStart(seq.number_length, "0")}
+                                  {seq.prefix}
+                                  {String(seq.current_number).padStart(
+                                    seq.number_length,
+                                    "0",
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4">
@@ -1341,7 +1662,9 @@ export default function OrganizationSetup() {
                                     <Edit className="w-4 h-4" />
                                   </button>
                                   <button
-                                    onClick={() => handleDelete(seq.id.toString())}
+                                    onClick={() =>
+                                      handleDelete(seq.id.toString())
+                                    }
                                     className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1366,10 +1689,29 @@ export default function OrganizationSetup() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Edit" : "Add New"} {activeTab === "company" ? "Company" : activeTab === "branches" ? "Branch" : activeTab === "departments" ? "Department" : activeTab === "designations" ? "Designation" : "Sequence"}
+              {editingId ? "Edit" : "Add New"}{" "}
+              {activeTab === "company"
+                ? "Company"
+                : activeTab === "branches"
+                  ? "Branch"
+                  : activeTab === "departments"
+                    ? "Department"
+                    : activeTab === "designations"
+                      ? "Designation"
+                      : "Sequence"}
             </DialogTitle>
             <DialogDescription>
-              Update the selected {activeTab === "company" ? "company" : activeTab === "branches" ? "branch" : activeTab === "departments" ? "department" : activeTab === "designations" ? "designation" : "sequence"} details and save your changes.
+              Update the selected{" "}
+              {activeTab === "company"
+                ? "company"
+                : activeTab === "branches"
+                  ? "branch"
+                  : activeTab === "departments"
+                    ? "department"
+                    : activeTab === "designations"
+                      ? "designation"
+                      : "sequence"}{" "}
+              details and save your changes.
             </DialogDescription>
           </DialogHeader>
 
@@ -1380,7 +1722,9 @@ export default function OrganizationSetup() {
                   <Label>Company Name *</Label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -1388,7 +1732,9 @@ export default function OrganizationSetup() {
                   <Label>Legal Name *</Label>
                   <Input
                     value={formData.legalName || ""}
-                    onChange={(e) => setFormData({ ...formData, legalName: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, legalName: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -1397,7 +1743,9 @@ export default function OrganizationSetup() {
                     <Label>GSTIN/PAN *</Label>
                     <Input
                       value={formData.gstin || ""}
-                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, gstin: e.target.value })
+                      }
                       className="mt-2"
                     />
                   </div>
@@ -1405,7 +1753,9 @@ export default function OrganizationSetup() {
                     <Label>Industry *</Label>
                     <Input
                       value={formData.industry || ""}
-                      onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, industry: e.target.value })
+                      }
                       className="mt-2"
                     />
                   </div>
@@ -1414,14 +1764,21 @@ export default function OrganizationSetup() {
                   <Label>Address *</Label>
                   <Input
                     value={formData.address || ""}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Payroll Cycle *</Label>
-                    <Select value={formData.payrollCycle || ""} onValueChange={(val) => setFormData({ ...formData, payrollCycle: val })}>
+                    <Select
+                      value={formData.payrollCycle || ""}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, payrollCycle: val })
+                      }
+                    >
                       <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
@@ -1434,7 +1791,12 @@ export default function OrganizationSetup() {
                   </div>
                   <div>
                     <Label>Timezone *</Label>
-                    <Select value={formData.timezone || ""} onValueChange={(val) => setFormData({ ...formData, timezone: val })}>
+                    <Select
+                      value={formData.timezone || ""}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, timezone: val })
+                      }
+                    >
                       <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
@@ -1451,7 +1813,12 @@ export default function OrganizationSetup() {
                     <Label>Salary Calculation From *</Label>
                     <Input
                       value={formData.payrollStartDay || ""}
-                      onChange={(e) => setFormData({ ...formData, payrollStartDay: parseInt(e.target.value, 10) || 1 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          payrollStartDay: parseInt(e.target.value, 10) || 1,
+                        })
+                      }
                       type="number"
                       min={1}
                       max={31}
@@ -1462,7 +1829,12 @@ export default function OrganizationSetup() {
                     <Label>Salary Calculation To *</Label>
                     <Input
                       value={formData.payrollEndDay || ""}
-                      onChange={(e) => setFormData({ ...formData, payrollEndDay: parseInt(e.target.value, 10) || 31 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          payrollEndDay: parseInt(e.target.value, 10) || 31,
+                        })
+                      }
                       type="number"
                       min={1}
                       max={31}
@@ -1473,17 +1845,19 @@ export default function OrganizationSetup() {
                 <div>
                   <Label>Company Logo</Label>
                   <div className="mt-2">
-                    {(formData.logo || (!formData.removeLogo && company?.logo)) && (
+                    {(formData.logo ||
+                      (!formData.removeLogo && company?.logo)) && (
                       <div className="flex items-center gap-2 mb-2">
                         <img
-                          src={
-                            resolveFileUrl(formData.logo || company?.logo)
-                          }
+                          src={resolveFileUrl(formData.logo || company?.logo)}
                           alt="Company Logo"
                           className="w-12 h-12 rounded border object-cover"
                           onError={(e) => {
-                            console.error('Dialog logo failed to load:', formData.logo || company?.logo);
-                            e.currentTarget.style.display = 'none';
+                            console.error(
+                              "Dialog logo failed to load:",
+                              formData.logo || company?.logo,
+                            );
+                            e.currentTarget.style.display = "none";
                           }}
                         />
                         <button
@@ -1510,16 +1884,22 @@ export default function OrganizationSetup() {
                 <div>
                   <Label>Authorized Signature</Label>
                   <div className="mt-2">
-                    {(formData.signature || (!formData.removeSignature && company?.signature)) && (
+                    {(formData.signature ||
+                      (!formData.removeSignature && company?.signature)) && (
                       <div className="flex items-center gap-2 mb-2">
                         <div className="rounded border bg-white px-3 py-2">
                           <img
-                            src={resolveFileUrl(formData.signature || company?.signature)}
+                            src={resolveFileUrl(
+                              formData.signature || company?.signature,
+                            )}
                             alt="Authorized Signature"
                             className="h-12 max-w-48 object-contain"
                             onError={(e) => {
-                              console.error('Dialog signature failed to load:', formData.signature || company?.signature);
-                              e.currentTarget.style.display = 'none';
+                              console.error(
+                                "Dialog signature failed to load:",
+                                formData.signature || company?.signature,
+                              );
+                              e.currentTarget.style.display = "none";
                             }}
                           />
                         </div>
@@ -1534,7 +1914,9 @@ export default function OrganizationSetup() {
                     )}
                     <label className="flex items-center gap-2 px-4 py-2 border border-dashed border-primary rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
                       <Upload className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium">Upload Signature</span>
+                      <span className="text-sm font-medium">
+                        Upload Signature
+                      </span>
                       <input
                         type="file"
                         className="hidden"
@@ -1553,7 +1935,9 @@ export default function OrganizationSetup() {
                   <Label>Branch Name *</Label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -1561,7 +1945,9 @@ export default function OrganizationSetup() {
                   <Label>Address *</Label>
                   <Input
                     value={formData.address || ""}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -1570,7 +1956,12 @@ export default function OrganizationSetup() {
                     <Label>Coordinates *</Label>
                     <Input
                       value={formData.coordinates || ""}
-                      onChange={(e) => setFormData({ ...formData, coordinates: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          coordinates: e.target.value,
+                        })
+                      }
                       placeholder="e.g., 12.9716,77.5946"
                       className="mt-2"
                     />
@@ -1580,12 +1971,16 @@ export default function OrganizationSetup() {
                   <Label>Radius (meters) *</Label>
                   <Input
                     value={formData.radius || ""}
-                    onChange={(e) => setFormData({ ...formData, radius: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, radius: e.target.value })
+                    }
                     type="number"
                     className="mt-2"
                     min={1}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Enter geofence radius in meters (e.g., 200)</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter geofence radius in meters (e.g., 200)
+                  </p>
                 </div>
               </>
             )}
@@ -1596,7 +1991,9 @@ export default function OrganizationSetup() {
                   <Label>Department Name *</Label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
@@ -1604,7 +2001,9 @@ export default function OrganizationSetup() {
                   <Label>Cost Center *</Label>
                   <Input
                     value={formData.costCenter || ""}
-                    onChange={(e) => setFormData({ ...formData, costCenter: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, costCenter: e.target.value })
+                    }
                     placeholder="e.g., CC001"
                     className="mt-2"
                   />
@@ -1614,17 +2013,23 @@ export default function OrganizationSetup() {
                   <Select
                     value={formData.headId?.toString() || ""}
                     onValueChange={(val) =>
-                      setFormData({ ...formData, headId: val === "__none__" ? "" : val })
+                      setFormData({
+                        ...formData,
+                        headId: val === "__none__" ? "" : val,
+                      })
                     }
                   >
                     <SelectTrigger className="mt-2">
                       <SelectValue placeholder="Select employee..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">No department head</SelectItem>
+                      <SelectItem value="__none__">
+                        No department head
+                      </SelectItem>
                       {employees.map((emp) => (
                         <SelectItem key={emp.id} value={String(emp.id)}>
-                          {emp.name || `${emp.firstName || ""} ${emp.lastName || ""}`.trim()}
+                          {emp.name ||
+                            `${emp.firstName || ""} ${emp.lastName || ""}`.trim()}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1639,13 +2044,14 @@ export default function OrganizationSetup() {
                   <Label>Designation Name *</Label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="mt-2"
                   />
                 </div>
               </>
             )}
-
 
             {activeTab === "sequences" && (
               <>
@@ -1653,7 +2059,9 @@ export default function OrganizationSetup() {
                   <Label>Module Name *</Label>
                   <Input
                     value={formData.module || ""}
-                    onChange={(e) => setFormData({ ...formData, module: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, module: e.target.value })
+                    }
                     placeholder="e.g., employee"
                     className="mt-2"
                   />
@@ -1663,7 +2071,12 @@ export default function OrganizationSetup() {
                     <Label>Prefix *</Label>
                     <Input
                       value={formData.prefix || ""}
-                      onChange={(e) => setFormData({ ...formData, prefix: e.target.value.toUpperCase() })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          prefix: e.target.value.toUpperCase(),
+                        })
+                      }
                       placeholder="e.g., EMP"
                       className="mt-2 uppercase"
                       maxLength={10}
@@ -1673,7 +2086,12 @@ export default function OrganizationSetup() {
                     <Label>Start Number *</Label>
                     <Input
                       value={formData.start_number || ""}
-                      onChange={(e) => setFormData({ ...formData, start_number: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          start_number: parseInt(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       placeholder="e.g., 100"
                       className="mt-2"
@@ -1688,7 +2106,12 @@ export default function OrganizationSetup() {
                       value={formData.current_number || ""}
                       onChange={(e) => {
                         const newValue = parseInt(e.target.value) || 0;
-                        console.log('Current number changed:', e.target.value, '->', newValue);
+                      //  console.log (
+                      //     "Current number changed:",
+                      //     e.target.value,
+                      //     "->",
+                      //     newValue,
+                      //   );
                         setFormData({ ...formData, current_number: newValue });
                       }}
                       type="number"
@@ -1701,7 +2124,12 @@ export default function OrganizationSetup() {
                     <Label>Number Length (digits) *</Label>
                     <Input
                       value={formData.number_length || ""}
-                      onChange={(e) => setFormData({ ...formData, number_length: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          number_length: parseInt(e.target.value) || 0,
+                        })
+                      }
                       type="number"
                       placeholder="e.g., 4"
                       className="mt-2"
@@ -1713,7 +2141,11 @@ export default function OrganizationSetup() {
                 <div className="bg-muted/50 p-3 rounded-lg border border-border">
                   <p className="text-sm font-medium mb-2">Preview:</p>
                   <p className="text-lg font-mono">
-                    {formData.prefix || "PREFIX"}{String(formData.current_number || 0).padStart(formData.number_length || 4, "0")}
+                    {formData.prefix || "PREFIX"}
+                    {String(formData.current_number || 0).padStart(
+                      formData.number_length || 4,
+                      "0",
+                    )}
                   </p>
                 </div>
               </>
@@ -1725,14 +2157,17 @@ export default function OrganizationSetup() {
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Delete Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Item</AlertDialogTitle>
@@ -1747,7 +2182,7 @@ export default function OrganizationSetup() {
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting...' : 'Delete'}
+              {deleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

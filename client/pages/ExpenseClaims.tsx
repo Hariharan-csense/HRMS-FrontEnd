@@ -3,17 +3,61 @@ import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { hasRole } from "@/lib/auth";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Search, CreditCard, Upload, X, Camera, Loader2, Download, FileSpreadsheet, Eye, ZoomIn, ZoomOut } from "lucide-react";
-import expenseApi, { AssignedClient, ExpenseDraft } from "@/components/helper/expense/expense";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  CreditCard,
+  Upload,
+  X,
+  Camera,
+  Loader2,
+  Download,
+  FileSpreadsheet,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import expenseApi, {
+  AssignedClient,
+  ExpenseDraft,
+} from "@/components/helper/expense/expense";
 import NotificationTriggerService from "@/services/notificationTriggerService";
 import { showToast } from "@/utils/toast";
 import { BASE_URL } from "@/lib/endpoint";
@@ -136,7 +180,9 @@ export default function ExpenseClaims() {
   const [formData, setFormData] = useState<Partial<ExpenseClaim>>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
-  const [approvalAction, setApprovalAction] = useState<"approve" | "reject" | null>(null);
+  const [approvalAction, setApprovalAction] = useState<
+    "approve" | "reject" | null
+  >(null);
   const [actionExpenseId, setActionExpenseId] = useState<string | null>(null);
   const [approvalNotes, setApprovalNotes] = useState("");
   const [billFile, setBillFile] = useState<BillFile | null>(null);
@@ -145,9 +191,13 @@ export default function ExpenseClaims() {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanData, setScanData] = useState<any>(null);
-  const [assignedClients, setAssignedClients] = useState<Array<{ id: number; client_id: string; client_name: string }>>([]);
+  const [assignedClients, setAssignedClients] = useState<
+    Array<{ id: number; client_id: string; client_name: string }>
+  >([]);
   const [assignedClientId, setAssignedClientId] = useState<string>("");
-  const [expenseDate, setExpenseDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [expenseDate, setExpenseDate] = useState<string>(
+    new Date().toISOString().split("T")[0],
+  );
   const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>([
     {
       category: "",
@@ -160,14 +210,24 @@ export default function ExpenseClaims() {
     },
   ]);
   const [isGroupedEdit, setIsGroupedEdit] = useState(false);
-  const [groupedEditingClaims, setGroupedEditingClaims] = useState<ExpenseClaim[]>([]);
-  const [preview, setPreview] = useState<{ open: boolean; url: string; name: string; type: string }>({
+  const [groupedEditingClaims, setGroupedEditingClaims] = useState<
+    ExpenseClaim[]
+  >([]);
+  const [preview, setPreview] = useState<{
+    open: boolean;
+    url: string;
+    name: string;
+    type: string;
+  }>({
     open: false,
     url: "",
     name: "",
     type: "",
   });
-  const [draftReceiptGallery, setDraftReceiptGallery] = useState<{ open: boolean; urls: string[] }>({
+  const [draftReceiptGallery, setDraftReceiptGallery] = useState<{
+    open: boolean;
+    urls: string[];
+  }>({
     open: false,
     urls: [],
   });
@@ -176,7 +236,9 @@ export default function ExpenseClaims() {
   const [draftClearing, setDraftClearing] = useState(false);
   const [editReceipt, setEditReceipt] = useState<ExistingReceipt | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
-  const [receiptPickerMode, setReceiptPickerMode] = useState<Record<number, "upload" | "scan">>({});
+  const [receiptPickerMode, setReceiptPickerMode] = useState<
+    Record<number, "upload" | "scan">
+  >({});
 
   const makeEmptyRow = (): ExpenseRow => ({
     category: "",
@@ -202,14 +264,18 @@ export default function ExpenseClaims() {
     return String(value).substring(0, 10);
   };
 
-  const isDraftDeleteId = (value?: string | null) => Boolean(value && value.startsWith("draft-record-"));
+  const isDraftDeleteId = (value?: string | null) =>
+    Boolean(value && value.startsWith("draft-record-"));
   const parseDraftDeleteId = (value?: string | null) => {
     if (!isDraftDeleteId(value)) return null;
     const numericId = Number(String(value).replace("draft-record-", ""));
     return Number.isFinite(numericId) ? numericId : null;
   };
 
-  const getDraftClientLabel = (draft: ExpenseDraft | null | undefined, clients: AssignedClient[]) => {
+  const getDraftClientLabel = (
+    draft: ExpenseDraft | null | undefined,
+    clients: AssignedClient[],
+  ) => {
     if (!draft) return "";
 
     const candidateIds = [
@@ -219,22 +285,37 @@ export default function ExpenseClaims() {
       .filter((value): value is number => value !== null && value !== undefined)
       .map((value) => String(value));
 
-    const matchedClient = clients.find((client) => candidateIds.includes(String(client.id)));
+    const matchedClient = clients.find((client) =>
+      candidateIds.includes(String(client.id)),
+    );
     return matchedClient?.client_name || "";
   };
 
   const mapApiExpenseToClaim = (expense: any): ExpenseClaim => ({
-    id: expense.id?.toString() || expense.expense_id?.toString() || Math.random().toString(36).slice(2, 11),
-    employeeId: expense.employee_id?.toString() || expense.employeeId?.toString() || "",
-    employeeName: expense.employee_name || expense.employeeName || user?.name || "Unknown Employee",
-    clientId: expense.client_id?.toString() || expense.clientId?.toString() || "",
+    id:
+      expense.id?.toString() ||
+      expense.expense_id?.toString() ||
+      Math.random().toString(36).slice(2, 11),
+    employeeId:
+      expense.employee_id?.toString() || expense.employeeId?.toString() || "",
+    employeeName:
+      expense.employee_name ||
+      expense.employeeName ||
+      user?.name ||
+      "Unknown Employee",
+    clientId:
+      expense.client_id?.toString() || expense.clientId?.toString() || "",
     clientName: expense.client_name || expense.clientName || "",
     category: formatCategoryLabel(expense.category || ""),
     amount: Number(expense.amount) || 0,
     date: formatDateValue(expense.expense_date || expense.date),
     description: expense.description || "",
-    status: (String(expense.status || "pending").toLowerCase() as ExpenseClaim["status"]) || "pending",
-    createdAt: expense.created_at || expense.createdAt || new Date().toISOString(),
+    status:
+      (String(
+        expense.status || "pending",
+      ).toLowerCase() as ExpenseClaim["status"]) || "pending",
+    createdAt:
+      expense.created_at || expense.createdAt || new Date().toISOString(),
     receiptPath: expense.receipt_path || null,
     receiptUrl: expense.receipt_url || undefined,
   });
@@ -282,69 +363,93 @@ export default function ExpenseClaims() {
         return;
       }
 
-      const mergedClaims = dedupeExpenseClaims([...existing.claims, ...item.claims]);
+      const mergedClaims = dedupeExpenseClaims([
+        ...existing.claims,
+        ...item.claims,
+      ]);
       const mergedCategories = Array.from(
-        new Set(mergedClaims.map((claim) => claim.category).filter(Boolean))
+        new Set(mergedClaims.map((claim) => claim.category).filter(Boolean)),
       );
       const mergedClientNames = Array.from(
-        new Set(mergedClaims.map((claim) => claim.clientName).filter(Boolean))
+        new Set(mergedClaims.map((claim) => claim.clientName).filter(Boolean)),
       );
       const mergedClientIds = Array.from(
-        new Set(mergedClaims.map((claim) => claim.clientId).filter(Boolean))
+        new Set(mergedClaims.map((claim) => claim.clientId).filter(Boolean)),
       );
       const mergedTotalAmount = mergedClaims.reduce(
         (sum, claim) => sum + (Number(claim.amount) || 0),
-        0
+        0,
       );
-      const existingReceiptCount = existing.claims.filter((claim) => claim.receiptPath || claim.receiptUrl).length;
-      const nextReceiptCount = item.claims.filter((claim) => claim.receiptPath || claim.receiptUrl).length;
-      const preferredGroup = nextReceiptCount > existingReceiptCount ? item : existing;
+      const existingReceiptCount = existing.claims.filter(
+        (claim) => claim.receiptPath || claim.receiptUrl,
+      ).length;
+      const nextReceiptCount = item.claims.filter(
+        (claim) => claim.receiptPath || claim.receiptUrl,
+      ).length;
+      const preferredGroup =
+        nextReceiptCount > existingReceiptCount ? item : existing;
 
-      groups.set(
-        key,
-        {
-          ...preferredGroup,
-          claims: mergedClaims,
-          totalAmount: mergedTotalAmount,
-          categories: mergedCategories,
-          clientId: mergedClientIds.length === 1 ? mergedClientIds[0] : "",
-          clientName:
-            mergedClientNames.length > 1
-              ? `${mergedClientNames[0]} +${mergedClientNames.length - 1}`
-              : mergedClientNames[0] || "-",
-          description:
-            mergedClaims.length > 1
-              ? `${mergedClaims.length} expense(s) - ${mergedCategories.join(", ")}`
-              : mergedClaims[0]?.description || preferredGroup.description,
-        }
-      );
+      groups.set(key, {
+        ...preferredGroup,
+        claims: mergedClaims,
+        totalAmount: mergedTotalAmount,
+        categories: mergedCategories,
+        clientId: mergedClientIds.length === 1 ? mergedClientIds[0] : "",
+        clientName:
+          mergedClientNames.length > 1
+            ? `${mergedClientNames[0]} +${mergedClientNames.length - 1}`
+            : mergedClientNames[0] || "-",
+        description:
+          mergedClaims.length > 1
+            ? `${mergedClaims.length} expense(s) - ${mergedCategories.join(", ")}`
+            : mergedClaims[0]?.description || preferredGroup.description,
+      });
     });
 
     return Array.from(groups.values());
   };
 
-  const buildDraftClaim = (draft: ExpenseDraft, clients: AssignedClient[]): ExpenseClaim | null => {
+  const buildDraftClaim = (
+    draft: ExpenseDraft,
+    clients: AssignedClient[],
+  ): ExpenseClaim | null => {
     const rows = Array.isArray(draft.expenses) ? draft.expenses : [];
     if (!rows.length) return null;
 
-    const totalAmount = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-    const categories = Array.from(
-      new Set(rows.map((row) => formatCategoryLabel(row.category)).filter(Boolean))
+    const totalAmount = rows.reduce(
+      (sum, row) => sum + (Number(row.amount) || 0),
+      0,
     );
-    const dates = Array.from(new Set(rows.map((row) => formatDateValue(row.expense_date)).filter(Boolean)));
+    const categories = Array.from(
+      new Set(
+        rows.map((row) => formatCategoryLabel(row.category)).filter(Boolean),
+      ),
+    );
+    const dates = Array.from(
+      new Set(
+        rows.map((row) => formatDateValue(row.expense_date)).filter(Boolean),
+      ),
+    );
     const draftReceiptPaths = Array.from(
-      new Set(rows.map((row) => row.receipt_path).filter((value): value is string => Boolean(value)))
+      new Set(
+        rows
+          .map((row) => row.receipt_path)
+          .filter((value): value is string => Boolean(value)),
+      ),
     );
     const firstReceiptPath = draftReceiptPaths[0] || null;
     const draftClientId =
       draft.client_id !== null && draft.client_id !== undefined
         ? String(draft.client_id)
         : (() => {
-          const rowClient = rows.find((row) => row.client_id !== null && row.client_id !== undefined);
-          return rowClient?.client_id !== undefined && rowClient?.client_id !== null
-            ? String(rowClient.client_id)
-            : "";
-        })();
+            const rowClient = rows.find(
+              (row) => row.client_id !== null && row.client_id !== undefined,
+            );
+            return rowClient?.client_id !== undefined &&
+              rowClient?.client_id !== null
+              ? String(rowClient.client_id)
+              : "";
+          })();
 
     return {
       id: `draft-${draft.id}`,
@@ -352,14 +457,19 @@ export default function ExpenseClaims() {
       employeeName: user?.name || "Unknown Employee",
       clientName: getDraftClientLabel(draft, clients) || "-",
       category:
-        categories.length > 1 ? `${categories[0]} +${categories.length - 1} more` : categories[0] || "Draft",
+        categories.length > 1
+          ? `${categories[0]} +${categories.length - 1} more`
+          : categories[0] || "Draft",
       amount: totalAmount,
       date: dates.length === 1 ? dates[0] : formatDateValue(draft.updated_at),
       description: `${rows.length} expense item(s) saved as draft`,
       status: "draft",
-      createdAt: draft.updated_at || draft.created_at || new Date().toISOString(),
+      createdAt:
+        draft.updated_at || draft.created_at || new Date().toISOString(),
       receiptPath: firstReceiptPath,
-      receiptUrl: firstReceiptPath ? resolveReceiptUrl(firstReceiptPath) : undefined,
+      receiptUrl: firstReceiptPath
+        ? resolveReceiptUrl(firstReceiptPath)
+        : undefined,
       draftReceiptPaths,
       isDraft: true,
       draftId: draft.id,
@@ -379,10 +489,14 @@ export default function ExpenseClaims() {
         expenseApi.getExpense(),
         shouldLoadDraft
           ? expenseApi.getDraft()
-          : Promise.resolve<{ data?: ExpenseDraft[]; error?: string }>({ data: [] }),
+          : Promise.resolve<{ data?: ExpenseDraft[]; error?: string }>({
+              data: [],
+            }),
         shouldLoadDraft
           ? expenseApi.getAssignedClients()
-          : Promise.resolve<{ data?: AssignedClient[]; error?: string }>({ data: [] }),
+          : Promise.resolve<{ data?: AssignedClient[]; error?: string }>({
+              data: [],
+            }),
       ]);
 
       if (expenseResult.error) {
@@ -403,14 +517,18 @@ export default function ExpenseClaims() {
 
       const draftClaims = Array.isArray(draftResult.data)
         ? draftResult.data
-          .map((draft) => buildDraftClaim(draft, clientsResult.data || []))
-          .filter((draft): draft is ExpenseClaim => Boolean(draft))
+            .map((draft) => buildDraftClaim(draft, clientsResult.data || []))
+            .filter((draft): draft is ExpenseClaim => Boolean(draft))
         : [];
 
       setExpenses([...draftClaims, ...normalizedExpenses]);
     } catch (fetchError) {
       console.error("Error fetching expenses:", fetchError);
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to load expenses");
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Failed to load expenses",
+      );
       setExpenses([]);
     } finally {
       setLoading(false);
@@ -421,8 +539,8 @@ export default function ExpenseClaims() {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [selectAllEmployees, setSelectAllEmployees] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
-  const [exportStatusFilter, setExportStatusFilter] = useState<string>('all');
+  const [exportFormat, setExportFormat] = useState<"csv" | "json">("csv");
+  const [exportStatusFilter, setExportStatusFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -442,7 +560,6 @@ export default function ExpenseClaims() {
       } else {
         setAssignedClients(clientsResult.data || []);
       }
-
     };
 
     fetchDialogData();
@@ -457,7 +574,7 @@ export default function ExpenseClaims() {
   const groupExpenses = (expenses: ExpenseClaim[]): GroupedExpenseClaim[] => {
     const grouped = new Map<string, ExpenseClaim[]>();
 
-    expenses.forEach(expense => {
+    expenses.forEach((expense) => {
       // Skip drafts from grouping - they should remain separate
       if (expense.isDraft) {
         const key = expense.id;
@@ -478,17 +595,21 @@ export default function ExpenseClaims() {
     const groupedItems = Array.from(grouped.entries()).map(([key, claims]) => {
       const firstClaim = claims[0];
       const totalAmount = claims.reduce((sum, claim) => sum + claim.amount, 0);
-      const categories = Array.from(new Set(claims.map(c => c.category)));
-      const clientNames = Array.from(new Set(claims.map(c => c.clientName).filter(Boolean)));
-      const clientIds = Array.from(new Set(claims.map(c => c.clientId).filter(Boolean)));
+      const categories = Array.from(new Set(claims.map((c) => c.category)));
+      const clientNames = Array.from(
+        new Set(claims.map((c) => c.clientName).filter(Boolean)),
+      );
+      const clientIds = Array.from(
+        new Set(claims.map((c) => c.clientId).filter(Boolean)),
+      );
 
       // Determine status - if any claim is pending, show as pending, otherwise use first claim's status
       let status: ExpenseClaim["status"] = firstClaim.status;
-      if (claims.some(c => c.status === "pending")) {
+      if (claims.some((c) => c.status === "pending")) {
         status = "pending";
-      } else if (claims.some(c => c.status === "approved")) {
+      } else if (claims.some((c) => c.status === "approved")) {
         status = "approved";
-      } else if (claims.some(c => c.status === "rejected")) {
+      } else if (claims.some((c) => c.status === "rejected")) {
         status = "rejected";
       }
 
@@ -497,13 +618,17 @@ export default function ExpenseClaims() {
         employeeId: firstClaim.employeeId,
         employeeName: firstClaim.employeeName,
         clientId: clientIds.length === 1 ? clientIds[0] : "",
-        clientName: clientNames.length > 1 ? `${clientNames[0]} +${clientNames.length - 1}` : clientNames[0] || "-",
+        clientName:
+          clientNames.length > 1
+            ? `${clientNames[0]} +${clientNames.length - 1}`
+            : clientNames[0] || "-",
         categories,
         totalAmount,
         date: firstClaim.date,
-        description: claims.length > 1
-          ? `${claims.length} expense(s) - ${categories.join(", ")}`
-          : firstClaim.description,
+        description:
+          claims.length > 1
+            ? `${claims.length} expense(s) - ${categories.join(", ")}`
+            : firstClaim.description,
         status,
         approvedBy: firstClaim.approvedBy,
         createdAt: firstClaim.createdAt,
@@ -524,8 +649,19 @@ export default function ExpenseClaims() {
   };
 
   const filteredExpenses = useMemo(() => {
-    console.log("Filtering expenses. Current expenses:", expenses);
-    console.log("Search term:", searchTerm, "Filter status:", filterStatus, "Filter month:", filterMonth, "From:", filterFromDate, "To:", filterToDate);
+    // console.log("Filtering expenses. Current expenses:", expenses);
+    // console.log(
+    //   "Search term:",
+    //   searchTerm,
+    //   "Filter status:",
+    //   filterStatus,
+    //   "Filter month:",
+    //   filterMonth,
+    //   "From:",
+    //   filterFromDate,
+    //   "To:",
+    //   filterToDate,
+    // );
 
     let filtered = [...expenses]; // Create a copy of the expenses array
 
@@ -533,14 +669,24 @@ export default function ExpenseClaims() {
     if (hasRole(user, "employee")) {
       const userId = user?.id || "";
       const formattedEmployeeId = getEmployeeIdForUser(userId);
-      console.log("Filtering for user ID:", userId, "Formatted employee ID:", formattedEmployeeId);
-      console.log("Available employee IDs in expenses:", expenses.map(e => e.employeeId));
+      // console.log(
+      //   "Filtering for user ID:",
+      //   userId,
+      //   "Formatted employee ID:",
+      //   formattedEmployeeId,
+      // );
+      // console.log(
+      //   "Available employee IDs in expenses:",
+      //   expenses.map((e) => e.employeeId),
+      // );
 
       filtered = filtered.filter((exp) => {
         // Check both formats: numeric ID (37) and formatted ID (EMP037)
-        return exp.employeeId === userId ||
+        return (
+          exp.employeeId === userId ||
           exp.employeeId === formattedEmployeeId ||
-          exp.employeeId === parseInt(userId)?.toString();
+          exp.employeeId === parseInt(userId)?.toString()
+        );
       });
     }
 
@@ -553,32 +699,50 @@ export default function ExpenseClaims() {
         exp.category?.toLowerCase().includes(normalizedSearchTerm) ||
         exp.description?.toLowerCase().includes(normalizedSearchTerm) ||
         exp.clientName?.toLowerCase().includes(normalizedSearchTerm);
-      const matchesStatus = filterStatus === "all" || exp.status === filterStatus;
+      const matchesStatus =
+        filterStatus === "all" || exp.status === filterStatus;
       return Boolean(matchesSearch) && matchesStatus;
     });
 
     filtered = filtered.filter((exp) => {
       const normalizedDate = formatDateValue(exp.date);
-      const matchesMonth = !filterMonth || normalizedDate.startsWith(filterMonth);
-      const matchesFromDate = !filterFromDate || normalizedDate >= filterFromDate;
+      const matchesMonth =
+        !filterMonth || normalizedDate.startsWith(filterMonth);
+      const matchesFromDate =
+        !filterFromDate || normalizedDate >= filterFromDate;
       const matchesToDate = !filterToDate || normalizedDate <= filterToDate;
       return matchesMonth && matchesFromDate && matchesToDate;
     });
 
-    console.log("Filtered expenses result:", filtered);
+    // console.log("Filtered expenses result:", filtered);
 
     // Group the filtered expenses
     return groupExpenses(filtered);
-  }, [expenses, searchTerm, filterStatus, filterMonth, filterFromDate, filterToDate, user]);
+  }, [
+    expenses,
+    searchTerm,
+    filterStatus,
+    filterMonth,
+    filterFromDate,
+    filterToDate,
+    user,
+  ]);
 
   const handleOpenDialog = (expense?: ExpenseClaim | GroupedExpenseClaim) => {
     setError(null); // Clear any previous errors
 
     // Check if it's a grouped expense
-    const isGrouped = expense && 'claims' in expense;
+    const isGrouped = expense && "claims" in expense;
     const targetExpense = isGrouped ? expense.claims[0] : expense;
 
-    if (expense && !("claims" in expense ? canEditClaim(expense) : !["approved", "reimbursed"].includes(String(expense.status).toLowerCase()))) {
+    if (
+      expense &&
+      !("claims" in expense
+        ? canEditClaim(expense)
+        : !["approved", "reimbursed"].includes(
+            String(expense.status).toLowerCase(),
+          ))
+    ) {
       showToast.error("Approved expenses cannot be edited");
       return;
     }
@@ -597,31 +761,33 @@ export default function ExpenseClaims() {
       setExpenseDate(
         targetExpense.draftRows?.[0]?.expense_date
           ? formatDateValue(targetExpense.draftRows[0].expense_date)
-          : new Date().toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
       );
       setExpenseRows(
         targetExpense.draftRows?.length
           ? targetExpense.draftRows.map((row) => ({
-            category: (row.category as ExpenseCategory) || "",
-            amount: row.amount?.toString?.() ?? String(row.amount ?? ""),
-            description: row.description || "",
-            receiptFile: null,
-            receiptPath: row.receipt_path || null,
-            isScanning: false,
-            scanData: null,
-          }))
-          : [makeEmptyRow()]
+              category: (row.category as ExpenseCategory) || "",
+              amount: row.amount?.toString?.() ?? String(row.amount ?? ""),
+              description: row.description || "",
+              receiptFile: null,
+              receiptPath: row.receipt_path || null,
+              isScanning: false,
+              scanData: null,
+            }))
+          : [makeEmptyRow()],
       );
       setBillFile(null);
       setBillFileType("");
       setScanData(null);
       setEditReceipt(null);
       if (targetExpense.draftRows?.length) {
-        const hasReceipts = targetExpense.draftRows.some((row) => row.receipt_path || row.receipt_url);
+        const hasReceipts = targetExpense.draftRows.some(
+          (row) => row.receipt_path || row.receipt_url,
+        );
         showToast.info(
           hasReceipts
             ? "Draft loaded with saved receipts."
-            : "Draft loaded. Please re-upload files before submitting."
+            : "Draft loaded. Please re-upload files before submitting.",
         );
       }
     } else if (targetExpense) {
@@ -632,33 +798,48 @@ export default function ExpenseClaims() {
         setIsGroupedEdit(true);
         setGroupedEditingClaims(expense.claims);
         // For grouped expenses, convert all claims to expense rows
-        const groupedExpenseRows: ExpenseRow[] = expense.claims.map((claim, index) => {
-          const originalCategory = claim.category as string;
-          const normalizedCategory = originalCategory?.toLowerCase().trim();
-          const validCategory = (["travel", "food", "accommodation", "others"].includes(normalizedCategory) ? normalizedCategory as ExpenseCategory : "");
+        const groupedExpenseRows: ExpenseRow[] = expense.claims.map(
+          (claim, index) => {
+            const originalCategory = claim.category as string;
+            const normalizedCategory = originalCategory?.toLowerCase().trim();
+            const validCategory = [
+              "travel",
+              "food",
+              "accommodation",
+              "others",
+            ].includes(normalizedCategory)
+              ? (normalizedCategory as ExpenseCategory)
+              : "";
 
-          console.log(`Claim ${index + 1}:`, {
-            originalCategory,
-            normalizedCategory,
-            validCategory,
-            claim: claim
-          });
+            // console.log(`Claim ${index + 1}:`, {
+            //   originalCategory,
+            //   normalizedCategory,
+            //   validCategory,
+            //   claim: claim,
+            // });
 
-          return {
-            category: validCategory,
-            amount: claim.amount?.toString() || "",
-            description: claim.description || "",
-            receiptFile: null,
-            receiptPath: claim.receiptPath || null,
-            isScanning: false,
-            scanData: null,
-          };
-        });
+            return {
+              category: validCategory,
+              amount: claim.amount?.toString() || "",
+              description: claim.description || "",
+              receiptFile: null,
+              receiptPath: claim.receiptPath || null,
+              isScanning: false,
+              scanData: null,
+            };
+          },
+        );
 
         setExpenseRows(groupedExpenseRows);
         setExpenseDate(targetExpense.date);
-        const groupedClientIds = Array.from(new Set(expense.claims.map((claim) => claim.clientId).filter(Boolean)));
-        setAssignedClientId(groupedClientIds.length === 1 ? groupedClientIds[0] || "" : "");
+        const groupedClientIds = Array.from(
+          new Set(
+            expense.claims.map((claim) => claim.clientId).filter(Boolean),
+          ),
+        );
+        setAssignedClientId(
+          groupedClientIds.length === 1 ? groupedClientIds[0] || "" : "",
+        );
         setEditingId(null); // Set to null to indicate multi-claim editing
         setFormData({
           status: targetExpense.status,
@@ -679,7 +860,9 @@ export default function ExpenseClaims() {
         setBillFileType("");
         setEditReceipt({
           path: (targetExpense as ExpenseClaim).receiptPath || null,
-          url: (targetExpense as ExpenseClaim).receiptUrl || resolveReceiptUrl((targetExpense as ExpenseClaim).receiptPath),
+          url:
+            (targetExpense as ExpenseClaim).receiptUrl ||
+            resolveReceiptUrl((targetExpense as ExpenseClaim).receiptPath),
         });
       }
     } else {
@@ -721,7 +904,8 @@ export default function ExpenseClaims() {
     const file = e.target.files?.[0];
     if (file) {
       if (!isValidExpenseFile(file)) {
-        const message = "Only image files (PNG, JPG, JPEG, WebP, SVG) and PDF files are allowed.";
+        const message =
+          "Only image files (PNG, JPG, JPEG, WebP, SVG) and PDF files are allowed.";
         setError(message);
         showToast.error(message);
         e.target.value = "";
@@ -740,21 +924,24 @@ export default function ExpenseClaims() {
           setScanData(ocrData);
 
           // Auto-fill form with scanned data
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
             amount: ocrData.amount || prev.amount,
-            date: ocrData.date || prev.date || new Date().toISOString().split('T')[0], // Use today's date if no OCR date
+            date:
+              ocrData.date ||
+              prev.date ||
+              new Date().toISOString().split("T")[0], // Use today's date if no OCR date
             category: ocrData.category || prev.category,
-            description: ocrData.vendor || prev.description
+            description: ocrData.vendor || prev.description,
           }));
 
-          console.log('OCR Data:', ocrData);
+          // console.log("OCR Data:", ocrData);
         } else {
-          setError(scanResult.error || 'Failed to scan receipt');
+          setError(scanResult.error || "Failed to scan receipt");
         }
       } catch (scanError) {
-        console.error('Scanning error:', scanError);
-        setError('Failed to scan receipt. You can still upload manually.');
+        console.error("Scanning error:", scanError);
+        setError("Failed to scan receipt. You can still upload manually.");
       } finally {
         setScanning(false);
       }
@@ -790,22 +977,33 @@ export default function ExpenseClaims() {
   };
 
   const updateRow = (index: number, patch: Partial<ExpenseRow>) => {
-    setExpenseRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+    setExpenseRows((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
     setError(null);
   };
 
-  const normalizeScannedCategory = (category?: string | null): ExpenseCategory | "" => {
-    const normalized = String(category || "").trim().toLowerCase();
+  const normalizeScannedCategory = (
+    category?: string | null,
+  ): ExpenseCategory | "" => {
+    const normalized = String(category || "")
+      .trim()
+      .toLowerCase();
     if (normalized.includes("travel")) return "travel";
     if (normalized.includes("food")) return "food";
-    if (normalized.includes("accommodation") || normalized.includes("accomodation")) return "accommodation";
+    if (
+      normalized.includes("accommodation") ||
+      normalized.includes("accomodation")
+    )
+      return "accommodation";
     if (normalized.includes("other")) return "others";
     return "";
   };
 
   const handleRowReceiptSelection = (index: number, file: File | null) => {
     if (file && !isValidExpenseFile(file)) {
-      const message = "Only image files (PNG, JPG, JPEG, WebP, SVG) and PDF files are allowed.";
+      const message =
+        "Only image files (PNG, JPG, JPEG, WebP, SVG) and PDF files are allowed.";
       setError(message);
       showToast.error(message);
       return false;
@@ -820,12 +1018,16 @@ export default function ExpenseClaims() {
     return true;
   };
 
-  const handleRowReceiptScan = async (index: number, overrideFile?: File | null) => {
+  const handleRowReceiptScan = async (
+    index: number,
+    overrideFile?: File | null,
+  ) => {
     const row = expenseRows[index];
     const file = overrideFile || row?.receiptFile;
 
     if (!file) {
-      const message = "First upload a receipt for this expense row, then use Auto Scan.";
+      const message =
+        "First upload a receipt for this expense row, then use Auto Scan.";
       setError(message);
       showToast.error(message);
       return;
@@ -855,7 +1057,7 @@ export default function ExpenseClaims() {
             scanData: ocrData,
             isScanning: false,
           };
-        })
+        }),
       );
 
       if (ocrData.date) {
@@ -878,7 +1080,7 @@ export default function ExpenseClaims() {
   const processRowReceiptFile = async (
     index: number,
     file: File | null,
-    mode: "upload" | "scan" = "upload"
+    mode: "upload" | "scan" = "upload",
   ) => {
     const success = handleRowReceiptSelection(index, file);
     if (!success || !file) {
@@ -926,7 +1128,9 @@ export default function ExpenseClaims() {
   };
 
   const adjustDraftReceiptZoom = (delta: number) => {
-    setDraftReceiptZoom((current) => Math.min(3, Math.max(0.5, Number((current + delta).toFixed(2)))));
+    setDraftReceiptZoom((current) =>
+      Math.min(3, Math.max(0.5, Number((current + delta).toFixed(2)))),
+    );
   };
 
   const resolveReceiptUrl = (path?: string | null) => {
@@ -937,7 +1141,10 @@ export default function ExpenseClaims() {
       try {
         return `${new URL(BASE_URL).origin}${normalizedPath}`;
       } catch {
-        const normalizedBaseUrl = BASE_URL.replace(/\/backend\/?$/, "").replace(/\/+$/, "");
+        const normalizedBaseUrl = BASE_URL.replace(/\/backend\/?$/, "").replace(
+          /\/+$/,
+          "",
+        );
         return `${normalizedBaseUrl}${normalizedPath}`;
       }
     }
@@ -947,7 +1154,13 @@ export default function ExpenseClaims() {
   };
 
   const closePreview = () => {
-    setPreview((prev) => ({ ...prev, open: false, url: "", name: "", type: "" }));
+    setPreview((prev) => ({
+      ...prev,
+      open: false,
+      url: "",
+      name: "",
+      type: "",
+    }));
   };
 
   const handleSaveDraft = async () => {
@@ -980,7 +1193,9 @@ export default function ExpenseClaims() {
       const result = await expenseApi.saveDraft(formData);
 
       if (result.error) throw new Error(result.error);
-      setEditingDraftId(result.data?.draft_id ? Number(result.data.draft_id) : editingDraftId);
+      setEditingDraftId(
+        result.data?.draft_id ? Number(result.data.draft_id) : editingDraftId,
+      );
       showToast.success("Draft saved");
       await refreshExpenses();
       setIsDialogOpen(false);
@@ -1029,7 +1244,10 @@ export default function ExpenseClaims() {
       setLoading(true);
 
       if (isGroupedEdit) {
-        if (!groupedEditingClaims.length || groupedEditingClaims.length !== expenseRows.length) {
+        if (
+          !groupedEditingClaims.length ||
+          groupedEditingClaims.length !== expenseRows.length
+        ) {
           setError("Unable to match grouped expense rows for update");
           setLoading(false);
           return;
@@ -1146,11 +1364,14 @@ export default function ExpenseClaims() {
         if (editingDraftId) {
           try {
             await expenseApi.clearDraft(editingDraftId);
-          } catch { }
+          } catch {}
         }
 
         // Trigger a single notification (summary)
-        const totalAmount = payloadRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+        const totalAmount = payloadRows.reduce(
+          (sum, r) => sum + (Number(r.amount) || 0),
+          0,
+        );
         const notificationService = NotificationTriggerService.getInstance();
         await notificationService.triggerExpenseApplied({
           employeeId: user?.id || "",
@@ -1203,7 +1424,10 @@ export default function ExpenseClaims() {
         remove_receipt: !billFile?.file && !editReceipt?.path,
       };
 
-      const updateResult = await expenseApi.updateExpense(editingId, expenseData);
+      const updateResult = await expenseApi.updateExpense(
+        editingId,
+        expenseData,
+      );
       if (updateResult.error) {
         throw new Error(updateResult.error);
       }
@@ -1222,7 +1446,9 @@ export default function ExpenseClaims() {
       setEditingDraftId(null);
     } catch (error) {
       console.error("Error saving expense:", error);
-      setError(error instanceof Error ? error.message : "Failed to save expense");
+      setError(
+        error instanceof Error ? error.message : "Failed to save expense",
+      );
     } finally {
       setLoading(false);
     }
@@ -1239,9 +1465,11 @@ export default function ExpenseClaims() {
       return;
     }
 
-    const resolvedDeleteId = targetExpense?.isDraft && targetExpense.draftId
-      ? `draft-record-${targetExpense.draftId}`
-      : targetExpense?.claims?.[0]?.id || (typeof expenseOrId === "string" ? expenseOrId : targetExpense?.id);
+    const resolvedDeleteId =
+      targetExpense?.isDraft && targetExpense.draftId
+        ? `draft-record-${targetExpense.draftId}`
+        : targetExpense?.claims?.[0]?.id ||
+          (typeof expenseOrId === "string" ? expenseOrId : targetExpense?.id);
 
     if (!resolvedDeleteId) {
       showToast.error("Unable to identify the expense to delete");
@@ -1281,14 +1509,19 @@ export default function ExpenseClaims() {
         setDeleteId(null);
       } catch (error) {
         console.error("Error deleting expense:", error);
-        showToast.error(error instanceof Error ? error.message : "Failed to delete expense");
+        showToast.error(
+          error instanceof Error ? error.message : "Failed to delete expense",
+        );
       } finally {
         setLoading(false);
       }
     }
   };
 
-  const handleApprovalAction = (expenseId: string, action: "approve" | "reject") => {
+  const handleApprovalAction = (
+    expenseId: string,
+    action: "approve" | "reject",
+  ) => {
     setActionExpenseId(expenseId);
     setApprovalAction(action);
     setApprovalNotes("");
@@ -1300,7 +1533,8 @@ export default function ExpenseClaims() {
       try {
         setLoading(true);
 
-        const newStatus = approvalAction === "approve" ? "approved" : "rejected";
+        const newStatus =
+          approvalAction === "approve" ? "approved" : "rejected";
         const payload = {
           status: newStatus.charAt(0).toUpperCase() + newStatus.slice(1),
           approval_note: approvalNotes || null,
@@ -1322,7 +1556,11 @@ export default function ExpenseClaims() {
         setApprovalNotes("");
       } catch (error) {
         console.error("Error updating expense status:", error);
-        showToast.error(error instanceof Error ? error.message : "Failed to update expense status");
+        showToast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update expense status",
+        );
       } finally {
         setLoading(false);
       }
@@ -1358,15 +1596,21 @@ export default function ExpenseClaims() {
               }
               return urls;
             })
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
 
-      if (expense.isDraft && expense.draftReceiptPaths && expense.draftReceiptPaths.length > 1) {
+      if (
+        expense.isDraft &&
+        expense.draftReceiptPaths &&
+        expense.draftReceiptPaths.length > 1
+      ) {
         setDraftReceiptZoom(1);
         setDraftReceiptGallery({
           open: true,
-          urls: expense.draftReceiptPaths.map((path) => resolveReceiptUrl(path)).filter(Boolean),
+          urls: expense.draftReceiptPaths
+            .map((path) => resolveReceiptUrl(path))
+            .filter(Boolean),
         });
         return;
       }
@@ -1382,7 +1626,11 @@ export default function ExpenseClaims() {
 
       const firstUrl = groupedUrls[0];
       if (!firstUrl) {
-        showToast.error(expense.isDraft ? "No draft attachment found" : "No bill attached for this claim");
+        showToast.error(
+          expense.isDraft
+            ? "No draft attachment found"
+            : "No bill attached for this claim",
+        );
         return;
       }
 
@@ -1390,34 +1638,51 @@ export default function ExpenseClaims() {
       return;
     }
 
-    if (expense.isDraft && expense.draftReceiptPaths && expense.draftReceiptPaths.length > 1) {
+    if (
+      expense.isDraft &&
+      expense.draftReceiptPaths &&
+      expense.draftReceiptPaths.length > 1
+    ) {
       setDraftReceiptZoom(1);
       setDraftReceiptGallery({
         open: true,
-        urls: expense.draftReceiptPaths.map((path) => resolveReceiptUrl(path)).filter(Boolean),
+        urls: expense.draftReceiptPaths
+          .map((path) => resolveReceiptUrl(path))
+          .filter(Boolean),
       });
       return;
     }
 
     const url = expense.receiptUrl || resolveReceiptUrl(expense.receiptPath);
     if (!url) {
-      showToast.error(expense.isDraft ? "No draft attachment found" : "No bill attached for this claim");
+      showToast.error(
+        expense.isDraft
+          ? "No draft attachment found"
+          : "No bill attached for this claim",
+      );
       return;
     }
 
-    openPreviewFromUrl(url, expense.receiptPath?.split("/").pop() || expense.category || "Receipt");
+    openPreviewFromUrl(
+      url,
+      expense.receiptPath?.split("/").pop() || expense.category || "Receipt",
+    );
   };
 
   const canEditClaim = (expense: GroupedExpenseClaim) => {
     if (expense.isDraft) {
-      return canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims");
+      return (
+        canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims")
+      );
     }
 
     if (["approved", "reimbursed"].includes(expense.status)) {
       return false;
     }
 
-    return canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims");
+    return (
+      canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims")
+    );
   };
 
   const canDeleteClaim = (expense: GroupedExpenseClaim) => {
@@ -1429,7 +1694,9 @@ export default function ExpenseClaims() {
       return false;
     }
 
-    return canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims");
+    return (
+      canClaimExpenses || canPerformModuleAction("expenses", "edit", "claims")
+    );
   };
 
   const getReceiptPreviewType = (url: string) => {
@@ -1442,7 +1709,7 @@ export default function ExpenseClaims() {
   // Get unique employees for export selection
   const uniqueEmployees = useMemo(() => {
     const employees = new Map<string, string>();
-    expenses.forEach(exp => {
+    expenses.forEach((exp) => {
       if (exp.employeeId && exp.employeeName) {
         employees.set(exp.employeeId, exp.employeeName);
       }
@@ -1454,7 +1721,7 @@ export default function ExpenseClaims() {
   const handleSelectAllEmployees = (checked: boolean) => {
     setSelectAllEmployees(checked);
     if (checked) {
-      setSelectedEmployees(uniqueEmployees.map(emp => emp.id));
+      setSelectedEmployees(uniqueEmployees.map((emp) => emp.id));
     } else {
       setSelectedEmployees([]);
     }
@@ -1463,9 +1730,9 @@ export default function ExpenseClaims() {
   // Handle individual employee selection
   const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
     if (checked) {
-      setSelectedEmployees(prev => [...prev, employeeId]);
+      setSelectedEmployees((prev) => [...prev, employeeId]);
     } else {
-      setSelectedEmployees(prev => prev.filter(id => id !== employeeId));
+      setSelectedEmployees((prev) => prev.filter((id) => id !== employeeId));
     }
   };
 
@@ -1480,7 +1747,10 @@ export default function ExpenseClaims() {
     if (filterMonth) {
       const [year, month] = filterMonth.split("-").map(Number);
       if (Number.isFinite(year) && Number.isFinite(month)) {
-        const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, "0");
+        const lastDay = String(new Date(year, month, 0).getDate()).padStart(
+          2,
+          "0",
+        );
         return {
           startDate: `${filterMonth}-01`,
           endDate: `${filterMonth}-${lastDay}`,
@@ -1497,13 +1767,14 @@ export default function ExpenseClaims() {
       setExporting(true);
 
       const exportData = {
-        employeeIds: selectAllEmployees ? ['all'] : selectedEmployees,
+        employeeIds: selectAllEmployees ? ["all"] : selectedEmployees,
         expenseIds: filteredExpenses.flatMap((expense) =>
           expense.claims.map((claim) => claim.id).filter(Boolean),
         ),
         format: exportFormat,
-        statusFilter: exportStatusFilter !== 'all' ? exportStatusFilter : filterStatus,
-        dateFilter: getActiveExportDateFilter()
+        statusFilter:
+          exportStatusFilter !== "all" ? exportStatusFilter : filterStatus,
+        dateFilter: getActiveExportDateFilter(),
       };
 
       const response = await expenseApi.exportExpenses(exportData);
@@ -1513,12 +1784,12 @@ export default function ExpenseClaims() {
       }
 
       // Handle file download for CSV
-      if (exportFormat === 'csv') {
-        const blob = new Blob([response.data], { type: 'text/csv' });
+      if (exportFormat === "csv") {
+        const blob = new Blob([response.data], { type: "text/csv" });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `expense_claim_model_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `expense_claim_model_${new Date().toISOString().split("T")[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -1526,11 +1797,11 @@ export default function ExpenseClaims() {
       } else {
         // For JSON, create and download file
         const jsonString = JSON.stringify(response.data, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
+        const blob = new Blob([jsonString], { type: "application/json" });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `expenses_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `expenses_${new Date().toISOString().split("T")[0]}.json`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -1541,10 +1812,12 @@ export default function ExpenseClaims() {
       // Reset export selections
       setSelectedEmployees([]);
       setSelectAllEmployees(false);
-      setExportStatusFilter('all');
+      setExportStatusFilter("all");
     } catch (error) {
-      console.error('Export error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to export expenses');
+      console.error("Export error:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to export expenses",
+      );
     } finally {
       setExporting(false);
     }
@@ -1564,17 +1837,21 @@ export default function ExpenseClaims() {
     setFilterToDate("");
   };
 
-
-
-
-
-
-
-  const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
-  const pendingClaims = filteredExpenses.filter((expense) => expense.status === "pending");
-  const approvedClaims = filteredExpenses.filter((expense) => expense.status === "approved");
-  const reimbursedClaims = filteredExpenses.filter((expense) => expense.status === "reimbursed");
-  const formatClaimAmount = (amount: number) => `₹${(Number(amount) || 0).toLocaleString()}`;
+  const totalAmount = filteredExpenses.reduce(
+    (sum, e) => sum + e.totalAmount,
+    0,
+  );
+  const pendingClaims = filteredExpenses.filter(
+    (expense) => expense.status === "pending",
+  );
+  const approvedClaims = filteredExpenses.filter(
+    (expense) => expense.status === "approved",
+  );
+  const reimbursedClaims = filteredExpenses.filter(
+    (expense) => expense.status === "reimbursed",
+  );
+  const formatClaimAmount = (amount: number) =>
+    `₹${(Number(amount) || 0).toLocaleString()}`;
 
   return (
     <Layout>
@@ -1585,60 +1862,92 @@ export default function ExpenseClaims() {
             <span className="hidden sm:inline">Expense Management</span>
             <span className="sm:hidden">Expenses</span>
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Manage and track employee expense claims</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+            Manage and track employee expense claims
+          </p>
         </div>
 
         {(hasRole(user, "finance") || hasRole(user, "admin")) && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             <Card>
               <CardContent className="pt-3 sm:pt-6">
-                <div className="text-xs sm:text-sm font-medium text-muted-foreground">Total Claims</div>
-                <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2">{filteredExpenses.length}</div>
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Total Claims
+                </div>
+                <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2">
+                  {filteredExpenses.length}
+                </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-3 sm:pt-6">
-                <div className="text-xs sm:text-sm font-medium text-muted-foreground">Approved</div>
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Approved
+                </div>
                 <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-green-600">
-                  ₹{filteredExpenses.filter((e) => e.status === "approved").reduce((sum, e) => sum + e.totalAmount, 0).toLocaleString()}
+                  ₹
+                  {filteredExpenses
+                    .filter((e) => e.status === "approved")
+                    .reduce((sum, e) => sum + e.totalAmount, 0)
+                    .toLocaleString()}
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-3 sm:pt-6">
-                <div className="text-xs sm:text-sm font-medium text-muted-foreground">Pending</div>
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Pending
+                </div>
                 <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-yellow-600">
-                  ₹{filteredExpenses.filter((e) => e.status === "pending").reduce((sum, e) => sum + e.totalAmount, 0).toLocaleString()}
+                  ₹
+                  {filteredExpenses
+                    .filter((e) => e.status === "pending")
+                    .reduce((sum, e) => sum + e.totalAmount, 0)
+                    .toLocaleString()}
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-3 sm:pt-6">
-                <div className="text-xs sm:text-sm font-medium text-muted-foreground">Reimbursed</div>
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Reimbursed
+                </div>
                 <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-teal-600">
-                  ₹{filteredExpenses.filter((e) => e.status === "reimbursed").reduce((sum, e) => sum + e.totalAmount, 0).toLocaleString()}
+                  ₹
+                  {filteredExpenses
+                    .filter((e) => e.status === "reimbursed")
+                    .reduce((sum, e) => sum + e.totalAmount, 0)
+                    .toLocaleString()}
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {(hasRole(user, "finance") || hasRole(user, "admin")) && canClaimExpenses && (
-          <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-            Submit Claim
-          </Button>
-        )}
+        {(hasRole(user, "finance") || hasRole(user, "admin")) &&
+          canClaimExpenses && (
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm"
+            >
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+              Submit Claim
+            </Button>
+          )}
 
-        {(hasRole(user, "finance") || hasRole(user, "admin")) ? (
+        {hasRole(user, "finance") || hasRole(user, "admin") ? (
           <Card>
             <CardHeader className="pb-3 sm:pb-4">
-              <CardTitle className="text-lg sm:text-xl">Filters & Export</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
+                Filters & Export
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2 sm:gap-4">
                 <div>
-                  <Label htmlFor="search" className="text-xs sm:text-sm">Search</Label>
+                  <Label htmlFor="search" className="text-xs sm:text-sm">
+                    Search
+                  </Label>
                   <div className="relative mt-1.5 sm:mt-2">
                     <Search className="absolute left-2 sm:left-3 top-2.5 w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                     <Input
@@ -1652,9 +1961,14 @@ export default function ExpenseClaims() {
                 </div>
 
                 <div>
-                  <Label htmlFor="status" className="text-xs sm:text-sm">Status</Label>
+                  <Label htmlFor="status" className="text-xs sm:text-sm">
+                    Status
+                  </Label>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger id="status" className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                    <SelectTrigger
+                      id="status"
+                      className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1668,7 +1982,9 @@ export default function ExpenseClaims() {
                 </div>
 
                 <div>
-                  <Label htmlFor="month" className="text-xs sm:text-sm">Month</Label>
+                  <Label htmlFor="month" className="text-xs sm:text-sm">
+                    Month
+                  </Label>
                   <Input
                     id="month"
                     type="month"
@@ -1679,7 +1995,9 @@ export default function ExpenseClaims() {
                 </div>
 
                 <div>
-                  <Label htmlFor="from-date" className="text-xs sm:text-sm">From Date</Label>
+                  <Label htmlFor="from-date" className="text-xs sm:text-sm">
+                    From Date
+                  </Label>
                   <Input
                     id="from-date"
                     type="date"
@@ -1690,7 +2008,9 @@ export default function ExpenseClaims() {
                 </div>
 
                 <div>
-                  <Label htmlFor="to-date" className="text-xs sm:text-sm">To Date</Label>
+                  <Label htmlFor="to-date" className="text-xs sm:text-sm">
+                    To Date
+                  </Label>
                   <Input
                     id="to-date"
                     type="date"
@@ -1726,7 +2046,10 @@ export default function ExpenseClaims() {
         ) : (
           <div className="space-y-3">
             {canClaimExpenses && (
-              <Button onClick={() => handleOpenDialog()} className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm">
+              <Button
+                onClick={() => handleOpenDialog()}
+                className="gap-2 w-full md:w-auto h-8 sm:h-10 text-xs sm:text-sm"
+              >
                 <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                 Submit Claim
               </Button>
@@ -1736,9 +2059,20 @@ export default function ExpenseClaims() {
               <CardContent className="pt-4 sm:pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 sm:gap-4">
                   <div>
-                    <Label htmlFor="employee-status" className="text-xs sm:text-sm">Status</Label>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger id="employee-status" className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                    <Label
+                      htmlFor="employee-status"
+                      className="text-xs sm:text-sm"
+                    >
+                      Status
+                    </Label>
+                    <Select
+                      value={filterStatus}
+                      onValueChange={setFilterStatus}
+                    >
+                      <SelectTrigger
+                        id="employee-status"
+                        className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1753,7 +2087,12 @@ export default function ExpenseClaims() {
                   </div>
 
                   <div>
-                    <Label htmlFor="employee-month" className="text-xs sm:text-sm">Month</Label>
+                    <Label
+                      htmlFor="employee-month"
+                      className="text-xs sm:text-sm"
+                    >
+                      Month
+                    </Label>
                     <Input
                       id="employee-month"
                       type="month"
@@ -1764,7 +2103,12 @@ export default function ExpenseClaims() {
                   </div>
 
                   <div>
-                    <Label htmlFor="employee-from-date" className="text-xs sm:text-sm">From Date</Label>
+                    <Label
+                      htmlFor="employee-from-date"
+                      className="text-xs sm:text-sm"
+                    >
+                      From Date
+                    </Label>
                     <Input
                       id="employee-from-date"
                       type="date"
@@ -1775,7 +2119,12 @@ export default function ExpenseClaims() {
                   </div>
 
                   <div>
-                    <Label htmlFor="employee-to-date" className="text-xs sm:text-sm">To Date</Label>
+                    <Label
+                      htmlFor="employee-to-date"
+                      className="text-xs sm:text-sm"
+                    >
+                      To Date
+                    </Label>
                     <Input
                       id="employee-to-date"
                       type="date"
@@ -1805,27 +2154,46 @@ export default function ExpenseClaims() {
           <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-[#17c491]/10 via-white to-white pb-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <CardTitle className="text-xl font-bold text-slate-950">Claims ({filteredExpenses.length})</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-950">
+                  Claims ({filteredExpenses.length})
+                </CardTitle>
                 <CardDescription className="mt-1 text-sm text-slate-600">
-                  Employee-wise expense claims with date, client and approval status
+                  Employee-wise expense claims with date, client and approval
+                  status
                 </CardDescription>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="rounded-lg border border-white/80 bg-white px-3 py-2 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p>
-                  <p className="text-sm font-bold text-slate-950">{formatClaimAmount(totalAmount)}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Total
+                  </p>
+                  <p className="text-sm font-bold text-slate-950">
+                    {formatClaimAmount(totalAmount)}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-yellow-700">Pending</p>
-                  <p className="text-sm font-bold text-yellow-900">{pendingClaims.length}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-yellow-700">
+                    Pending
+                  </p>
+                  <p className="text-sm font-bold text-yellow-900">
+                    {pendingClaims.length}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Approved</p>
-                  <p className="text-sm font-bold text-emerald-900">{approvedClaims.length}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                    Approved
+                  </p>
+                  <p className="text-sm font-bold text-emerald-900">
+                    {approvedClaims.length}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Reimbursed</p>
-                  <p className="text-sm font-bold text-blue-900">{reimbursedClaims.length}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                    Reimbursed
+                  </p>
+                  <p className="text-sm font-bold text-blue-900">
+                    {reimbursedClaims.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1833,7 +2201,9 @@ export default function ExpenseClaims() {
           <CardContent className="p-0">
             {loading ? (
               <div className="text-center py-8 sm:py-12">
-                <p className="text-xs sm:text-sm text-muted-foreground">Loading expenses...</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Loading expenses...
+                </p>
               </div>
             ) : error ? (
               <div className="text-center py-8 sm:py-12">
@@ -1843,236 +2213,366 @@ export default function ExpenseClaims() {
               <>
                 {filteredExpenses.length === 0 && (
                   <div className="p-8 text-center">
-                    <p className="text-sm font-semibold text-slate-700">No expense claims found</p>
-                    <p className="mt-1 text-xs text-slate-500">Try changing the filters or date range.</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      No expense claims found
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Try changing the filters or date range.
+                    </p>
                   </div>
                 )}
                 {/* Mobile Card View */}
-                {filteredExpenses.length > 0 && <div className="space-y-3 p-3 md:hidden">
-                  {filteredExpenses.map((expense) => (
-                    <div key={expense.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="break-words text-sm font-bold text-slate-950">{expense.employeeName}</h3>
-                          <p className="mt-1 text-xs text-slate-500">{expense.date} {expense.clientName ? `- ${expense.clientName}` : ""}</p>
-                        </div>
-                        <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold capitalize whitespace-nowrap ${getStatusColor(expense.status)}`}>
-                          {expense.status}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="rounded-lg bg-slate-50 px-3 py-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Client</span>
-                          <span className="mt-1 block truncate font-semibold text-slate-900">{expense.clientName || "-"}</span>
-                        </div>
-                        <div className="rounded-lg bg-slate-50 px-3 py-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amount</span>
-                          <span className="mt-1 block font-bold text-slate-950">{formatClaimAmount(expense.totalAmount || 0)}</span>
-                        </div>
-                        <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">Category</span>
-                          <span className="mt-1 block text-sm font-semibold text-slate-900">{expense.categories.join(", ")}</span>
-                        </div>
-                        {expense.claims.length > 1 && (
-                          <div className="col-span-2 flex justify-between rounded-lg bg-slate-50 px-3 py-2">
-                            <span className="text-xs font-semibold text-slate-500">Items</span>
-                            <span className="text-xs font-bold text-slate-900">{expense.claims.length} expenses</span>
+                {filteredExpenses.length > 0 && (
+                  <div className="space-y-3 p-3 md:hidden">
+                    {filteredExpenses.map((expense) => (
+                      <div
+                        key={expense.id}
+                        className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+                      >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="break-words text-sm font-bold text-slate-950">
+                              {expense.employeeName}
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {expense.date}{" "}
+                              {expense.clientName
+                                ? `- ${expense.clientName}`
+                                : ""}
+                            </p>
                           </div>
-                        )}
-                      </div>
-                      <div className="mt-3 border-t border-slate-100 pt-3">
-                        {hasRole(user, "finance") ? (
-                          <div className="flex flex-wrap gap-2">
-                            {expense.status === "pending" && (
-                              <>
-                                <button
-                                  onClick={() => handleApprovalAction(expense.id, "approve")}
-                                  className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
-                                  title="Approve"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleApprovalAction(expense.id, "reject")}
-                                  className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
-                                  title="Reject"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {(expense.status === "approved" || expense.status === "rejected") && (
-                              <span className="text-xs text-muted-foreground flex-1">
-                                {expense.status === "approved" ? "Approved" : "Rejected"}
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[11px] font-semibold capitalize whitespace-nowrap ${getStatusColor(expense.status)}`}
+                          >
+                            {expense.status}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="rounded-lg bg-slate-50 px-3 py-2">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Client
+                            </span>
+                            <span className="mt-1 block truncate font-semibold text-slate-900">
+                              {expense.clientName || "-"}
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 px-3 py-2">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Amount
+                            </span>
+                            <span className="mt-1 block font-bold text-slate-950">
+                              {formatClaimAmount(expense.totalAmount || 0)}
+                            </span>
+                          </div>
+                          <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">
+                              Category
+                            </span>
+                            <span className="mt-1 block text-sm font-semibold text-slate-900">
+                              {expense.categories.join(", ")}
+                            </span>
+                          </div>
+                          {expense.claims.length > 1 && (
+                            <div className="col-span-2 flex justify-between rounded-lg bg-slate-50 px-3 py-2">
+                              <span className="text-xs font-semibold text-slate-500">
+                                Items
                               </span>
-                            )}
-                          </div>
-                        ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
-                          <div className="flex gap-2">
-                            {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
-                              <button
-                                onClick={() => handleViewReceipt(expense)}
-                                className="flex-1 rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
-                                title="View Bill"
-                              >
-                                <Eye className="mx-auto h-4 w-4" />
-                              </button>
-                            )}
-                            {canEditClaim(expense) && (
-                              <button
-                                onClick={() => handleOpenDialog(expense)}
-                                className="flex-1 rounded-lg border border-blue-100 p-2 text-blue-600 hover:bg-blue-50"
-                                title="Edit"
-                              >
-                                <Edit className="mx-auto h-4 w-4" />
-                              </button>
-                            )}
-                            {canDeleteClaim(expense) && (
-                              <button
-                                onClick={() => handleDelete(expense)}
-                                className="flex-1 rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"
-                                title={expense.isDraft ? "Delete Draft" : "Delete"}
-                              >
-                                <Trash2 className="mx-auto h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
+                              <span className="text-xs font-bold text-slate-900">
+                                {expense.claims.length} expenses
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-3 border-t border-slate-100 pt-3">
+                          {hasRole(user, "finance") ? (
+                            <div className="flex flex-wrap gap-2">
+                              {expense.status === "pending" && (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      handleApprovalAction(
+                                        expense.id,
+                                        "approve",
+                                      )
+                                    }
+                                    className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                                    title="Approve"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleApprovalAction(expense.id, "reject")
+                                    }
+                                    className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
+                                    title="Reject"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {(expense.status === "approved" ||
+                                expense.status === "rejected") && (
+                                <span className="text-xs text-muted-foreground flex-1">
+                                  {expense.status === "approved"
+                                    ? "Approved"
+                                    : "Rejected"}
+                                </span>
+                              )}
+                            </div>
+                          ) : expense.claims.some(
+                              (claim) => claim.receiptUrl || claim.receiptPath,
+                            ) ||
+                            canEditClaim(expense) ||
+                            canDeleteClaim(expense) ? (
+                            <div className="flex gap-2">
+                              {expense.claims.some(
+                                (claim) =>
+                                  claim.receiptUrl || claim.receiptPath,
+                              ) && (
+                                <button
+                                  onClick={() => handleViewReceipt(expense)}
+                                  className="flex-1 rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
+                                  title="View Bill"
+                                >
+                                  <Eye className="mx-auto h-4 w-4" />
+                                </button>
+                              )}
+                              {canEditClaim(expense) && (
+                                <button
+                                  onClick={() => handleOpenDialog(expense)}
+                                  className="flex-1 rounded-lg border border-blue-100 p-2 text-blue-600 hover:bg-blue-50"
+                                  title="Edit"
+                                >
+                                  <Edit className="mx-auto h-4 w-4" />
+                                </button>
+                              )}
+                              {canDeleteClaim(expense) && (
+                                <button
+                                  onClick={() => handleDelete(expense)}
+                                  className="flex-1 rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"
+                                  title={
+                                    expense.isDraft ? "Delete Draft" : "Delete"
+                                  }
+                                >
+                                  <Trash2 className="mx-auto h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              -
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>}
+                    ))}
+                  </div>
+                )}
 
                 {/* Desktop Table View */}
-                {filteredExpenses.length > 0 && <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[1120px] table-fixed text-sm">
-                    <colgroup>
-                      <col className="w-[230px]" />
-                      <col className="w-[150px]" />
-                      <col className="w-[260px]" />
-                      <col className="w-[300px]" />
-                      <col className="w-[130px]" />
-                      <col className="w-[140px]" />
-                      <col className="w-[120px]" />
-                    </colgroup>
-                    <thead className="sticky top-0 z-10">
-                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
-                        <th className="px-5 py-3 text-left font-bold">Employee</th>
-                        <th className="px-5 py-3 text-left font-bold">Claim Date</th>
-                        <th className="px-5 py-3 text-left font-bold">Client</th>
-                        <th className="px-5 py-3 text-left font-bold">Category</th>
-                        <th className="px-5 py-3 text-right font-bold">Amount</th>
-                        <th className="px-5 py-3 text-left font-bold">Status</th>
-                        <th className="px-5 py-3 text-center font-bold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredExpenses.map((expense) => (
-                        <tr key={expense.id} className="bg-white transition-colors hover:bg-[#17c491]/5">
-                          <td className="px-5 py-4 align-middle">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17c491]/10 text-sm font-bold text-[#0b6f53]">
-                                {expense.employeeName?.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "EX"}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="whitespace-normal break-words font-bold leading-snug text-slate-950">{expense.employeeName}</p>
-                                <p className="text-xs text-slate-500">{expense.claims.length > 1 ? `${expense.claims.length} expense items` : "1 expense item"}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 align-middle">
-                            <p className="font-semibold text-slate-900">{expense.date}</p>
-                            <p className="text-xs text-slate-500">Submitted claim</p>
-                          </td>
-                          <td className="px-5 py-4 align-middle">
-                            <p className="whitespace-normal break-words font-semibold leading-snug text-slate-900">{expense.clientName || "-"}</p>
-                            <p className="text-xs text-slate-500">{expense.clientName ? "Client visit" : "General expense"}</p>
-                          </td>
-                          <td className="px-5 py-4 align-middle">
-                            <div className="flex flex-wrap gap-1.5">
-                              {expense.categories.map((category) => (
-                                <span key={category} className="whitespace-nowrap rounded-full border border-[#17c491]/20 bg-[#17c491]/10 px-2 py-1 text-xs font-semibold text-[#0b6f53]">
-                                  {category}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-right align-middle">
-                            <p className="whitespace-nowrap text-base font-bold text-slate-950">{formatClaimAmount(expense.totalAmount || 0)}</p>
-                          </td>
-                          <td className="px-5 py-4 align-middle">
-                            <span className={`inline-flex min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-bold capitalize leading-none ${getStatusColor(expense.status)}`}>
-                              {expense.status}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4 align-middle">
-                            {hasRole(user, "finance") ? (
-                              <div className="flex justify-center gap-2">
-                                {expense.status === "pending" && (
-                                  <>
-                                    <button
-                                      onClick={() => handleApprovalAction(expense.id, "approve")}
-                                      className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
-                                      title="Approve"
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => handleApprovalAction(expense.id, "reject")}
-                                      className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
-                                      title="Reject"
-                                    >
-                                      Reject
-                                    </button>
-                                  </>
-                                )}
-                                {(expense.status === "approved" || expense.status === "rejected") && (
-                                  <span className="whitespace-nowrap text-xs text-muted-foreground">
-                                    {expense.status === "approved" ? "Approved" : "Rejected"}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) || canEditClaim(expense) || canDeleteClaim(expense)) ? (
-                              <div className="flex justify-center gap-1.5">
-                                {expense.claims.some((claim) => claim.receiptUrl || claim.receiptPath) && (
-                                  <button
-                                    onClick={() => handleViewReceipt(expense)}
-                                    className="rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
-                                    title="View Bill"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {canEditClaim(expense) && (
-                                  <button
-                                    onClick={() => handleOpenDialog(expense)}
-                                    className="rounded-lg border border-blue-100 p-2 text-blue-600 hover:bg-blue-50"
-                                    title="Edit"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {canDeleteClaim(expense) && (
-                                  <button
-                                    onClick={() => handleDelete(expense)}
-                                    className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"
-                                    title={expense.isDraft ? "Delete Draft" : "Delete"}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="block text-center text-xs text-muted-foreground">-</span>
-                            )}
-                          </td>
+                {filteredExpenses.length > 0 && (
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[1120px] table-fixed text-sm">
+                      <colgroup>
+                        <col className="w-[230px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[260px]" />
+                        <col className="w-[300px]" />
+                        <col className="w-[130px]" />
+                        <col className="w-[140px]" />
+                        <col className="w-[120px]" />
+                      </colgroup>
+                      <thead className="sticky top-0 z-10">
+                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+                          <th className="px-5 py-3 text-left font-bold">
+                            Employee
+                          </th>
+                          <th className="px-5 py-3 text-left font-bold">
+                            Claim Date
+                          </th>
+                          <th className="px-5 py-3 text-left font-bold">
+                            Client
+                          </th>
+                          <th className="px-5 py-3 text-left font-bold">
+                            Category
+                          </th>
+                          <th className="px-5 py-3 text-right font-bold">
+                            Amount
+                          </th>
+                          <th className="px-5 py-3 text-left font-bold">
+                            Status
+                          </th>
+                          <th className="px-5 py-3 text-center font-bold">
+                            Actions
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>}
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredExpenses.map((expense) => (
+                          <tr
+                            key={expense.id}
+                            className="bg-white transition-colors hover:bg-[#17c491]/5"
+                          >
+                            <td className="px-5 py-4 align-middle">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17c491]/10 text-sm font-bold text-[#0b6f53]">
+                                  {expense.employeeName
+                                    ?.split(" ")
+                                    .filter(Boolean)
+                                    .slice(0, 2)
+                                    .map((part) => part[0])
+                                    .join("")
+                                    .toUpperCase() || "EX"}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="whitespace-normal break-words font-bold leading-snug text-slate-950">
+                                    {expense.employeeName}
+                                  </p>
+                                  <p className="text-xs text-slate-500">
+                                    {expense.claims.length > 1
+                                      ? `${expense.claims.length} expense items`
+                                      : "1 expense item"}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 align-middle">
+                              <p className="font-semibold text-slate-900">
+                                {expense.date}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                Submitted claim
+                              </p>
+                            </td>
+                            <td className="px-5 py-4 align-middle">
+                              <p className="whitespace-normal break-words font-semibold leading-snug text-slate-900">
+                                {expense.clientName || "-"}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {expense.clientName
+                                  ? "Client visit"
+                                  : "General expense"}
+                              </p>
+                            </td>
+                            <td className="px-5 py-4 align-middle">
+                              <div className="flex flex-wrap gap-1.5">
+                                {expense.categories.map((category) => (
+                                  <span
+                                    key={category}
+                                    className="whitespace-nowrap rounded-full border border-[#17c491]/20 bg-[#17c491]/10 px-2 py-1 text-xs font-semibold text-[#0b6f53]"
+                                  >
+                                    {category}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-right align-middle">
+                              <p className="whitespace-nowrap text-base font-bold text-slate-950">
+                                {formatClaimAmount(expense.totalAmount || 0)}
+                              </p>
+                            </td>
+                            <td className="px-5 py-4 align-middle">
+                              <span
+                                className={`inline-flex min-w-[92px] items-center justify-center whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-bold capitalize leading-none ${getStatusColor(expense.status)}`}
+                              >
+                                {expense.status}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 align-middle">
+                              {hasRole(user, "finance") ? (
+                                <div className="flex justify-center gap-2">
+                                  {expense.status === "pending" && (
+                                    <>
+                                      <button
+                                        onClick={() =>
+                                          handleApprovalAction(
+                                            expense.id,
+                                            "approve",
+                                          )
+                                        }
+                                        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                                        title="Approve"
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleApprovalAction(
+                                            expense.id,
+                                            "reject",
+                                          )
+                                        }
+                                        className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700"
+                                        title="Reject"
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  )}
+                                  {(expense.status === "approved" ||
+                                    expense.status === "rejected") && (
+                                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                                      {expense.status === "approved"
+                                        ? "Approved"
+                                        : "Rejected"}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : expense.claims.some(
+                                  (claim) =>
+                                    claim.receiptUrl || claim.receiptPath,
+                                ) ||
+                                canEditClaim(expense) ||
+                                canDeleteClaim(expense) ? (
+                                <div className="flex justify-center gap-1.5">
+                                  {expense.claims.some(
+                                    (claim) =>
+                                      claim.receiptUrl || claim.receiptPath,
+                                  ) && (
+                                    <button
+                                      onClick={() => handleViewReceipt(expense)}
+                                      className="rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50"
+                                      title="View Bill"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {canEditClaim(expense) && (
+                                    <button
+                                      onClick={() => handleOpenDialog(expense)}
+                                      className="rounded-lg border border-blue-100 p-2 text-blue-600 hover:bg-blue-50"
+                                      title="Edit"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {canDeleteClaim(expense) && (
+                                    <button
+                                      onClick={() => handleDelete(expense)}
+                                      className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"
+                                      title={
+                                        expense.isDraft
+                                          ? "Delete Draft"
+                                          : "Delete"
+                                      }
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="block text-center text-xs text-muted-foreground">
+                                  -
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             )}
           </CardContent>
@@ -2083,10 +2583,13 @@ export default function ExpenseClaims() {
         <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
-              {isGroupedEdit ? `Edit ${expenseRows.length} Expense Claims` :
-                editingId ? "Edit Claim" :
-                  formData.status === "draft" ? "Edit Draft Expense Claims" :
-                    "Submit Expense Claims"}
+              {isGroupedEdit
+                ? `Edit ${expenseRows.length} Expense Claims`
+                : editingId
+                  ? "Edit Claim"
+                  : formData.status === "draft"
+                    ? "Edit Draft Expense Claims"
+                    : "Submit Expense Claims"}
             </DialogTitle>
           </DialogHeader>
 
@@ -2099,21 +2602,28 @@ export default function ExpenseClaims() {
 
           <div className="space-y-3 sm:space-y-4">
             <div
-              className={`grid grid-cols-1 ${(editingId && expenseRows.length <= 1) ? "sm:grid-cols-1" : "sm:grid-cols-3"} gap-2 sm:gap-4`}
+              className={`grid grid-cols-1 ${editingId && expenseRows.length <= 1 ? "sm:grid-cols-1" : "sm:grid-cols-3"} gap-2 sm:gap-4`}
             >
               <div>
                 <Label className="text-xs sm:text-sm">Employee Name</Label>
                 <Input
                   value={formData.employeeName || ""}
-                  onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, employeeName: e.target.value })
+                  }
                   disabled={hasRole(user, "employee") && !editingId}
                   className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
-              {(!editingId || isGroupedEdit || assignedClientId || assignedClients.length > 0) ? (
+              {!editingId ||
+              isGroupedEdit ||
+              assignedClientId ||
+              assignedClients.length > 0 ? (
                 <>
                   <div>
-                    <Label className="text-xs sm:text-sm">Assigned Client</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Assigned Client
+                    </Label>
                     <Select
                       value={assignedClientId}
                       onValueChange={(val) => {
@@ -2158,7 +2668,7 @@ export default function ExpenseClaims() {
               ) : null}
             </div>
 
-            {(editingId && expenseRows.length <= 1) ? (
+            {editingId && expenseRows.length <= 1 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                   <div>
@@ -2182,7 +2692,10 @@ export default function ExpenseClaims() {
                       type="number"
                       value={formData.amount || ""}
                       onChange={(e) => {
-                        setFormData({ ...formData, amount: parseFloat(e.target.value) });
+                        setFormData({
+                          ...formData,
+                          amount: parseFloat(e.target.value),
+                        });
                         setError(null); // Clear error when user starts typing
                       }}
                       className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
@@ -2206,7 +2719,9 @@ export default function ExpenseClaims() {
                   <Label className="text-xs sm:text-sm">Description</Label>
                   <Textarea
                     value={formData.description || ""}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     className="mt-1.5 sm:mt-2 text-xs sm:text-sm min-h-20 sm:min-h-24"
                   />
                 </div>
@@ -2301,13 +2816,17 @@ export default function ExpenseClaims() {
                 {/* </div> */}
 
                 <div className="border-t pt-3 mt-2">
-                  <Label className="block mb-2 text-xs sm:text-sm">Bill / Receipt</Label>
+                  <Label className="block mb-2 text-xs sm:text-sm">
+                    Bill / Receipt
+                  </Label>
 
                   {scanning && (
                     <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                        <span className="text-sm text-blue-800">Scanning receipt...</span>
+                        <span className="text-sm text-blue-800">
+                          Scanning receipt...
+                        </span>
                       </div>
                     </div>
                   )}
@@ -2316,13 +2835,21 @@ export default function ExpenseClaims() {
                     <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Camera className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-800">Receipt scanned successfully</span>
+                        <span className="text-sm font-medium text-green-800">
+                          Receipt scanned successfully
+                        </span>
                       </div>
                       <div className="text-xs text-green-700 space-y-1">
-                        {scanData.amount && <div>Amount: Rs.{scanData.amount}</div>}
+                        {scanData.amount && (
+                          <div>Amount: Rs.{scanData.amount}</div>
+                        )}
                         {scanData.date && <div>Date: {scanData.date}</div>}
-                        {scanData.vendor && <div>Vendor: {scanData.vendor}</div>}
-                        {scanData.category && <div>Category: {scanData.category}</div>}
+                        {scanData.vendor && (
+                          <div>Vendor: {scanData.vendor}</div>
+                        )}
+                        {scanData.category && (
+                          <div>Category: {scanData.category}</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2330,8 +2857,12 @@ export default function ExpenseClaims() {
                   {!billFile && editReceipt?.path && (
                     <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">Current attachment</p>
-                        <p className="text-xs text-muted-foreground truncate">{editReceipt.path.split("/").pop()}</p>
+                        <p className="text-sm font-medium">
+                          Current attachment
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {editReceipt.path.split("/").pop()}
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -2341,14 +2872,21 @@ export default function ExpenseClaims() {
                           className="h-8 px-3 text-xs"
                           onClick={() =>
                             openPreviewFromUrl(
-                              editReceipt.url || resolveReceiptUrl(editReceipt.path),
-                              editReceipt.path?.split("/").pop() || "Receipt"
+                              editReceipt.url ||
+                                resolveReceiptUrl(editReceipt.path),
+                              editReceipt.path?.split("/").pop() || "Receipt",
                             )
                           }
                         >
                           View
                         </Button>
-                        <Button type="button" variant="ghost" size="sm" className="h-8 px-3 text-xs text-destructive" onClick={handleRemoveExistingReceipt}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-3 text-xs text-destructive"
+                          onClick={handleRemoveExistingReceipt}
+                        >
                           Remove
                         </Button>
                       </div>
@@ -2358,9 +2896,20 @@ export default function ExpenseClaims() {
                   {!billFile ? (
                     <div className="space-y-2">
                       <div>
-                        <Label htmlFor="fileType" className="text-xs sm:text-sm">File Type / Category</Label>
-                        <Select value={billFileType} onValueChange={setBillFileType}>
-                          <SelectTrigger id="fileType" className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                        <Label
+                          htmlFor="fileType"
+                          className="text-xs sm:text-sm"
+                        >
+                          File Type / Category
+                        </Label>
+                        <Select
+                          value={billFileType}
+                          onValueChange={setBillFileType}
+                        >
+                          <SelectTrigger
+                            id="fileType"
+                            className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                          >
                             <SelectValue placeholder="Select file type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2377,12 +2926,24 @@ export default function ExpenseClaims() {
                           <div className="flex flex-col items-center gap-1 sm:gap-2">
                             <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                             <span className="text-xs sm:text-sm text-muted-foreground text-center">
-                              {scanning ? "Scanning..." : editReceipt?.path ? "Replace receipt" : "Click to upload & scan"}
+                              {scanning
+                                ? "Scanning..."
+                                : editReceipt?.path
+                                  ? "Replace receipt"
+                                  : "Click to upload & scan"}
                             </span>
-                            <span className="text-xs text-muted-foreground">PNG, JPG, JPEG, WebP, SVG, PDF up to 10MB</span>
+                            <span className="text-xs text-muted-foreground">
+                              PNG, JPG, JPEG, WebP, SVG, PDF up to 10MB
+                            </span>
                           </div>
                         </div>
-                        <input type="file" className="hidden" onChange={handleFileUpload} accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,image/*,application/pdf" disabled={scanning} />
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                          accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,image/*,application/pdf"
+                          disabled={scanning}
+                        />
                       </label>
                     </div>
                   ) : (
@@ -2390,17 +2951,31 @@ export default function ExpenseClaims() {
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <Upload className="w-4 h-4 text-primary flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{billFile.name}</p>
+                          <p className="text-sm font-medium truncate">
+                            {billFile.name}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {billFile.type || "Attachment"} • {(billFile.size / 1024).toFixed(2)} KB
+                            {billFile.type || "Attachment"} •{" "}
+                            {(billFile.size / 1024).toFixed(2)} KB
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button type="button" variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => billFile.file && openPreview(billFile.file)}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() =>
+                            billFile.file && openPreview(billFile.file)
+                          }
+                        >
                           Preview
                         </Button>
-                        <button onClick={handleRemoveFile} className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors flex-shrink-0 ml-2">
+                        <button
+                          onClick={handleRemoveFile}
+                          className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors flex-shrink-0 ml-2"
+                        >
                           <X className="w-3 h-3 sm:w-4 sm:h-4" />
                         </button>
                       </div>
@@ -2411,7 +2986,12 @@ export default function ExpenseClaims() {
                 {hasRole(user, "finance") && (
                   <div>
                     <Label className="text-xs sm:text-sm">Status</Label>
-                    <Select value={formData.status || "pending"} onValueChange={(val: any) => setFormData({ ...formData, status: val })}>
+                    <Select
+                      value={formData.status || "pending"}
+                      onValueChange={(val: any) =>
+                        setFormData({ ...formData, status: val })
+                      }
+                    >
                       <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
                         <SelectValue />
                       </SelectTrigger>
@@ -2432,7 +3012,9 @@ export default function ExpenseClaims() {
                     <Card key={index} className="border border-border">
                       <CardHeader className="py-3">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">Expense {index + 1}</CardTitle>
+                          <CardTitle className="text-sm">
+                            Expense {index + 1}
+                          </CardTitle>
                           {expenseRows.length > 1 && !isGroupedEdit && (
                             <Button
                               type="button"
@@ -2449,10 +3031,14 @@ export default function ExpenseClaims() {
                       <CardContent className="space-y-3">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                           <div>
-                            <Label className="text-xs sm:text-sm">Category</Label>
+                            <Label className="text-xs sm:text-sm">
+                              Category
+                            </Label>
                             <Select
                               value={row.category}
-                              onValueChange={(val: any) => updateRow(index, { category: val })}
+                              onValueChange={(val: any) =>
+                                updateRow(index, { category: val })
+                              }
                             >
                               <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
                                 <SelectValue placeholder="Select" />
@@ -2460,7 +3046,9 @@ export default function ExpenseClaims() {
                               <SelectContent>
                                 <SelectItem value="travel">Travel</SelectItem>
                                 <SelectItem value="food">Food</SelectItem>
-                                <SelectItem value="accommodation">Accommodation</SelectItem>
+                                <SelectItem value="accommodation">
+                                  Accommodation
+                                </SelectItem>
                                 <SelectItem value="others">Others</SelectItem>
                               </SelectContent>
                             </Select>
@@ -2471,7 +3059,9 @@ export default function ExpenseClaims() {
                             <Input
                               type="number"
                               value={row.amount}
-                              onChange={(e) => updateRow(index, { amount: e.target.value })}
+                              onChange={(e) =>
+                                updateRow(index, { amount: e.target.value })
+                              }
                               className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
                               min="0"
                               step="0.01"
@@ -2479,17 +3069,25 @@ export default function ExpenseClaims() {
                           </div>
 
                           <div>
-                            <Label className="text-xs sm:text-sm">Description</Label>
+                            <Label className="text-xs sm:text-sm">
+                              Description
+                            </Label>
                             <Textarea
                               value={row.description}
-                              onChange={(e) => updateRow(index, { description: e.target.value })}
+                              onChange={(e) =>
+                                updateRow(index, {
+                                  description: e.target.value,
+                                })
+                              }
                               className="mt-1.5 sm:mt-2 text-xs sm:text-sm min-h-10 h-10 resize-none"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <Label className="text-xs sm:text-sm">Upload File</Label>
+                          <Label className="text-xs sm:text-sm">
+                            Upload File
+                          </Label>
                           <div className="mt-1.5 sm:mt-2">
                             <input
                               id={`receipt-${index}`}
@@ -2498,8 +3096,13 @@ export default function ExpenseClaims() {
                               className="hidden"
                               onChange={async (e) => {
                                 const file = e.target.files?.[0] || null;
-                                const mode = receiptPickerMode[index] || "upload";
-                                const success = await processRowReceiptFile(index, file, mode);
+                                const mode =
+                                  receiptPickerMode[index] || "upload";
+                                const success = await processRowReceiptFile(
+                                  index,
+                                  file,
+                                  mode,
+                                );
                                 setReceiptPickerMode((prev) => {
                                   const next = { ...prev };
                                   delete next[index];
@@ -2518,8 +3121,13 @@ export default function ExpenseClaims() {
                                 size="sm"
                                 className="h-10 px-3 text-xs sm:text-sm"
                                 onClick={() => {
-                                  setReceiptPickerMode((prev) => ({ ...prev, [index]: "upload" }));
-                                  const input = document.getElementById(`receipt-${index}`) as HTMLInputElement | null;
+                                  setReceiptPickerMode((prev) => ({
+                                    ...prev,
+                                    [index]: "upload",
+                                  }));
+                                  const input = document.getElementById(
+                                    `receipt-${index}`,
+                                  ) as HTMLInputElement | null;
                                   input?.click();
                                 }}
                               >
@@ -2538,8 +3146,13 @@ export default function ExpenseClaims() {
                                     return;
                                   }
 
-                                  setReceiptPickerMode((prev) => ({ ...prev, [index]: "scan" }));
-                                  const input = document.getElementById(`receipt-${index}`) as HTMLInputElement | null;
+                                  setReceiptPickerMode((prev) => ({
+                                    ...prev,
+                                    [index]: "scan",
+                                  }));
+                                  const input = document.getElementById(
+                                    `receipt-${index}`,
+                                  ) as HTMLInputElement | null;
                                   input?.click();
                                 }}
                               >
@@ -2556,26 +3169,40 @@ export default function ExpenseClaims() {
                             <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-3">
                               <div className="mb-1 flex items-center gap-2">
                                 <Camera className="h-4 w-4 text-green-600" />
-                                <span className="text-xs font-medium text-green-800">Scan Result</span>
+                                <span className="text-xs font-medium text-green-800">
+                                  Scan Result
+                                </span>
                               </div>
                               <div className="space-y-1 text-xs text-green-700">
-                                {row.scanData.amount && <div>Amount: Rs.{row.scanData.amount}</div>}
-                                {row.scanData.date && <div>Date: {row.scanData.date}</div>}
-                                {row.scanData.vendor && <div>Vendor: {row.scanData.vendor}</div>}
-                                {row.scanData.category && <div>Category: {row.scanData.category}</div>}
+                                {row.scanData.amount && (
+                                  <div>Amount: Rs.{row.scanData.amount}</div>
+                                )}
+                                {row.scanData.date && (
+                                  <div>Date: {row.scanData.date}</div>
+                                )}
+                                {row.scanData.vendor && (
+                                  <div>Vendor: {row.scanData.vendor}</div>
+                                )}
+                                {row.scanData.category && (
+                                  <div>Category: {row.scanData.category}</div>
+                                )}
                               </div>
                             </div>
                           )}
                           {row.receiptFile && (
                             <div className="mt-2 flex items-center justify-between gap-2">
-                              <p className="text-xs text-muted-foreground truncate flex-1">{row.receiptFile.name}</p>
+                              <p className="text-xs text-muted-foreground truncate flex-1">
+                                {row.receiptFile.name}
+                              </p>
                               <div className="flex gap-2 flex-shrink-0">
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
                                   className="h-8 px-2 text-xs"
-                                  onClick={() => openPreview(row.receiptFile as File)}
+                                  onClick={() =>
+                                    openPreview(row.receiptFile as File)
+                                  }
                                 >
                                   Preview
                                 </Button>
@@ -2584,7 +3211,14 @@ export default function ExpenseClaims() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 px-2 text-xs text-destructive"
-                                  onClick={() => updateRow(index, { receiptFile: null, receiptPath: null, scanData: null, isScanning: false })}
+                                  onClick={() =>
+                                    updateRow(index, {
+                                      receiptFile: null,
+                                      receiptPath: null,
+                                      scanData: null,
+                                      isScanning: false,
+                                    })
+                                  }
                                 >
                                   Remove
                                 </Button>
@@ -2593,7 +3227,9 @@ export default function ExpenseClaims() {
                           )}
                           {!row.receiptFile && row.receiptPath && (
                             <div className="mt-2 flex items-center justify-between gap-2">
-                              <p className="text-xs text-muted-foreground truncate flex-1">Saved attachment</p>
+                              <p className="text-xs text-muted-foreground truncate flex-1">
+                                Saved attachment
+                              </p>
                               <div className="flex gap-2 flex-shrink-0">
                                 <Button
                                   type="button"
@@ -2603,7 +3239,8 @@ export default function ExpenseClaims() {
                                   onClick={() =>
                                     openPreviewFromUrl(
                                       resolveReceiptUrl(row.receiptPath),
-                                      row.receiptPath?.split("/").pop() || "Receipt"
+                                      row.receiptPath?.split("/").pop() ||
+                                        "Receipt",
                                     )
                                   }
                                 >
@@ -2614,7 +3251,13 @@ export default function ExpenseClaims() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 px-2 text-xs text-destructive"
-                                  onClick={() => updateRow(index, { receiptPath: null, scanData: null, isScanning: false })}
+                                  onClick={() =>
+                                    updateRow(index, {
+                                      receiptPath: null,
+                                      scanData: null,
+                                      isScanning: false,
+                                    })
+                                  }
                                 >
                                   Remove
                                 </Button>
@@ -2642,7 +3285,11 @@ export default function ExpenseClaims() {
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 pt-3 sm:pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto text-xs sm:text-sm">
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              className="w-full sm:w-auto text-xs sm:text-sm"
+            >
               Cancel
             </Button>
             {!editingId && !isGroupedEdit && (
@@ -2657,7 +3304,8 @@ export default function ExpenseClaims() {
                   >
                     {draftClearing ? (
                       <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Clearing...
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
+                        Clearing...
                       </>
                     ) : (
                       "Clear Draft"
@@ -2673,7 +3321,8 @@ export default function ExpenseClaims() {
                 >
                   {draftSaving ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving Draft...
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving
+                      Draft...
                     </>
                   ) : (
                     "Save Draft"
@@ -2681,7 +3330,11 @@ export default function ExpenseClaims() {
                 </Button>
               </>
             )}
-            <Button onClick={handleSave} disabled={loading} className="w-full sm:w-auto text-xs sm:text-sm">
+            <Button
+              onClick={handleSave}
+              disabled={loading}
+              className="w-full sm:w-auto text-xs sm:text-sm"
+            >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
@@ -2705,20 +3358,36 @@ export default function ExpenseClaims() {
         <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">Preview</DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm truncate">{preview.name}</DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm truncate">
+              {preview.name}
+            </DialogDescription>
           </DialogHeader>
 
           {preview.url ? (
             preview.type?.startsWith("image/") ? (
               <div className="w-full">
-                <img src={preview.url} alt={preview.name} className="max-h-[70vh] w-auto mx-auto rounded border" />
+                <img
+                  src={preview.url}
+                  alt={preview.name}
+                  className="max-h-[70vh] w-auto mx-auto rounded border"
+                />
               </div>
             ) : preview.type === "application/pdf" ? (
-              <iframe title="PDF Preview" src={preview.url} className="w-full h-[70vh] rounded border" />
+              <iframe
+                title="PDF Preview"
+                src={preview.url}
+                className="w-full h-[70vh] rounded border"
+              />
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Preview not available for this file type.</p>
-                <a href={preview.url} download={preview.name} className="text-sm text-primary underline">
+                <p className="text-sm text-muted-foreground">
+                  Preview not available for this file type.
+                </p>
+                <a
+                  href={preview.url}
+                  download={preview.name}
+                  className="text-sm text-primary underline"
+                >
                   Download
                 </a>
               </div>
@@ -2738,7 +3407,9 @@ export default function ExpenseClaims() {
       >
         <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Draft Attachments</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
+              Draft Attachments
+            </DialogTitle>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <DialogDescription className="text-xs sm:text-sm">
                 {draftReceiptGallery.urls.length} saved bill(s) in this draft
@@ -2787,7 +3458,10 @@ export default function ExpenseClaims() {
             {draftReceiptGallery.urls.map((url, index) => {
               const previewType = getReceiptPreviewType(url);
               return (
-                <div key={`${url}-${index}`} className="rounded-lg border border-border p-3">
+                <div
+                  key={`${url}-${index}`}
+                  className="rounded-lg border border-border p-3"
+                >
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">Bill {index + 1}</p>
                     <Button
@@ -2795,7 +3469,9 @@ export default function ExpenseClaims() {
                       variant="outline"
                       size="sm"
                       className="h-8 px-3 text-xs"
-                      onClick={() => openPreviewFromUrl(url, `Draft bill ${index + 1}`)}
+                      onClick={() =>
+                        openPreviewFromUrl(url, `Draft bill ${index + 1}`)
+                      }
                     >
                       Open
                     </Button>
@@ -2825,10 +3501,14 @@ export default function ExpenseClaims() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Preview not available for this file type.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Preview not available for this file type.
+                      </p>
                       <button
                         type="button"
-                        onClick={() => openPreviewFromUrl(url, `Draft bill ${index + 1}`)}
+                        onClick={() =>
+                          openPreviewFromUrl(url, `Draft bill ${index + 1}`)
+                        }
                         className="text-sm text-primary underline"
                       >
                         Open attachment
@@ -2842,7 +3522,10 @@ export default function ExpenseClaims() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent className="w-full max-w-sm p-4 sm:p-6">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg">
@@ -2855,7 +3538,9 @@ export default function ExpenseClaims() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"
@@ -2870,7 +3555,9 @@ export default function ExpenseClaims() {
         <DialogContent className="w-full max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
-              {approvalAction === "approve" ? "Approve Expense Claim" : "Reject Expense Claim"}
+              {approvalAction === "approve"
+                ? "Approve Expense Claim"
+                : "Reject Expense Claim"}
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
               {approvalAction === "approve"
@@ -2892,15 +3579,20 @@ export default function ExpenseClaims() {
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 pt-3 sm:pt-4 border-t">
-            <Button variant="outline" onClick={() => setActionDialogOpen(false)} className="w-full sm:w-auto text-xs sm:text-sm">
+            <Button
+              variant="outline"
+              onClick={() => setActionDialogOpen(false)}
+              className="w-full sm:w-auto text-xs sm:text-sm"
+            >
               Cancel
             </Button>
             <Button
               onClick={confirmApprovalAction}
-              className={`w-full sm:w-auto text-xs sm:text-sm ${approvalAction === "approve"
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-red-600 hover:bg-red-700"
-                }`}
+              className={`w-full sm:w-auto text-xs sm:text-sm ${
+                approvalAction === "approve"
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
             >
               {approvalAction === "approve" ? "Approve" : "Reject"}
             </Button>
@@ -2917,7 +3609,8 @@ export default function ExpenseClaims() {
               Export Expense Data
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
-              Select employees and filters to export expense data in CSV or JSON format.
+              Select employees and filters to export expense data in CSV or JSON
+              format.
             </DialogDescription>
           </DialogHeader>
 
@@ -2930,12 +3623,14 @@ export default function ExpenseClaims() {
           <div className="space-y-4 sm:space-y-6">
             {/* Export Format */}
             <div>
-              <Label className="text-xs sm:text-sm font-medium">Export Format</Label>
+              <Label className="text-xs sm:text-sm font-medium">
+                Export Format
+              </Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
                 <Button
                   type="button"
-                  variant={exportFormat === 'csv' ? 'default' : 'outline'}
-                  onClick={() => setExportFormat('csv')}
+                  variant={exportFormat === "csv" ? "default" : "outline"}
+                  onClick={() => setExportFormat("csv")}
                   className="text-xs sm:text-sm"
                 >
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
@@ -2943,8 +3638,8 @@ export default function ExpenseClaims() {
                 </Button>
                 <Button
                   type="button"
-                  variant={exportFormat === 'json' ? 'default' : 'outline'}
-                  onClick={() => setExportFormat('json')}
+                  variant={exportFormat === "json" ? "default" : "outline"}
+                  onClick={() => setExportFormat("json")}
                   className="text-xs sm:text-sm"
                 >
                   <Download className="w-4 h-4 mr-2" />
@@ -2956,14 +3651,19 @@ export default function ExpenseClaims() {
             {/* Employee Selection */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <Label className="text-xs sm:text-sm font-medium">Select Employees</Label>
+                <Label className="text-xs sm:text-sm font-medium">
+                  Select Employees
+                </Label>
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="select-all"
                     checked={selectAllEmployees}
                     onCheckedChange={handleSelectAllEmployees}
                   />
-                  <Label htmlFor="select-all" className="text-xs sm:text-sm cursor-pointer">
+                  <Label
+                    htmlFor="select-all"
+                    className="text-xs sm:text-sm cursor-pointer"
+                  >
                     Select All ({uniqueEmployees.length})
                   </Label>
                 </div>
@@ -2971,15 +3671,28 @@ export default function ExpenseClaims() {
 
               <div className="max-h-40 overflow-y-auto border rounded-lg p-2">
                 {uniqueEmployees.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">No employees found</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    No employees found
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {uniqueEmployees.map((employee) => (
-                      <div key={employee.id} className="flex items-center space-x-2">
+                      <div
+                        key={employee.id}
+                        className="flex items-center space-x-2"
+                      >
                         <Checkbox
                           id={`employee-${employee.id}`}
-                          checked={selectedEmployees.includes(employee.id) || selectAllEmployees}
-                          onCheckedChange={(checked) => handleEmployeeSelection(employee.id, checked as boolean)}
+                          checked={
+                            selectedEmployees.includes(employee.id) ||
+                            selectAllEmployees
+                          }
+                          onCheckedChange={(checked) =>
+                            handleEmployeeSelection(
+                              employee.id,
+                              checked as boolean,
+                            )
+                          }
                         />
                         <Label
                           htmlFor={`employee-${employee.id}`}
@@ -2996,8 +3709,13 @@ export default function ExpenseClaims() {
 
             {/* Status Filter */}
             <div>
-              <Label className="text-xs sm:text-sm font-medium">Status Filter</Label>
-              <Select value={exportStatusFilter} onValueChange={setExportStatusFilter}>
+              <Label className="text-xs sm:text-sm font-medium">
+                Status Filter
+              </Label>
+              <Select
+                value={exportStatusFilter}
+                onValueChange={setExportStatusFilter}
+              >
                 <SelectTrigger className="mt-2 h-8 sm:h-10 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -3012,7 +3730,9 @@ export default function ExpenseClaims() {
             </div>
 
             <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#0b6f53]">Applied Date Filter</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#0b6f53]">
+                Applied Date Filter
+              </p>
               <p className="mt-1 text-sm font-medium text-slate-900">
                 {filterFromDate || filterToDate
                   ? `${filterFromDate || "Start"} to ${filterToDate || "End"}`
@@ -3035,7 +3755,10 @@ export default function ExpenseClaims() {
             <Button
               onClick={handleExport}
               className="w-full sm:w-auto text-xs sm:text-sm"
-              disabled={exporting || (selectedEmployees.length === 0 && !selectAllEmployees)}
+              disabled={
+                exporting ||
+                (selectedEmployees.length === 0 && !selectAllEmployees)
+              }
             >
               {exporting ? (
                 <>

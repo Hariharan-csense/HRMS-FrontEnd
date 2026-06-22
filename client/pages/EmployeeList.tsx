@@ -806,12 +806,12 @@ export default function EmployeeList() {
   // Debug: Log shift-related data
   useEffect(() => {
     if (isDialogOpen && editingId) {
-      console.log("Current formData.shift:", formData.shift);
-      console.log("Available shifts:", shifts);
+      // console.log("Current formData.shift:", formData.shift);
+      // console.log("Available shifts:", shifts);
       const selectedShift = shifts.find(
         (s) => s.id.toString() === formData.shift,
       );
-      console.log("Selected shift:", selectedShift);
+      // console.log("Selected shift:", selectedShift);
     }
   }, [formData.shift, shifts, isDialogOpen, editingId]);
 
@@ -877,9 +877,9 @@ export default function EmployeeList() {
     }
 
     if (employee) {
-      console.log("Opening dialog with employee:", employee);
-      console.log("Employee shift_id:", (employee as any).shift_id);
-      console.log("Employee shift:", employee.shift);
+      // console.log("Opening dialog with employee:", employee);
+      // console.log("Employee shift_id:", (employee as any).shift_id);
+      // console.log("Employee shift:", employee.shift);
       setEditingId(employee.id.toString());
       setFormData({
         employeeId: employee.employeeId || "",
@@ -933,29 +933,23 @@ export default function EmployeeList() {
       });
 
       // Log the form data for debugging
-      console.log("Edit dialog opened with employee data:", employee);
-      console.log("Form data after setting:", {
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        department: employee.department,
-        designation: employee.designation,
-        status: employee.status,
-      });
+      // console.log("Edit dialog opened with employee data:", employee);
+      // console.log("Form data after setting:", {
+      //   firstName: employee.firstName,
+      //   lastName: employee.lastName,
+      //   department: employee.department,
+      //   designation: employee.designation,
+      //   status: employee.status,
+      // });
 
-      setUploadedFiles(
-        {
-          photo: employee.photoUrl ? "Existing photo" : "",
-          id_proof: employee.idProofUrl ? "Existing ID proof" : "",
-          address_proof: employee.addressProofUrl
-            ? "Existing address proof"
-            : "",
-          offer_letter: employee.offerLetterUrl ? "Existing offer letter" : "",
-          certificates: employee.certificatesUrl
-            ? "Existing certificates"
-            : "",
-          bank_proof: employee.bankProofUrl ? "Existing bank proof" : "",
-        },
-      );
+      setUploadedFiles({
+        photo: employee.photoUrl ? "Existing photo" : "",
+        id_proof: employee.idProofUrl ? "Existing ID proof" : "",
+        address_proof: employee.addressProofUrl ? "Existing address proof" : "",
+        offer_letter: employee.offerLetterUrl ? "Existing offer letter" : "",
+        certificates: employee.certificatesUrl ? "Existing certificates" : "",
+        bank_proof: employee.bankProofUrl ? "Existing bank proof" : "",
+      });
       setUploadedFileObjects({});
     } else {
       // create mode – reset to personal tab
@@ -1371,7 +1365,7 @@ export default function EmployeeList() {
         ? extractDatePart(formData.dateOfJoining)
         : "";
       formDataToSend.append("doj", dojToSend);
-      console.log("Sending DOJ:", dojToSend); // Debug
+      // console.log("Sending DOJ:", dojToSend); // Debug
 
       formDataToSend.append("employment_type", formData.employmentType);
       formDataToSend.append("status", formData.status);
@@ -1388,7 +1382,7 @@ export default function EmployeeList() {
         formDataToSend.append("office_phone", formData.officePhone.trim());
       if (formData.dateOfBirth) {
         const dobToSend = extractDatePart(formData.dateOfBirth);
-        console.log("Sending DOB:", dobToSend); // Debug
+        // console.log("Sending DOB:", dobToSend); // Debug
         formDataToSend.append("dob", dobToSend);
       }
       if (formData.gender) formDataToSend.append("gender", formData.gender);
@@ -1459,7 +1453,7 @@ export default function EmployeeList() {
       Object.keys(uploadedFileObjects).forEach((field) => {
         const file = uploadedFileObjects[field];
         if (file instanceof File) {
-          console.log(`Uploading file: ${field} -> ${file.name}`); // debug
+          // console.log(`Uploading file: ${field} -> ${file.name}`); // debug
           formDataToSend.append(field, file);
         }
       });
@@ -2115,7 +2109,8 @@ export default function EmployeeList() {
             accountNumber: emp.bankDetails?.account_number || "",
             ifscCode: emp.bankDetails?.ifsc_code || "",
             // Documents
-            photoUrl: getDocumentByField(emp.documents, "photo")?.file_path || "",
+            photoUrl:
+              getDocumentByField(emp.documents, "photo")?.file_path || "",
             idProofUrl:
               getDocumentByField(emp.documents, "id_proof")?.file_path || "",
             addressProofUrl:
@@ -2226,7 +2221,9 @@ export default function EmployeeList() {
           setDesignations([]);
         }
         if (roleResult.data && Array.isArray(roleResult.data)) {
-          setRoles(normalizeRoleOptions(roleResult.data.map((role) => role.name)));
+          setRoles(
+            normalizeRoleOptions(roleResult.data.map((role) => role.name)),
+          );
         } else {
           setRoles([]);
         }
@@ -3276,10 +3273,10 @@ export default function EmployeeList() {
                               normalizeRoleKey(roleName) ===
                               normalizeRoleKey(formData.role),
                           ) && (
-                          <SelectItem value={formData.role}>
-                            {formData.role}
-                          </SelectItem>
-                        )}
+                            <SelectItem value={formData.role}>
+                              {formData.role}
+                            </SelectItem>
+                          )}
                         {roles.length > 0 ? (
                           roles.map((roleName) => (
                             <SelectItem key={roleName} value={roleName}>

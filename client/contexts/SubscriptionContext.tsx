@@ -1,8 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import ENDPOINTS from '../lib/endpoint';
-import TrialExpirationModal from '../components/TrialExpirationModal';
-import { useAuth } from '@/context/AuthContext';
-import { hasAnyRole } from '@/lib/auth';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import ENDPOINTS from "../lib/endpoint";
+import TrialExpirationModal from "../components/TrialExpirationModal";
+import { useAuth } from "@/context/AuthContext";
+import { hasAnyRole } from "@/lib/auth";
 
 interface CompanySubscription {
   id: number;
@@ -14,7 +20,7 @@ interface CompanySubscription {
   start_date: string;
   end_date: string;
   trial_end_date?: string;
-  status: 'trial' | 'active' | 'expired' | 'cancelled';
+  status: "trial" | "active" | "expired" | "cancelled";
   max_users: number;
   paid_amount?: number;
   last_payment_date?: string;
@@ -46,7 +52,9 @@ interface SubscriptionContextType {
   currentEmployeeCount: number;
 }
 
-const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
+const SubscriptionContext = createContext<SubscriptionContextType | undefined>(
+  undefined,
+);
 
 interface SubscriptionProviderProps {
   children: ReactNode;
@@ -59,18 +67,23 @@ const isUserAuthenticated = () => {
   return !!(token && user);
 };
 
-export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ children }) => {
+export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
+  children,
+}) => {
   const { isAuthenticated, user } = useAuth();
-  const [subscription, setSubscription] = useState<CompanySubscription | null>(null);
+  const [subscription, setSubscription] = useState<CompanySubscription | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showTrialExpirationModal, setShowTrialExpirationModal] = useState(false);
+  const [showTrialExpirationModal, setShowTrialExpirationModal] =
+    useState(false);
   const [currentEmployeeCount, setCurrentEmployeeCount] = useState(0);
 
   const checkSubscriptionStatus = async () => {
     // Check if user is authenticated before making the request
     if (!isUserAuthenticated()) {
-      console.log('User not authenticated, skipping subscription check');
+      // console.log('User not authenticated, skipping subscription check');
       setLoading(false);
       return;
     }
@@ -78,28 +91,31 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await ENDPOINTS.getCurrentSubscription();
-      
+
       if (response.data.success) {
         const subscriptionData = response.data.data;
         setSubscription(subscriptionData);
-        
+
         // Check if trial has expired - don't show modal automatically
-        if (subscriptionData?.status === 'expired' || 
-            (subscriptionData?.status === 'trial' && subscriptionData?.trial_days_remaining <= 0)) {
+        if (
+          subscriptionData?.status === "expired" ||
+          (subscriptionData?.status === "trial" &&
+            subscriptionData?.trial_days_remaining <= 0)
+        ) {
           // Don't show modal automatically - let user see subscribe button
-          console.log('Trial has expired, but not showing modal automatically');
+          // console.log('Trial has expired, but not showing modal automatically');
         }
-        
+
         // Get current employee count
         const canFetchEmployees = hasAnyRole(user, [
-          'admin',
-          'superadmin',
-          'hr',
-          'human resources',
-          'human resource',
-          'manager',
+          "admin",
+          "superadmin",
+          "hr",
+          "human resources",
+          "human resource",
+          "manager",
         ]);
 
         if (canFetchEmployees) {
@@ -111,7 +127,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
           } catch (empError: any) {
             // Avoid noisy console errors for forbidden roles; fall back gracefully
             if (empError?.response?.status !== 403) {
-              console.error('Error fetching employee count:', empError);
+              console.error("Error fetching employee count:", empError);
             }
             setCurrentEmployeeCount(0);
           }
@@ -121,33 +137,35 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
         }
       } else {
         // No subscription found - don't show modal automatically
-        console.log('No subscription found, but not showing modal automatically');
+        // console.log('No subscription found, but not showing modal automatically');
       }
     } catch (err: any) {
-      console.error('Error checking subscription:', err);
-      
+      console.error("Error checking subscription:", err);
+
       // Handle 401 Unauthorized specifically
       if (err.response?.status === 401) {
-        console.log('Unauthorized access - user may need to login again');
+        // console.log('Unauthorized access - user may need to login again');
         // Don't show trial modal for 401, just clear error
         setError(null);
         return;
       }
-      
+
       // Check if error is related to subscription
       if (err.response?.status === 403) {
         const errorData = err.response.data;
-        
+
         if (errorData?.requires_subscription || errorData?.trial_expired) {
           // Don't show modal automatically
-          console.log('Subscription required or trial expired, but not showing modal automatically');
+          // console.log('Subscription required or trial expired, but not showing modal automatically');
         } else if (errorData?.user_limit_exceeded) {
           // Don't show modal automatically
-          console.log('User limit exceeded, but not showing modal automatically');
+          // console.log('User limit exceeded, but not showing modal automatically');
         }
       }
-      
-      setError(err.response?.data?.message || 'Failed to check subscription status');
+
+      setError(
+        err.response?.data?.message || "Failed to check subscription status",
+      );
     } finally {
       setLoading(false);
     }
@@ -172,14 +190,19 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     };
   }, [isAuthenticated]);
 
-  const isTrialExpired = subscription?.status === 'expired' || 
-                       (subscription?.status === 'trial' && subscription?.trial_days_remaining <= 0);
+  const isTrialExpired =
+    subscription?.status === "expired" ||
+    (subscription?.status === "trial" &&
+      subscription?.trial_days_remaining <= 0);
 
-  const isTrialEndingSoon = subscription?.status === 'trial' && 
-                           subscription?.trial_days_remaining > 0 && 
-                           subscription?.trial_days_remaining <= 2;
+  const isTrialEndingSoon =
+    subscription?.status === "trial" &&
+    subscription?.trial_days_remaining > 0 &&
+    subscription?.trial_days_remaining <= 2;
 
-  const isUserLimitExceeded = currentEmployeeCount >= (subscription?.max_users || subscription?.plan_max_users || 0);
+  const isUserLimitExceeded =
+    currentEmployeeCount >=
+    (subscription?.max_users || subscription?.plan_max_users || 0);
 
   const value: SubscriptionContextType = {
     subscription,
@@ -210,7 +233,9 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
 export const useSubscription = (): SubscriptionContextType => {
   const context = useContext(SubscriptionContext);
   if (context === undefined) {
-    throw new Error('useSubscription must be used within a SubscriptionProvider');
+    throw new Error(
+      "useSubscription must be used within a SubscriptionProvider",
+    );
   }
   return context;
 };

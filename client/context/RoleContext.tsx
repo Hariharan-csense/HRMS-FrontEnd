@@ -1,7 +1,13 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { BASE_URL } from '../lib/endpoint';
-import { ENDPOINTS } from '../lib/endpoint';
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useState,
+  useEffect,
+} from "react";
+import { useAuth } from "./AuthContext";
+import { BASE_URL } from "../lib/endpoint";
+import { ENDPOINTS } from "../lib/endpoint";
 
 interface ModulePermission {
   view: number;
@@ -31,10 +37,18 @@ interface RoleData {
 type RoleContextType = {
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
-  hasSubModuleAccess: (role: string, module: string, subModule: string) => boolean;
+  hasSubModuleAccess: (
+    role: string,
+    module: string,
+    subModule: string,
+  ) => boolean;
   canPerformAction: (role: string, module: string, action: string) => boolean;
   hasModuleAccess: (module: string) => boolean;
-  canPerformModuleAction: (module: string, action: string, subModule?: string) => boolean;
+  canPerformModuleAction: (
+    module: string,
+    action: string,
+    subModule?: string,
+  ) => boolean;
   userRoles: RoleData[];
   loading: boolean;
 };
@@ -50,19 +64,23 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const [userRoles, setUserRoles] = useState<RoleData[]>([]);
   const [loading, setLoading] = useState(true);
   const normalizeRoleIdentifier = (value: unknown) =>
-    String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
 
   const hasAnyUserRole = (...wantedRoles: string[]) => {
     const wanted = new Set(wantedRoles.map((r) => normalizeRoleIdentifier(r)));
     const roles = Array.isArray(user?.roles) ? user.roles : [];
     const primaryRole = user?.role ? [user.role] : [];
-    const allRoles = [...roles, ...primaryRole].map((r) => normalizeRoleIdentifier(r));
+    const allRoles = [...roles, ...primaryRole].map((r) =>
+      normalizeRoleIdentifier(r),
+    );
     return allRoles.some((r) => wanted.has(r));
   };
 
   const shouldShowRoleAccessDebug =
-    process.env.NODE_ENV === "development" &&
-    hasAnyUserRole("admin", "ceo");
+    process.env.NODE_ENV === "development" && hasAnyUserRole("admin", "ceo");
 
   const getNormalizedUserRoleNames = (): string[] => {
     const roleSet = new Set<string>();
@@ -78,7 +96,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   };
 
   const isTopAuthority = () =>
-    hasAnyUserRole("superadmin", "ceo") || user?.type?.toLowerCase() === "superadmin";
+    hasAnyUserRole("superadmin", "ceo") ||
+    user?.type?.toLowerCase() === "superadmin";
 
   // Fetch user roles from backend
   useEffect(() => {
@@ -90,7 +109,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       }
 
       // Superadmin does not belong to a single company; skip company-scoped roles API.
-      const isSuperAdmin = hasAnyUserRole("superadmin") || user.type?.toLowerCase() === "superadmin";
+      const isSuperAdmin =
+        hasAnyUserRole("superadmin") ||
+        user.type?.toLowerCase() === "superadmin";
       if (isSuperAdmin) {
         setUserRoles([]);
         setLoading(false);
@@ -101,11 +122,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         const response = await ENDPOINTS.getRoles();
         const data = response.data;
         if (shouldShowRoleAccessDebug) {
-          console.log('Role API response:', data);
+          // console.log('Role API response:', data);
         }
         setUserRoles(data.roles || []);
       } catch (error) {
-        console.error('Error fetching roles:', error);
+        console.error("Error fetching roles:", error);
         // Strict RBAC behavior: never grant fallback permissions when API fails.
         setUserRoles([]);
       } finally {
@@ -140,7 +161,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     return allRoles.some((r) => wanted.has(r));
   };
 
-  const normalizeKey = (key: string) => key.toLowerCase().replace(/[\s_-]+/g, "");
+  const normalizeKey = (key: string) =>
+    key.toLowerCase().replace(/[\s_-]+/g, "");
 
   const normalizeAction = (action: string) => {
     const normalized = action.toLowerCase();
@@ -149,7 +171,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   const normalizePermission = (rawPermission: any): ModulePermission => {
     const updateValue =
-      rawPermission?.update !== undefined ? rawPermission.update : rawPermission?.edit;
+      rawPermission?.update !== undefined
+        ? rawPermission.update
+        : rawPermission?.edit;
 
     return {
       view: rawPermission?.view ? 1 : 0,
@@ -168,13 +192,15 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     if (obj[wanted.toLowerCase()]) return wanted.toLowerCase();
 
     const wantedNormalized = normalizeKey(wanted);
-    return Object.keys(obj).find((key) => normalizeKey(key) === wantedNormalized);
+    return Object.keys(obj).find(
+      (key) => normalizeKey(key) === wantedNormalized,
+    );
   };
 
   const resolveModulePermission = (
     modules: Record<string, ModulePermission | ModulePermissionNode>,
     module: string,
-    subModule?: string
+    subModule?: string,
   ) => {
     const moduleKey = getMatchingKey(modules as Record<string, any>, module);
     if (!moduleKey) return undefined;
@@ -183,13 +209,22 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     if (!moduleEntry || typeof moduleEntry !== "object") return undefined;
 
     // New shape: { permissions, submodules }
-    if (moduleEntry.permissions && typeof moduleEntry.permissions === "object") {
+    if (
+      moduleEntry.permissions &&
+      typeof moduleEntry.permissions === "object"
+    ) {
       // If submodule is requested, only check submodule permissions
       // Do NOT fall back to module-level permissions
-      if (subModule && moduleEntry.submodules && typeof moduleEntry.submodules === "object") {
+      if (
+        subModule &&
+        moduleEntry.submodules &&
+        typeof moduleEntry.submodules === "object"
+      ) {
         const subKey = getMatchingKey(moduleEntry.submodules, subModule);
         if (subKey && moduleEntry.submodules[subKey]?.permissions) {
-          return normalizePermission(moduleEntry.submodules[subKey].permissions);
+          return normalizePermission(
+            moduleEntry.submodules[subKey].permissions,
+          );
         }
         // Submodule requested but not found - return undefined to deny access
         return undefined;
@@ -212,25 +247,29 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
     const normalizedUserRoleNames = getNormalizedUserRoleNames();
     const isAdmin = normalizedUserRoleNames.includes("admin");
-    if (isAdmin && (module.toLowerCase() === "payroll" || module.toLowerCase() === "expenses")) {
+    if (
+      isAdmin &&
+      (module.toLowerCase() === "payroll" ||
+        module.toLowerCase() === "expenses")
+    ) {
       return true;
     }
 
     // Debug logging
     if (shouldShowRoleAccessDebug) {
-      console.log("hasModuleAccess Debug:", {
-        userRoles: user.roles,
-        availableRoles: userRoles.map(r => r.name),
-        module,
-        userRolesData: userRoles
-      });
+      // console.log("hasModuleAccess Debug:", {
+      //   userRoles: user.roles,
+      //   availableRoles: userRoles.map(r => r.name),
+      //   module,
+      //   userRolesData: userRoles
+      // });
     }
 
     // Check if any of the user's roles has access to this module
-    return userRoles.some(role => {
+    return userRoles.some((role) => {
       // Check if user has this role assigned (case-insensitive match)
-      const userHasRole = normalizedUserRoleNames.some(userRole =>
-        userRole === normalizeRoleIdentifier(role.name)
+      const userHasRole = normalizedUserRoleNames.some(
+        (userRole) => userRole === normalizeRoleIdentifier(role.name),
       );
 
       if (!userHasRole) {
@@ -243,12 +282,12 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
       // Debug logging
       if (shouldShowRoleAccessDebug) {
-        console.log(`Role ${role.name} access to ${module}:`, {
-          userHasRole,
-          modulePermission,
-          hasAccess,
-          availableModules: Object.keys(role.modules)
-        });
+        // console.log(`Role ${role.name} access to ${module}:`, {
+        //   userHasRole,
+        //   modulePermission,
+        //   hasAccess,
+        //   availableModules: Object.keys(role.modules)
+        // });
       }
 
       return hasAccess;
@@ -256,7 +295,11 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   };
 
   // Check if user can perform a specific action on a module
-  const canPerformModuleAction = (module: string, action: string, subModule?: string): boolean => {
+  const canPerformModuleAction = (
+    module: string,
+    action: string,
+    subModule?: string,
+  ): boolean => {
     if (isTopAuthority()) {
       return true;
     }
@@ -270,7 +313,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     if (
       isAdmin &&
       (normalizedModule === "payroll" ||
-        (normalizedModule === "employees" && normalizedSubModule === "profile") ||
+        (normalizedModule === "employees" &&
+          normalizedSubModule === "profile") ||
         (normalizedModule === "expenses" &&
           (!normalizedSubModule || normalizedSubModule === "claims")))
     ) {
@@ -278,54 +322,66 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     }
 
     // Debug logging for ESSL Setup
-    if (shouldShowRoleAccessDebug && normalizedModule === "attendance" && normalizedSubModule === "setup") {
-      console.log("canPerformModuleAction Debug for ESSL Setup:", {
-        module,
-        action,
-        subModule,
-        normalizedModule,
-        normalizedSubModule,
-        userRoles: userRoles.map(r => ({ name: r.name, modules: r.modules })),
-        normalizedUserRoleNames
-      });
+    if (
+      shouldShowRoleAccessDebug &&
+      normalizedModule === "attendance" &&
+      normalizedSubModule === "setup"
+    ) {
+      // console.log("canPerformModuleAction Debug for ESSL Setup:", {
+      //   module,
+      //   action,
+      //   subModule,
+      //   normalizedModule,
+      //   normalizedSubModule,
+      //   userRoles: userRoles.map(r => ({ name: r.name, modules: r.modules })),
+      //   normalizedUserRoleNames
+      // });
     }
 
     // Check if any of the user's roles has permission for this action
-    return userRoles.some(role => {
+    return userRoles.some((role) => {
       // Check if user has this role assigned (case-insensitive match)
-      const userHasRole = normalizedUserRoleNames.some(userRole =>
-        userRole === normalizeRoleIdentifier(role.name)
+      const userHasRole = normalizedUserRoleNames.some(
+        (userRole) => userRole === normalizeRoleIdentifier(role.name),
       );
 
       if (!userHasRole) {
         return false;
       }
 
-      const modulePermission = resolveModulePermission(role.modules, module, subModule);
+      const modulePermission = resolveModulePermission(
+        role.modules,
+        module,
+        subModule,
+      );
 
       // Debug logging for ESSL Setup
-      if (shouldShowRoleAccessDebug && normalizedModule === "attendance" && normalizedSubModule === "setup") {
-        console.log("ESSL Setup Permission Check for role:", role.name, {
-          userHasRole,
-          modulePermission,
-          hasAccess: modulePermission?.view === 1
-        });
+      if (
+        shouldShowRoleAccessDebug &&
+        normalizedModule === "attendance" &&
+        normalizedSubModule === "setup"
+      ) {
+        // console.log("ESSL Setup Permission Check for role:", role.name, {
+        //   userHasRole,
+        //   modulePermission,
+        //   hasAccess: modulePermission?.view === 1
+        // });
       }
 
       if (!modulePermission) return false;
 
       switch (normalizeAction(action)) {
-        case 'view':
+        case "view":
           return modulePermission.view === 1;
-        case 'create':
+        case "create":
           return modulePermission.create === 1;
-        case 'update':
+        case "update":
           return modulePermission.update === 1 || modulePermission.edit === 1;
-        case 'delete':
+        case "delete":
           return modulePermission.delete === 1;
-        case 'approve':
+        case "approve":
           return modulePermission.approve === 1;
-        case 'reject':
+        case "reject":
           return modulePermission.reject === 1;
         default:
           return false;
@@ -334,26 +390,36 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   };
 
   // Legacy functions for backward compatibility
-  const hasSubModuleAccess = (role: string, module: string, subModule: string): boolean => {
+  const hasSubModuleAccess = (
+    role: string,
+    module: string,
+    subModule: string,
+  ): boolean => {
     return canPerformModuleAction(module, "view", subModule);
   };
 
-  const canPerformAction = (role: string, module: string, action: string): boolean => {
+  const canPerformAction = (
+    role: string,
+    module: string,
+    action: string,
+  ): boolean => {
     // For now, delegate to module action check
     return canPerformModuleAction(module, action);
   };
 
   return (
-    <RoleContext.Provider value={{
-      hasRole,
-      hasAnyRole,
-      hasSubModuleAccess,
-      canPerformAction,
-      hasModuleAccess,
-      canPerformModuleAction,
-      userRoles,
-      loading
-    }}>
+    <RoleContext.Provider
+      value={{
+        hasRole,
+        hasAnyRole,
+        hasSubModuleAccess,
+        canPerformAction,
+        hasModuleAccess,
+        canPerformModuleAction,
+        userRoles,
+        loading,
+      }}
+    >
       {children}
     </RoleContext.Provider>
   );
@@ -362,7 +428,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 export const useRole = (): RoleContextType => {
   const context = useContext(RoleContext);
   if (context === undefined) {
-    throw new Error('useRole must be used within a RoleProvider');
+    throw new Error("useRole must be used within a RoleProvider");
   }
   return context;
 };

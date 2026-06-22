@@ -37,7 +37,9 @@ const normalizeTrackingStatus = (
   status?: string | null,
   minutesSinceUpdate?: number | null,
 ) => {
-  const normalized = String(status || "").trim().toLowerCase();
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase();
 
   if (["active", "online", "live", "tracking"].includes(normalized)) {
     return "active";
@@ -47,7 +49,10 @@ const normalizeTrackingStatus = (
     return "idle";
   }
 
-  if (typeof minutesSinceUpdate === "number" && Number.isFinite(minutesSinceUpdate)) {
+  if (
+    typeof minutesSinceUpdate === "number" &&
+    Number.isFinite(minutesSinceUpdate)
+  ) {
     return minutesSinceUpdate <= 5 ? "active" : "idle";
   }
 
@@ -96,10 +101,10 @@ const parseCheckInLocation = (raw?: any): AttendanceLocation | null => {
 export const liveApi = {
   getEmployees: async (): Promise<{ data?: any[]; error?: string }> => {
     try {
-      console.log("Fetching employees from backend...");
+      // console.log("Fetching employees from backend...");
 
       const response = await ENDPOINTS.getEmployee();
-      console.log("Employee API Raw Response:", response);
+      // console.log("Employee API Raw Response:", response);
 
       const rawData = response?.data;
       let employees: any[] = [];
@@ -112,20 +117,26 @@ export const liveApi = {
         employees = rawData.employees;
       }
 
-      const trackedEmployees = employees.filter((emp) => emp.location_tracking_enabled === 1);
-      console.log(`Total employees: ${employees.length}, Tracked employees: ${trackedEmployees.length}`);
+      const trackedEmployees = employees.filter(
+        (emp) => emp.location_tracking_enabled === 1,
+      );
+      // console.log(`Total employees: ${employees.length}, Tracked employees: ${trackedEmployees.length}`);
 
       let latestAttendanceByEmployee = new Map<string, any>();
       let activeFieldAttendanceByEmployee = new Map<string, any>();
       try {
         const logsResponse = await ENDPOINTS.getAttendanceLogs({ limit: 1000 });
-        const logs = logsResponse?.data?.logs || logsResponse?.data?.data || logsResponse?.data || [];
+        const logs =
+          logsResponse?.data?.logs ||
+          logsResponse?.data?.data ||
+          logsResponse?.data ||
+          [];
 
         latestAttendanceByEmployee = [...logs]
           .sort(
             (a: any, b: any) =>
               new Date(b.check_in || b.checkIn || 0).getTime() -
-              new Date(a.check_in || a.checkIn || 0).getTime()
+              new Date(a.check_in || a.checkIn || 0).getTime(),
           )
           .reduce((map: Map<string, any>, log: any) => {
             const employeeId = String(log.employee_id || log.employeeId || "");
@@ -135,7 +146,10 @@ export const liveApi = {
             return map;
           }, new Map<string, any>());
       } catch (logsError) {
-        console.warn("Failed to fetch attendance logs for live tracking status:", logsError);
+        console.warn(
+          "Failed to fetch attendance logs for live tracking status:",
+          logsError,
+        );
       }
 
       try {
@@ -144,40 +158,57 @@ export const liveApi = {
           endDate: formatLocalDate(),
         });
         const fieldAttendance =
-          fieldResponse?.data?.data || fieldResponse?.data?.attendance || fieldResponse?.data || [];
+          fieldResponse?.data?.data ||
+          fieldResponse?.data?.attendance ||
+          fieldResponse?.data ||
+          [];
 
         activeFieldAttendanceByEmployee = [...fieldAttendance]
           .filter(hasOpenFieldAttendanceSession)
           .reduce((map: Map<string, any>, record: any) => {
-            const employeeId = String(record.employee_id || record.employeeId || "");
+            const employeeId = String(
+              record.employee_id || record.employeeId || "",
+            );
             if (employeeId && !map.has(employeeId)) {
               map.set(employeeId, record);
             }
             return map;
           }, new Map<string, any>());
       } catch (fieldError) {
-        console.warn("Failed to fetch field attendance for live tracking status:", fieldError);
+        console.warn(
+          "Failed to fetch field attendance for live tracking status:",
+          fieldError,
+        );
       }
 
       const attachLocations = (attendanceLocations: AttendanceLocation[]) => {
         const employeesWithLocation = trackedEmployees.map((employee) => {
-          const employeeKey = normalizeEmployeeId(employee.id ?? employee.employee_id ?? employee.employeeId);
+          const employeeKey = normalizeEmployeeId(
+            employee.id ?? employee.employee_id ?? employee.employeeId,
+          );
           const latestAttendance = latestAttendanceByEmployee.get(employeeKey);
-          const activeFieldAttendance = activeFieldAttendanceByEmployee.get(employeeKey);
+          const activeFieldAttendance =
+            activeFieldAttendanceByEmployee.get(employeeKey);
           const attendanceRecord = attendanceLocations.find(
-            (att) => normalizeEmployeeId(att.employeeId) === employeeKey
+            (att) => normalizeEmployeeId(att.employeeId) === employeeKey,
           );
           const hasOpenSession =
             hasOpenAttendanceSession(latestAttendance) ||
             hasOpenFieldAttendanceSession(activeFieldAttendance) ||
             Boolean(
               attendanceRecord?.hasActiveAttendance ||
-                attendanceRecord?.hasActiveFieldAttendance,
+              attendanceRecord?.hasActiveFieldAttendance,
             );
-          const liveLatitude = hasOpenSession ? attendanceRecord?.latitude ?? null : null;
-          const liveLongitude = hasOpenSession ? attendanceRecord?.longitude ?? null : null;
+          const liveLatitude = hasOpenSession
+            ? (attendanceRecord?.latitude ?? null)
+            : null;
+          const liveLongitude = hasOpenSession
+            ? (attendanceRecord?.longitude ?? null)
+            : null;
           const liveTimestamp = hasOpenSession
-            ? attendanceRecord?.timestamp || (attendanceRecord as any)?.location_timestamp || null
+            ? attendanceRecord?.timestamp ||
+              (attendanceRecord as any)?.location_timestamp ||
+              null
             : null;
           const normalizedTrackingStatus =
             hasOpenSession && attendanceRecord
@@ -191,25 +222,29 @@ export const liveApi = {
             ...employee,
             latitude: liveLatitude,
             longitude: liveLongitude,
-            accuracy: hasOpenSession ? attendanceRecord?.accuracy || null : null,
+            accuracy: hasOpenSession
+              ? attendanceRecord?.accuracy || null
+              : null,
             address: hasOpenSession ? attendanceRecord?.address || null : null,
             locationTimestamp: liveTimestamp,
             isTracking: Boolean(hasOpenSession && attendanceRecord),
             trackingStatus: normalizedTrackingStatus,
-            hasActiveAttendance: Boolean(
-              attendanceRecord?.hasActiveAttendance,
-            ),
+            hasActiveAttendance: Boolean(attendanceRecord?.hasActiveAttendance),
             hasActiveFieldAttendance: Boolean(
               attendanceRecord?.hasActiveFieldAttendance,
             ),
-            deviceInfo: attendanceRecord?.deviceInfo || (attendanceRecord as any)?.device_info || null,
-            minutesSinceUpdate:
-              hasOpenSession
-                ? attendanceRecord?.minutesSinceUpdate || (attendanceRecord as any)?.minutes_since_update || null
-                : null,
+            deviceInfo:
+              attendanceRecord?.deviceInfo ||
+              (attendanceRecord as any)?.device_info ||
+              null,
+            minutesSinceUpdate: hasOpenSession
+              ? attendanceRecord?.minutesSinceUpdate ||
+                (attendanceRecord as any)?.minutes_since_update ||
+                null
+              : null,
           };
         });
-        console.log("Employees with location data:", employeesWithLocation.length);
+        // console.log("Employees with location data:", employeesWithLocation.length);
         return employeesWithLocation;
       };
 
@@ -219,30 +254,40 @@ export const liveApi = {
           const attendanceResponse = await ENDPOINTS.getLiveLocations();
           if (attendanceResponse?.data) {
             const attendanceData = attendanceResponse.data;
-            const attendanceLocations = attendanceData.locations || attendanceData.data || [];
-            const mapped: AttendanceLocation[] = attendanceLocations.map((att: any) => ({
-              employeeId: att.employee_id || att.employeeId,
-              latitude: Number(att.latitude) || null,
-              longitude: Number(att.longitude) || null,
-              accuracy: Number(att.accuracy) || null,
-              address: att.address || null,
-              timestamp: att.timestamp || att.location_timestamp || null,
-              deviceInfo: att.device_info || null,
-              trackingStatus: att.tracking_status || null,
-              minutesSinceUpdate: Number(att.minutes_since_update) || null,
-              hasActiveAttendance: Boolean(att.has_active_attendance),
-              hasActiveFieldAttendance: Boolean(att.has_active_field_attendance),
-            }));
+            const attendanceLocations =
+              attendanceData.locations || attendanceData.data || [];
+            const mapped: AttendanceLocation[] = attendanceLocations.map(
+              (att: any) => ({
+                employeeId: att.employee_id || att.employeeId,
+                latitude: Number(att.latitude) || null,
+                longitude: Number(att.longitude) || null,
+                accuracy: Number(att.accuracy) || null,
+                address: att.address || null,
+                timestamp: att.timestamp || att.location_timestamp || null,
+                deviceInfo: att.device_info || null,
+                trackingStatus: att.tracking_status || null,
+                minutesSinceUpdate: Number(att.minutes_since_update) || null,
+                hasActiveAttendance: Boolean(att.has_active_attendance),
+                hasActiveFieldAttendance: Boolean(
+                  att.has_active_field_attendance,
+                ),
+              }),
+            );
             const withLoc = attachLocations(mapped);
             return { data: withLoc };
           }
         } catch (attendanceError) {
-          console.warn("Failed to fetch attendance locations:", attendanceError);
+          console.warn(
+            "Failed to fetch attendance locations:",
+            attendanceError,
+          );
         }
 
         // Fallback: derive from attendance logs (open check-ins)
         try {
-          const openLogs = [...latestAttendanceByEmployee.values()].filter((log) => !log.check_out && !log.checkOut);
+          const openLogs = [...latestAttendanceByEmployee.values()].filter(
+            (log) => !log.check_out && !log.checkOut,
+          );
           const mapped: AttendanceLocation[] = openLogs
             .map((log) => {
               const loc = parseCheckInLocation(log.check_in_location);
@@ -262,7 +307,10 @@ export const liveApi = {
           const withLoc = attachLocations(mapped);
           return { data: withLoc };
         } catch (logsError) {
-          console.warn("Failed to fetch attendance logs for location fallback:", logsError);
+          console.warn(
+            "Failed to fetch attendance logs for location fallback:",
+            logsError,
+          );
         }
       }
 
@@ -281,7 +329,7 @@ export const liveApi = {
   },
 
   getAttendanceLogs: async (
-    filters?: AttendanceLogFilters
+    filters?: AttendanceLogFilters,
   ): Promise<{
     data?: AttendanceLog[];
     total?: number;
@@ -296,7 +344,10 @@ export const liveApi = {
     } catch (error: any) {
       console.error("Error fetching attendance logs:", error);
       return {
-        error: error.response?.data?.message || error.message || "Failed to fetch attendance logs",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch attendance logs",
       };
     }
   },
@@ -310,7 +361,7 @@ export const liveApi = {
       limit?: number;
       stayRadiusMeters?: number;
       minimumStayMinutes?: number;
-    }
+    },
   ): Promise<{
     data?: {
       employee?: any;
@@ -320,7 +371,10 @@ export const liveApi = {
     error?: string;
   }> => {
     try {
-      const response = await ENDPOINTS.getLiveLocationHistory(String(employeeId), params);
+      const response = await ENDPOINTS.getLiveLocationHistory(
+        String(employeeId),
+        params,
+      );
       return {
         data: {
           employee: response.data?.employee,
@@ -331,7 +385,10 @@ export const liveApi = {
     } catch (error: any) {
       console.error("Error fetching live location history:", error);
       return {
-        error: error.response?.data?.message || error.message || "Failed to fetch live location history",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch live location history",
       };
     }
   },
@@ -342,7 +399,7 @@ export const liveApi = {
     latitude: number,
     longitude: number,
     accuracy?: number,
-    address?: string
+    address?: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       await ENDPOINTS.postLiveLocation({
@@ -358,7 +415,10 @@ export const liveApi = {
       console.error("Error sending location:", error);
       return {
         success: false,
-        error: error.response?.data?.message || error.message || "Failed to send location",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to send location",
       };
     }
   },
@@ -370,12 +430,19 @@ export const liveApi = {
     try {
       const response = await ENDPOINTS.getLiveLocations();
       return {
-        data: response.data?.locations || response.data?.data || response.data || [],
+        data:
+          response.data?.locations ||
+          response.data?.data ||
+          response.data ||
+          [],
       };
     } catch (error: any) {
       console.error("Error fetching employee locations:", error);
       return {
-        error: error.response?.data?.message || error.message || "Failed to fetch locations",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch locations",
       };
     }
   },
@@ -384,29 +451,38 @@ export const liveApi = {
     employeeId: string | number,
     startDate?: string,
     endDate?: string,
-    limit?: number
+    limit?: number,
   ): Promise<{
     data?: any[];
     error?: string;
   }> => {
     try {
-      const response = await ENDPOINTS.getLiveLocationHistory(String(employeeId), {
-        startDate,
-        endDate,
-        limit: limit || 100,
-      });
+      const response = await ENDPOINTS.getLiveLocationHistory(
+        String(employeeId),
+        {
+          startDate,
+          endDate,
+          limit: limit || 100,
+        },
+      );
       return {
-        data: response.data?.points || response.data?.data || response.data || [],
+        data:
+          response.data?.points || response.data?.data || response.data || [],
       };
     } catch (error: any) {
       console.error("Error fetching location history:", error);
       return {
-        error: error.response?.data?.message || error.message || "Failed to fetch location history",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch location history",
       };
     }
   },
 
-  stopTracking: async (employeeId: string | number): Promise<{
+  stopTracking: async (
+    employeeId: string | number,
+  ): Promise<{
     success: boolean;
     error?: string;
   }> => {
@@ -419,7 +495,10 @@ export const liveApi = {
       console.error("Error stopping tracking:", error);
       return {
         success: false,
-        error: error.response?.data?.message || error.message || "Failed to stop tracking",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to stop tracking",
       };
     }
   },

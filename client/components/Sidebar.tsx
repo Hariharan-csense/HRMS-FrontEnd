@@ -133,7 +133,10 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { getAllowedModulesFromSubscription, hasSubscriptionAddonModule } from "@/utils/subscriptionModules";
+import {
+  getAllowedModulesFromSubscription,
+  hasSubscriptionAddonModule,
+} from "@/utils/subscriptionModules";
 import { Button } from "@/components/ui/button";
 
 type NavItem = {
@@ -902,11 +905,21 @@ export const Sidebar: React.FC = () => {
       subscriptionLoading,
       {
         trialEndingSoonDays: 2,
-        currentEmployeeId: Number(user.employee_id || user.employeeId || user.id || 0) || null,
+        currentEmployeeId:
+          Number(user.employee_id || user.employeeId || user.id || 0) || null,
         addonAdminBypass: isAdmin || isCeo,
       },
     );
-  }, [isSuperAdmin, subscription, subscriptionLoading, user.employee_id, user.employeeId, user.id, isAdmin, isCeo]);
+  }, [
+    isSuperAdmin,
+    subscription,
+    subscriptionLoading,
+    user.employee_id,
+    user.employeeId,
+    user.id,
+    isAdmin,
+    isCeo,
+  ]);
 
   const normalizeSubmoduleKey = (value: string) =>
     value.toLowerCase().replace(/[\s-]+/g, "_");
@@ -1058,7 +1071,9 @@ export const Sidebar: React.FC = () => {
     if (
       item.moduleName === "pulse_surveys" &&
       (isAdmin || isCeo) &&
-      ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || ""))
+      ["my_surveys", "feedback", "respond"].includes(
+        String(inferredSubmodule || ""),
+      )
     ) {
       return true;
     }
@@ -1073,14 +1088,14 @@ export const Sidebar: React.FC = () => {
         process.env.NODE_ENV === "development" &&
         item.label === "ESSL Setup"
       ) {
-        console.log("ESSL Setup Permission Check:", {
-          label: item.label,
-          moduleName: item.moduleName,
-          subModuleName: item.subModuleName,
-          inferredSubmodule,
-          hasAccess,
-          path: item.path,
-        });
+        // console.log("ESSL Setup Permission Check:", {
+        //   label: item.label,
+        //   moduleName: item.moduleName,
+        //   subModuleName: item.subModuleName,
+        //   inferredSubmodule,
+        //   hasAccess,
+        //   path: item.path,
+        // });
       }
       return hasAccess;
     }
@@ -1095,19 +1110,19 @@ export const Sidebar: React.FC = () => {
 
   // Debug: Log user roles and accessible modules (moved after function definition)
   if (process.env.NODE_ENV === "development") {
-    console.log("=== SIDEBAR DEBUG ===");
-    console.log("User Info:", {
-      name: user.name,
-      roles: user.roles,
-      email: user.email,
-    });
-    console.log("All Navigation Items:");
+    // console.log("=== SIDEBAR DEBUG ===");
+    // console.log("User Info:", {
+    //   name: user.name,
+    //   roles: user.roles,
+    //   email: user.email,
+    // });
+    // console.log("All Navigation Items:");
     navigationItems.forEach((item) => {
-      console.log(
-        `- ${item.label}: moduleName=${item.moduleName}, hasAccess=${hasItemAccess(item)}`,
-      );
+      // console.log(
+      //   `- ${item.label}: moduleName=${item.moduleName}, hasAccess=${hasItemAccess(item)}`,
+      // );
     });
-    console.log("=== END SIDEBAR DEBUG ===");
+    // console.log("=== END SIDEBAR DEBUG ===");
   }
 
   const superAdminAllowedPaths = new Set([
@@ -1125,19 +1140,19 @@ export const Sidebar: React.FC = () => {
 
   // Debug: Log filtered items
   if (process.env.NODE_ENV === "development") {
-    console.log("Sidebar Debug - Filtered Items:", {
-      totalItems: navigationItems.length,
-      filteredCount: filteredItems.length,
-      filteredItems: filteredItems.map((item) => ({
-        label: item.label,
-        moduleName: item.moduleName,
-        hasAccess: hasItemAccess(item),
-      })),
-      userRoles: user.roles,
-      userDepartment: user.department,
-      roleLoading,
-      userRoleData: userRoles,
-    });
+    // console.log("Sidebar Debug - Filtered Items:", {
+    //   totalItems: navigationItems.length,
+    //   filteredCount: filteredItems.length,
+    //   filteredItems: filteredItems.map((item) => ({
+    //     label: item.label,
+    //     moduleName: item.moduleName,
+    //     hasAccess: hasItemAccess(item),
+    //   })),
+    //   userRoles: user.roles,
+    //   userDepartment: user.department,
+    //   roleLoading,
+    //   userRoleData: userRoles,
+    // });
   }
 
   const NavItemComponent: React.FC<{ item: NavItem; level?: number }> = ({
@@ -1154,13 +1169,13 @@ export const Sidebar: React.FC = () => {
             process.env.NODE_ENV === "development" &&
             sub.label === "ESSL Setup"
           ) {
-            console.log("ESSL Setup Submenu Filter:", {
-              label: sub.label,
-              hasAccess,
-              moduleName: sub.moduleName,
-              subModuleName: sub.subModuleName,
-              path: sub.path,
-            });
+            // console.log("ESSL Setup Submenu Filter:", {
+            //   label: sub.label,
+            //   hasAccess,
+            //   moduleName: sub.moduleName,
+            //   subModuleName: sub.subModuleName,
+            //   path: sub.path,
+            // });
           }
           return hasAccess;
         })

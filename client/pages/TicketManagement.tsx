@@ -1,15 +1,53 @@
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Search, Calendar, User, AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  Calendar,
+  User,
+  AlertCircle,
+  Clock,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import ENDPOINTS from "@/lib/endpoint";
 
 interface Ticket {
@@ -50,7 +88,7 @@ const TicketManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  
+
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -58,16 +96,21 @@ const TicketManagement: React.FC = () => {
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  
+
   // Form states
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     priority: "medium" as "low" | "medium" | "high" | "urgent",
-    category: "general" as "technical" | "hr" | "finance" | "operations" | "general",
+    category: "general" as
+      | "technical"
+      | "hr"
+      | "finance"
+      | "operations"
+      | "general",
     assignedTo: "procease.co",
     status: "open" as "open" | "in_progress" | "resolved" | "closed",
-    remarks: ""
+    remarks: "",
   });
 
   // Fetch tickets and users
@@ -81,23 +124,30 @@ const TicketManagement: React.FC = () => {
     let filtered = tickets;
 
     if (searchTerm) {
-      filtered = filtered.filter(ticket =>
-        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.ticketNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (ticket) =>
+          ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ticket.ticketNumber
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          ticket.description.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter(ticket => ticket.status === statusFilter);
+      filtered = filtered.filter((ticket) => ticket.status === statusFilter);
     }
 
     if (priorityFilter !== "all") {
-      filtered = filtered.filter(ticket => ticket.priority === priorityFilter);
+      filtered = filtered.filter(
+        (ticket) => ticket.priority === priorityFilter,
+      );
     }
 
     if (categoryFilter !== "all") {
-      filtered = filtered.filter(ticket => ticket.category === categoryFilter);
+      filtered = filtered.filter(
+        (ticket) => ticket.category === categoryFilter,
+      );
     }
 
     setFilteredTickets(filtered);
@@ -106,14 +156,14 @@ const TicketManagement: React.FC = () => {
   const fetchTickets = async () => {
     try {
       const response = await ENDPOINTS.getTickets();
-      
+
       if (response.data) {
         setTickets(response.data.data || []);
       } else {
-        console.error('Failed to fetch tickets');
+        console.error("Failed to fetch tickets");
       }
     } catch (error) {
-      console.error('Error fetching tickets:', error);
+      console.error("Error fetching tickets:", error);
     } finally {
       setLoading(false);
     }
@@ -122,14 +172,14 @@ const TicketManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const response = await ENDPOINTS.getTicketUsers();
-      
+
       if (response.data) {
         setUsers(response.data.data || []);
       } else {
-        console.error('Failed to fetch users');
+        console.error("Failed to fetch users");
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
     }
   };
 
@@ -141,7 +191,7 @@ const TicketManagement: React.FC = () => {
         description: formData.description,
         priority: formData.priority,
         category: formData.category,
-        assigned_to: formData.assignedTo || null
+        assigned_to: formData.assignedTo || null,
       });
 
       if (response.data) {
@@ -149,10 +199,10 @@ const TicketManagement: React.FC = () => {
         resetForm();
         fetchTickets();
       } else {
-        console.error('Failed to create ticket');
+        console.error("Failed to create ticket");
       }
     } catch (error) {
-      console.error('Error creating ticket:', error);
+      console.error("Error creating ticket:", error);
     } finally {
       setIsCreatingTicket(false);
     }
@@ -168,41 +218,44 @@ const TicketManagement: React.FC = () => {
         description: formData.description,
         category: formData.category,
         status: formData.status,
-        assigned_to: formData.assignedTo || null
+        assigned_to: formData.assignedTo || null,
       };
-      
+
       // Only include remarks if it has content
-      if (formData.remarks && formData.remarks.trim() !== '') {
+      if (formData.remarks && formData.remarks.trim() !== "") {
         updateData.remarks = formData.remarks.trim();
       }
-      
-      console.log('Sending update data:', updateData);
-      
-      const response = await ENDPOINTS.updateTicket(selectedTicket.id, updateData);
+
+      // console.log("Sending update data:", updateData);
+
+      const response = await ENDPOINTS.updateTicket(
+        selectedTicket.id,
+        updateData,
+      );
 
       if (response.data) {
-        console.log('Received response:', response.data);
-        
+        // console.log("Received response:", response.data);
+
         // Update local state immediately with the updated ticket data
         if (response.data.data) {
-          setTickets(prevTickets => 
-            prevTickets.map(ticket => 
-              ticket.id === selectedTicket.id 
+          setTickets((prevTickets) =>
+            prevTickets.map((ticket) =>
+              ticket.id === selectedTicket.id
                 ? { ...ticket, ...response.data.data }
-                : ticket
-            )
+                : ticket,
+            ),
           );
         }
-        
+
         setIsEditDialogOpen(false);
         resetForm();
         // Still fetch tickets to ensure we have the latest data from server
         fetchTickets();
       } else {
-        console.error('Failed to update ticket');
+        console.error("Failed to update ticket");
       }
     } catch (error) {
-      console.error('Error updating ticket:', error);
+      console.error("Error updating ticket:", error);
     } finally {
       setIsUpdatingTicket(false);
     }
@@ -219,10 +272,10 @@ const TicketManagement: React.FC = () => {
         setSelectedTicket(null);
         fetchTickets();
       } else {
-        console.error('Failed to delete ticket');
+        console.error("Failed to delete ticket");
       }
     } catch (error) {
-      console.error('Error deleting ticket:', error);
+      console.error("Error deleting ticket:", error);
     }
   };
 
@@ -234,13 +287,13 @@ const TicketManagement: React.FC = () => {
       category: "general",
       assignedTo: "procease.co",
       status: "open",
-      remarks: ""
+      remarks: "",
     });
     setSelectedTicket(null);
   };
 
   const openEditDialog = (ticket: Ticket) => {
-    console.log('Opening edit dialog with ticket:', ticket);
+    // console.log("Opening edit dialog with ticket:", ticket);
     setSelectedTicket(ticket);
     setFormData({
       title: ticket.title,
@@ -249,7 +302,7 @@ const TicketManagement: React.FC = () => {
       category: ticket.category,
       assignedTo: ticket.assignedTo?.id || "procease.co",
       status: ticket.status,
-      remarks: ticket.remarks || ""
+      remarks: ticket.remarks || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -261,31 +314,46 @@ const TicketManagement: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "urgent":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "high":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'in_progress': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'resolved': return 'bg-green-100 text-green-800 border-green-200';
-      case 'closed': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "open":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "in_progress":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case "resolved":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "closed":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'open': return <AlertCircle className="h-4 w-4" />;
-      case 'in_progress': return <Clock className="h-4 w-4" />;
-      case 'resolved': return <CheckCircle className="h-4 w-4" />;
-      case 'closed': return <XCircle className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+      case "open":
+        return <AlertCircle className="h-4 w-4" />;
+      case "in_progress":
+        return <Clock className="h-4 w-4" />;
+      case "resolved":
+        return <CheckCircle className="h-4 w-4" />;
+      case "closed":
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
     }
   };
 
@@ -304,10 +372,14 @@ const TicketManagement: React.FC = () => {
       <div className="space-y-6 p-6 bg-gradient-to-br from-[#e6fbf4] via-white to-white rounded-3xl">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#17c491]">Ticket Management</h1>
-            <p className="text-muted-foreground text-sm sm:text-base">Manage and track support tickets</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#17c491]">
+              Ticket Management
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Manage and track support tickets
+            </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setIsCreateDialogOpen(true)}
             className="bg-[#17c491] hover:bg-[#17c491]/90 text-white w-full sm:w-auto"
           >
@@ -353,7 +425,10 @@ const TicketManagement: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="priority">Priority</Label>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <Select
+                  value={priorityFilter}
+                  onValueChange={setPriorityFilter}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by priority" />
                   </SelectTrigger>
@@ -368,7 +443,10 @@ const TicketManagement: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="category">Category</Label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by category" />
                   </SelectTrigger>
@@ -389,8 +467,12 @@ const TicketManagement: React.FC = () => {
         {/* Tickets List */}
         <Card className="border-0 shadow-md bg-white/90">
           <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl pb-3">
-            <CardTitle className="text-white">Tickets ({filteredTickets.length})</CardTitle>
-            <CardDescription className="text-white/80">Manage and track all support tickets</CardDescription>
+            <CardTitle className="text-white">
+              Tickets ({filteredTickets.length})
+            </CardTitle>
+            <CardDescription className="text-white/80">
+              Manage and track all support tickets
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {filteredTickets.length === 0 ? (
@@ -398,67 +480,108 @@ const TicketManagement: React.FC = () => {
                 <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">No tickets found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {searchTerm || statusFilter !== "all" || priorityFilter !== "all" || categoryFilter !== "all"
+                  {searchTerm ||
+                  statusFilter !== "all" ||
+                  priorityFilter !== "all" ||
+                  categoryFilter !== "all"
                     ? "Try adjusting your filters"
                     : "Create your first ticket to get started"}
                 </p>
-                {!searchTerm && statusFilter === "all" && priorityFilter === "all" && categoryFilter === "all" && (
-                  <Button 
-                    onClick={() => setIsCreateDialogOpen(true)}
-                    className="bg-[#17c491] hover:bg-[#17c491]/90 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Ticket
-                  </Button>
-                )}
+                {!searchTerm &&
+                  statusFilter === "all" &&
+                  priorityFilter === "all" &&
+                  categoryFilter === "all" && (
+                    <Button
+                      onClick={() => setIsCreateDialogOpen(true)}
+                      className="bg-[#17c491] hover:bg-[#17c491]/90 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Ticket
+                    </Button>
+                  )}
               </div>
             ) : (
               <div className="space-y-4 mt-2">
                 {filteredTickets.map((ticket) => (
-                  <div key={ticket.id} className="border rounded-lg p-3 sm:p-4 space-y-3">
+                  <div
+                    key={ticket.id}
+                    className="border rounded-lg p-3 sm:p-4 space-y-3"
+                  >
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                       <div className="space-y-2 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-sm">{ticket.ticketNumber}</span>
-                          <Badge className={`${getPriorityColor(ticket.priority)} text-xs`}>
+                          <span className="font-medium text-sm">
+                            {ticket.ticketNumber}
+                          </span>
+                          <Badge
+                            className={`${getPriorityColor(ticket.priority)} text-xs`}
+                          >
                             {ticket.priority}
                           </Badge>
-                          <Badge className={`${getStatusColor(ticket.status)} text-xs`}>
+                          <Badge
+                            className={`${getStatusColor(ticket.status)} text-xs`}
+                          >
                             {getStatusIcon(ticket.status)}
-                            <span className="ml-1">{ticket.status.replace('_', ' ')}</span>
+                            <span className="ml-1">
+                              {ticket.status.replace("_", " ")}
+                            </span>
                           </Badge>
                         </div>
-                        <h3 className="font-semibold text-base sm:text-lg">{ticket.title}</h3>
-                        <p className="text-muted-foreground text-sm line-clamp-2">{ticket.description}</p>
+                        <h3 className="font-semibold text-base sm:text-lg">
+                          {ticket.title}
+                        </h3>
+                        <p className="text-muted-foreground text-sm line-clamp-2">
+                          {ticket.description}
+                        </p>
                         {ticket.remarks && (
                           <div className="mt-2 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-md">
-                            <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">Remarks:</p>
-                            <p className="text-xs sm:text-sm text-blue-700 line-clamp-2">{ticket.remarks}</p>
+                            <p className="text-xs sm:text-sm font-medium text-blue-800 mb-1">
+                              Remarks:
+                            </p>
+                            <p className="text-xs sm:text-sm text-blue-700 line-clamp-2">
+                              {ticket.remarks}
+                            </p>
                           </div>
                         )}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span className="truncate">Created by {ticket.createdBy.name}</span>
+                            <span className="truncate">
+                              Created by {ticket.createdBy.name}
+                            </span>
                           </div>
                           {ticket.assignedTo && (
                             <div className="flex items-center gap-1">
                               <User className="h-3 w-3 sm:h-4 sm:w-4" />
-                              <span className="truncate">Assigned to {ticket.assignedTo.name}</span>
+                              <span className="truncate">
+                                Assigned to {ticket.assignedTo.name}
+                              </span>
                             </div>
                           )}
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                            <span>
+                              {new Date(ticket.createdAt).toLocaleDateString()}
+                            </span>
                           </div>
                         </div>
                       </div>
                       <div className="flex gap-2 sm:flex-col">
-                        <Button variant="outline" size="sm" onClick={() => openEditDialog(ticket)} className="flex-1 sm:flex-initial">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(ticket)}
+                          className="flex-1 sm:flex-initial"
+                        >
                           <Edit className="h-4 w-4" />
                           <span className="hidden sm:inline ml-1">Edit</span>
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openDeleteDialog(ticket)} className="flex-1 sm:flex-initial">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDeleteDialog(ticket)}
+                          className="flex-1 sm:flex-initial"
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="hidden sm:inline ml-1">Delete</span>
                         </Button>
@@ -487,7 +610,9 @@ const TicketManagement: React.FC = () => {
               <Input
                 id="title"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 placeholder="Enter ticket title"
               />
             </div>
@@ -496,7 +621,9 @@ const TicketManagement: React.FC = () => {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Describe the issue or request in detail"
                 rows={4}
               />
@@ -504,7 +631,12 @@ const TicketManagement: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Select value={formData.priority} onValueChange={(value: any) => setFormData({ ...formData, priority: value })}>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, priority: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -518,7 +650,12 @@ const TicketManagement: React.FC = () => {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="category">Category</Label>
-                <Select value={formData.category} onValueChange={(value: any) => setFormData({ ...formData, category: value })}>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, category: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -534,25 +671,33 @@ const TicketManagement: React.FC = () => {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="assignedTo">Assign To</Label>
-              <Select value="procease.co" onValueChange={(value) => setFormData({ ...formData, assignedTo: value })}>
+              <Select
+                value="procease.co"
+                onValueChange={(value) =>
+                  setFormData({ ...formData, assignedTo: value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="procease.co">
-                    procease.co
-                  </SelectItem>
+                  <SelectItem value="procease.co">procease.co</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              onClick={handleCreateTicket} 
-              disabled={!formData.title || !formData.description || isCreatingTicket}
+            <Button
+              onClick={handleCreateTicket}
+              disabled={
+                !formData.title || !formData.description || isCreatingTicket
+              }
               className="bg-[#17c491] hover:bg-[#17c491]/90 text-white disabled:opacity-50"
             >
               {isCreatingTicket ? "Creating..." : "Create Ticket"}
@@ -576,7 +721,9 @@ const TicketManagement: React.FC = () => {
               <Input
                 id="edit-title"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 placeholder="Enter ticket title"
               />
             </div>
@@ -585,7 +732,9 @@ const TicketManagement: React.FC = () => {
               <Textarea
                 id="edit-description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Describe the issue or request in detail"
                 rows={4}
               />
@@ -593,7 +742,12 @@ const TicketManagement: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-category">Category</Label>
-                <Select value={formData.category} onValueChange={(value: any) => setFormData({ ...formData, category: value })}>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, category: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -608,7 +762,12 @@ const TicketManagement: React.FC = () => {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-assignedTo">Assign To</Label>
-                <Select value={formData.assignedTo} onValueChange={(value) => setFormData({ ...formData, assignedTo: value })}>
+                <Select
+                  value={formData.assignedTo}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, assignedTo: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select user to assign (optional)" />
                   </SelectTrigger>
@@ -624,12 +783,17 @@ const TicketManagement: React.FC = () => {
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              onClick={handleUpdateTicket} 
-              disabled={!formData.title || !formData.description || isUpdatingTicket}
+            <Button
+              onClick={handleUpdateTicket}
+              disabled={
+                !formData.title || !formData.description || isUpdatingTicket
+              }
               className="bg-[#17c491] hover:bg-[#17c491]/90 text-white disabled:opacity-50"
             >
               {isUpdatingTicket ? "Updating..." : "Update Ticket"}
@@ -639,17 +803,24 @@ const TicketManagement: React.FC = () => {
       </Dialog>
 
       {/* Delete Ticket Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the ticket "{selectedTicket?.title}" and all its associated data.
+              This action cannot be undone. This will permanently delete the
+              ticket "{selectedTicket?.title}" and all its associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTicket} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={handleDeleteTicket}
+              className="bg-red-600 hover:bg-red-700"
+            >
               Delete Ticket
             </AlertDialogAction>
           </AlertDialogFooter>

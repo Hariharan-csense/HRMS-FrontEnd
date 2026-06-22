@@ -5,13 +5,13 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-export const BASE_URL = "http://192.168.1.9:3000/backend";
+export const BASE_URL = "http://192.168.1.16:3000/backend";
 // export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
   //
-  if ( 
+  if (
     path.startsWith("http://") ||
     path.startsWith("https://") ||
     path.startsWith("data:") ||
@@ -102,6 +102,27 @@ const getStoredRefreshToken = () =>
   localStorage.getItem("refreshToken") ||
   getRememberedRefreshToken() ||
   sessionStorage.getItem("refreshToken");
+
+const AUTO_LOGIN_PAUSED_KEY = "auth:showWelcomeBack";
+
+const isAutoLoginPaused = () =>
+  typeof sessionStorage !== "undefined" &&
+  sessionStorage.getItem(AUTO_LOGIN_PAUSED_KEY) === "true";
+
+const hasReadableAuthCookie = (name: string) => {
+  if (typeof document === "undefined") return false;
+
+  return document.cookie
+    .split(";")
+    .some((cookie) => cookie.trim().startsWith(`${name}=`));
+};
+
+const hasRefreshCredential = () =>
+  Boolean(
+    getStoredRefreshToken() ||
+    hasReadableAuthCookie("refreshToken") ||
+    hasReadableAuthCookie("refreshTokenDebug"),
+  );
 
 const persistRefreshToken = (refreshToken: string) => {
   localStorage.setItem("refreshToken", refreshToken);
@@ -242,6 +263,14 @@ const refreshAccessToken = async (): Promise<string> => {
   try {
     const storedRefreshToken = getStoredRefreshToken();
 
+    if (isAutoLoginPaused()) {
+      throw new Error("Auto login is paused after logout");
+    }
+
+    if (!storedRefreshToken && !hasRefreshCredential()) {
+      throw new Error("No refresh token available");
+    }
+
     const response = await axios.post(
       `${BASE_URL}/api/auth/refresh-token`,
 
@@ -276,7 +305,7 @@ const refreshAccessToken = async (): Promise<string> => {
       setReadableAuthCookie("refreshToken", newRefreshToken, 7 * 24 * 60 * 60);
     }
 
-    console.log("Access token refreshed successfully");
+    // console.log("Access token refreshed successfully");
 
     return newAccessToken;
   } catch (error) {
@@ -401,6 +430,8 @@ api.interceptors.response.use(
 export {
   refreshAccessToken,
   checkAndRefreshTokenIfNeeded,
+  hasRefreshCredential,
+  isAutoLoginPaused,
   isTokenExpiredOrExpiringSoon,
 };
 
@@ -412,7 +443,22 @@ const ENDPOINTS = {
 
     authApi.post("/auth/login", { email, password }),
 
-  refreshAccessToken: () => api.post("/auth/refresh-token", {}),
+  refreshAccessToken: () => {
+    const storedRefreshToken = getStoredRefreshToken();
+
+    if (isAutoLoginPaused()) {
+      return Promise.reject(new Error("Auto login is paused after logout"));
+    }
+
+    if (!storedRefreshToken && !hasRefreshCredential()) {
+      return Promise.reject(new Error("No refresh token available"));
+    }
+
+    return authApi.post(
+      "/auth/refresh-token",
+      storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
+    );
+  },
 
   register: (data: any) =>
     isCordovaIOS()
@@ -1190,12 +1236,12 @@ const ENDPOINTS = {
         }
       }
 
-      console.log("Raw API response:", response.data);
+      // console.log("Raw API response:", response.data);
 
       if (response.data && (response.data.payrolls || response.data)) {
         const payrollsData = response.data.payrolls || response.data;
 
-        console.log("Found payrolls array:", payrollsData);
+        // console.log("Found payrolls array:", payrollsData);
 
         // Transform API response to match the expected payslip interface
 
@@ -1238,7 +1284,7 @@ const ENDPOINTS = {
           createdAt: item.created_at || new Date().toISOString(),
         }));
 
-        console.log("Transformed data:", transformedData);
+        // console.log("Transformed data:", transformedData);
 
         return { data: transformedData };
       } else if (response.data) {

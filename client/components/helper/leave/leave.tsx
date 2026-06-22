@@ -35,16 +35,16 @@ export interface LeaveApplication {
 
 export interface LeaveType {
   id: string;
-  name: string;                    // e.g., "Annual Leave", "Sick Leave"
-  code?: string;                   // e.g., "AL", "SL"
+  name: string; // e.g., "Annual Leave", "Sick Leave"
+  code?: string; // e.g., "AL", "SL"
   description?: string;
-  maxDays: number;                 // Maximum allowed days per year
-  isPaid: boolean;                 // Paid or unpaid
+  maxDays: number; // Maximum allowed days per year
+  isPaid: boolean; // Paid or unpaid
   isActive?: boolean;
-  carryForward?: boolean;          // Can unused days be carried forward?
-  carryForwardLimit?: number;      // Max days that can be carried forward
-  encashable?: boolean;            // Can leave be encashed
-  requiresApproval?: boolean;      // Needs manager/HR approval
+  carryForward?: boolean; // Can unused days be carried forward?
+  carryForwardLimit?: number; // Max days that can be carried forward
+  encashable?: boolean; // Can leave be encashed
+  requiresApproval?: boolean; // Needs manager/HR approval
   createdAt?: string;
   updatedAt?: string;
 }
@@ -75,26 +75,43 @@ export const leaveTypeApi = {
       }
 
       const mapped: LeaveType[] = rawData.map((lt: any) => {
-        const maxDays = Number(lt.annual_limit || lt.max_days || lt.maximum_days || lt.allowed_days || 0);
-        const carryForwardLimit = Number(lt.carry_forward || lt.carry_forward_limit || lt.max_carry_forward || 0);
-        const isPaid = lt.is_paid === 1 || lt.is_paid === true || lt.paid === true;
+        const maxDays = Number(
+          lt.annual_limit ||
+            lt.max_days ||
+            lt.maximum_days ||
+            lt.allowed_days ||
+            0,
+        );
+        const carryForwardLimit = Number(
+          lt.carry_forward ||
+            lt.carry_forward_limit ||
+            lt.max_carry_forward ||
+            0,
+        );
+        const isPaid =
+          lt.is_paid === 1 || lt.is_paid === true || lt.paid === true;
         const encashable = lt.encashable === 1 || lt.encashable === true;
 
-        console.log("Raw Leave Type Item:", lt);
-        console.log("Mapped maxDays:", maxDays);
-        console.log("Mapped carryForwardLimit:", carryForwardLimit);
-        console.log("Mapped isPaid:", isPaid);
-        console.log("Mapped encashable:", encashable);
+        // console.log("Raw Leave Type Item:", lt);
+        // console.log("Mapped maxDays:", maxDays);
+        // console.log("Mapped carryForwardLimit:", carryForwardLimit);
+        // console.log("Mapped isPaid:", isPaid);
+        // console.log("Mapped encashable:", encashable);
 
         return {
           id: lt.id?.toString() || lt._id?.toString() || "",
-          name: lt.name || lt.leave_type_name || lt.type_name || "Unnamed Leave",
+          name:
+            lt.name || lt.leave_type_name || lt.type_name || "Unnamed Leave",
           code: lt.code || lt.leave_code || lt.leave_type_id || lt.short_code,
           description: lt.description || lt.leave_description,
           maxDays: maxDays,
           isPaid: isPaid,
-          isActive: (lt.status === "active") || (lt.is_active ?? lt.active ?? true),
-          carryForward: lt.carry_forward > 0 || lt.allow_carry_forward === true || lt.carry_forward === true,
+          isActive:
+            lt.status === "active" || (lt.is_active ?? lt.active ?? true),
+          carryForward:
+            lt.carry_forward > 0 ||
+            lt.allow_carry_forward === true ||
+            lt.carry_forward === true,
           carryForwardLimit: carryForwardLimit,
           encashable: encashable,
           requiresApproval: lt.requires_approval ?? lt.needs_approval ?? true,
@@ -116,11 +133,13 @@ export const leaveTypeApi = {
   },
 
   // ✅ Create new leave type
-  createLeaveType: async (data: any): Promise<{ data?: LeaveType; error?: string }> => {
+  createLeaveType: async (
+    data: any,
+  ): Promise<{ data?: LeaveType; error?: string }> => {
     try {
       const response = await ENDPOINTS.createLeave(data);
 
-      console.log("Create Leave Type Response:", response);
+      // console.log("Create Leave Type Response:", response);
 
       // Handle different response formats
       if (response.data?.message || response.data?.leave_type_id) {
@@ -140,12 +159,14 @@ export const leaveTypeApi = {
             requiresApproval: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         };
       } else if (response.data?.success) {
         return { data: response.data };
       } else {
-        return { error: response.data?.message || "Failed to create leave type" };
+        return {
+          error: response.data?.message || "Failed to create leave type",
+        };
       }
     } catch (error: any) {
       console.error("Error creating leave type:", error);
@@ -159,11 +180,14 @@ export const leaveTypeApi = {
   },
 
   // ✅ Update leave type
-  updateLeaveType: async (id: string, data: any): Promise<{ data?: LeaveType; error?: string }> => {
+  updateLeaveType: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: LeaveType; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateLeave(id, data);
 
-      console.log("Update Leave Type Response:", response);
+      // // console.log("Update Leave Type Response:", response);
 
       // Handle different response formats
       if (response.data?.message || response.data?.success) {
@@ -183,12 +207,14 @@ export const leaveTypeApi = {
             requiresApproval: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         };
       } else if (response.data?.success) {
         return { data: response.data };
       } else {
-        return { error: response.data?.message || "Failed to update leave type" };
+        return {
+          error: response.data?.message || "Failed to update leave type",
+        };
       }
     } catch (error: any) {
       console.error("Error updating leave type:", error);
@@ -202,18 +228,22 @@ export const leaveTypeApi = {
   },
 
   // ✅ Delete leave type
-  deleteLeaveType: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  deleteLeaveType: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteLeave(id);
 
-      console.log("Delete Leave Type Response:", response);
+      // console.log("Delete Leave Type Response:", response);
 
       // Handle different response formats
       if (response.data?.message || response.data?.success) {
         // Success case: API returns message or success flag
         return { success: true };
       } else {
-        return { error: response.data?.message || "Failed to delete leave type" };
+        return {
+          error: response.data?.message || "Failed to delete leave type",
+        };
       }
     } catch (error: any) {
       console.error("Error deleting leave type:", error);
@@ -227,16 +257,22 @@ export const leaveTypeApi = {
   },
 
   // ✅ Get leave balances
-  getLeaveBalances: async (): Promise<{ data?: LeaveBalance[]; error?: string }> => {
+  getLeaveBalances: async (): Promise<{
+    data?: LeaveBalance[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getLeaveBalance(); // /leave/balance
 
-      console.log("Leave Balance Response:", response);
+      // console.log("Leave Balance Response:", response);
 
       let rawData: any[] = [];
 
       // Case 1: Wrapped response { success: true, leaveBalances: [...] }
-      if (response.data?.success && Array.isArray(response.data?.leaveBalances)) {
+      if (
+        response.data?.success &&
+        Array.isArray(response.data?.leaveBalances)
+      ) {
         rawData = response.data.leaveBalances;
       }
       // Case 2: Direct array response
@@ -244,7 +280,10 @@ export const leaveTypeApi = {
         rawData = response.data;
       }
       // Case 3: Wrapped response with balances field (nested structure)
-      else if (response.data?.balances && Array.isArray(response.data.balances)) {
+      else if (
+        response.data?.balances &&
+        Array.isArray(response.data.balances)
+      ) {
         // Handle nested structure: balances -> employee -> leaves[]
         rawData = [];
         response.data.balances.forEach((employee: any) => {
@@ -257,14 +296,17 @@ export const leaveTypeApi = {
                 leave_type: leave.leave_type_name,
                 opening_balance: leave.opening_balance,
                 availed: leave.availed,
-                available: leave.available
+                available: leave.available,
               });
             });
           }
         });
       }
       // Case 4: Wrapped response with data.balances field (actual API structure)
-      else if (response.data?.data?.balances && Array.isArray(response.data.data.balances)) {
+      else if (
+        response.data?.data?.balances &&
+        Array.isArray(response.data.data.balances)
+      ) {
         rawData = response.data.data.balances.map((item: any) => ({
           id: `${item.employee_id}_${item.leave_type_id}`,
           employee_id: item.employee_id,
@@ -272,7 +314,7 @@ export const leaveTypeApi = {
           leave_type: item.leave_type_name,
           opening_balance: item.opening_balance,
           availed: item.availed,
-          available: item.available
+          available: item.available,
         }));
       }
       // No valid data
@@ -282,7 +324,8 @@ export const leaveTypeApi = {
 
       const mapped: LeaveBalance[] = rawData.map((lb: any) => ({
         id: lb.id?.toString() || lb._id?.toString() || "",
-        employeeId: lb.employee_id?.toString() || lb.employeeId?.toString() || "",
+        employeeId:
+          lb.employee_id?.toString() || lb.employeeId?.toString() || "",
         employeeName: lb.employee_name || lb.employeeName || "Unknown Employee",
         leaveType: lb.leave_type || lb.leaveType || "Unknown Leave Type",
         opening: Number(lb.opening || lb.opening_balance || 0),
@@ -304,16 +347,22 @@ export const leaveTypeApi = {
   },
 
   // ✅ Get leave applications
-  getLeaveApplications: async (): Promise<{ data?: LeaveApplication[]; error?: string }> => {
+  getLeaveApplications: async (): Promise<{
+    data?: LeaveApplication[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getleaveapplications(); // /leave/applications
 
-      console.log("Leave Applications Response:", response);
+      // console.log("Leave Applications Response:", response);
 
       let rawData: any[] = [];
 
       // Case 1: Wrapped response { success: true, applications: [...] }
-      if (response.data?.success && Array.isArray(response.data?.applications)) {
+      if (
+        response.data?.success &&
+        Array.isArray(response.data?.applications)
+      ) {
         rawData = response.data.applications;
       }
       // Case 2: Direct array response
@@ -321,7 +370,10 @@ export const leaveTypeApi = {
         rawData = response.data;
       }
       // Case 3: Wrapped response with leaveApplications field
-      else if (response.data?.leaveApplications && Array.isArray(response.data.leaveApplications)) {
+      else if (
+        response.data?.leaveApplications &&
+        Array.isArray(response.data.leaveApplications)
+      ) {
         rawData = response.data.leaveApplications;
       }
       // No valid data
@@ -331,9 +383,14 @@ export const leaveTypeApi = {
 
       const mapped: LeaveApplication[] = rawData.map((la: any) => ({
         id: la.id?.toString() || la._id?.toString() || "",
-        employeeId: la.employee_id?.toString() || la.employeeId?.toString() || "",
+        employeeId:
+          la.employee_id?.toString() || la.employeeId?.toString() || "",
         employeeName: la.employee_name || la.employeeName || "Unknown Employee",
-        leaveType: la.leave_type_name || la.leave_type || la.leaveType || "Unknown Leave Type",
+        leaveType:
+          la.leave_type_name ||
+          la.leave_type ||
+          la.leaveType ||
+          "Unknown Leave Type",
         fromDate: la.from_date || la.fromDate || "",
         toDate: la.to_date || la.toDate || "",
         days: Number(la.days || la.number_of_days || 0),
@@ -341,9 +398,13 @@ export const leaveTypeApi = {
         reason: la.reason || "No reason provided",
         attachment: la.attachment || la.document || "",
         status: la.status || "applied",
-        reportingManagerId: la.reporting_manager_id?.toString() || la.reportingManagerId?.toString(),
-        reportingManagerName: la.reporting_manager_name || la.reportingManagerName,
-        reportingManagerEmail: la.reporting_manager_email || la.reportingManagerEmail,
+        reportingManagerId:
+          la.reporting_manager_id?.toString() ||
+          la.reportingManagerId?.toString(),
+        reportingManagerName:
+          la.reporting_manager_name || la.reportingManagerName,
+        reportingManagerEmail:
+          la.reporting_manager_email || la.reportingManagerEmail,
         createdAt: la.created_at || la.createdAt || new Date().toISOString(),
       }));
 
@@ -364,15 +425,17 @@ export const leaveTypeApi = {
     try {
       const response = await ENDPOINTS.applyleave(data);
 
-      console.log("Apply Leave Response:", response);
+      // console.log("Apply Leave Response:", response);
 
       // Handle different response formats
       if (response.data?.success || response.data?.message) {
         return {
-          data: response.data
+          data: response.data,
         };
       } else {
-        return { error: response.data?.message || "Failed to submit leave application" };
+        return {
+          error: response.data?.message || "Failed to submit leave application",
+        };
       }
     } catch (error: any) {
       console.error("Error applying for leave:", error);
@@ -390,14 +453,23 @@ export const leaveTypeApi = {
     try {
       const response = await ENDPOINTS.getleaveusers();
 
-      console.log("Leave Users Response:", response);
+      // console.log("Leave Users Response:", response);
 
       let users: any[] = [];
 
       // Handle grouped response formats:
       // { manager: {...} | [...], hr: [...], admin: [...], ceo: [...] }
-      if (response.data?.manager || response.data?.hr || response.data?.admin || response.data?.ceo) {
-        const pushUser = (entry: any, fallbackRole: string, fallbackDesignation: string) => {
+      if (
+        response.data?.manager ||
+        response.data?.hr ||
+        response.data?.admin ||
+        response.data?.ceo
+      ) {
+        const pushUser = (
+          entry: any,
+          fallbackRole: string,
+          fallbackDesignation: string,
+        ) => {
           users.push({
             id: entry?.id?.toString() || entry?._id?.toString() || "",
             name:
@@ -408,10 +480,21 @@ export const leaveTypeApi = {
             email: entry?.email || "",
             role: entry?.role || fallbackRole,
             department: entry?.department || entry?.department_name || "",
-            designation: entry?.designation || entry?.designation_name || fallbackDesignation,
+            designation:
+              entry?.designation ||
+              entry?.designation_name ||
+              fallbackDesignation,
             employeeId: entry?.employee_id || entry?.employeeId || "",
-            firstName: entry?.first_name || entry?.firstName || entry?.name?.split(" ")[0] || "",
-            lastName: entry?.last_name || entry?.lastName || entry?.name?.split(" ")[1] || "",
+            firstName:
+              entry?.first_name ||
+              entry?.firstName ||
+              entry?.name?.split(" ")[0] ||
+              "",
+            lastName:
+              entry?.last_name ||
+              entry?.lastName ||
+              entry?.name?.split(" ")[1] ||
+              "",
             fullName:
               entry?.fullName ||
               entry?.name ||
@@ -422,8 +505,13 @@ export const leaveTypeApi = {
 
         // Manager can come as single object or array
         if (Array.isArray(response.data.manager)) {
-          response.data.manager.forEach((m: any) => pushUser(m, "manager", "Manager"));
-        } else if (response.data.manager && typeof response.data.manager === "object") {
+          response.data.manager.forEach((m: any) =>
+            pushUser(m, "manager", "Manager"),
+          );
+        } else if (
+          response.data.manager &&
+          typeof response.data.manager === "object"
+        ) {
           pushUser(response.data.manager, "manager", "Manager");
         }
 
@@ -432,7 +520,9 @@ export const leaveTypeApi = {
         }
 
         if (Array.isArray(response.data.admin)) {
-          response.data.admin.forEach((admin: any) => pushUser(admin, "admin", "Admin"));
+          response.data.admin.forEach((admin: any) =>
+            pushUser(admin, "admin", "Admin"),
+          );
         }
 
         if (Array.isArray(response.data.ceo)) {
@@ -459,23 +549,32 @@ export const leaveTypeApi = {
       // Map the response data to a consistent format
       const mappedUsers = users.map((user: any) => ({
         id: user.id?.toString() || user._id?.toString() || "",
-        name: user.name || user.fullName || `${user.first_name || ''} ${user.last_name || ''}`.trim() || "Unknown User",
+        name:
+          user.name ||
+          user.fullName ||
+          `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
+          "Unknown User",
         email: user.email || "",
         role: user.role || "",
         department: user.department || user.department_name || "",
         designation: user.designation || user.designation_name || "",
         employeeId: user.employee_id || user.employeeId || "",
-        firstName: user.first_name || user.firstName || user.name?.split(' ')[0] || '',
-        lastName: user.last_name || user.lastName || user.name?.split(' ')[1] || '',
-        fullName: user.fullName || user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || "Unknown User",
+        firstName:
+          user.first_name || user.firstName || user.name?.split(" ")[0] || "",
+        lastName:
+          user.last_name || user.lastName || user.name?.split(" ")[1] || "",
+        fullName:
+          user.fullName ||
+          user.name ||
+          `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
+          "Unknown User",
       }));
 
       return { data: mappedUsers };
     } catch (error: any) {
       console.error("Error fetching leave users:", error);
       return {
-        error:
-          "Failed to load relevant users",
+        error: "Failed to load relevant users",
       };
     }
   },
@@ -537,10 +636,23 @@ export const holidayApi = {
       const mapped: Holiday[] = rawData.map((holiday: any) => ({
         id: holiday.id?.toString() || holiday._id?.toString() || "",
         name: holiday.name || "Unnamed Holiday",
-        date: holiday.date ? new Date(holiday.date).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : (holiday.holiday_date ? new Date(holiday.holiday_date).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : ""),
+        date: holiday.date
+          ? new Date(holiday.date).toLocaleDateString("en-CA", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            })
+          : holiday.holiday_date
+            ? new Date(holiday.holiday_date).toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              })
+            : "",
         type: holiday.type || holiday.holiday_type || "national",
         description: holiday.description || holiday.holiday_description || "",
-        createdAt: holiday.created_at || holiday.createdAt || new Date().toISOString(),
+        createdAt:
+          holiday.created_at || holiday.createdAt || new Date().toISOString(),
       }));
 
       return { data: mapped };
@@ -556,17 +668,24 @@ export const holidayApi = {
   },
 
   // Create new holiday
-  createHoliday: async (data: any): Promise<{ data?: Holiday; message?: string; error?: string }> => {
+  createHoliday: async (
+    data: any,
+  ): Promise<{ data?: Holiday; message?: string; error?: string }> => {
     try {
       const response = await ENDPOINTS.createHoliday(data);
 
       const created = response.data?.holiday;
       if (response.data?.success && created) {
         const createdDate =
-          typeof created.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(created.date)
+          typeof created.date === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(created.date)
             ? created.date
             : created.date
-              ? new Date(created.date).toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" })
+              ? new Date(created.date).toLocaleDateString("en-CA", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                })
               : undefined;
         return {
           data: {
@@ -608,17 +727,25 @@ export const holidayApi = {
   },
 
   // Update holiday
-  updateHoliday: async (id: string, data: any): Promise<{ data?: Holiday; message?: string; error?: string }> => {
+  updateHoliday: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: Holiday; message?: string; error?: string }> => {
     try {
       const response = await ENDPOINTS.updateHoliday(id, data);
 
       const updated = response.data?.holiday;
       if (response.data?.success && updated) {
         const updatedDate =
-          typeof updated.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(updated.date)
+          typeof updated.date === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(updated.date)
             ? updated.date
             : updated.date
-              ? new Date(updated.date).toLocaleDateString("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" })
+              ? new Date(updated.date).toLocaleDateString("en-CA", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                })
               : undefined;
         return {
           data: {
@@ -660,7 +787,9 @@ export const holidayApi = {
   },
 
   // Delete holiday
-  deleteHoliday: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  deleteHoliday: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteHoliday(id);
 
@@ -686,7 +815,10 @@ export const holidayApi = {
  */
 export const fiscalYearApi = {
   // Get all fiscal years
-  getFiscalYears: async (): Promise<{ data?: FiscalYearConfig[]; error?: string }> => {
+  getFiscalYears: async (): Promise<{
+    data?: FiscalYearConfig[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getFiscalYears();
 
@@ -703,9 +835,36 @@ export const fiscalYearApi = {
       const mapped: FiscalYearConfig[] = rawData.map((fy: any) => ({
         id: fy.id?.toString() || fy._id?.toString() || "",
         year: fy.year || fy.fiscal_year || "",
-        startDate: fy.startDate || fy.start_date || fy.fiscal_year_start ? new Date(fy.startDate || fy.start_date || fy.fiscal_year_start).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : "",
-        endDate: fy.endDate || fy.end_date || fy.fiscal_year_end ? new Date(fy.endDate || fy.end_date || fy.fiscal_year_end).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : "",
-        leaveCycleStart: fy.leaveCycleStart || fy.leave_cycle_start ? new Date(fy.leaveCycleStart || fy.leave_cycle_start).toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }) : "",
+        startDate:
+          fy.startDate || fy.start_date || fy.fiscal_year_start
+            ? new Date(
+                fy.startDate || fy.start_date || fy.fiscal_year_start,
+              ).toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              })
+            : "",
+        endDate:
+          fy.endDate || fy.end_date || fy.fiscal_year_end
+            ? new Date(
+                fy.endDate || fy.end_date || fy.fiscal_year_end,
+              ).toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              })
+            : "",
+        leaveCycleStart:
+          fy.leaveCycleStart || fy.leave_cycle_start
+            ? new Date(
+                fy.leaveCycleStart || fy.leave_cycle_start,
+              ).toLocaleDateString("en-CA", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              })
+            : "",
         isActive: fy.isActive ?? fy.is_active ?? fy.active ?? true,
         createdAt: fy.created_at || fy.createdAt || new Date().toISOString(),
         updatedAt: fy.updated_at || fy.updatedAt || new Date().toISOString(),
@@ -724,7 +883,9 @@ export const fiscalYearApi = {
   },
 
   // Create new fiscal year
-  createFiscalYear: async (data: any): Promise<{ data?: FiscalYearConfig; error?: string }> => {
+  createFiscalYear: async (
+    data: any,
+  ): Promise<{ data?: FiscalYearConfig; error?: string }> => {
     try {
       // Map frontend field names to backend field names
       const backendData = {
@@ -732,7 +893,7 @@ export const fiscalYearApi = {
         start_date: data.startDate,
         end_date: data.endDate,
         leave_cycle_start: data.leaveCycleStart,
-        is_active: data.isActive ? 1 : 0
+        is_active: data.isActive ? 1 : 0,
       };
 
       const response = await ENDPOINTS.createFiscalYear(backendData);
@@ -748,10 +909,12 @@ export const fiscalYearApi = {
             isActive: data.isActive ?? true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         };
       } else {
-        return { error: response.data?.message || "Failed to create fiscal year" };
+        return {
+          error: response.data?.message || "Failed to create fiscal year",
+        };
       }
     } catch (error: any) {
       console.error("Error creating fiscal year:", error);
@@ -765,7 +928,10 @@ export const fiscalYearApi = {
   },
 
   // Update fiscal year
-  updateFiscalYear: async (id: string, data: any): Promise<{ data?: FiscalYearConfig; error?: string }> => {
+  updateFiscalYear: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: FiscalYearConfig; error?: string }> => {
     try {
       // Map frontend field names to backend field names
       const backendData = {
@@ -773,7 +939,7 @@ export const fiscalYearApi = {
         start_date: data.startDate,
         end_date: data.endDate,
         leave_cycle_start: data.leaveCycleStart,
-        is_active: data.isActive ? 1 : 0
+        is_active: data.isActive ? 1 : 0,
       };
 
       const response = await ENDPOINTS.updateFiscalYear(id, backendData);
@@ -789,10 +955,12 @@ export const fiscalYearApi = {
             isActive: data.isActive ?? true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         };
       } else {
-        return { error: response.data?.message || "Failed to update fiscal year" };
+        return {
+          error: response.data?.message || "Failed to update fiscal year",
+        };
       }
     } catch (error: any) {
       console.error("Error updating fiscal year:", error);
@@ -806,14 +974,18 @@ export const fiscalYearApi = {
   },
 
   // Delete fiscal year
-  deleteFiscalYear: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  deleteFiscalYear: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteFiscalYear(id);
 
       if (response.data?.message || response.data?.success) {
         return { success: true };
       } else {
-        return { error: response.data?.message || "Failed to delete fiscal year" };
+        return {
+          error: response.data?.message || "Failed to delete fiscal year",
+        };
       }
     } catch (error: any) {
       console.error("Error deleting fiscal year:", error);
@@ -832,13 +1004,19 @@ export const fiscalYearApi = {
  */
 export const leavePolicyApi = {
   // Get all leave policies
-  getLeavePolicies: async (): Promise<{ data?: LeavePolicy[]; error?: string }> => {
+  getLeavePolicies: async (): Promise<{
+    data?: LeavePolicy[];
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getLeavePolicies();
 
       let rawData: any[] = [];
 
-      if (response.data?.success && Array.isArray(response.data?.leavePolicies)) {
+      if (
+        response.data?.success &&
+        Array.isArray(response.data?.leavePolicies)
+      ) {
         rawData = response.data.leavePolicies;
       } else if (Array.isArray(response.data)) {
         rawData = response.data;
@@ -851,8 +1029,10 @@ export const leavePolicyApi = {
         name: policy.name || policy.policy_name || "Unnamed Policy",
         description: policy.description || policy.policy_description || "",
         status: policy.status || "active",
-        createdAt: policy.created_at || policy.createdAt || new Date().toISOString(),
-        updatedAt: policy.updated_at || policy.updatedAt || new Date().toISOString(),
+        createdAt:
+          policy.created_at || policy.createdAt || new Date().toISOString(),
+        updatedAt:
+          policy.updated_at || policy.updatedAt || new Date().toISOString(),
       }));
 
       return { data: mapped };
@@ -868,13 +1048,15 @@ export const leavePolicyApi = {
   },
 
   // Create new leave policy
-  createLeavePolicy: async (data: any): Promise<{ data?: LeavePolicy; error?: string }> => {
+  createLeavePolicy: async (
+    data: any,
+  ): Promise<{ data?: LeavePolicy; error?: string }> => {
     try {
       // Map frontend field names to backend field names
       const backendData = {
         name: data.name,
         description: data.description,
-        status: data.status || "active"
+        status: data.status || "active",
       };
 
       const response = await ENDPOINTS.createLeavePolicy(backendData);
@@ -888,10 +1070,12 @@ export const leavePolicyApi = {
             status: data.status || "active",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         };
       } else {
-        return { error: response.data?.message || "Failed to create leave policy" };
+        return {
+          error: response.data?.message || "Failed to create leave policy",
+        };
       }
     } catch (error: any) {
       console.error("Error creating leave policy:", error);
@@ -905,13 +1089,16 @@ export const leavePolicyApi = {
   },
 
   // Update leave policy
-  updateLeavePolicy: async (id: string, data: any): Promise<{ data?: LeavePolicy; error?: string }> => {
+  updateLeavePolicy: async (
+    id: string,
+    data: any,
+  ): Promise<{ data?: LeavePolicy; error?: string }> => {
     try {
       // Map frontend field names to backend field names
       const backendData = {
         name: data.name,
         description: data.description,
-        status: data.status || "active"
+        status: data.status || "active",
       };
 
       const response = await ENDPOINTS.updateLeavePolicy(id, backendData);
@@ -926,10 +1113,15 @@ export const leavePolicyApi = {
             status: data.status || "active",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          }
+          },
         };
       } else {
-        return { error: response.data?.message || response.data?.error || "Failed to update leave policy" };
+        return {
+          error:
+            response.data?.message ||
+            response.data?.error ||
+            "Failed to update leave policy",
+        };
       }
     } catch (error: any) {
       console.error("Error updating leave policy:", error);
@@ -943,14 +1135,18 @@ export const leavePolicyApi = {
   },
 
   // Delete leave policy
-  deleteLeavePolicy: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+  deleteLeavePolicy: async (
+    id: string,
+  ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteLeavePolicy(id);
 
       if (response.data?.message || response.data?.success) {
         return { success: true };
       } else {
-        return { error: response.data?.message || "Failed to delete leave policy" };
+        return {
+          error: response.data?.message || "Failed to delete leave policy",
+        };
       }
     } catch (error: any) {
       console.error("Error deleting leave policy:", error);

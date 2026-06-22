@@ -1,11 +1,37 @@
 import React, { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit, Trash2, Search, Calendar, Loader2 } from "lucide-react";
@@ -64,18 +90,21 @@ export default function LeaveManagement() {
   const [submitting, setSubmitting] = useState(false);
 
   // Debug: Track dialog state changes
-  console.log("isDialogOpen:", isDialogOpen);
+  // console.log("isDialogOpen:", isDialogOpen);
 
   const filteredLeaves = useMemo(() => {
     return leaves.filter((leave) => {
-      const matchesSearch = leave.employeeName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = filterStatus === "all" || leave.status === filterStatus;
+      const matchesSearch = leave.employeeName
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        filterStatus === "all" || leave.status === filterStatus;
       return matchesSearch && matchesStatus;
     });
   }, [leaves, searchTerm, filterStatus]);
 
   const handleOpenDialog = (leave?: LeaveApplication) => {
-    console.log("handleOpenDialog called", leave);
+    // console.log("handleOpenDialog called", leave);
     if (leave) {
       setEditingId(leave.id);
       setFormData(leave);
@@ -83,7 +112,7 @@ export default function LeaveManagement() {
       setEditingId(null);
       setFormData({ status: "pending", leaveType: "casual" });
     }
-    console.log("Setting isDialogOpen to true");
+    // console.log("Setting isDialogOpen to true");
     setIsDialogOpen(true);
   };
 
@@ -91,11 +120,11 @@ export default function LeaveManagement() {
     setSubmitting(true);
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       if (editingId) {
         setLeaves((prev) =>
-          prev.map((l) => (l.id === editingId ? { ...l, ...formData } : l))
+          prev.map((l) => (l.id === editingId ? { ...l, ...formData } : l)),
         );
       } else {
         const newLeave = {
@@ -105,12 +134,12 @@ export default function LeaveManagement() {
         } as LeaveApplication;
         setLeaves((prev) => [newLeave, ...prev]);
       }
-      
+
       setIsDialogOpen(false);
       setFormData({});
       setEditingId(null);
     } catch (error) {
-      console.error('Error saving leave:', error);
+      console.error("Error saving leave:", error);
     } finally {
       setSubmitting(false);
     }
@@ -146,19 +175,27 @@ export default function LeaveManagement() {
             <span className="hidden sm:inline">Leave Management</span>
             <span className="sm:hidden">Leave Mgmt</span>
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Apply and manage employee leaves</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
+            Apply and manage employee leaves
+          </p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card>
             <CardContent className="pt-3 sm:pt-6">
-              <div className="text-xs sm:text-sm font-medium text-muted-foreground">Total</div>
-              <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2">{leaves.length}</div>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Total
+              </div>
+              <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2">
+                {leaves.length}
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-3 sm:pt-6">
-              <div className="text-xs sm:text-sm font-medium text-muted-foreground">Approved</div>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Approved
+              </div>
               <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-green-600">
                 {leaves.filter((l) => l.status === "approved").length}
               </div>
@@ -166,7 +203,9 @@ export default function LeaveManagement() {
           </Card>
           <Card>
             <CardContent className="pt-3 sm:pt-6">
-              <div className="text-xs sm:text-sm font-medium text-muted-foreground">Pending</div>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Pending
+              </div>
               <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-yellow-600">
                 {leaves.filter((l) => l.status === "pending").length}
               </div>
@@ -174,7 +213,9 @@ export default function LeaveManagement() {
           </Card>
           <Card>
             <CardContent className="pt-3 sm:pt-6">
-              <div className="text-xs sm:text-sm font-medium text-muted-foreground">Rejected</div>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Rejected
+              </div>
               <div className="text-lg sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-red-600">
                 {leaves.filter((l) => l.status === "rejected").length}
               </div>
@@ -189,7 +230,9 @@ export default function LeaveManagement() {
           <CardContent className="space-y-2 sm:space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
               <div>
-                <Label htmlFor="search" className="text-xs sm:text-sm">Search</Label>
+                <Label htmlFor="search" className="text-xs sm:text-sm">
+                  Search
+                </Label>
                 <div className="relative mt-1.5 sm:mt-2">
                   <Search className="absolute left-2 top-2.5 w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                   <Input
@@ -203,9 +246,14 @@ export default function LeaveManagement() {
               </div>
 
               <div>
-                <Label htmlFor="status" className="text-xs sm:text-sm">Status</Label>
+                <Label htmlFor="status" className="text-xs sm:text-sm">
+                  Status
+                </Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger id="status" className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
+                  <SelectTrigger
+                    id="status"
+                    className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,7 +266,10 @@ export default function LeaveManagement() {
               </div>
 
               <div className="flex items-end">
-                <Button onClick={() => handleOpenDialog()} className="w-full gap-2 h-8 sm:h-10 text-xs sm:text-sm">
+                <Button
+                  onClick={() => handleOpenDialog()}
+                  className="w-full gap-2 h-8 sm:h-10 text-xs sm:text-sm"
+                >
                   <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">Apply Leave</span>
                   <span className="sm:hidden">Apply</span>
@@ -230,15 +281,22 @@ export default function LeaveManagement() {
 
         <Card>
           <CardHeader className="pb-3 sm:pb-4">
-            <CardTitle className="text-lg sm:text-xl">Applications ({filteredLeaves.length})</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">
+              Applications ({filteredLeaves.length})
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {/* Mobile Card View */}
             <div className="md:hidden space-y-2 sm:space-y-3">
               {filteredLeaves.map((leave) => (
-                <div key={leave.id} className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30">
+                <div
+                  key={leave.id}
+                  className="border border-border rounded-lg p-3 sm:p-4 bg-muted/30"
+                >
                   <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
-                    <h3 className="font-semibold text-sm sm:text-base break-words flex-1">{leave.employeeName}</h3>
+                    <h3 className="font-semibold text-sm sm:text-base break-words flex-1">
+                      {leave.employeeName}
+                    </h3>
                     <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleOpenDialog(leave)}
@@ -256,24 +314,44 @@ export default function LeaveManagement() {
                   </div>
                   <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Type:</span>
-                      <span className="font-medium capitalize text-right">{leave.leaveType}</span>
+                      <span className="text-muted-foreground flex-shrink-0">
+                        Type:
+                      </span>
+                      <span className="font-medium capitalize text-right">
+                        {leave.leaveType}
+                      </span>
                     </div>
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">From:</span>
-                      <span className="font-medium text-right">{leave.fromDate}</span>
+                      <span className="text-muted-foreground flex-shrink-0">
+                        From:
+                      </span>
+                      <span className="font-medium text-right">
+                        {leave.fromDate}
+                      </span>
                     </div>
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">To:</span>
-                      <span className="font-medium text-right">{leave.toDate}</span>
+                      <span className="text-muted-foreground flex-shrink-0">
+                        To:
+                      </span>
+                      <span className="font-medium text-right">
+                        {leave.toDate}
+                      </span>
                     </div>
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Days:</span>
-                      <span className="font-medium text-right">{leave.days}</span>
+                      <span className="text-muted-foreground flex-shrink-0">
+                        Days:
+                      </span>
+                      <span className="font-medium text-right">
+                        {leave.days}
+                      </span>
                     </div>
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground flex-shrink-0">Status:</span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded border whitespace-nowrap ${getStatusColor(leave.status)}`}>
+                      <span className="text-muted-foreground flex-shrink-0">
+                        Status:
+                      </span>
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded border whitespace-nowrap ${getStatusColor(leave.status)}`}
+                      >
                         {leave.status}
                       </span>
                     </div>
@@ -287,25 +365,40 @@ export default function LeaveManagement() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-semibold">Employee</th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Employee
+                    </th>
                     <th className="text-left px-4 py-3 font-semibold">Type</th>
                     <th className="text-left px-4 py-3 font-semibold">From</th>
                     <th className="text-left px-4 py-3 font-semibold">To</th>
                     <th className="text-left px-4 py-3 font-semibold">Days</th>
-                    <th className="text-left px-4 py-3 font-semibold">Status</th>
-                    <th className="text-left px-4 py-3 font-semibold">Actions</th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Status
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLeaves.map((leave) => (
-                    <tr key={leave.id} className="border-b border-border hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">{leave.employeeName}</td>
-                      <td className="px-4 py-3 capitalize">{leave.leaveType}</td>
+                    <tr
+                      key={leave.id}
+                      className="border-b border-border hover:bg-muted/50"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        {leave.employeeName}
+                      </td>
+                      <td className="px-4 py-3 capitalize">
+                        {leave.leaveType}
+                      </td>
                       <td className="px-4 py-3">{leave.fromDate}</td>
                       <td className="px-4 py-3">{leave.toDate}</td>
                       <td className="px-4 py-3">{leave.days}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded border ${getStatusColor(leave.status)}`}>
+                        <span
+                          className={`text-xs px-2 py-1 rounded border ${getStatusColor(leave.status)}`}
+                        >
                           {leave.status}
                         </span>
                       </td>
@@ -337,7 +430,9 @@ export default function LeaveManagement() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-full max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">{editingId ? "Edit Leave" : "Apply for Leave"}</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
+              {editingId ? "Edit Leave" : "Apply for Leave"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 sm:space-y-4">
@@ -345,14 +440,21 @@ export default function LeaveManagement() {
               <Label className="text-xs sm:text-sm">Employee Name</Label>
               <Input
                 value={formData.employeeName || ""}
-                onChange={(e) => setFormData({ ...formData, employeeName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, employeeName: e.target.value })
+                }
                 className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
               />
             </div>
 
             <div>
               <Label className="text-xs sm:text-sm">Leave Type</Label>
-              <Select value={formData.leaveType || "casual"} onValueChange={(val: any) => setFormData({ ...formData, leaveType: val })}>
+              <Select
+                value={formData.leaveType || "casual"}
+                onValueChange={(val: any) =>
+                  setFormData({ ...formData, leaveType: val })
+                }
+              >
                 <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -372,7 +474,9 @@ export default function LeaveManagement() {
                 <Input
                   type="date"
                   value={formData.fromDate || ""}
-                  onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, fromDate: e.target.value })
+                  }
                   className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
@@ -381,7 +485,9 @@ export default function LeaveManagement() {
                 <Input
                   type="date"
                   value={formData.toDate || ""}
-                  onChange={(e) => setFormData({ ...formData, toDate: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, toDate: e.target.value })
+                  }
                   className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
@@ -392,7 +498,9 @@ export default function LeaveManagement() {
               <Input
                 type="number"
                 value={formData.days || 1}
-                onChange={(e) => setFormData({ ...formData, days: parseInt(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({ ...formData, days: parseInt(e.target.value) })
+                }
                 className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm"
               />
             </div>
@@ -401,14 +509,21 @@ export default function LeaveManagement() {
               <Label className="text-xs sm:text-sm">Reason</Label>
               <Textarea
                 value={formData.reason || ""}
-                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, reason: e.target.value })
+                }
                 className="mt-1.5 sm:mt-2 text-xs sm:text-sm min-h-20 sm:min-h-24"
               />
             </div>
 
             <div>
               <Label className="text-xs sm:text-sm">Status</Label>
-              <Select value={formData.status || "pending"} onValueChange={(val: any) => setFormData({ ...formData, status: val })}>
+              <Select
+                value={formData.status || "pending"}
+                onValueChange={(val: any) =>
+                  setFormData({ ...formData, status: val })
+                }
+              >
                 <SelectTrigger className="mt-1.5 sm:mt-2 h-8 sm:h-10 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -422,33 +537,51 @@ export default function LeaveManagement() {
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end mt-4 sm:mt-6 border-t pt-3 sm:pt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting} className="w-full sm:w-auto text-xs sm:text-sm">
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={submitting}
+              className="w-full sm:w-auto text-xs sm:text-sm"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={submitting} className="w-full sm:w-auto text-xs sm:text-sm">
+            <Button
+              onClick={handleSave}
+              disabled={submitting}
+              className="w-full sm:w-auto text-xs sm:text-sm"
+            >
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   {editingId ? "Updating..." : "Saving..."}
                 </>
+              ) : editingId ? (
+                "Update Leave"
               ) : (
-                editingId ? "Update Leave" : "Apply Leave"
+                "Apply Leave"
               )}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent className="w-full max-w-sm p-4 sm:p-6">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg">Delete Leave Application</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg">
+              Delete Leave Application
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-xs sm:text-sm">
               Are you sure? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full sm:w-auto text-xs sm:text-sm">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"

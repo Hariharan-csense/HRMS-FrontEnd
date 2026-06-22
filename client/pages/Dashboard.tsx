@@ -5,9 +5,28 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import AttendanceMap from "@/components/AttendanceMap";
 import { useOfficeLocation } from "@/hooks/useOfficeLocation";
-import { AdminDashboardData, getAdminDashboardData, EmployeeDashboardData, getEmployeeDashboardData, ManagerDashboardData, getManagerDashboardData, HRDashboardData, getHRDashboardData, FinanceDashboardData, getFinanceDashboardData } from "@/components/helper/dashboard/dashboard";
+import {
+  AdminDashboardData,
+  getAdminDashboardData,
+  EmployeeDashboardData,
+  getEmployeeDashboardData,
+  ManagerDashboardData,
+  getManagerDashboardData,
+  HRDashboardData,
+  getHRDashboardData,
+  FinanceDashboardData,
+  getFinanceDashboardData,
+} from "@/components/helper/dashboard/dashboard";
 import { leaveTypeApi } from "@/components/helper/leave/leave";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
 import { useRole } from "@/context/RoleContext";
@@ -287,7 +306,13 @@ const dashboardStyles = `
     background-clip: text;
   }
 `;
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -316,7 +341,15 @@ const StatCard: React.FC<{
   description?: string;
   colorClass?: string;
   onClick?: () => void;
-}> = ({ title, value, icon, trend, description, colorClass = "gradient-bg-blue", onClick }) => (
+}> = ({
+  title,
+  value,
+  icon,
+  trend,
+  description,
+  colorClass = "gradient-bg-blue",
+  onClick,
+}) => (
   <button
     type="button"
     onClick={onClick}
@@ -325,14 +358,22 @@ const StatCard: React.FC<{
     <div className="flex items-start justify-between">
       <div className="flex-1">
         <div className="flex items-center gap-3 mb-2">
-          <div className={`w-12 h-12 ${colorClass} rounded-xl flex items-center justify-center text-white shadow-lg floating-icon`}>
+          <div
+            className={`w-12 h-12 ${colorClass} rounded-xl flex items-center justify-center text-white shadow-lg floating-icon`}
+          >
             {icon}
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
-            <p className="stat-value text-3xl font-bold mt-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+              {title}
+            </p>
+            <p className="stat-value text-3xl font-bold mt-1 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              {value}
+            </p>
             {description && (
-              <p className="text-xs text-gray-500 mt-2 font-medium">{description}</p>
+              <p className="text-xs text-gray-500 mt-2 font-medium">
+                {description}
+              </p>
             )}
           </div>
         </div>
@@ -429,7 +470,9 @@ const ModuleCardsSection = ({
               <ArrowRight className="w-4 h-4 text-gray-500 shrink-0 mt-1" />
             </div>
             <p className="text-lg font-bold mt-2 text-gray-900">{card.label}</p>
-            <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">{card.description}</p>
+            <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+              {card.description}
+            </p>
           </button>
         ))}
       </div>
@@ -475,12 +518,16 @@ const getCommonDashboardModuleCards = (): DashboardModuleCard[] => [
 const filterDashboardModuleCards = (
   cards: DashboardModuleCard[],
   allowedModules: Set<string> | null,
-  canPerformModuleAction: (module: string, action: string, subModule?: string) => boolean
+  canPerformModuleAction: (
+    module: string,
+    action: string,
+    subModule?: string,
+  ) => boolean,
 ): DashboardModuleCard[] =>
   cards.filter(
     (card) =>
       (!allowedModules || allowedModules.has(card.module)) &&
-      canPerformModuleAction(card.module, "view")
+      canPerformModuleAction(card.module, "view"),
   );
 
 const isDashboardAccessIssue = (message?: string | null) => {
@@ -545,7 +592,11 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const { canPerformModuleAction, userRoles, loading: roleLoading } = useRole();
-  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  const allowedModules = getAllowedModulesFromSubscription(
+    subscription,
+    subscriptionLoading,
+    { trialEndingSoonDays: 2 },
+  );
   const hasConfiguredRoles = userRoles.length > 0;
 
   useEffect(() => {
@@ -572,7 +623,7 @@ const AdminDashboard = () => {
           setDashboardData(result.data);
         }
       } catch (err) {
-        setError('Failed to fetch dashboard data');
+        setError("Failed to fetch dashboard data");
       } finally {
         setLoading(false);
       }
@@ -580,8 +631,6 @@ const AdminDashboard = () => {
 
     fetchDashboardData();
   }, [hasConfiguredRoles, roleLoading]);
-
-
 
   if (loading || roleLoading) {
     return <div>Loading dashboard data...</div>;
@@ -613,7 +662,7 @@ const AdminDashboard = () => {
     return <div>No data available</div>;
   }
 
-  console.log('Dashboard Data:', dashboardData); // Debug log
+  // console.log("Dashboard Data:", dashboardData); // Debug log
 
   // Destructure the data with defaults
   const kpis = dashboardData?.kpis || {};
@@ -632,15 +681,20 @@ const AdminDashboard = () => {
     ...item,
     month: item.month,
   }));
-  const monthlyTrendData = monthlyAttendanceChart.map((item: any, index: number) => ({
-    label: item.day ?? item.date ?? item.month ?? `Day ${index + 1}`,
-    present: Number(item.present || 0),
-    absent: Number(item.absent || 0),
-  }));
-  const departmentAttendanceChart = departmentAttendanceData.map((item: any) => ({
-    ...item,
-    attendanceRate: item.total > 0 ? Math.round((item.present / item.total) * 100) : 0,
-  }));
+  const monthlyTrendData = monthlyAttendanceChart.map(
+    (item: any, index: number) => ({
+      label: item.day ?? item.date ?? item.month ?? `Day ${index + 1}`,
+      present: Number(item.present || 0),
+      absent: Number(item.absent || 0),
+    }),
+  );
+  const departmentAttendanceChart = departmentAttendanceData.map(
+    (item: any) => ({
+      ...item,
+      attendanceRate:
+        item.total > 0 ? Math.round((item.present / item.total) * 100) : 0,
+    }),
+  );
 
   const adminQuickActionCards: DashboardModuleCard[] = [
     {
@@ -668,7 +722,7 @@ const AdminDashboard = () => {
   const visibleAdminModuleCards = filterDashboardModuleCards(
     adminModuleCards,
     allowedModules,
-    canPerformModuleAction
+    canPerformModuleAction,
   );
 
   const isTrialSubscription = subscription?.status === "trial";
@@ -695,7 +749,9 @@ const AdminDashboard = () => {
             </div>
             <div>
               <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-              <p className="text-white/90 text-lg">Welcome back! Here's your organization overview</p>
+              <p className="text-white/90 text-lg">
+                Welcome back! Here's your organization overview
+              </p>
             </div>
           </div>
         </div>
@@ -709,7 +765,9 @@ const AdminDashboard = () => {
                 <Clock className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-base font-semibold text-black dark:text-white">{trialBannerText}</p>
+                <p className="text-base font-semibold text-black dark:text-white">
+                  {trialBannerText}
+                </p>
                 <p className="text-sm text-black dark:text-slate-200">
                   Continue without interruption by choosing a plan.
                 </p>
@@ -735,16 +793,16 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Total Employees"
-            value={kpis.totalEmployees?.toString() || '0'}
+            value={kpis.totalEmployees?.toString() || "0"}
             icon={<Users className="w-7 h-7" />}
             description="Active employees"
             colorClass="gradient-bg-blue"
           />
           <StatCard
             title="Present Today"
-            value={kpis.presentToday?.toString() || '0'}
+            value={kpis.presentToday?.toString() || "0"}
             icon={<CheckCircle className="w-7 h-7" />}
-            trend={kpis.presentTrend || ''}
+            trend={kpis.presentTrend || ""}
             description="Current attendance"
             colorClass="gradient-bg-green"
             onClick={() =>
@@ -758,9 +816,9 @@ const AdminDashboard = () => {
           />
           <StatCard
             title="On Leave"
-            value={kpis.onLeave?.toString() || '0'}
+            value={kpis.onLeave?.toString() || "0"}
             icon={<Calendar className="w-7 h-7" />}
-            trend={kpis.onLeaveTrend || ''}
+            trend={kpis.onLeaveTrend || ""}
             description="Approved leaves"
             colorClass="gradient-bg-orange"
             onClick={() =>
@@ -774,28 +832,29 @@ const AdminDashboard = () => {
           />
           <StatCard
             title="Pending Approvals"
-            value={kpis.pendingApprovals?.toString() || '0'}
+            value={kpis.pendingApprovals?.toString() || "0"}
             icon={<AlertCircle className="w-7 h-7" />}
-            trend={kpis.pendingTrend || ''}
+            trend={kpis.pendingTrend || ""}
             description="Awaiting action"
             colorClass="gradient-bg-red"
-          onClick={() =>
-            setMetricDialog({
-              title: "Pending Approvals",
-              description: "Leave and expense requests waiting for action",
-              type: "pending",
-              pendingItems:
-                dashboardData?.pendingApprovals?.length
+            onClick={() =>
+              setMetricDialog({
+                title: "Pending Approvals",
+                description: "Leave and expense requests waiting for action",
+                type: "pending",
+                pendingItems: dashboardData?.pendingApprovals?.length
                   ? dashboardData.pendingApprovals
                   : (kpis.pendingApprovals || 0) > 0
-                    ? [{
-                        name: `${kpis.pendingApprovals} pending request(s)`,
-                        type: "Pending approvals are available. Please open approvals module to review.",
-                        category: "pending",
-                      }]
+                    ? [
+                        {
+                          name: `${kpis.pendingApprovals} pending request(s)`,
+                          type: "Pending approvals are available. Please open approvals module to review.",
+                          category: "pending",
+                        },
+                      ]
                     : [],
-            })
-          }
+              })
+            }
           />
         </div>
       </div>
@@ -809,62 +868,130 @@ const AdminDashboard = () => {
           <h2 className="text-2xl font-bold text-gray-800">Quick Actions</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="modern-card hover-scale cursor-pointer group h-full" onClick={() => navigate('/client-assignment')}>
+          <div
+            className="modern-card hover-scale cursor-pointer group h-full"
+            onClick={() => navigate("/client-assignment")}
+          >
             <div className="flex h-full flex-col p-5">
               <div className="mb-4 h-12 w-12 gradient-bg-blue rounded-xl flex items-center justify-center text-white shadow-md group-hover:shadow-lg transition-shadow duration-300">
                 <Building className="w-6 h-6" />
               </div>
-              <h3 className="mb-1 text-base font-bold text-gray-800">Client Assignment</h3>
-              <p className="mb-4 flex-grow text-sm text-gray-600">Manage and assign clients to teams</p>
+              <h3 className="mb-1 text-base font-bold text-gray-800">
+                Client Assignment
+              </h3>
+              <p className="mb-4 flex-grow text-sm text-gray-600">
+                Manage and assign clients to teams
+              </p>
               <div className="flex items-center gap-2 text-sm font-medium text-[#17c491]">
                 <span>Get Started</span>
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </div>
           </div>
-          <div className="modern-card hover-scale cursor-pointer group h-full" onClick={() => navigate('/client-geo-fence')}>
+          <div
+            className="modern-card hover-scale cursor-pointer group h-full"
+            onClick={() => navigate("/client-geo-fence")}
+          >
             <div className="flex h-full flex-col p-5">
               <div className="mb-4 h-12 w-12 gradient-bg-green rounded-xl flex items-center justify-center text-white shadow-md group-hover:shadow-lg transition-shadow duration-300">
                 <MapPin className="w-6 h-6" />
               </div>
-              <h3 className="mb-1 text-base font-bold text-gray-800">Geo-Fence</h3>
-              <p className="mb-4 flex-grow text-sm text-gray-600">Set location boundaries for tracking</p>
+              <h3 className="mb-1 text-base font-bold text-gray-800">
+                Geo-Fence
+              </h3>
+              <p className="mb-4 flex-grow text-sm text-gray-600">
+                Set location boundaries for tracking
+              </p>
               <div className="flex items-center gap-2 text-sm font-medium text-[#17c491]">
                 <span>Configure</span>
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </div>
           </div>
-          <div className="modern-card hover-scale cursor-pointer group h-full" onClick={() => navigate('/reports/attendance')}>
+          <div
+            className="modern-card hover-scale cursor-pointer group h-full"
+            onClick={() => navigate("/reports/attendance")}
+          >
             <div className="flex h-full flex-col p-5">
               <div className="mb-4 h-12 w-12 gradient-bg-purple rounded-xl flex items-center justify-center text-white shadow-md group-hover:shadow-lg transition-shadow duration-300">
                 <BarChart3 className="w-6 h-6" />
               </div>
-              <h3 className="mb-1 text-base font-bold text-gray-800">Attendance Reports</h3>
-              <p className="mb-4 flex-grow text-sm text-gray-600">View detailed attendance analytics</p>
+              <h3 className="mb-1 text-base font-bold text-gray-800">
+                Attendance Reports
+              </h3>
+              <p className="mb-4 flex-grow text-sm text-gray-600">
+                View detailed attendance analytics
+              </p>
               <div className="flex items-center gap-2 text-sm font-medium text-[#17c491]">
                 <span>View Reports</span>
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </div>
           </div>
-          <div className="modern-card hover-scale cursor-pointer group h-full" onClick={() => navigate('/employees')}>
+          <div
+            className="modern-card hover-scale cursor-pointer group h-full"
+            onClick={() => navigate("/employees")}
+          >
             <div className="flex h-full flex-col p-5">
               <div className="mb-4 h-12 w-12 gradient-bg-orange rounded-xl flex items-center justify-center text-white shadow-md group-hover:shadow-lg transition-shadow duration-300">
                 <Users className="w-6 h-6" />
               </div>
-              <h3 className="mb-1 text-base font-bold text-gray-800">Employee Management</h3>
-              <p className="mb-4 flex-grow text-sm text-gray-600">Manage employee records and profiles</p>
+              <h3 className="mb-1 text-base font-bold text-gray-800">
+                Employee Management
+              </h3>
+              <p className="mb-4 flex-grow text-sm text-gray-600">
+                Manage employee records and profiles
+              </p>
               <div className="flex items-center gap-2 text-sm font-medium text-[#17c491]">
                 <span>Manage</span>
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </div>
@@ -877,8 +1004,12 @@ const AdminDashboard = () => {
         <div className="flex items-center gap-3">
           <div className="h-8 w-1 rounded-full bg-[#17c491]"></div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Attendance & Department Numbers</h2>
-            <p className="text-sm text-gray-500">Department strength, attendance, leave, events, and trends</p>
+            <h2 className="text-2xl font-bold text-gray-800">
+              Attendance & Department Numbers
+            </h2>
+            <p className="text-sm text-gray-500">
+              Department strength, attendance, leave, events, and trends
+            </p>
           </div>
         </div>
 
@@ -891,18 +1022,27 @@ const AdminDashboard = () => {
                 </span>
                 Headcount by Department
               </CardTitle>
-              <CardDescription className="text-[#2f6f5f]">Department-wise employee count</CardDescription>
+              <CardDescription className="text-[#2f6f5f]">
+                Department-wise employee count
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
-                {(departmentData || []).slice(0, 6).map((d: any, idx: number) => (
-                  <div key={`${d.dept}-${idx}`} className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white px-4 py-3 shadow-sm">
-                    <span className="truncate text-sm font-semibold text-slate-700">{d.dept}</span>
-                    <span className="ml-3 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-bold text-[#0d8f6b]">
-                      {Number(d.count || 0)}
-                    </span>
-                  </div>
-                ))}
+                {(departmentData || [])
+                  .slice(0, 6)
+                  .map((d: any, idx: number) => (
+                    <div
+                      key={`${d.dept}-${idx}`}
+                      className="flex items-center justify-between rounded-xl border border-emerald-100 bg-white px-4 py-3 shadow-sm"
+                    >
+                      <span className="truncate text-sm font-semibold text-slate-700">
+                        {d.dept}
+                      </span>
+                      <span className="ml-3 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-bold text-[#0d8f6b]">
+                        {Number(d.count || 0)}
+                      </span>
+                    </div>
+                  ))}
                 {(!departmentData || departmentData.length === 0) && (
                   <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-sm text-[#2f6f5f]">
                     No department data available
@@ -920,21 +1060,34 @@ const AdminDashboard = () => {
                 </span>
                 Department-wise Attendance Today
               </CardTitle>
-              <CardDescription className="text-slate-500">Quick comparison with attendance rate</CardDescription>
+              <CardDescription className="text-slate-500">
+                Quick comparison with attendance rate
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               {departmentAttendanceChart.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {departmentAttendanceChart.map((dept, idx) => (
-                    <div key={idx} className="rounded-2xl border border-emerald-100 bg-[#fbfffd] p-4 shadow-sm">
+                    <div
+                      key={idx}
+                      className="rounded-2xl border border-emerald-100 bg-[#fbfffd] p-4 shadow-sm"
+                    >
                       <div className="mb-4 flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-base font-bold text-[#0d5f49]">{dept.dept}</p>
-                          <p className="text-xs font-medium text-slate-500">Total: {dept.total} employees</p>
+                          <p className="truncate text-base font-bold text-[#0d5f49]">
+                            {dept.dept}
+                          </p>
+                          <p className="text-xs font-medium text-slate-500">
+                            Total: {dept.total} employees
+                          </p>
                         </div>
                         <div className="rounded-xl bg-white px-3 py-2 text-right shadow-sm">
-                          <p className="text-xl font-black text-[#17c491]">{dept.attendanceRate}%</p>
-                          <p className="text-[11px] font-medium text-slate-500">Rate</p>
+                          <p className="text-xl font-black text-[#17c491]">
+                            {dept.attendanceRate}%
+                          </p>
+                          <p className="text-[11px] font-medium text-slate-500">
+                            Rate
+                          </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -943,9 +1096,16 @@ const AdminDashboard = () => {
                           ["Half Day", dept.half],
                           ["Absent", dept.absent],
                         ].map(([label, value]) => (
-                          <div key={String(label)} className="rounded-xl bg-white p-3 text-center shadow-sm">
-                            <p className="text-lg font-black text-[#0d5f49]">{Number(value || 0)}</p>
-                            <p className="text-[11px] font-semibold text-slate-500">{label}</p>
+                          <div
+                            key={String(label)}
+                            className="rounded-xl bg-white p-3 text-center shadow-sm"
+                          >
+                            <p className="text-lg font-black text-[#0d5f49]">
+                              {Number(value || 0)}
+                            </p>
+                            <p className="text-[11px] font-semibold text-slate-500">
+                              {label}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -958,7 +1118,9 @@ const AdminDashboard = () => {
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#17c491] shadow-sm">
                       <CheckCircle className="h-6 w-6" />
                     </div>
-                    <p className="text-sm font-semibold text-[#0d5f49]">No attendance data available for today</p>
+                    <p className="text-sm font-semibold text-[#0d5f49]">
+                      No attendance data available for today
+                    </p>
                   </div>
                 </div>
               )}
@@ -973,13 +1135,20 @@ const AdminDashboard = () => {
                 <TrendingUp className="h-5 w-5 text-[#17c491]" />
                 Leave Utilization
               </CardTitle>
-              <CardDescription>Leave balance across all employees</CardDescription>
+              <CardDescription>
+                Leave balance across all employees
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {(leaveData || []).map((entry: any, index: number) => (
-                  <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <span className="text-sm font-semibold text-slate-700">{entry.name}</span>
+                  <div
+                    key={`${entry.name}-${index}`}
+                    className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                  >
+                    <span className="text-sm font-semibold text-slate-700">
+                      {entry.name}
+                    </span>
                     <span className="rounded-lg bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700">
                       {Number(entry.value || 0)}
                     </span>
@@ -1000,18 +1169,27 @@ const AdminDashboard = () => {
                 <Clock className="h-5 w-5 text-[#17c491]" />
                 Recent Activities
               </CardTitle>
-              <CardDescription>Latest system activities and updates</CardDescription>
+              <CardDescription>
+                Latest system activities and updates
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-5">
               <div className="space-y-3">
                 {recentActivities.map((item, idx) => (
-                  <div key={idx} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+                  <div
+                    key={idx}
+                    className="flex gap-3 rounded-xl bg-slate-50 p-3"
+                  >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">
                       {item?.icon || "N"}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-800">{item?.activity || "No activity"}</p>
-                      <p className="mt-1 text-xs text-slate-500">{item?.time || ""}</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {item?.activity || "No activity"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {item?.time || ""}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -1035,16 +1213,34 @@ const AdminDashboard = () => {
             <CardContent className="p-5">
               <div className="space-y-3">
                 {recentJoinings.map((emp, idx) => {
-                  const initials = emp?.name?.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2) || "U";
+                  const initials =
+                    emp?.name
+                      ?.split(" ")
+                      .filter(Boolean)
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2) || "U";
                   return (
-                    <div key={idx} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+                    <div
+                      key={idx}
+                      className="flex gap-3 rounded-xl bg-slate-50 p-3"
+                    >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#17c491] text-sm font-bold text-white">
                         {initials}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-800">{emp?.name || "New Employee"}</p>
-                        <p className="text-xs text-slate-500">{[emp?.role, emp?.dept].filter(Boolean).join(" | ") || "Role not specified"}</p>
-                        {emp?.joinDate && <p className="mt-1 text-xs font-medium text-[#0d8f6b]">Joined: {emp.joinDate}</p>}
+                        <p className="truncate text-sm font-bold text-slate-800">
+                          {emp?.name || "New Employee"}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {[emp?.role, emp?.dept].filter(Boolean).join(" | ") ||
+                            "Role not specified"}
+                        </p>
+                        {emp?.joinDate && (
+                          <p className="mt-1 text-xs font-medium text-[#0d8f6b]">
+                            Joined: {emp.joinDate}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -1069,10 +1265,17 @@ const AdminDashboard = () => {
             <CardContent className="p-5">
               <div className="space-y-3">
                 {upcomingBirthdays?.map((emp, idx) => (
-                  <div key={idx} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">BD</div>
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">
+                      BD
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-800">{emp.name}</p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {emp.name}
+                      </p>
                       <p className="text-xs text-slate-500">{emp.date}</p>
                     </div>
                   </div>
@@ -1097,12 +1300,21 @@ const AdminDashboard = () => {
             <CardContent className="p-5">
               <div className="space-y-3">
                 {upcomingHolidays?.map((holiday, idx) => (
-                  <div key={idx} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">HD</div>
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#17c491] shadow-sm">
+                      HD
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-800">{holiday.name}</p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {holiday.name}
+                      </p>
                       <p className="text-xs text-slate-500">{holiday.date}</p>
-                      <p className="mt-1 text-xs font-semibold text-[#0d8f6b]">{holiday.type}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#0d8f6b]">
+                        {holiday.type}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -1121,27 +1333,66 @@ const AdminDashboard = () => {
                 <BarChart3 className="h-5 w-5 text-[#17c491]" />
                 Monthly Attendance Trends
               </CardTitle>
-              <CardDescription>Monthly present and absent counts</CardDescription>
+              <CardDescription>
+                Monthly present and absent counts
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                   <div className="mb-3">
                     <p className="font-bold text-slate-800">Monthly Present</p>
-                    <p className="text-xs text-slate-500">Daily present counts this month</p>
+                    <p className="text-xs text-slate-500">
+                      Daily present counts this month
+                    </p>
                   </div>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                      <BarChart
+                        data={monthlyTrendData}
+                        margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
+                      >
                         <defs>
-                          <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#17c491" stopOpacity={0.9} />
-                            <stop offset="100%" stopColor="#17c491" stopOpacity={0.06} />
+                          <linearGradient
+                            id="presentGradient"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="#17c491"
+                              stopOpacity={0.9}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="#17c491"
+                              stopOpacity={0.06}
+                            />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                        <CartesianGrid
+                          strokeDasharray="4 6"
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="label"
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
                         <Tooltip
                           cursor={{ stroke: "#a7f3d0", strokeWidth: 1 }}
                           contentStyle={{
@@ -1154,7 +1405,14 @@ const AdminDashboard = () => {
                           formatter={(value: number) => [value, "Present"]}
                           labelFormatter={(label: any) => `${label}`}
                         />
-                        <Bar dataKey="present" fill="url(#presentGradient)" stroke="#0fa372" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
+                        <Bar
+                          dataKey="present"
+                          fill="url(#presentGradient)"
+                          stroke="#0fa372"
+                          strokeWidth={1.5}
+                          radius={[10, 10, 4, 4]}
+                          isAnimationActive={false}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1163,20 +1421,57 @@ const AdminDashboard = () => {
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                   <div className="mb-3">
                     <p className="font-bold text-slate-800">Monthly Absent</p>
-                    <p className="text-xs text-slate-500">Daily absent counts this month</p>
+                    <p className="text-xs text-slate-500">
+                      Daily absent counts this month
+                    </p>
                   </div>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                      <BarChart
+                        data={monthlyTrendData}
+                        margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
+                      >
                         <defs>
-                          <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#64748b" stopOpacity={0.9} />
-                            <stop offset="100%" stopColor="#64748b" stopOpacity={0.06} />
+                          <linearGradient
+                            id="absentGradient"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="#64748b"
+                              stopOpacity={0.9}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="#64748b"
+                              stopOpacity={0.06}
+                            />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="4 6" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                        <CartesianGrid
+                          strokeDasharray="4 6"
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="label"
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          tick={{
+                            fontSize: 11,
+                            fill: "hsl(var(--muted-foreground))",
+                          }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
                         <Tooltip
                           cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
                           contentStyle={{
@@ -1189,7 +1484,14 @@ const AdminDashboard = () => {
                           formatter={(value: number) => [value, "Absent"]}
                           labelFormatter={(label: any) => `${label}`}
                         />
-                        <Bar dataKey="absent" fill="url(#absentGradient)" stroke="#475569" strokeWidth={1.5} radius={[10, 10, 4, 4]} isAnimationActive={false} />
+                        <Bar
+                          dataKey="absent"
+                          fill="url(#absentGradient)"
+                          stroke="#475569"
+                          strokeWidth={1.5}
+                          radius={[10, 10, 4, 4]}
+                          isAnimationActive={false}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1200,7 +1502,10 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <Dialog open={!!metricDialog} onOpenChange={(open) => !open && setMetricDialog(null)}>
+      <Dialog
+        open={!!metricDialog}
+        onOpenChange={(open) => !open && setMetricDialog(null)}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{metricDialog?.title}</DialogTitle>
@@ -1216,7 +1521,9 @@ const AdminDashboard = () => {
                       className="grid gap-2 p-4 sm:grid-cols-[1fr_auto]"
                     >
                       <div>
-                        <p className="font-semibold text-slate-900">{item.name}</p>
+                        <p className="font-semibold text-slate-900">
+                          {item.name}
+                        </p>
                         <p className="text-sm text-slate-500">{item.type}</p>
                       </div>
                       <div className="text-left text-sm sm:text-right">
@@ -1240,12 +1547,17 @@ const AdminDashboard = () => {
                     className="grid gap-3 p-4 sm:grid-cols-[1fr_auto]"
                   >
                     <div>
-                      <p className="font-semibold text-slate-900">{employee.name}</p>
+                      <p className="font-semibold text-slate-900">
+                        {employee.name}
+                      </p>
                       <p className="text-sm text-slate-500">
-                        {employee.employeeId || "No ID"} · {employee.department || "Unassigned"}
+                        {employee.employeeId || "No ID"} ·{" "}
+                        {employee.department || "Unassigned"}
                       </p>
                       {employee.email && (
-                        <p className="text-sm text-slate-500">{employee.email}</p>
+                        <p className="text-sm text-slate-500">
+                          {employee.email}
+                        </p>
                       )}
                     </div>
                     <div className="text-left text-sm text-slate-600 sm:text-right">
@@ -1262,7 +1574,8 @@ const AdminDashboard = () => {
                             {employee.leaveType || "Leave"}
                           </p>
                           <p>
-                            {formatMetricDate(employee.fromDate)} - {formatMetricDate(employee.toDate)}
+                            {formatMetricDate(employee.fromDate)} -{" "}
+                            {formatMetricDate(employee.toDate)}
                           </p>
                         </>
                       )}
@@ -1282,12 +1595,23 @@ const AdminDashboard = () => {
   );
 };
 
-const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof useNavigate>; userName?: string }) => {
+const EmployeeDashboard = ({
+  navigate,
+  userName,
+}: {
+  navigate: ReturnType<typeof useNavigate>;
+  userName?: string;
+}) => {
   const { user } = useAuth();
   const { canPerformModuleAction } = useRole();
   const isAdmin = hasRole(user, "admin") || hasRole(user, "superadmin");
-  const { office, loading: officeLoading, error: officeError } = useOfficeLocation();
-  const [dashboardData, setDashboardData] = useState<EmployeeDashboardData | null>(null);
+  const {
+    office,
+    loading: officeLoading,
+    error: officeError,
+  } = useOfficeLocation();
+  const [dashboardData, setDashboardData] =
+    useState<EmployeeDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -1305,7 +1629,7 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
         } else {
           const totalLeaveBalance = leaveBalanceResult.data?.reduce(
             (sum, balance) => sum + (Number(balance.available) || 0),
-            0
+            0,
           );
 
           setDashboardData({
@@ -1316,12 +1640,13 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
                   ? dashboardResult.data?.leaveBalance?.totalDays || 0
                   : totalLeaveBalance,
               description:
-                dashboardResult.data?.leaveBalance?.description || "Days remaining this year",
+                dashboardResult.data?.leaveBalance?.description ||
+                "Days remaining this year",
             },
           });
         }
       } catch (err) {
-        setError('Failed to fetch dashboard data');
+        setError("Failed to fetch dashboard data");
       } finally {
         setLoading(false);
       }
@@ -1331,11 +1656,15 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
   }, []);
 
   const { subscription, loading: subscriptionLoading } = useSubscription();
-  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  const allowedModules = getAllowedModulesFromSubscription(
+    subscription,
+    subscriptionLoading,
+    { trialEndingSoonDays: 2 },
+  );
   const moduleCards: DashboardModuleCard[] = filterDashboardModuleCards(
     getCommonDashboardModuleCards(),
     allowedModules,
-    canPerformModuleAction
+    canPerformModuleAction,
   );
 
   if (loading) {
@@ -1350,7 +1679,9 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
     <div className="space-y-8">
       {/* Dashboard Header */}
       <div className="dashboard-header">
-        <h1 className="text-3xl font-bold mb-2">Welcome, {userName || "Employee"}</h1>
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome, {userName || "Employee"}
+        </h1>
         <p className="text-white/80">Here's your personal dashboard</p>
       </div>
 
@@ -1359,21 +1690,28 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
           title="Today's Status"
           value={dashboardData?.todayStatus?.status || "Not Marked"}
           icon={<CheckCircle className="w-7 h-7" />}
-          description={dashboardData?.todayStatus?.description || "Attendance not marked"}
+          description={
+            dashboardData?.todayStatus?.description || "Attendance not marked"
+          }
           colorClass="gradient-bg-green"
         />
         <StatCard
           title="Leave Balance"
           value={dashboardData?.leaveBalance?.totalDays.toString() || "0"}
           icon={<Calendar className="w-7 h-7" />}
-          description={dashboardData?.leaveBalance?.description || "Days remaining this year"}
+          description={
+            dashboardData?.leaveBalance?.description ||
+            "Days remaining this year"
+          }
           colorClass="gradient-bg-blue"
         />
         <StatCard
           title="Working Hours"
           value={dashboardData?.workingHours?.hours.toString() || "0"}
           icon={<Clock className="w-7 h-7" />}
-          description={dashboardData?.workingHours?.description || "Hours logged today"}
+          description={
+            dashboardData?.workingHours?.description || "Hours logged today"
+          }
           colorClass="gradient-bg-purple"
         />
       </div>
@@ -1386,8 +1724,14 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
             radiusMeters={office?.radius}
             enableAutoCheck
           />
-          {officeLoading && <p className="text-sm text-gray-500">Loading office geofence…</p>}
-          {officeError && <p className="text-sm text-red-500">Office geofence error: {officeError}</p>}
+          {officeLoading && (
+            <p className="text-sm text-gray-500">Loading office geofence…</p>
+          )}
+          {officeError && (
+            <p className="text-sm text-red-500">
+              Office geofence error: {officeError}
+            </p>
+          )}
         </>
       )}
 
@@ -1410,8 +1754,12 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
                 </div>
                 <ArrowRight className="w-4 h-4 text-gray-500 shrink-0 mt-1" />
               </div>
-              <p className="text-lg font-bold mt-2 text-gray-900">{card.label}</p>
-              <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">{card.description}</p>
+              <p className="text-lg font-bold mt-2 text-gray-900">
+                {card.label}
+              </p>
+              <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+                {card.description}
+              </p>
             </button>
           ))}
         </div>
@@ -1419,22 +1767,38 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
 
       <Card className="chart-container border-0 shadow-xl">
         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
-          <CardTitle className="text-gray-800 font-bold">Your Attendance This Month</CardTitle>
-          <CardDescription className="text-gray-600">Numbers-only summary</CardDescription>
+          <CardTitle className="text-gray-800 font-bold">
+            Your Attendance This Month
+          </CardTitle>
+          <CardDescription className="text-gray-600">
+            Numbers-only summary
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Present</p>
-              <p className="mt-2 text-3xl font-bold text-emerald-700">{dashboardData?.monthlyAttendance?.summary?.present || 0}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Present
+              </p>
+              <p className="mt-2 text-3xl font-bold text-emerald-700">
+                {dashboardData?.monthlyAttendance?.summary?.present || 0}
+              </p>
             </div>
             <div className="rounded-xl border border-red-100 bg-red-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Absent</p>
-              <p className="mt-2 text-3xl font-bold text-red-700">{dashboardData?.monthlyAttendance?.summary?.absent || 0}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                Absent
+              </p>
+              <p className="mt-2 text-3xl font-bold text-red-700">
+                {dashboardData?.monthlyAttendance?.summary?.absent || 0}
+              </p>
             </div>
             <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Half Day</p>
-              <p className="mt-2 text-3xl font-bold text-amber-700">{dashboardData?.monthlyAttendance?.summary?.half || 0}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Half Day
+              </p>
+              <p className="mt-2 text-3xl font-bold text-amber-700">
+                {dashboardData?.monthlyAttendance?.summary?.half || 0}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -1443,13 +1807,22 @@ const EmployeeDashboard = ({ navigate, userName }: { navigate: ReturnType<typeof
   );
 };
 
-const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigate> }) => {
-  const [dashboardData, setDashboardData] = useState<ManagerDashboardData | null>(null);
+const ManagerDashboard = ({
+  navigate,
+}: {
+  navigate: ReturnType<typeof useNavigate>;
+}) => {
+  const [dashboardData, setDashboardData] =
+    useState<ManagerDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { canPerformModuleAction } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
-  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  const allowedModules = getAllowedModulesFromSubscription(
+    subscription,
+    subscriptionLoading,
+    { trialEndingSoonDays: 2 },
+  );
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1463,7 +1836,7 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
           setDashboardData(result.data);
         }
       } catch (err) {
-        setError('Failed to fetch dashboard data');
+        setError("Failed to fetch dashboard data");
       } finally {
         setLoading(false);
       }
@@ -1488,14 +1861,23 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
     return <div className="text-red-500">Error: {error}</div>;
   }
 
-  const teamPresentTotal = (dashboardData?.teamAttendance || []).reduce((sum, day) => sum + Number(day.present || 0), 0);
-  const teamAbsentTotal = (dashboardData?.teamAttendance || []).reduce((sum, day) => sum + Number(day.absent || 0), 0);
-  const teamHalfTotal = (dashboardData?.teamAttendance || []).reduce((sum, day) => sum + Number(day.half || 0), 0);
+  const teamPresentTotal = (dashboardData?.teamAttendance || []).reduce(
+    (sum, day) => sum + Number(day.present || 0),
+    0,
+  );
+  const teamAbsentTotal = (dashboardData?.teamAttendance || []).reduce(
+    (sum, day) => sum + Number(day.absent || 0),
+    0,
+  );
+  const teamHalfTotal = (dashboardData?.teamAttendance || []).reduce(
+    (sum, day) => sum + Number(day.half || 0),
+    0,
+  );
 
   const managerModuleCards: DashboardModuleCard[] = filterDashboardModuleCards(
     getCommonDashboardModuleCards(),
     allowedModules,
-    canPerformModuleAction
+    canPerformModuleAction,
   );
 
   return (
@@ -1518,7 +1900,9 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
           title="Present Today"
           value={dashboardData?.teamStats?.presentToday.toString() || "0"}
           icon={<CheckCircle className="w-7 h-7" />}
-          description={dashboardData?.teamStats?.attendanceRate || "0% attendance"}
+          description={
+            dashboardData?.teamStats?.attendanceRate || "0% attendance"
+          }
           colorClass="gradient-bg-green"
         />
         <StatCard
@@ -1540,22 +1924,38 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="chart-container border-0 shadow-xl">
           <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl">
-            <CardTitle className="text-gray-800 font-bold">Team Attendance</CardTitle>
-            <CardDescription className="text-gray-600">Numbers-only summary for your team</CardDescription>
+            <CardTitle className="text-gray-800 font-bold">
+              Team Attendance
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Numbers-only summary for your team
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Present Total</p>
-                <p className="mt-2 text-3xl font-bold text-emerald-700">{teamPresentTotal}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  Present Total
+                </p>
+                <p className="mt-2 text-3xl font-bold text-emerald-700">
+                  {teamPresentTotal}
+                </p>
               </div>
               <div className="rounded-xl border border-red-100 bg-red-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Absent Total</p>
-                <p className="mt-2 text-3xl font-bold text-red-700">{teamAbsentTotal}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                  Absent Total
+                </p>
+                <p className="mt-2 text-3xl font-bold text-red-700">
+                  {teamAbsentTotal}
+                </p>
               </div>
               <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Half Day Total</p>
-                <p className="mt-2 text-3xl font-bold text-amber-700">{teamHalfTotal}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                  Half Day Total
+                </p>
+                <p className="mt-2 text-3xl font-bold text-amber-700">
+                  {teamHalfTotal}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -1563,8 +1963,12 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
 
         <Card className="chart-container border-0 shadow-xl">
           <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50 rounded-t-xl">
-            <CardTitle className="text-gray-800 font-bold">Pending Approvals</CardTitle>
-            <CardDescription className="text-gray-600">Items requiring your attention</CardDescription>
+            <CardTitle className="text-gray-800 font-bold">
+              Pending Approvals
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Items requiring your attention
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2">
@@ -1574,7 +1978,9 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
                   className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors hover-lift"
                 >
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {item.name}
+                    </p>
                     <p className="text-xs text-gray-500 mt-1">{item.type}</p>
                   </div>
                   <button
@@ -1585,8 +1991,11 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
                   </button>
                 </div>
               ))}
-              {(!dashboardData?.pendingApprovals || dashboardData.pendingApprovals.length === 0) && (
-                <p className="text-sm text-gray-500 text-center py-8 font-medium">No pending approvals</p>
+              {(!dashboardData?.pendingApprovals ||
+                dashboardData.pendingApprovals.length === 0) && (
+                <p className="text-sm text-gray-500 text-center py-8 font-medium">
+                  No pending approvals
+                </p>
               )}
             </div>
           </CardContent>
@@ -1599,13 +2008,19 @@ const ManagerDashboard = ({ navigate }: { navigate: ReturnType<typeof useNavigat
 };
 
 const HRDashboard = () => {
-  const [dashboardData, setDashboardData] = useState<HRDashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<HRDashboardData | null>(
+    null,
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const { canPerformModuleAction } = useRole();
-  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  const allowedModules = getAllowedModulesFromSubscription(
+    subscription,
+    subscriptionLoading,
+    { trialEndingSoonDays: 2 },
+  );
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1619,7 +2034,7 @@ const HRDashboard = () => {
           setDashboardData(result.data);
         }
       } catch (err) {
-        setError('Failed to fetch dashboard data');
+        setError("Failed to fetch dashboard data");
       } finally {
         setLoading(false);
       }
@@ -1639,7 +2054,7 @@ const HRDashboard = () => {
   const hrModuleCards: DashboardModuleCard[] = filterDashboardModuleCards(
     getCommonDashboardModuleCards(),
     allowedModules,
-    canPerformModuleAction
+    canPerformModuleAction,
   );
 
   return (
@@ -1667,7 +2082,9 @@ const HRDashboard = () => {
         />
         <StatCard
           title="Leave Approvals"
-          value={dashboardData?.hrStats?.pendingLeaveApprovals.toString() || "0"}
+          value={
+            dashboardData?.hrStats?.pendingLeaveApprovals.toString() || "0"
+          }
           icon={<Calendar className="w-7 h-7" />}
           description="Pending review"
           colorClass="gradient-bg-orange"
@@ -1685,19 +2102,31 @@ const HRDashboard = () => {
 
       <Card className="chart-container border-0 shadow-xl">
         <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-xl">
-          <CardTitle className="text-gray-800 font-bold">Headcount by Department</CardTitle>
-          <CardDescription className="text-gray-600">Numbers-only employee distribution</CardDescription>
+          <CardTitle className="text-gray-800 font-bold">
+            Headcount by Department
+          </CardTitle>
+          <CardDescription className="text-gray-600">
+            Numbers-only employee distribution
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-3">
             {(dashboardData?.departmentData || []).map((row, idx) => (
-              <div key={`${row.dept}-${idx}`} className="flex items-center justify-between rounded-lg border border-purple-100 bg-purple-50 px-4 py-3">
+              <div
+                key={`${row.dept}-${idx}`}
+                className="flex items-center justify-between rounded-lg border border-purple-100 bg-purple-50 px-4 py-3"
+              >
                 <span className="font-medium text-gray-700">{row.dept}</span>
-                <span className="text-xl font-bold text-purple-700">{Number(row.count || 0)}</span>
+                <span className="text-xl font-bold text-purple-700">
+                  {Number(row.count || 0)}
+                </span>
               </div>
             ))}
-            {(!dashboardData?.departmentData || dashboardData.departmentData.length === 0) && (
-              <p className="text-sm text-gray-500">No department data available</p>
+            {(!dashboardData?.departmentData ||
+              dashboardData.departmentData.length === 0) && (
+              <p className="text-sm text-gray-500">
+                No department data available
+              </p>
             )}
           </div>
         </CardContent>
@@ -1707,13 +2136,18 @@ const HRDashboard = () => {
 };
 
 const FinanceDashboard = () => {
-  const [dashboardData, setDashboardData] = useState<FinanceDashboardData | null>(null);
+  const [dashboardData, setDashboardData] =
+    useState<FinanceDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const { canPerformModuleAction } = useRole();
-  const allowedModules = getAllowedModulesFromSubscription(subscription, subscriptionLoading, { trialEndingSoonDays: 2 });
+  const allowedModules = getAllowedModulesFromSubscription(
+    subscription,
+    subscriptionLoading,
+    { trialEndingSoonDays: 2 },
+  );
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1727,7 +2161,7 @@ const FinanceDashboard = () => {
           setDashboardData(result.data);
         }
       } catch (err) {
-        setError('Failed to fetch dashboard data');
+        setError("Failed to fetch dashboard data");
       } finally {
         setLoading(false);
       }
@@ -1747,7 +2181,7 @@ const FinanceDashboard = () => {
   const financeModuleCards: DashboardModuleCard[] = filterDashboardModuleCards(
     getCommonDashboardModuleCards(),
     allowedModules,
-    canPerformModuleAction
+    canPerformModuleAction,
   );
 
   return (
@@ -1775,7 +2209,9 @@ const FinanceDashboard = () => {
         />
         <StatCard
           title="Payslips Generated"
-          value={dashboardData?.financeStats?.payslipsGenerated.toString() || "0"}
+          value={
+            dashboardData?.financeStats?.payslipsGenerated.toString() || "0"
+          }
           icon={<CheckCircle className="w-7 h-7" />}
           description="This month"
           colorClass="gradient-bg-blue"
@@ -1793,28 +2229,46 @@ const FinanceDashboard = () => {
 
       <Card className="chart-container border-0 shadow-xl">
         <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl">
-          <CardTitle className="text-gray-800 font-bold">Monthly Payroll Trend</CardTitle>
-          <CardDescription className="text-gray-600">Numbers-only monthly summary</CardDescription>
+          <CardTitle className="text-gray-800 font-bold">
+            Monthly Payroll Trend
+          </CardTitle>
+          <CardDescription className="text-gray-600">
+            Numbers-only monthly summary
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Months Tracked</p>
-              <p className="mt-2 text-3xl font-bold text-emerald-700">{(dashboardData?.payrollTrend || []).length}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Months Tracked
+              </p>
+              <p className="mt-2 text-3xl font-bold text-emerald-700">
+                {(dashboardData?.payrollTrend || []).length}
+              </p>
             </div>
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Employees Paid (Total)</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                Employees Paid (Total)
+              </p>
               <p className="mt-2 text-3xl font-bold text-blue-700">
-                {(dashboardData?.payrollTrend || []).reduce((sum, row) => sum + Number(row.present || 0), 0)}
+                {(dashboardData?.payrollTrend || []).reduce(
+                  (sum, row) => sum + Number(row.present || 0),
+                  0,
+                )}
               </p>
             </div>
             <div className="rounded-xl border border-purple-100 bg-purple-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">Average / Month</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                Average / Month
+              </p>
               <p className="mt-2 text-3xl font-bold text-purple-700">
                 {(() => {
                   const rows = dashboardData?.payrollTrend || [];
                   if (!rows.length) return 0;
-                  const total = rows.reduce((sum, row) => sum + Number(row.present || 0), 0);
+                  const total = rows.reduce(
+                    (sum, row) => sum + Number(row.present || 0),
+                    0,
+                  );
                   return Math.round(total / rows.length);
                 })()}
               </p>
@@ -1822,13 +2276,21 @@ const FinanceDashboard = () => {
           </div>
           <div className="space-y-3">
             {(dashboardData?.payrollTrend || []).map((row, idx) => (
-              <div key={`${row.month}-${idx}`} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <div
+                key={`${row.month}-${idx}`}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+              >
                 <span className="font-medium text-gray-700">{row.month}</span>
-                <span className="text-lg font-bold text-gray-900">{Number(row.present || 0)}</span>
+                <span className="text-lg font-bold text-gray-900">
+                  {Number(row.present || 0)}
+                </span>
               </div>
             ))}
-            {(!dashboardData?.payrollTrend || dashboardData.payrollTrend.length === 0) && (
-              <p className="text-sm text-gray-500">No payroll trend data available</p>
+            {(!dashboardData?.payrollTrend ||
+              dashboardData.payrollTrend.length === 0) && (
+              <p className="text-sm text-gray-500">
+                No payroll trend data available
+              </p>
             )}
           </div>
         </CardContent>
@@ -1874,11 +2336,8 @@ export default function Dashboard() {
     <>
       <style>{dashboardStyles}</style>
       <Layout>
-        <div className="dashboard-content-enter">
-          {getDashboard()}
-        </div>
+        <div className="dashboard-content-enter">{getDashboard()}</div>
       </Layout>
     </>
   );
 }
-

@@ -46,12 +46,12 @@ interface ExpenseApproval {
   date: string;
   description: string;
   status:
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "Pending"
-  | "Approved"
-  | "Rejected";
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "Pending"
+    | "Approved"
+    | "Rejected";
   receipt_url?: string;
   clientName?: string;
   approvedBy?: string | null;
@@ -196,8 +196,8 @@ export default function ExpenseApprovals() {
     () =>
       selectedExpense
         ? groupedPending.find((group) =>
-          group.expenses.some((expense) => expense.id === selectedExpense.id),
-        ) || null
+            group.expenses.some((expense) => expense.id === selectedExpense.id),
+          ) || null
         : null,
     [groupedPending, selectedExpense],
   );
@@ -439,12 +439,12 @@ export default function ExpenseApprovals() {
           prev.map((expense) =>
             targetExpenseIds.includes(expense.id)
               ? {
-                ...expense,
-                status: updatedStatus,
-                approvedBy,
-                approvalNote: note || expense.approvalNote,
-                approved_at: new Date().toISOString(),
-              }
+                  ...expense,
+                  status: updatedStatus,
+                  approvedBy,
+                  approvalNote: note || expense.approvalNote,
+                  approved_at: new Date().toISOString(),
+                }
               : expense,
           ),
         );
@@ -460,12 +460,12 @@ export default function ExpenseApprovals() {
         const categorySummary =
           decisionExpenseIds.length > 0
             ? Array.from(
-              new Set(
-                targetExpenses
-                  .map((expense) => expense.category)
-                  .filter(Boolean),
-              ),
-            ).join(", ")
+                new Set(
+                  targetExpenses
+                    .map((expense) => expense.category)
+                    .filter(Boolean),
+                ),
+              ).join(", ")
             : selectedGroup?.categories?.length
               ? selectedGroup.categories.join(", ")
               : selectedExpense?.category || "Expense";
@@ -568,8 +568,8 @@ export default function ExpenseApprovals() {
     const targetExpenses =
       decisionExpenseIds.length > 0
         ? pendingExpenses.filter((expense) =>
-          decisionExpenseIds.includes(expense.id),
-        )
+            decisionExpenseIds.includes(expense.id),
+          )
         : selectedGroup?.expenses?.length
           ? selectedGroup.expenses
           : selectedExpense
@@ -587,7 +587,7 @@ export default function ExpenseApprovals() {
       try {
         const result = await expenseApi.getExpense();
 
-        console.log("Final pending expenses from API helper:", result);
+        // console.log("Final pending expenses from API helper:", result);
 
         if (result.error) {
           throw new Error(result.error);
@@ -779,9 +779,7 @@ export default function ExpenseApprovals() {
                           <p className="mt-1 text-xs text-slate-500">
                             {group.clientName}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {group.date}
-                          </p>
+                          <p className="text-xs text-slate-500">{group.date}</p>
                           <p className="text-xs text-slate-500">
                             Submitted {group.submittedAt}
                           </p>
@@ -792,11 +790,17 @@ export default function ExpenseApprovals() {
                       </div>
                       <div className="mb-3 grid grid-cols-2 gap-2 text-sm">
                         <div className="rounded-lg bg-slate-50 px-3 py-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Claims</span>
-                          <span className="mt-1 block font-bold text-slate-950">{group.count}</span>
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Claims
+                          </span>
+                          <span className="mt-1 block font-bold text-slate-950">
+                            {group.count}
+                          </span>
                         </div>
                         <div className="rounded-lg bg-slate-50 px-3 py-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Categories</span>
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Categories
+                          </span>
                           <span className="mt-1 block font-semibold text-slate-900">
                             {group.categories.length === 1
                               ? group.categories[0]
@@ -804,7 +808,9 @@ export default function ExpenseApprovals() {
                           </span>
                         </div>
                         <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">Description</span>
+                          <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">
+                            Description
+                          </span>
                           <span className="mt-1 block text-sm font-semibold text-slate-900">
                             {group.primaryExpense?.description || "-"}
                           </span>
@@ -830,7 +836,7 @@ export default function ExpenseApprovals() {
                           title="Approve"
                         >
                           {isGroupProcessing(group) &&
-                            currentDecision === "approved" ? (
+                          currentDecision === "approved" ? (
                             <Loader2 className="w-4 h-4 mx-auto animate-spin" />
                           ) : (
                             <Check className="w-4 h-4 mx-auto" />
@@ -845,7 +851,7 @@ export default function ExpenseApprovals() {
                           title="Reject"
                         >
                           {isGroupProcessing(group) &&
-                            currentDecision === "rejected" ? (
+                          currentDecision === "rejected" ? (
                             <Loader2 className="w-4 h-4 mx-auto animate-spin" />
                           ) : (
                             <X className="w-4 h-4 mx-auto" />
@@ -885,7 +891,7 @@ export default function ExpenseApprovals() {
                           <Checkbox
                             checked={
                               selectedExpenses.length ===
-                              pendingExpenses.length &&
+                                pendingExpenses.length &&
                               pendingExpenses.length > 0
                             }
                             onCheckedChange={handleSelectAll}
@@ -916,10 +922,7 @@ export default function ExpenseApprovals() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {groupedPending.map((group) => (
-                        <tr
-                          key={group.id}
-                          className="bg-white"
-                        >
+                        <tr key={group.id} className="bg-white">
                           <td className="px-3 py-4 align-middle">
                             <Checkbox
                               checked={isGroupSelected(
@@ -935,32 +938,60 @@ export default function ExpenseApprovals() {
                           <td className="px-3 py-4 align-middle">
                             <div className="flex items-center gap-3">
                               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#17c491]/10 text-sm font-bold text-[#0b6f53]">
-                                {group.employeeName?.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "EX"}
+                                {group.employeeName
+                                  ?.split(" ")
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .toUpperCase() || "EX"}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="whitespace-normal break-words font-bold leading-snug text-slate-950">{group.employeeName}</p>
-                                <p className="text-xs text-slate-500">{group.count} pending claims</p>
-                                <p className="text-xs text-slate-500">Submitted {group.submittedAt}</p>
+                                <p className="whitespace-normal break-words font-bold leading-snug text-slate-950">
+                                  {group.employeeName}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {group.count} pending claims
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  Submitted {group.submittedAt}
+                                </p>
                               </div>
                             </div>
                           </td>
                           <td className="px-3 py-4 align-middle">
-                            <p className="whitespace-normal break-words font-semibold leading-snug text-slate-900">{group.clientName || "No client"}</p>
-                            <p className="text-xs text-slate-500">{group.clientName && group.clientName !== "No client" ? "Assigned client" : "General expense"}</p>
+                            <p className="whitespace-normal break-words font-semibold leading-snug text-slate-900">
+                              {group.clientName || "No client"}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {group.clientName &&
+                              group.clientName !== "No client"
+                                ? "Assigned client"
+                                : "General expense"}
+                            </p>
                           </td>
                           <td className="px-3 py-4 align-middle">
-                            <p className="font-semibold text-slate-900">{group.date}</p>
-                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">Submitted {group.submittedAt}</p>
+                            <p className="font-semibold text-slate-900">
+                              {group.date}
+                            </p>
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                              Submitted {group.submittedAt}
+                            </p>
                             <div className="mt-1 flex flex-wrap gap-1.5">
                               {group.categories.map((category) => (
-                                <span key={category} className="whitespace-nowrap rounded-full border border-[#17c491]/20 bg-[#17c491]/10 px-2 py-1 text-xs font-semibold text-[#0b6f53]">
+                                <span
+                                  key={category}
+                                  className="whitespace-nowrap rounded-full border border-[#17c491]/20 bg-[#17c491]/10 px-2 py-1 text-xs font-semibold text-[#0b6f53]"
+                                >
                                   {category}
                                 </span>
                               ))}
                             </div>
                           </td>
                           <td className="px-3 py-4 text-right align-middle">
-                            <p className="whitespace-nowrap text-base font-bold text-blue-600">₹{group.totalAmount.toLocaleString()}</p>
+                            <p className="whitespace-nowrap text-base font-bold text-blue-600">
+                              ₹{group.totalAmount.toLocaleString()}
+                            </p>
                           </td>
                           <td className="px-3 py-4 align-middle">
                             <span className="inline-flex min-w-[76px] items-center justify-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700">
@@ -993,7 +1024,7 @@ export default function ExpenseApprovals() {
                                 title="Approve"
                               >
                                 {isGroupProcessing(group) &&
-                                  currentDecision === "approved" ? (
+                                currentDecision === "approved" ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <Check className="h-4 w-4" />
@@ -1008,7 +1039,7 @@ export default function ExpenseApprovals() {
                                 title="Reject"
                               >
                                 {isGroupProcessing(group) &&
-                                  currentDecision === "rejected" ? (
+                                currentDecision === "rejected" ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <X className="h-4 w-4" />
@@ -1049,8 +1080,12 @@ export default function ExpenseApprovals() {
           <CardContent className="p-0">
             {expenses.filter((e) => e.status !== "pending").length === 0 ? (
               <div className="p-8 text-center">
-                <p className="text-sm font-semibold text-slate-700">No approval history yet</p>
-                <p className="mt-1 text-xs text-slate-500">Approved and rejected claims will appear here.</p>
+                <p className="text-sm font-semibold text-slate-700">
+                  No approval history yet
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Approved and rejected claims will appear here.
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -1058,7 +1093,8 @@ export default function ExpenseApprovals() {
                   .filter((e) => e.status !== "pending")
                   .slice(0, 5)
                   .map((expense) => {
-                    const isApproved = String(expense.status).toLowerCase() === "approved";
+                    const isApproved =
+                      String(expense.status).toLowerCase() === "approved";
                     return (
                       <div
                         key={expense.id}
@@ -1072,14 +1108,19 @@ export default function ExpenseApprovals() {
                                 : "bg-red-50 text-red-700"
                             }`}
                           >
-                            {isApproved ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+                            {isApproved ? (
+                              <Check className="h-5 w-5" />
+                            ) : (
+                              <X className="h-5 w-5" />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="break-words text-sm font-bold text-slate-950">
                               {expense.employeeName}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              ₹{Number(expense.amount || 0).toLocaleString()} • {expense.category || "Expense"}
+                              ₹{Number(expense.amount || 0).toLocaleString()} •{" "}
+                              {expense.category || "Expense"}
                             </p>
                           </div>
                         </div>
@@ -1126,35 +1167,46 @@ export default function ExpenseApprovals() {
             <div className="space-y-5 px-6 pb-6 pt-5">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Employee</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Employee
+                  </p>
                   <p className="mt-1 break-words text-base font-bold text-slate-950">
-                      {selectedExpense.employeeName || "Unknown Employee"}
+                    {selectedExpense.employeeName || "Unknown Employee"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Client</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Client
+                  </p>
                   <p className="mt-1 break-words text-base font-bold text-slate-950">
-                      {selectedGroup?.clientName ||
-                        selectedExpense.clientName ||
-                        "No client"}
+                    {selectedGroup?.clientName ||
+                      selectedExpense.clientName ||
+                      "No client"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Amount</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                    Amount
+                  </p>
                   <p className="mt-1 whitespace-nowrap text-lg font-bold text-blue-700">
                     ₹{employeeTotal.toLocaleString()}
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Date</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Date
+                  </p>
                   <p className="mt-1 text-base font-bold text-slate-950">
-                      {selectedGroup?.date || selectedExpense.date}
+                    {selectedGroup?.date || selectedExpense.date}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#17c491]/20 bg-[#17c491]/5 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">Submitted Time</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">
+                    Submitted Time
+                  </p>
                   <p className="mt-1 text-sm font-bold text-slate-950">
-                    {selectedGroup?.submittedAt || formatSubmitTimestamp(selectedExpense.createdAt)}
+                    {selectedGroup?.submittedAt ||
+                      formatSubmitTimestamp(selectedExpense.createdAt)}
                   </p>
                 </div>
               </div>
@@ -1166,7 +1218,8 @@ export default function ExpenseApprovals() {
                       Pending total for this client and date
                     </p>
                     <p className="mt-1 text-xs text-slate-600">
-                      {employeePendingExpenses.length} pending claims in this client/date group
+                      {employeePendingExpenses.length} pending claims in this
+                      client/date group
                     </p>
                   </div>
                   <p className="whitespace-nowrap text-xl font-bold text-[#0b6f53]">
@@ -1185,72 +1238,72 @@ export default function ExpenseApprovals() {
                       Bill preview and grouped claim summary
                     </p>
                   </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          exportExpensesToExcel(
-                            employeePendingExpenses,
-                            `employee-expenses-${selectedExpense?.employeeName || "employee"}-${new Date().toISOString().split("T")[0]}.xlsx`,
-                          );
-                        } catch {
-                          showToast.error(
-                            "Failed to export employee expenses Excel",
-                          );
-                        }
-                      }}
-                      disabled={employeePendingExpenses.length === 0}
-                      className="w-full sm:w-auto"
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Export All (Excel)
-                    </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        exportExpensesToExcel(
+                          employeePendingExpenses,
+                          `employee-expenses-${selectedExpense?.employeeName || "employee"}-${new Date().toISOString().split("T")[0]}.xlsx`,
+                        );
+                      } catch {
+                        showToast.error(
+                          "Failed to export employee expenses Excel",
+                        );
+                      }
+                    }}
+                    disabled={employeePendingExpenses.length === 0}
+                    className="w-full sm:w-auto"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Export All (Excel)
+                  </Button>
                 </div>
-                  {employeePendingExpenses.length === 0 ? (
-                    <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
-                      No pending claims found.
-                    </p>
-                  ) : (
-                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <p className="break-words font-bold text-slate-950">
-                            {selectedGroup?.clientName ||
-                              selectedExpense.clientName ||
-                              "No client"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {selectedGroup?.date || selectedExpense.date}
-                            {selectedGroup?.categories?.length
-                              ? ` • ${selectedGroup.categories.join(", ")}`
-                              : ""}
-                            {employeePendingExpenses.length > 1
-                              ? ` • ${employeePendingExpenses.length} expenses`
-                              : ` • ${employeePendingExpenses.length} expense`}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-                          {groupReceiptUrls.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openReceiptGallery(groupReceiptUrls, 0)
-                              }
-                              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-100"
-                              title="Preview Bills"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
-                          <p className="whitespace-nowrap text-base font-bold text-blue-600">
-                            ₹{employeeTotal.toLocaleString()}
-                          </p>
-                        </div>
+                {employeePendingExpenses.length === 0 ? (
+                  <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
+                    No pending claims found.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words font-bold text-slate-950">
+                          {selectedGroup?.clientName ||
+                            selectedExpense.clientName ||
+                            "No client"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {selectedGroup?.date || selectedExpense.date}
+                          {selectedGroup?.categories?.length
+                            ? ` • ${selectedGroup.categories.join(", ")}`
+                            : ""}
+                          {employeePendingExpenses.length > 1
+                            ? ` • ${employeePendingExpenses.length} expenses`
+                            : ` • ${employeePendingExpenses.length} expense`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                        {groupReceiptUrls.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openReceiptGallery(groupReceiptUrls, 0)
+                            }
+                            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-100"
+                            title="Preview Bills"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
+                        <p className="whitespace-nowrap text-base font-bold text-blue-600">
+                          ₹{employeeTotal.toLocaleString()}
+                        </p>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-slate-100 pt-4">
@@ -1379,10 +1432,11 @@ export default function ExpenseApprovals() {
                         onClick={() =>
                           setReceiptGallery((prev) => ({ ...prev, index }))
                         }
-                        className={`h-20 w-24 flex-shrink-0 overflow-hidden rounded-md border ${index === receiptGallery.index
+                        className={`h-20 w-24 flex-shrink-0 overflow-hidden rounded-md border ${
+                          index === receiptGallery.index
                             ? "border-blue-500 ring-1 ring-blue-500"
                             : "border-border"
-                          }`}
+                        }`}
                       >
                         {url.match(/\.(png|jpg|jpeg|webp)$/i) ? (
                           <img
@@ -1486,10 +1540,11 @@ export default function ExpenseApprovals() {
             <AlertDialogAction
               onClick={confirmDecision}
               disabled={isSubmittingDecision}
-              className={`w-full sm:w-auto text-xs sm:text-sm ${decision === "approved"
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-red-600 hover:bg-red-700"
-                }`}
+              className={`w-full sm:w-auto text-xs sm:text-sm ${
+                decision === "approved"
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
             >
               {isSubmittingDecision ? (
                 <>

@@ -3,8 +3,8 @@
 import ENDPOINTS from "@/lib/endpoint"; // உங்க ENDPOINTS path correct ஆ மாத்திக்கோங்க
 
 export interface AttendanceLogFilters {
-  startDate?: string;     // YYYY-MM-DD
-  endDate?: string;       // YYYY-MM-DD
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
   employeeId?: string;
   status?: "present" | "absent" | "late" | "half-day" | "holiday" | "override";
   page?: number;
@@ -56,7 +56,7 @@ export const attendanceApi = {
         success: response.data.success,
         isCheckedIn: response.data.isCheckedIn,
         hasCheckedInToday: response.data.hasCheckedInToday,
-        todayRecords: response.data.todayRecords || []
+        todayRecords: response.data.todayRecords || [],
       };
     } catch (error: any) {
       console.error("Error fetching attendance status:", error);
@@ -70,7 +70,9 @@ export const attendanceApi = {
   },
 
   // Get attendance logs with filters
-  getAttendanceLogs: async (filters?: AttendanceLogFilters): Promise<{
+  getAttendanceLogs: async (
+    filters?: AttendanceLogFilters,
+  ): Promise<{
     data?: AttendanceLog[];
     total?: number;
     error?: string;
@@ -129,27 +131,32 @@ export const attendanceApi = {
       const response = await ENDPOINTS.createOverride(data);
       return { data: response.data, success: true };
     } catch (error: any) {
-      return { error: error.response?.data?.message || "Failed to create override request" };
+      return {
+        error:
+          error.response?.data?.message || "Failed to create override request",
+      };
     }
   },
 
   // Process override (approve/reject)
   processOverride: async (
     overrideId: string,
-    action: { status: "approved" | "rejected"; remarks?: string }
+    action: { status: "approved" | "rejected"; remarks?: string },
   ) => {
     try {
       const response = await ENDPOINTS.processOverride(overrideId, action);
       return { data: response.data, success: true };
     } catch (error: any) {
-      return { error: error.response?.data?.message || "Failed to process override" };
+      return {
+        error: error.response?.data?.message || "Failed to process override",
+      };
     }
   },
 
   // Get employee monthly summary
   getEmployeeSummary: async (
     employeeId: string,
-    monthYear?: string // format: "2026-01"
+    monthYear?: string, // format: "2026-01"
   ) => {
     try {
       const response = await ENDPOINTS.getEmployeeSummary(employeeId, {
@@ -157,35 +164,37 @@ export const attendanceApi = {
       });
       return { data: response.data };
     } catch (error: any) {
-      return { error: error.response?.data?.message || "Failed to fetch summary" };
+      return {
+        error: error.response?.data?.message || "Failed to fetch summary",
+      };
     }
   },
 
- // src/api/attendanceApi.ts
+  // src/api/attendanceApi.ts
 
-getOverrides: async (filters?: {
-  startDate?: string;
-  endDate?: string;
-  employeeId?: string;
-  status?: "pending" | "approved" | "rejected";
-}): Promise<{ data?: OverrideRecord[]; error?: string }> => {
-  try {
-    const response = await ENDPOINTS.getOverrides(filters);
-    
-    // Backend response structure பொறுத்து adjust பண்ணுங்க
-    // Example: { success: true, data: [...] }
-    const overrideList = response.data?.data || response.data?.overrides || response.data || [];
+  getOverrides: async (filters?: {
+    startDate?: string;
+    endDate?: string;
+    employeeId?: string;
+    status?: "pending" | "approved" | "rejected";
+  }): Promise<{ data?: OverrideRecord[]; error?: string }> => {
+    try {
+      const response = await ENDPOINTS.getOverrides(filters);
 
-    return { data: overrideList };
-  } catch (error: any) {
-    console.error("Error fetching overrides:", error);
-    return {
-      error: error.response?.data?.message || "Failed to fetch override history",
-    };
-  }
-},
+      // Backend response structure பொறுத்து adjust பண்ணுங்க
+      // Example: { success: true, data: [...] }
+      const overrideList =
+        response.data?.data || response.data?.overrides || response.data || [];
 
-
+      return { data: overrideList };
+    } catch (error: any) {
+      console.error("Error fetching overrides:", error);
+      return {
+        error:
+          error.response?.data?.message || "Failed to fetch override history",
+      };
+    }
+  },
 };
 
 export default attendanceApi;

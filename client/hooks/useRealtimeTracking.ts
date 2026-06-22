@@ -13,7 +13,12 @@ type LocationUpdate = {
   employeeName?: string;
 };
 
-type TrackingEvent = "location:update" | "tracking:start" | "tracking:stop" | "user:online" | "user:offline";
+type TrackingEvent =
+  | "location:update"
+  | "tracking:start"
+  | "tracking:stop"
+  | "user:online"
+  | "user:offline";
 
 type UseRealtimeTrackingOptions = {
   enabled: boolean;
@@ -44,7 +49,7 @@ const SOCKET_URL = (() => {
 })();
 
 export const useRealtimeTracking = (
-  options: UseRealtimeTrackingOptions
+  options: UseRealtimeTrackingOptions,
 ): UseRealtimeTrackingReturn => {
   const {
     enabled = false,
@@ -55,9 +60,9 @@ export const useRealtimeTracking = (
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<"realtime" | "polling" | "disconnected">(
-    "disconnected"
-  );
+  const [connectionMode, setConnectionMode] = useState<
+    "realtime" | "polling" | "disconnected"
+  >("disconnected");
   const [lastUpdate, setLastUpdate] = useState<LocationUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -110,11 +115,11 @@ export const useRealtimeTracking = (
       });
 
       socket.on("tracking:start", (data) => {
-        console.log("Tracking started for:", data);
+        // console.log("Tracking started for:", data);
       });
 
       socket.on("tracking:stop", (data) => {
-        console.log("Tracking stopped for:", data);
+        // console.log("Tracking stopped for:", data);
       });
 
       socket.on("connect_error", (err) => {
@@ -141,7 +146,8 @@ export const useRealtimeTracking = (
         socket.connect();
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to initialize Socket.IO";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to initialize Socket.IO";
       setError(errorMsg);
       onError?.(errorMsg);
 
@@ -207,13 +213,15 @@ type UseSendLocationReturn = {
     latitude: number,
     longitude: number,
     accuracy?: number | null,
-    address?: string | null
+    address?: string | null,
   ) => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
 };
 
-export const useSendLocation = (options: UseSendLocationOptions): UseSendLocationReturn => {
+export const useSendLocation = (
+  options: UseSendLocationOptions,
+): UseSendLocationReturn => {
   const { employeeId, enabled } = options;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +230,7 @@ export const useSendLocation = (options: UseSendLocationOptions): UseSendLocatio
     latitude: number,
     longitude: number,
     accuracy?: number | null,
-    address?: string | null
+    address?: string | null,
   ): Promise<boolean> => {
     if (!enabled || !employeeId) {
       return false;
@@ -244,7 +252,8 @@ export const useSendLocation = (options: UseSendLocationOptions): UseSendLocatio
       setIsLoading(false);
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to send location";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to send location";
       setError(errorMsg);
       setIsLoading(false);
       return false;
