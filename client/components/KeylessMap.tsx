@@ -61,11 +61,15 @@ const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
 const project = (point: MapPoint, bounds: Bounds) => {
+  const boundsProjection = projectBounds(bounds);
+  const pointProjection = projectMercator(point);
   const x =
-    ((point.lng - bounds.left) / Math.max(bounds.right - bounds.left, 0.000001)) *
+    ((pointProjection.x - boundsProjection.left) /
+      Math.max(boundsProjection.right - boundsProjection.left, 0.000001)) *
     100;
   const y =
-    ((bounds.top - point.lat) / Math.max(bounds.top - bounds.bottom, 0.000001)) *
+    ((pointProjection.y - boundsProjection.top) /
+      Math.max(boundsProjection.bottom - boundsProjection.top, 0.000001)) *
     100;
   return {
     x: clamp(x, 0, 100),
@@ -117,6 +121,78 @@ const buildBounds = (
 
 const metersToLatitudeDegrees = (meters: number) => meters / 111_320;
 
+const projectMercator = (point: MapPoint) => {
+  const lat = clamp(point.lat, -85.05112878, 85.05112878);
+  const latRad = (lat * Math.PI) / 180;
+
+  return {
+    x: (point.lng + 180) / 360,
+    y:
+      (1 -
+        Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) /
+      2,
+  };
+};
+
+const projectBounds = (bounds: Bounds) => {
+  const northWest = projectMercator({ lat: bounds.top, lng: bounds.left });
+  const southEast = projectMercator({ lat: bounds.bottom, lng: bounds.right });
+
+  return {
+    left: northWest.x,
+    right: southEast.x,
+    top: northWest.y,
+    bottom: southEast.y,
+  };
+};
+
+type MapTile = {
+  id: string;
+  src: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+const chooseZoom = (bounds: Bounds) => {
+  const projected = projectBounds(bounds);
+  const xSpan = Math.max(projected.right - projected.left, 0.000001);
+  const ySpan = Math.max(projected.bottom - projected.top, 0.000001);
+  const span = Math.max(xSpan, ySpan);
+  const targetTiles = 6;
+
+  return clamp(Math.floor(Math.log2(targetTiles / span)), 2, 18);
+};
+
+const buildTiles = (bounds: Bounds): MapTile[] => {
+  const projected = projectBounds(bounds);
+  const zoom = chooseZoom(bounds);
+  const scale = 2 ** zoom;
+  const startX = clamp(Math.floor(projected.left * scale), 0, scale - 1);
+  const endX = clamp(Math.floor(projected.right * scale), 0, scale - 1);
+  const startY = clamp(Math.floor(projected.top * scale), 0, scale - 1);
+  const endY = clamp(Math.floor(projected.bottom * scale), 0, scale - 1);
+  const width = Math.max(projected.right - projected.left, 0.000001);
+  const height = Math.max(projected.bottom - projected.top, 0.000001);
+  const tiles: MapTile[] = [];
+
+  for (let x = startX; x <= endX; x += 1) {
+    for (let y = startY; y <= endY; y += 1) {
+      tiles.push({
+        id: `${zoom}-${x}-${y}`,
+        src: `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`,
+        left: ((x / scale - projected.left) / width) * 100,
+        top: ((y / scale - projected.top) / height) * 100,
+        width: (1 / scale / width) * 100,
+        height: (1 / scale / height) * 100,
+      });
+    }
+  }
+
+  return tiles;
+};
+
 export default function KeylessMap({
   center,
   markers = [],
@@ -131,22 +207,32 @@ export default function KeylessMap({
     [center, markers, paths, circles, zoomPadding],
   );
 
-  const mapUrl = useMemo(() => {
-    const { left, right, top, bottom } = bounds;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik`;
-  }, [bounds]);
+  const tiles = useMemo(() => buildTiles(bounds), [bounds]);
 
   return (
     <div
       className={`relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100 ${className}`}
       style={{ height }}
     >
-      <iframe
-        title="Map"
-        src={mapUrl}
-        className="absolute inset-0 h-full w-full border-0"
-        loading="lazy"
-      />
+      <div className="absolute inset-0 bg-[#dbe7ef]">
+        {tiles.map((tile) => (
+          <img
+            key={tile.id}
+            src={tile.src}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            loading="lazy"
+            className="absolute select-none"
+            style={{
+              left: `${tile.left}%`,
+              top: `${tile.top}%`,
+              width: `${tile.width}%`,
+              height: `${tile.height}%`,
+            }}
+          />
+        ))}
+      </div>
 
       <svg className="pointer-events-none absolute inset-0 h-full w-full">
         {circles.filter((circle) => isFinitePoint(circle.center)).map((circle) => {
@@ -243,6 +329,15 @@ export default function KeylessMap({
           </button>
         );
       })}
+
+      <a
+        href="https://www.openstreetmap.org/copyright"
+        target="_blank"
+        rel="noreferrer"
+        className="absolute bottom-1 right-1 rounded bg-white/90 px-2 py-0.5 text-[10px] text-slate-600 shadow-sm"
+      >
+        © OpenStreetMap
+      </a>
     </div>
   );
 }

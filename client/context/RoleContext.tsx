@@ -99,9 +99,31 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     hasAnyUserRole("superadmin", "ceo") ||
     user?.type?.toLowerCase() === "superadmin";
 
-  // Fetch user roles from backend
-  useEffect(() => {
-    const fetchRoles = async () => {
+  const hasDefaultAdminModuleAccess = (
+    module: string,
+    subModule?: string,
+  ): boolean => {
+    if (!getNormalizedUserRoleNames().includes("admin")) return false;
+
+    const normalizedModule = String(module || "").toLowerCase();
+    const normalizedSubModule = String(subModule || "").toLowerCase();
+
+    if (normalizedModule === "payroll") return true;
+    if (normalizedModule === "kpi") return true;
+    if (normalizedModule === "employees" && normalizedSubModule === "profile") {
+      return true;
+    }
+    if (
+      normalizedModule === "expenses" &&
+      (!normalizedSubModule || normalizedSubModule === "claims")
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const fetchRoles = async () => {
       if (!user) {
         setUserRoles([]);
         setLoading(false);
@@ -132,9 +154,24 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
-    fetchRoles();
+  // Fetch user roles from backend, and refresh on RBAC updates
+  useEffect(() => {
+    void fetchRoles();
+
+    const onRolesUpdated = () => {
+      void fetchRoles();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("rbac:roles-updated", onRolesUpdated as any);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("rbac:roles-updated", onRolesUpdated as any);
+      }
+    };
   }, [user?.id]);
 
   const hasRole = (role: string): boolean => {
@@ -214,7 +251,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       typeof moduleEntry.permissions === "object"
     ) {
       // If submodule is requested, only check submodule permissions
-      // Do NOT fall back to module-level permissions
+      // Fall back to module-level permissions when submodule is missing
       if (
         subModule &&
         moduleEntry.submodules &&
@@ -226,8 +263,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
             moduleEntry.submodules[subKey].permissions,
           );
         }
-        // Submodule requested but not found - return undefined to deny access
-        return undefined;
+        // Submodule requested but not found - fall back to module permissions
+        return normalizePermission(moduleEntry.permissions);
       }
 
       return normalizePermission(moduleEntry.permissions);
@@ -240,6 +277,10 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   // Check if user has access to a specific module based on their role permissions
   const hasModuleAccess = (module: string): boolean => {
     if (isTopAuthority()) {
+      return true;
+    }
+
+    if (hasDefaultAdminModuleAccess(module)) {
       return true;
     }
 
@@ -301,6 +342,10 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     subModule?: string,
   ): boolean => {
     if (isTopAuthority()) {
+      return true;
+    }
+
+    if (hasDefaultAdminModuleAccess(module, subModule)) {
       return true;
     }
 

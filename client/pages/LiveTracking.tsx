@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { ReactNode, useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -10,6 +10,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Circle,
+  GoogleMap,
+  InfoWindow,
+  Marker,
+  Polyline,
+  useJsApiLoader,
+} from "@react-google-maps/api";
 import {
   MapPin,
   Clock,
@@ -102,6 +110,43 @@ const formatDuration = (minutes?: number | null) => {
   if (mins === 0) return `${hrs}h`;
   return `${hrs}h ${mins}m`;
 };
+
+const createNavigationPuckIcon = (isSelected: boolean) => ({
+  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+  scale: isSelected ? 7 : 5,
+  fillColor: isSelected ? "#4f46e5" : "#0f172a",
+  fillOpacity: 0.95,
+  strokeColor: "#ffffff",
+  strokeWeight: 2,
+});
+
+const createEmployeeMarkerIcon = (
+  firstName?: string,
+  lastName?: string,
+  isCheckedIn = false,
+) => ({
+  path: google.maps.SymbolPath.CIRCLE,
+  scale: 13,
+  fillColor: isCheckedIn ? "#10b981" : "#ef4444",
+  fillOpacity: 0.95,
+  strokeColor: "#ffffff",
+  strokeWeight: 3,
+  labelOrigin: new google.maps.Point(0, 0),
+});
+
+type GoogleMapsLoaderProps = {
+  apiKey: string;
+  children: (state: { isLoaded: boolean; loadError?: Error }) => ReactNode;
+};
+
+function GoogleMapsLoader({ apiKey, children }: GoogleMapsLoaderProps) {
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "hrms-google-map-script",
+    googleMapsApiKey: apiKey,
+  });
+
+  return <>{children({ isLoaded, loadError: loadError || undefined })}</>;
+}
 
 const matchesEmployeeId = (left: unknown, right: unknown) => {
   if (left == null || right == null) return false;
@@ -575,7 +620,9 @@ export default function LiveTracking() {
   const [filterEmployeeId, setFilterEmployeeId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState("");
+  const [mapsConfigLoaded, setMapsConfigLoaded] = useState(false);
   const [mapInstance, setMapInstance] = useState<any>(null);
 
   const mapOptions = useMemo(
@@ -593,6 +640,35 @@ export default function LiveTracking() {
   const canViewTracking =
     hasModuleAccess("live_tracking") || hasModuleAccess("attendance");
   const companyId = (user as any)?.companyId || (user as any)?.company_id;
+
+  useEffect(() => {
+    let active = true;
+
+    const loadMapsConfig = async () => {
+      try {
+        const response = await ENDPOINTS.getMapsConfig();
+        if (!active) return;
+        setGoogleMapsApiKey(
+          String(response.data?.googleMapsApiKey || "").trim(),
+        );
+      } catch (error) {
+        if (active) {
+          setGoogleMapsApiKey("");
+        }
+        console.error("Unable to load map configuration", error);
+      } finally {
+        if (active) {
+          setMapsConfigLoaded(true);
+        }
+      }
+    };
+
+    loadMapsConfig();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const {
     isConnected,
@@ -998,21 +1074,6 @@ export default function LiveTracking() {
     filterDate,
     attendanceLogs,
   ]);
-
-  const googleMapsApiKey = String(
-    import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-  ).trim();
-  const fallbackMapUrl = useMemo(() => {
-    const firstLocation = filteredEmployees.find(
-      (emp) => emp.currentLocation,
-    )?.currentLocation;
-    if (!firstLocation) {
-      return "https://www.openstreetmap.org";
-    }
-    const { latitude, longitude } = firstLocation;
-    const zoom = 12;
-    return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
-  }, [filteredEmployees]);
 
   const exportRows = useMemo(() => {
     return filteredEmployees.map((emp) => {
@@ -2692,20 +2753,25 @@ export default function LiveTracking() {
                   No employees match your search criteria
                 </AlertDescription>
               </Alert>
+            ) : !mapsConfigLoaded ? (
+              <div className="flex h-[620px] items-center justify-center text-sm text-muted-foreground">
+                Loading map configuration...
+              </div>
             ) : !googleMapsApiKey ? (
               <div className="space-y-4">
                 <Alert>
                   <AlertCircle className="w-4 h-4" />
                   <AlertDescription>
-                    {!googleMapsApiKey
-                      ? "Google Maps API key missing. Showing OpenStreetMap fallback."
-                      : "Google Maps is blocked for this API key. Showing OpenStreetMap fallback."}
+                    Google Maps API key missing. Showing OpenStreetMap fallback.
                   </AlertDescription>
                 </Alert>
-                <iframe
-                  title="Fallback Map"
-                  src={fallbackMapUrl}
-                  className="h-[620px] w-full border"
+                <KeylessMap
+                  center={mapCenter}
+                  markers={keylessMapMarkers}
+                  paths={keylessMapPaths}
+                  circles={keylessMapCircles}
+                  height={620}
+                  className="rounded-none border-x-0 shadow-none"
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {filteredEmployees
@@ -2723,11 +2789,31 @@ export default function LiveTracking() {
                     ))}
                 </div>
               </div>
-            ) : !isMapLoaded ? (
-              <div className="flex h-[620px] items-center justify-center text-sm text-muted-foreground">
-                Loading map...
-              </div>
             ) : (
+              <GoogleMapsLoader apiKey={googleMapsApiKey}>
+                {({ isLoaded: isMapLoaded, loadError: googleMapsLoadError }) =>
+                  googleMapsLoadError ? (
+                    <div className="space-y-4">
+                      <Alert>
+                        <AlertCircle className="w-4 h-4" />
+                        <AlertDescription>
+                          Google Maps failed to load for this API key. Showing OpenStreetMap fallback.
+                        </AlertDescription>
+                      </Alert>
+                      <KeylessMap
+                        center={mapCenter}
+                        markers={keylessMapMarkers}
+                        paths={keylessMapPaths}
+                        circles={keylessMapCircles}
+                        height={620}
+                        className="rounded-none border-x-0 shadow-none"
+                      />
+                    </div>
+                  ) : !isMapLoaded ? (
+                    <div className="flex h-[620px] items-center justify-center text-sm text-muted-foreground">
+                      Loading map...
+                    </div>
+                  ) : (
               <>
                 <GoogleMap
                   mapContainerStyle={{ height: "620px", width: "100%" }}
@@ -3750,6 +3836,9 @@ export default function LiveTracking() {
                   </div>
                 )}
               </>
+                  )
+                }
+              </GoogleMapsLoader>
             )}
           </CardContent>
         </Card>

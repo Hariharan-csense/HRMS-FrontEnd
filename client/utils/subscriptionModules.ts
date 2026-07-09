@@ -47,6 +47,7 @@ export const getAddonModuleAliases = (moduleKey?: string | null, name?: string |
   if (key === "payroll" || text.includes("payroll")) modules.add("payroll");
   if (key === "hr_management" || text.includes("recruitment") || text.includes("rms")) modules.add("hr_management");
   if (key === "exit" || text.includes("offboarding")) modules.add("exit");
+  if (key === "kpi" || text.includes("kpi")) modules.add("kpi");
 
   return modules;
 };
@@ -170,7 +171,8 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
     if (line.includes("asset")) modules.add("assets");
     if (line.includes("exit") || line.includes("offboarding")) modules.add("exit");
 
-    if (line.includes("reports") || line.includes("kpi")) modules.add("reports");
+    if (line.includes("reports")) modules.add("reports");
+    if (line.includes("kpi")) modules.add("kpi");
     if (
       (line.includes("role") && (line.includes("permission") || line.includes("access"))) ||
       (line.includes("role") && line.includes("module"))
@@ -214,12 +216,12 @@ export const getAllowedModulesFromSubscription = (
 
   const status = (subscription.status || "").toLowerCase();
   const isTrialActive = Boolean(subscription.is_trial_active);
+  const trialDaysRemaining = Number(subscription.trial_days_remaining ?? 0);
   const trialEndingSoonDays = options?.trialEndingSoonDays ?? 2;
 
   // During an active trial (not ending soon), allow the full app (no subscription-based restriction).
   if (status === "trial" && isTrialActive) {
-    const remaining = Number(subscription.trial_days_remaining ?? 0);
-    if (remaining > trialEndingSoonDays) {
+    if (trialDaysRemaining > trialEndingSoonDays) {
       return null;
     }
   }
@@ -227,7 +229,7 @@ export const getAllowedModulesFromSubscription = (
   const isInactive =
     status === "expired" ||
     status === "cancelled" ||
-    (status === "trial" && !isTrialActive);
+    (status === "trial" && (!isTrialActive || trialDaysRemaining <= 0));
 
   if (isInactive) return new Set<string>(FREE_FOREVER_MODULES);
 
@@ -247,9 +249,7 @@ export const getAllowedModulesFromSubscription = (
       if (!shouldIncludeAddon) continue;
 
       for (const moduleKey of getAddonModuleAliases(addon.module_key, addon.name, addon.description)) {
-        if (FREEPLAN_MODULES.includes(moduleKey)) {
-          freeModules.add(moduleKey);
-        }
+        freeModules.add(moduleKey);
       }
     }
     return freeModules;

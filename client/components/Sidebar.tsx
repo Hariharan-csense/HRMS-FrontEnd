@@ -129,6 +129,7 @@ import {
   HelpCircle,
   BarChart3,
   Activity,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -661,6 +662,58 @@ const navigationItems: NavItem[] = [
   //   moduleName: undefined, // Accessible for development
   //   path: "/superadmin-dashboard",
   // },
+
+  {
+    label: "KPI Management",
+    icon: <TrendingUp className="w-5 h-5" />,
+    roles: [],
+    moduleName: "kpi",
+    submenu: [
+      {
+        label: "Dashboard",
+        path: "/KPI/dashboard",
+        roles: [],
+        icon: <div />,
+        moduleName: "kpi",
+        subModuleName: "dashboard",
+      },
+
+      {
+        label: "KPI Scorecard",
+        path: "/KPI/scorecard",
+        roles: [],
+        icon: <div />,
+        moduleName: "kpi",
+        subModuleName: "scorecard",
+      },
+      {
+        label: "KPI Review",
+        path: "/KPI/review",
+        roles: [],
+        icon: <div />,
+        moduleName: "kpi",
+        subModuleName: "review",
+      },
+      {
+        label: "Corrective Action Plans",
+        path: "/KPI/corrective-actions",
+        roles: [],
+        icon: <div />,
+        moduleName: "kpi",
+        subModuleName: "corrective_actions",
+      },
+
+      {
+        label: "Reports",
+        path: "/KPI/reports",
+        roles: [],
+        icon: <div />,
+        moduleName: "kpi",
+        subModuleName: "reports",
+      },
+    ],
+  },
+
   {
     label: "Reports",
     icon: <FileText className="w-5 h-5" />,
@@ -740,6 +793,8 @@ const navigationItems: NavItem[] = [
     moduleName: "tickets",
     path: "/tickets",
   },
+
+  
 ];
 
 export const Sidebar: React.FC = () => {
@@ -984,6 +1039,16 @@ export const Sidebar: React.FC = () => {
         if (path.includes("/pulse-surveys/feedback")) return "feedback";
         if (path.includes("/pulse-surveys/respond")) return "respond";
         return undefined;
+      case "kpi": {
+        const normalizedPath = path.toLowerCase();
+        if (normalizedPath.includes("/kpi/dashboard")) return "dashboard";
+        if (normalizedPath.includes("/kpi/scorecard")) return "scorecard";
+        if (normalizedPath.includes("/kpi/review")) return "review";
+        if (normalizedPath.includes("/kpi/corrective-actions"))
+          return "corrective_actions";
+        if (normalizedPath.includes("/kpi/reports")) return "reports";
+        return undefined;
+      }
       case "reports":
         if (path.includes("/reports/attendance")) return "attendance";
         if (path.includes("/reports/leave")) return "leave";
@@ -1022,8 +1087,21 @@ export const Sidebar: React.FC = () => {
 
     const hasConfiguredRoles = Array.isArray(userRoles) && userRoles.length > 0;
 
-    // Hide dashboard until roles/modules are configured for the user
-    if (item.label === "Dashboard" && !hasConfiguredRoles) return false;
+    // Subscription-based visibility (applies to non-superadmin users)
+    // Run this before submenu recursion so plan-blocked parent modules like KPI
+    // never appear in the sidebar even if a child would otherwise pass a fallback.
+    if (!isSuperAdmin) {
+      if (item.label === "Dashboard") return true;
+
+      if (allowedModulesForPlan) {
+        if (item.moduleName === undefined && !item.submenu?.length) return false;
+        if (item.moduleName && !allowedModulesForPlan.has(item.moduleName)) {
+          return false;
+        }
+      } else {
+        if (item.moduleName === undefined && !item.submenu?.length) return true;
+      }
+    }
 
     // Parent items with submenu should be shown when at least one submenu is accessible.
     // This is important for grouped modules like Client Attendance where the parent itself
@@ -1032,28 +1110,15 @@ export const Sidebar: React.FC = () => {
       return item.submenu.some((subItem) => hasItemAccess(subItem as NavItem));
     }
 
-    // Subscription-based visibility (applies to non-superadmin users)
-    if (!isSuperAdmin && !isCeo) {
-      // Dashboard is always accessible once roles exist
-      if (item.label === "Dashboard") return true;
-
-      // If subscription-based restriction is active, enforce it.
-      // If it's null (trial full access), don't restrict sidebar by subscription.
-      if (allowedModulesForPlan) {
-        // If moduleName is undefined (non-dashboard), hide it (prevents showing items not tied to the plan)
-        if (item.moduleName === undefined) return false;
-
-        // Hide anything not included in the subscribed plan
-        if (!allowedModulesForPlan.has(item.moduleName)) return false;
-      } else {
-        // Trial full access: treat "always accessible" items as visible
-        if (item.moduleName === undefined) return true;
-      }
-    }
-
     // While role permissions are loading, hide permission-bound items to avoid showing unauthorized modules.
     if (roleLoading) {
       return item.moduleName === undefined;
+    }
+
+    // Fallback behavior: if role records are not configured yet, keep modules visible
+    // and let page APIs enforce token-based data visibility.
+    if (!hasConfiguredRoles) {
+      return true;
     }
 
     // Add-on purchases are company entitlements. Admin/CEO should see purchased add-on modules

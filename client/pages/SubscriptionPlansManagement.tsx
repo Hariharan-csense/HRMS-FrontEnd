@@ -52,6 +52,7 @@ const moduleOptions = [
   { value: 'payroll', label: 'Payroll' },
   { value: 'hr_management', label: 'RMS & Recruitment' },
   { value: 'exit', label: 'Exit & Offboarding' },
+  { value: 'kpi', label: 'KPI Management' },
 ];
 
 export type PlanCategory = 'freeplan' | 'basic' | 'standard' | 'advanced' | 'custom';

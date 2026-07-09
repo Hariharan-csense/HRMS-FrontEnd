@@ -22,7 +22,6 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
-import PlaceholderPage from "./pages/PlaceholderPage";
 import LandingPage from "./pages/LandingPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import AboutPage from "./pages/AboutPage";
@@ -70,6 +69,11 @@ import TicketManagement from "./pages/TicketManagement";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SubscriptionManagement from "./pages/SubscriptionManagement";
 import SubscriptionPlansManagement from "./pages/SubscriptionPlansManagement";
+import KPIDashboard from "./pages/KPIDashboard";
+import KPIScoreboardPage from "./pages/KPIScoreboardPage";
+import KPIReviewPage from "./pages/KPIReviewPage";
+import KPICorrectiveActionPage from "./pages/KPICorrectiveActionPage";
+import KPIReportsPage from "./pages/KPIReportsPage";
 import HRRequirements from "./pages/HRRequirements";
 import HRRecruitment from "./pages/HRRecruitment";
 import HROfferLetters from "./pages/HROfferLetters";
@@ -384,10 +388,7 @@ function AppRoutes() {
         <Route
           path="/attendance/facial-recognition"
           element={
-            <RoleBasedRoute
-              requiredModule="attendance"
-              requiredAction="create"
-            >
+            <RoleBasedRoute requiredModule="attendance" requiredAction="create">
               <AttendanceFacialRecognition />
             </RoleBasedRoute>
           }
@@ -630,6 +631,48 @@ function AppRoutes() {
           element={
             <RoleBasedRoute requiredModule="reports" requiredAction="view">
               <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* KPI Management - Add-on module placeholders */}
+        <Route
+          path="/KPI/dashboard"
+          element={
+            <RoleBasedRoute requiredModule="kpi" requiredAction="view">
+              <KPIDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/KPI/scorecard"
+          element={
+            <RoleBasedRoute requiredModule="kpi" requiredAction="view">
+              <KPIScoreboardPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/KPI/review"
+          element={
+            <RoleBasedRoute requiredModule="kpi" requiredAction="view">
+              <KPIReviewPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/KPI/corrective-actions"
+          element={
+            <RoleBasedRoute requiredModule="kpi" requiredAction="view">
+              <KPICorrectiveActionPage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/KPI/reports"
+          element={
+            <RoleBasedRoute requiredModule="kpi" requiredAction="view">
+              <KPIReportsPage />
             </RoleBasedRoute>
           }
         />
@@ -999,7 +1042,3 @@ if (rootElement && !globalThis.__REACT_ROOT__) {
 if (globalThis.__REACT_ROOT__) {
   globalThis.__REACT_ROOT__.render(<App />);
 }
-
-
-
-  

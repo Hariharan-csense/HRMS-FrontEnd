@@ -79,7 +79,7 @@ export const attendanceApi = {
   }> => {
     try {
       const response = await ENDPOINTS.getAttendanceLogs(filters);
-      console.log("Raw API Response:", response.data);
+      // console.log("Raw API Response:", response.data);
       return {
         data: response.data.data || response.data.logs || response.data,
         total: response.data.total || response.data.count,

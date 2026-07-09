@@ -3,7 +3,10 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { hasSubscriptionAddonModule } from "@/utils/subscriptionModules";
+import {
+  getAllowedModulesFromSubscription,
+  hasSubscriptionAddonModule,
+} from "@/utils/subscriptionModules";
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
@@ -100,6 +103,13 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/pulse-surveys/feedback")) return "feedback";
         if (path.includes("/pulse-surveys/respond")) return "respond";
         return undefined;
+      case "kpi":
+        if (path.includes("/kpi/dashboard")) return "dashboard";
+        if (path.includes("/kpi/scorecard")) return "scorecard";
+        if (path.includes("/kpi/review")) return "review";
+        if (path.includes("/kpi/corrective-actions")) return "corrective_actions";
+        if (path.includes("/kpi/reports")) return "reports";
+        return undefined;
       default:
         return undefined;
     }
@@ -126,15 +136,48 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   if (requiredModule) {
     const inferredSubmodule = inferSubmoduleFromPath(requiredModule, location.pathname);
     const currentEmployeeId = Number(user.employee_id || user.employeeId || user.id || 0) || null;
+    const normalizedUserRoles = [
+      ...(Array.isArray(user.roles) ? user.roles : []),
+      user.role || "",
+    ]
+      .map((role) => String(role || "").toLowerCase())
+      .filter(Boolean);
+    const isSuperAdmin = normalizedUserRoles.includes("superadmin");
+    const isAdminOrCeo =
+      normalizedUserRoles.includes("admin") || normalizedUserRoles.includes("ceo");
+    const allowedModulesForPlan = isSuperAdmin
+      ? null
+      : getAllowedModulesFromSubscription(subscription, subscriptionLoading, {
+          trialEndingSoonDays: 2,
+          currentEmployeeId,
+          addonAdminBypass: isAdminOrCeo,
+        });
     const isPulseSelfService =
       String(requiredModule).toLowerCase() === "pulse_surveys" &&
       ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || "").toLowerCase());
-    const isAdminSelfServiceUser = hasAnyRole(["admin", "ceo"]) && isPulseSelfService;
+    const isAdminSelfServiceUser = isAdminOrCeo && isPulseSelfService;
     const addonUnlocksModule =
       hasSubscriptionAddonModule(subscription, requiredModule, {
         currentEmployeeId,
-        addonAdminBypass: hasAnyRole(["admin", "ceo"]),
+        addonAdminBypass: isAdminOrCeo,
       });
+    const blockedByPlan =
+      !isSuperAdmin &&
+      allowedModulesForPlan !== null &&
+      !allowedModulesForPlan.has(requiredModule);
+
+    if (blockedByPlan) {
+      return fallbackPath ? <Navigate to={fallbackPath} replace /> : (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold">Subscription required</h2>
+            <p className="text-sm text-muted-foreground mt-2">
+              Your current plan does not include this module.
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     // If specific action is required, check for that action
     if (requiredAction) {

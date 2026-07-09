@@ -221,6 +221,13 @@ export const roleApi = {
           created_at: response.data.role.created_at,
           updated_at: response.data.role.updated_at,
         };
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("rbac:roles-updated", {
+              detail: { roleId: id, updatedAt: updatedRole.updated_at },
+            }),
+          );
+        }
         return { data: updatedRole };
       }
       
