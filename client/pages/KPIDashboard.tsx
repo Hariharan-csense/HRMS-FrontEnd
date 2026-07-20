@@ -2,6 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { api } from "@/lib/endpoint";
 import { useAuth } from "@/context/AuthContext";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type DepartmentOption = {
   id: number;
@@ -24,6 +35,24 @@ type MonthlyTopPerformerGroup = {
   }[];
 };
 
+type KpiPerformanceTrendPoint = {
+  month: string;
+  monthLabel: string;
+  averageScore: number;
+  scorecardCount: number;
+  lowKpiCount: number;
+  topPerformerCount: number;
+};
+
+type DepartmentKpiPerformancePoint = {
+  departmentId: number | string | null;
+  departmentName: string;
+  averageScore: number;
+  scorecardCount: number;
+  lowKpiCount: number;
+  topPerformerCount: number;
+};
+
 type DashboardWidgets = {
   totalEmployees: number;
   averageKpiScore: number;
@@ -40,6 +69,8 @@ type DashboardWidgets = {
     completed: number;
   };
   correctiveActionTotal: number;
+  kpiPerformanceTrend: KpiPerformanceTrendPoint[];
+  departmentKpiPerformance: DepartmentKpiPerformancePoint[];
 };
 
 const emptyWidgets: DashboardWidgets = {
@@ -58,6 +89,8 @@ const emptyWidgets: DashboardWidgets = {
     completed: 0,
   },
   correctiveActionTotal: 0,
+  kpiPerformanceTrend: [],
+  departmentKpiPerformance: [],
 };
 
 const statusCards = [
@@ -216,6 +249,16 @@ const normalizeWidgets = (payload: any): DashboardWidgets => ({
     payload?.data?.availableDepartments || payload?.availableDepartments || [],
   availableEmployees:
     payload?.data?.availableEmployees || payload?.availableEmployees || [],
+  kpiPerformanceTrend:
+    payload?.data?.kpiPerformanceTrend ||
+    payload?.kpiPerformanceTrend ||
+    payload?.data?.kpiTrend ||
+    payload?.kpiTrend ||
+    [],
+  departmentKpiPerformance:
+    payload?.data?.departmentKpiPerformance ||
+    payload?.departmentKpiPerformance ||
+    [],
 });
 
 const KPIDashboard: React.FC = () => {
@@ -382,6 +425,35 @@ const KPIDashboard: React.FC = () => {
     });
   }, [widgets.correctiveActionStatus, widgets.correctiveActionTotal]);
 
+  const performanceTrend = useMemo(
+    () =>
+      widgets.kpiPerformanceTrend.map((point) => ({
+        ...point,
+        averageScore: Number(point.averageScore || 0),
+        scorecardCount: Number(point.scorecardCount || 0),
+        lowKpiCount: Number(point.lowKpiCount || 0),
+        topPerformerCount: Number(point.topPerformerCount || 0),
+      })),
+    [widgets.kpiPerformanceTrend],
+  );
+
+  const latestPerformancePoint = performanceTrend[performanceTrend.length - 1];
+
+  const departmentPerformance = useMemo(
+    () =>
+      widgets.departmentKpiPerformance.map((point) => ({
+        ...point,
+        departmentName: point.departmentName || "Unassigned",
+        averageScore: Number(point.averageScore || 0),
+        scorecardCount: Number(point.scorecardCount || 0),
+        lowKpiCount: Number(point.lowKpiCount || 0),
+        topPerformerCount: Number(point.topPerformerCount || 0),
+      })),
+    [widgets.departmentKpiPerformance],
+  );
+
+  const departmentPerformanceChart = departmentPerformance.slice(0, 8);
+
   return (
     <Layout>
       <div className="space-y-4 px-1 sm:px-0">
@@ -463,6 +535,236 @@ const KPIDashboard: React.FC = () => {
         ) : null}
 
         <section className="grid gap-4 xl:grid-cols-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-7 xl:col-span-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  KPI Performance Trend
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Monthly average KPI score with scorecard volume.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:min-w-72">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Latest Avg
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-slate-950">
+                    {loading ? "..." : `${latestPerformancePoint?.averageScore ?? 0}%`}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Scorecards
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-slate-950">
+                    {loading ? "..." : latestPerformancePoint?.scorecardCount ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="h-72 min-w-0">
+                {performanceTrend.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={performanceTrend}
+                      margin={{ top: 8, right: 16, bottom: 0, left: -10 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="monthLabel"
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [
+                          name === "averageScore" ? `${value}%` : value,
+                          name === "averageScore" ? "Average Score" : name,
+                        ]}
+                        labelClassName="font-semibold text-slate-900"
+                        contentStyle={{
+                          borderRadius: 8,
+                          borderColor: "#e2e8f0",
+                          boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="averageScore"
+                        stroke="#0f766e"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: "#0f766e", strokeWidth: 0 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                    {loading ? "Loading KPI performance..." : "No KPI performance data available."}
+                  </div>
+                )}
+              </div>
+
+              <div className="h-72 min-w-0 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                {performanceTrend.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={performanceTrend}
+                      margin={{ top: 8, right: 6, bottom: 0, left: -18 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="monthLabel"
+                        tick={{ fill: "#64748b", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tick={{ fill: "#64748b", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [
+                          value,
+                          name === "scorecardCount"
+                            ? "Scorecards"
+                            : name === "lowKpiCount"
+                              ? "Low KPI"
+                              : "Top Performers",
+                        ]}
+                        labelClassName="font-semibold text-slate-900"
+                        contentStyle={{
+                          borderRadius: 8,
+                          borderColor: "#e2e8f0",
+                        }}
+                      />
+                      <Bar dataKey="scorecardCount" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="lowKpiCount" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-center text-sm text-slate-500">
+                    {loading ? "Loading volume..." : "No scorecard volume to show."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-7 xl:col-span-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Department-wise KPI Performance
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Average KPI score grouped by department.
+                </p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700">
+                Score %
+              </span>
+            </div>
+
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_26rem]">
+              <div className="h-80 min-w-0">
+                {departmentPerformanceChart.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={departmentPerformanceChart}
+                      layout="vertical"
+                      margin={{ top: 8, right: 24, bottom: 0, left: 12 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        type="number"
+                        domain={[0, 100]}
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="departmentName"
+                        width={128}
+                        tick={{ fill: "#475569", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [
+                          name === "averageScore" ? `${value}%` : value,
+                          name === "averageScore" ? "Average Score" : name,
+                        ]}
+                        labelClassName="font-semibold text-slate-900"
+                        contentStyle={{
+                          borderRadius: 8,
+                          borderColor: "#e2e8f0",
+                          boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)",
+                        }}
+                      />
+                      <Bar dataKey="averageScore" fill="#0f766e" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                    {loading
+                      ? "Loading department performance..."
+                      : "No department KPI performance data available."}
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-slate-100">
+                <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_5rem_4rem] border-b border-slate-100 bg-slate-50 px-3 py-3 text-xs font-semibold uppercase text-slate-500">
+                  <span>Department</span>
+                  <span className="text-right">Avg</span>
+                  <span className="text-right">Cards</span>
+                  <span className="text-right">Low</span>
+                </div>
+                {departmentPerformance.length ? (
+                  departmentPerformance.map((department) => (
+                    <div
+                      key={`${department.departmentId ?? "none"}-${department.departmentName}`}
+                      className="grid grid-cols-[minmax(0,1fr)_4.5rem_5rem_4rem] items-center border-b border-slate-100 px-3 py-3 last:border-b-0"
+                    >
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {department.departmentName}
+                      </p>
+                      <p className="text-right text-sm font-bold text-slate-900">
+                        {department.averageScore.toFixed(2)}%
+                      </p>
+                      <p className="text-right text-sm text-slate-600">
+                        {department.scorecardCount}
+                      </p>
+                      <p className="text-right text-sm font-semibold text-rose-600">
+                        {department.lowKpiCount}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">
+                    {loading
+                      ? "Loading departments..."
+                      : "No department scores to show."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-7 xl:col-span-2">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>

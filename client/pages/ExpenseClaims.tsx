@@ -189,6 +189,10 @@ export default function ExpenseClaims() {
   const [billFileType, setBillFileType] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveErrorDialog, setSaveErrorDialog] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanData, setScanData] = useState<any>(null);
   const [assignedClients, setAssignedClients] = useState<
@@ -1446,9 +1450,13 @@ export default function ExpenseClaims() {
       setEditingDraftId(null);
     } catch (error) {
       console.error("Error saving expense:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to save expense",
-      );
+      const message =
+        error instanceof Error ? error.message : "Failed to save expense";
+      setError(message);
+      setSaveErrorDialog({
+        title: "Unable to Save Expense",
+        message,
+      });
     } finally {
       setLoading(false);
     }
@@ -3518,6 +3526,44 @@ export default function ExpenseClaims() {
                 </div>
               );
             })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(saveErrorDialog)}
+        onOpenChange={(open) => {
+          if (!open) setSaveErrorDialog(null);
+        }}
+      >
+        <DialogContent
+          className="w-[92vw] max-w-md rounded-lg border-red-100 p-0 shadow-xl"
+          closeOnEscape
+          closeOnInteractOutside
+        >
+          <div className="border-b border-red-100 bg-red-50 px-5 py-4">
+            <DialogHeader>
+              <DialogTitle className="text-base font-semibold text-red-700">
+                {saveErrorDialog?.title || "Unable to Save"}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Expense save error
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="px-5 py-5">
+            <p className="text-sm leading-6 text-slate-700">
+              {saveErrorDialog?.message}
+            </p>
+          </div>
+          <div className="flex justify-end border-t bg-slate-50 px-5 py-3">
+            <Button
+              type="button"
+              onClick={() => setSaveErrorDialog(null)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              OK
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

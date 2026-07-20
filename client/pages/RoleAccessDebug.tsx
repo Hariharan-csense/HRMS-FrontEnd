@@ -53,7 +53,7 @@ const ACTION_SHORT_LABEL: Record<RbacAction, string> = {
 const FALLBACK_CATALOG: RbacModuleCatalog[] = [
   { key: "dashboard", label: "Dashboard", submodules: [] },
   { key: "quick_actions", label: "Quick Actions", submodules: [] },
-  { key: "organization", label: "Organization", submodules: [{ key: "company", label: "Company" }, { key: "branches", label: "Branches" }, { key: "departments", label: "Departments" }, { key: "designations", label: "Designations" }, { key: "role_management", label: "Role Management" }] },
+  { key: "organization", label: "Organization", submodules: [{ key: "company", label: "Company" }, { key: "branches", label: "Branches" }, { key: "departments", label: "Departments" }, { key: "designations", label: "Designations" }, { key: "policies", label: "Company Policy" }, { key: "role_management", label: "Role Management" }] },
   { key: "employees", label: "Employees", submodules: [{ key: "list", label: "Employee List" }, { key: "profile", label: "Profile" }, { key: "reports", label: "Employee Reports" }] },
   { key: "hr_management", label: "HR Management", submodules: [{ key: "requirements", label: "Requirements" }, { key: "recruitment", label: "Recruitment" }, { key: "offer_letters", label: "Offer Letters" }, { key: "onboarding", label: "Onboarding" }] },
   { key: "client_attendance", label: "Client Attendance", submodules: [] },

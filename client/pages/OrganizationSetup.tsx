@@ -45,6 +45,7 @@ import {
   AlertCircle,
   Upload,
   X,
+  FileText,
   Hash,
 } from "lucide-react";
 import { companyApi, Company } from "@/components/helper/company/company";
@@ -57,8 +58,12 @@ import {
   designationApi,
   Designation,
 } from "@/components/helper/designation/designation";
-import { sequenceApi, Sequence } from "@/components/helper/range/range";
 import { employeeApi, Employee } from "@/components/helper/employee/employee";
+import {
+  companyPolicyApi,
+  CompanyPolicy,
+  defaultCompanyPolicy,
+} from "@/components/helper/companyPolicy/companyPolicy";
 import { showToast } from "@/utils/toast";
 import { resolveFileUrl } from "@/lib/endpoint";
 
@@ -125,115 +130,14 @@ const mockDesignations: Designation[] = [
   { id: "DG003", name: "Manager" },
 ];
 
-const mockSequences: Sequence[] = [
-  {
-    id: 1,
-    company_id: 2,
-    module: "employee",
-    prefix: "EMP",
-    start_number: 100,
-    current_number: 0,
-    number_length: 4,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:42.000Z",
-  },
-  {
-    id: 2,
-    company_id: 2,
-    module: "leave",
-    prefix: "LV",
-    start_number: 1,
-    current_number: 0,
-    number_length: 4,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-  {
-    id: 3,
-    company_id: 2,
-    module: "expense",
-    prefix: "EXP",
-    start_number: 1,
-    current_number: 0,
-    number_length: 5,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-  {
-    id: 4,
-    company_id: 2,
-    module: "asset",
-    prefix: "AST",
-    start_number: 1,
-    current_number: 1,
-    number_length: 4,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:50.000Z",
-  },
-  {
-    id: 5,
-    company_id: 2,
-    module: "branch",
-    prefix: "BR",
-    start_number: 1,
-    current_number: 0,
-    number_length: 3,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-  {
-    id: 6,
-    company_id: 2,
-    module: "department",
-    prefix: "DEP",
-    start_number: 1,
-    current_number: 1,
-    number_length: 3,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-  {
-    id: 7,
-    company_id: 2,
-    module: "designation",
-    prefix: "DES",
-    start_number: 1,
-    current_number: 0,
-    number_length: 3,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-  {
-    id: 8,
-    company_id: 2,
-    module: "role",
-    prefix: "ROLE",
-    start_number: 1,
-    current_number: 0,
-    number_length: 2,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-  {
-    id: 9,
-    company_id: 2,
-    module: "costcenter",
-    prefix: "CC",
-    start_number: 1,
-    current_number: 1,
-    number_length: 4,
-    created_at: "2025-12-29T10:45:19.000Z",
-    updated_at: "2025-12-29T10:45:19.000Z",
-  },
-];
-
 export default function OrganizationSetup() {
   const location = useLocation();
   const [company, setCompany] = useState<Company | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
-  const [sequences, setSequences] = useState<Sequence[]>([]);
+  const [companyPolicy, setCompanyPolicy] =
+    useState<CompanyPolicy>(defaultCompanyPolicy);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -257,8 +161,8 @@ export default function OrganizationSetup() {
       setActiveTab("departments");
     } else if (pathname.includes("/designations")) {
       setActiveTab("designations");
-    } else if (pathname.includes("/sequences")) {
-      setActiveTab("sequences");
+    } else if (pathname.includes("/policies")) {
+      setActiveTab("policies");
     } else {
       setActiveTab("company");
     }
@@ -342,20 +246,20 @@ export default function OrganizationSetup() {
     }
   };
 
-  const fetchSequences = async () => {
-    setLoading((prev) => ({ ...prev, sequences: true }));
-    setError((prev) => ({ ...prev, sequences: "" }));
+  const fetchCompanyPolicy = async () => {
+    setLoading((prev) => ({ ...prev, policies: true }));
+    setError((prev) => ({ ...prev, policies: "" }));
     try {
-      const result = await sequenceApi.getSequences();
+      const result = await companyPolicyApi.getPolicy();
       if (result.data) {
-        setSequences(result.data);
+        setCompanyPolicy(result.data);
       } else if (result.error) {
-        setError((prev) => ({ ...prev, sequences: result.error }));
+        setError((prev) => ({ ...prev, policies: result.error }));
       }
     } catch (err) {
-      setError((prev) => ({ ...prev, sequences: "Failed to fetch sequences" }));
+      setError((prev) => ({ ...prev, policies: "Failed to fetch policy" }));
     } finally {
-      setLoading((prev) => ({ ...prev, sequences: false }));
+      setLoading((prev) => ({ ...prev, policies: false }));
     }
   };
 
@@ -382,16 +286,9 @@ export default function OrganizationSetup() {
     fetchBranches();
     fetchDepartments();
     fetchDesignations();
-    fetchSequences();
+    fetchCompanyPolicy();
     fetchEmployees();
   }, []);
-
-  // Debug formData changes for sequences
-  useEffect(() => {
-    if (activeTab === "sequences") {
-      // console.log("FormData changed:", formData);
-    }
-  }, [formData, activeTab]);
 
   // Filter functions
   const filteredBranches = useMemo(
@@ -418,16 +315,6 @@ export default function OrganizationSetup() {
     [designations, searchTerm],
   );
 
-  const filteredSequences = useMemo(
-    () =>
-      sequences.filter(
-        (s) =>
-          s.module.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.prefix.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    [sequences, searchTerm],
-  );
-
   // Dialog handlers
   const handleOpenDialog = (item?: any) => {
     if (activeTab === "departments") {
@@ -447,7 +334,7 @@ export default function OrganizationSetup() {
     if (
       !formData.name &&
       activeTab !== "company" &&
-      activeTab !== "sequences"
+      activeTab !== "policies"
     ) {
       showToast.error("Please fill in all required fields");
       return;
@@ -531,25 +418,6 @@ export default function OrganizationSetup() {
             return;
           }
         }
-      } else if (activeTab === "sequences") {
-        // console.log("Saving sequence data:", formData);
-        if (editingId) {
-          const result = await sequenceApi.updateSequence(editingId, formData);
-          if (result.data) {
-            await fetchSequences();
-          } else if (result.error) {
-            showToast.error(result.error);
-            return;
-          }
-        } else {
-          const result = await sequenceApi.createSequence(formData);
-          if (result.data) {
-            await fetchSequences();
-          } else if (result.error) {
-            showToast.error(result.error);
-            return;
-          }
-        }
       }
       setIsDialogOpen(false);
     } catch (error) {
@@ -589,14 +457,6 @@ export default function OrganizationSetup() {
         const result = await designationApi.deleteDesignation(deleteId);
         if (result.success) {
           await fetchDesignations();
-        } else if (result.error) {
-          showToast.error(result.error);
-          return;
-        }
-      } else if (activeTab === "sequences") {
-        const result = await sequenceApi.deleteSequence(deleteId);
-        if (result.success) {
-          await fetchSequences();
         } else if (result.error) {
           showToast.error(result.error);
           return;
@@ -674,6 +534,55 @@ export default function OrganizationSetup() {
     setFormData({ ...formData, modules });
   };
 
+  const updateCompanyPolicySection = (
+    section: keyof CompanyPolicy,
+    values: any,
+  ) => {
+    setCompanyPolicy((prev) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        ...values,
+      },
+    }));
+  };
+
+  const updateExpenseCategoryPolicy = (
+    category: string,
+    field: "perClaimLimit" | "monthlyLimit",
+    value: number,
+  ) => {
+    setCompanyPolicy((prev) => ({
+      ...prev,
+      expense: {
+        ...prev.expense,
+        categories: {
+          ...prev.expense.categories,
+          [category]: {
+            ...prev.expense.categories[category],
+            [field]: value,
+          },
+        },
+      },
+    }));
+  };
+
+  const handleSaveCompanyPolicy = async () => {
+    setSaving(true);
+    const result = await companyPolicyApi.updatePolicy(companyPolicy);
+    if (result.data) {
+      setCompanyPolicy(result.data);
+      showToast.success("Company policy saved successfully");
+    } else if (result.error) {
+      showToast.error(result.error);
+    }
+    setSaving(false);
+  };
+
+  const policyFieldClass = "w-full max-w-56";
+  const policyToggleClass =
+    "flex items-center justify-between gap-4 rounded-md border p-3";
+
   return (
     <Layout>
       <div className="space-y-4 md:space-y-6">
@@ -692,7 +601,7 @@ export default function OrganizationSetup() {
         </div>
 
         {/* Search Card (hidden for Company tab) */}
-        {activeTab !== "company" && (
+        {activeTab !== "company" && activeTab !== "policies" && (
           <Card>
             <CardContent className="pt-4 md:pt-6">
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
@@ -768,12 +677,11 @@ export default function OrganizationSetup() {
                 </span>
               </TabsTrigger>
               <TabsTrigger
-                value="sequences"
+                value="policies"
                 className="text-xs py-2 md:py-3 md:text-sm whitespace-nowrap"
               >
-                <span className="hidden sm:inline">Sequences</span>
-                <span className="sm:hidden">Seq</span>
-                <span className="hidden md:inline"> ({sequences.length})</span>
+                <span className="hidden sm:inline">Company Policy</span>
+                <span className="sm:hidden">Policy</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1465,217 +1373,370 @@ export default function OrganizationSetup() {
             </div>
           </TabsContent>
 
-          {/* Sequences Tab */}
-          <TabsContent value="sequences">
+          {/* Company Policy Tab */}
+          <TabsContent value="policies">
             <div className="space-y-4">
-              {/* Header Card */}
               <Card className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-[#17c491]/30 shadow-sm">
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-3 bg-[#17c491] rounded-lg">
-                        <Hash className="w-6 h-6 text-white" />
+                        <FileText className="w-6 h-6 text-white" />
                       </div>
                       <div>
                         <h2 className="text-xl font-bold text-gray-900">
-                          Sequences
+                          Company Policy
                         </h2>
                         <p className="text-gray-600 text-sm mt-1">
-                          Manage ID generation patterns and formats
+                          Configure attendance, leave, permission, and expense rules used by the system.
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-[#17c491]">
-                          {sequences.length}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Active Sequences
-                        </p>
-                      </div>
-                    </div>
+                    <Button
+                      onClick={handleSaveCompanyPolicy}
+                      disabled={saving || loading.policies}
+                      className="whitespace-nowrap"
+                    >
+                      {saving ? "Saving..." : "Save Policy"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Data Card */}
-              <Card className="shadow-sm border-0 bg-white">
-                <CardContent className="pt-6">
-                  {/* Mobile Card View */}
-                  <div className="md:hidden space-y-3">
-                    {filteredSequences.map((seq) => (
-                      <div
-                        key={seq.id}
-                        className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-[#17c491]/10 to-emerald-50/30 hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                                <Hash className="w-4 h-4 text-[#17c491]" />
-                              </div>
-                              <h3 className="font-bold text-base text-gray-900 capitalize">
-                                {seq.module}
-                              </h3>
-                            </div>
-                            <p className="text-xs text-gray-500 font-mono">
-                              Prefix:{" "}
-                              <span className="font-bold text-[#17c491]">
-                                {seq.prefix}
-                              </span>
-                            </p>
-                          </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => handleOpenDialog(seq)}
-                              className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(seq.id.toString())}
-                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-3 bg-white rounded-lg p-3 border border-gray-100">
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
-                              <p className="text-xs text-gray-500">Start</p>
-                              <p className="font-bold text-[#17c491]">
-                                {seq.start_number}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
-                              <p className="text-xs text-gray-500">Current</p>
-                              <p className="font-bold text-[#17c491]">
-                                {seq.current_number}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-[#17c491]/10 rounded-lg">
-                              <p className="text-xs text-gray-500">Length</p>
-                              <p className="font-bold text-[#17c491]">
-                                {seq.number_length}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="border-t pt-3">
-                            <p className="text-xs text-gray-500 mb-2">
-                              Sample Format:
-                            </p>
-                            <div className="bg-[#17c491] text-white p-2 rounded font-mono text-sm text-center">
-                              {seq.prefix}
-                              {String(seq.current_number).padStart(
-                                seq.number_length,
-                                "0",
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              {error.policies && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error.policies}
+                </div>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Attendance Grace</CardTitle>
+                  <CardDescription>
+                    Set company work timing and grace minutes used during punch-in.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className={`${policyToggleClass} sm:col-span-2 lg:col-span-4`}>
+                    <Label htmlFor="attendanceGracePolicyEnabled">
+                      Enable attendance grace policy
+                    </Label>
+                    <Switch
+                      id="attendanceGracePolicyEnabled"
+                      checked={companyPolicy.attendance.gracePolicyEnabled}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("attendance", {
+                          gracePolicyEnabled: checked,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Work start time</Label>
+                    <Input
+                      type="time"
+                      value={companyPolicy.attendance.workStartTime}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("attendance", {
+                          workStartTime: event.target.value,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Work end time</Label>
+                    <Input
+                      type="time"
+                      value={companyPolicy.attendance.workEndTime}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("attendance", {
+                          workEndTime: event.target.value,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Grace period minutes</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={companyPolicy.attendance.gracePeriodMinutes}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("attendance", {
+                          gracePeriodMinutes: Number(event.target.value) || 0,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Grace days per month</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={companyPolicy.attendance.graceDaysPerMonth}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("attendance", {
+                          graceDaysPerMonth: Number(event.target.value) || 0,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      Enter 0 for unlimited grace days.
+                    </p>
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Half-day threshold hours</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={companyPolicy.attendance.halfDayThresholdHours}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("attendance", {
+                          halfDayThresholdHours: Number(event.target.value) || 0,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Casual Leave</CardTitle>
+                  <CardDescription>
+                    Controls how casual leave is earned before an employee can apply.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="casualLeaveEnabled">Enable casual leave policy</Label>
+                    <Switch
+                      id="casualLeaveEnabled"
+                      checked={companyPolicy.leave.casualLeaveEnabled}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("leave", {
+                          casualLeaveEnabled: checked,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Casual leave per month</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={companyPolicy.leave.casualLeavePerMonth}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("leave", {
+                          casualLeavePerMonth: Number(event.target.value) || 0,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className="w-full max-w-72">
+                    <Label>Accrual logic</Label>
+                    <Select
+                      value={companyPolicy.leave.casualLeaveAccrual}
+                      onValueChange={(value: "monthly_start" | "after_full_month") =>
+                        updateCompanyPolicySection("leave", {
+                          casualLeaveAccrual: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly_start">
+                          Credit from joining month
+                        </SelectItem>
+                        <SelectItem value="after_full_month">
+                          Credit after full month worked
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="includePendingLeave">
+                      Count pending leave while checking balance
+                    </Label>
+                    <Switch
+                      id="includePendingLeave"
+                      checked={companyPolicy.leave.includePendingLeaveInUsage}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("leave", {
+                          includePendingLeaveInUsage: checked,
+                        })
+                      }
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Permission</CardTitle>
+                  <CardDescription>
+                    Controls how many short permissions an employee can request per month.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="permissionPolicyEnabled">Enable permission policy</Label>
+                    <Switch
+                      id="permissionPolicyEnabled"
+                      checked={companyPolicy.permission.enabled}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("permission", { enabled: checked })
+                      }
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Permissions per month</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={companyPolicy.permission.maxPerMonth}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("permission", {
+                          maxPerMonth: Number(event.target.value) || 0,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Hours per permission</Label>
+                    <Input
+                      type="number"
+                      min={0.25}
+                      step="0.25"
+                      value={companyPolicy.permission.hoursPerPermission}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("permission", {
+                          hoursPerPermission: Number(event.target.value) || 1,
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  </div>
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="includePendingPermission">
+                      Count pending permissions in monthly usage
+                    </Label>
+                    <Switch
+                      id="includePendingPermission"
+                      checked={companyPolicy.permission.includePendingInUsage}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("permission", {
+                          includePendingInUsage: checked,
+                        })
+                      }
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Expense Claims</CardTitle>
+                  <CardDescription>
+                    Set daily and monthly limits for food, travel, accommodation, and other expenses.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className={`${policyToggleClass} lg:col-span-2`}>
+                      <Label htmlFor="expensePolicyEnabled">Enable expense policy</Label>
+                      <Switch
+                        id="expensePolicyEnabled"
+                        checked={companyPolicy.expense.enabled}
+                        onCheckedChange={(checked) =>
+                          updateCompanyPolicySection("expense", { enabled: checked })
+                        }
+                      />
+                    </div>
+                    <div className={policyFieldClass}>
+                      <Label>Monthly overall limit</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={companyPolicy.expense.monthlyOverallLimit}
+                        onChange={(event) =>
+                          updateCompanyPolicySection("expense", {
+                            monthlyOverallLimit: Number(event.target.value) || 0,
+                          })
+                        }
+                        className="mt-2"
+                      />
+                    </div>
                   </div>
 
-                  {/* Desktop Table View */}
-                  <div className="hidden md:block">
-                    <div className="overflow-x-auto rounded-xl border border-gray-200">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-[#17c491]/10 to-emerald-50 border-b border-[#17c491]/20">
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
-                              Module
-                            </th>
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
-                              Prefix
-                            </th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
-                              Start
-                            </th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
-                              Current
-                            </th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
-                              Length
-                            </th>
-                            <th className="text-left px-6 py-4 font-bold text-[#17c491]">
-                              Sample Format
-                            </th>
-                            <th className="text-center px-6 py-4 font-bold text-[#17c491]">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredSequences.map((seq, index) => (
-                            <tr
-                              key={seq.id}
-                              className={`border-b border-gray-100 hover:bg-[#17c491]/5 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}
-                            >
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-[#17c491]/10 rounded-lg">
-                                    <Hash className="w-4 h-4 text-[#17c491]" />
-                                  </div>
-                                  <span className="font-semibold text-gray-900 capitalize">
-                                    {seq.module}
-                                  </span>
-                                </div>
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full min-w-[520px]">
+                      <thead>
+                        <tr className="bg-muted/60">
+                          <th className="px-4 py-3 text-left text-sm font-semibold">
+                            Category
+                          </th>
+                          <th className="w-44 px-4 py-3 text-left text-sm font-semibold">
+                            Daily Limit
+                          </th>
+                          <th className="w-44 px-4 py-3 text-left text-sm font-semibold">
+                            Monthly Limit
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(companyPolicy.expense.categories).map(
+                          ([category, limits]) => (
+                            <tr key={category} className="border-t">
+                              <td className="px-4 py-3 text-sm font-medium capitalize">
+                                {category}
                               </td>
-                              <td className="px-6 py-4">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
-                                  {seq.prefix}
-                                </span>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={limits.perClaimLimit}
+                                  onChange={(event) =>
+                                    updateExpenseCategoryPolicy(
+                                      category,
+                                      "perClaimLimit",
+                                      Number(event.target.value) || 0,
+                                    )
+                                  }
+                                  className="h-9 w-36"
+                                />
                               </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/20 text-[#17c491]">
-                                  {seq.start_number}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
-                                  {seq.current_number}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-[#17c491]/10 text-[#17c491]">
-                                  {seq.number_length}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="bg-[#17c491] text-white px-3 py-1 rounded font-mono text-sm text-center">
-                                  {seq.prefix}
-                                  {String(seq.current_number).padStart(
-                                    seq.number_length,
-                                    "0",
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => handleOpenDialog(seq)}
-                                    className="p-2 bg-[#17c491]/10 hover:bg-[#17c491]/20 text-[#17c491] rounded-lg transition-all duration-200 hover:scale-105"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleDelete(seq.id.toString())
-                                    }
-                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 hover:scale-105"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={limits.monthlyLimit}
+                                  onChange={(event) =>
+                                    updateExpenseCategoryPolicy(
+                                      category,
+                                      "monthlyLimit",
+                                      Number(event.target.value) || 0,
+                                    )
+                                  }
+                                  className="h-9 w-36"
+                                />
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
@@ -1698,7 +1759,7 @@ export default function OrganizationSetup() {
                     ? "Department"
                     : activeTab === "designations"
                       ? "Designation"
-                      : "Sequence"}
+                      : "Item"}
             </DialogTitle>
             <DialogDescription>
               Update the selected{" "}
@@ -1710,7 +1771,7 @@ export default function OrganizationSetup() {
                     ? "department"
                     : activeTab === "designations"
                       ? "designation"
-                      : "sequence"}{" "}
+                      : "item"}{" "}
               details and save your changes.
             </DialogDescription>
           </DialogHeader>
@@ -2053,103 +2114,6 @@ export default function OrganizationSetup() {
               </>
             )}
 
-            {activeTab === "sequences" && (
-              <>
-                <div>
-                  <Label>Module Name *</Label>
-                  <Input
-                    value={formData.module || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, module: e.target.value })
-                    }
-                    placeholder="e.g., employee"
-                    className="mt-2"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Prefix *</Label>
-                    <Input
-                      value={formData.prefix || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          prefix: e.target.value.toUpperCase(),
-                        })
-                      }
-                      placeholder="e.g., EMP"
-                      className="mt-2 uppercase"
-                      maxLength={10}
-                    />
-                  </div>
-                  <div>
-                    <Label>Start Number *</Label>
-                    <Input
-                      value={formData.start_number || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          start_number: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      type="number"
-                      placeholder="e.g., 100"
-                      className="mt-2"
-                      min="0"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Current Number *</Label>
-                    <Input
-                      value={formData.current_number || ""}
-                      onChange={(e) => {
-                        const newValue = parseInt(e.target.value) || 0;
-                      //  console.log (
-                      //     "Current number changed:",
-                      //     e.target.value,
-                      //     "->",
-                      //     newValue,
-                      //   );
-                        setFormData({ ...formData, current_number: newValue });
-                      }}
-                      type="number"
-                      placeholder="e.g., 0"
-                      className="mt-2"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>Number Length (digits) *</Label>
-                    <Input
-                      value={formData.number_length || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          number_length: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      type="number"
-                      placeholder="e.g., 4"
-                      className="mt-2"
-                      min="1"
-                      max="10"
-                    />
-                  </div>
-                </div>
-                <div className="bg-muted/50 p-3 rounded-lg border border-border">
-                  <p className="text-sm font-medium mb-2">Preview:</p>
-                  <p className="text-lg font-mono">
-                    {formData.prefix || "PREFIX"}
-                    {String(formData.current_number || 0).padStart(
-                      formData.number_length || 4,
-                      "0",
-                    )}
-                  </p>
-                </div>
-              </>
-            )}
           </div>
 
           <div className="flex gap-3 justify-end mt-6 pt-4 border-t">

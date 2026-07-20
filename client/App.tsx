@@ -332,6 +332,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/organization/policies"
+          element={
+            <RoleBasedRoute requiredModule="organization" requiredAction="view">
+              <OrganizationSetup />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
           path="/organization/roles"
           element={
             <RoleBasedRoute requiredModule="role_access" requiredAction="view">

@@ -104,6 +104,7 @@ export interface AttendanceLogRecord {
     | "miss"
     | "unmarked"
     | "late"
+    | "grace"
     | "leave"
     | "week_off"
     | "holiday";
@@ -521,6 +522,12 @@ const OVERRIDE_STATUS_OPTIONS = [
     label: "Late",
     className:
       "border-orange-200 text-orange-700 hover:bg-orange-50 data-[active=true]:border-orange-300 data-[active=true]:bg-orange-100 data-[active=true]:text-orange-900",
+  },
+  {
+    value: "grace",
+    label: "Grace",
+    className:
+      "border-sky-200 text-sky-700 hover:bg-sky-50 data-[active=true]:border-sky-300 data-[active=true]:bg-sky-100 data-[active=true]:text-sky-900",
   },
   {
     value: "week_off",
@@ -1129,6 +1136,7 @@ export default function AttendanceLog() {
                     "miss",
                     "unmarked",
                     "late",
+                    "grace",
                     "leave",
                     "week_off",
                     "holiday",
@@ -1147,13 +1155,19 @@ export default function AttendanceLog() {
               attendanceDate,
             );
 
-            // Keep backend late as-is; otherwise upgrade present -> late if calculation says late
+            // Keep backend late/grace as-is; otherwise upgrade present using shift calculation
             if (
               item.status !== "late" &&
+              item.status !== "grace" &&
               item.status === "present" &&
               shiftCalculation.status === "late"
             ) {
               actualStatus = "late";
+            } else if (
+              item.status === "present" &&
+              shiftCalculation.status === "grace"
+            ) {
+              actualStatus = "grace";
             }
 
             if (actualStatus === "late") {
@@ -1483,7 +1497,7 @@ export default function AttendanceLog() {
     shiftId: string,
     date: string,
   ): {
-    status: "present" | "absent" | "half" | "late";
+    status: "present" | "absent" | "half" | "late" | "grace";
     lateBy?: string;
     reason?: string;
   } => {
@@ -1512,8 +1526,18 @@ export default function AttendanceLog() {
 
     const differenceInMinutes =
       (checkInDateTime.getTime() - shiftStartDateTime.getTime()) / (1000 * 60);
+    const gracePeriodMinutes = Number(
+      shift.gracePeriod || shift.grace_period || 0,
+    );
 
-    // Backend rule: any time strictly after shift start is LATE
+    if (differenceInMinutes > 0 && differenceInMinutes <= gracePeriodMinutes) {
+      const graceByMinutes = Math.floor(differenceInMinutes);
+      return {
+        status: "grace",
+        reason: `Checked in within ${graceByMinutes} minutes grace`,
+      };
+    }
+
     if (differenceInMinutes > 0) {
       const lateByMinutes = Math.floor(differenceInMinutes);
       return {
@@ -1938,6 +1962,7 @@ export default function AttendanceLog() {
       miss: "outline",
       unmarked: "outline", // Different styling for unmarked attendance
       late: "secondary",
+      grace: "secondary",
     };
     const displayText = record?.isPermissionRecord
       ? "PRESENT"
@@ -1947,6 +1972,8 @@ export default function AttendanceLog() {
           ? "NOT MARKED"
           : status === "late"
             ? "LATE"
+            : status === "grace"
+              ? "GRACE"
             : status.toUpperCase();
     return <Badge variant={variants[status] || "outline"}>{displayText}</Badge>;
   };
@@ -1960,6 +1987,7 @@ export default function AttendanceLog() {
       miss: "bg-gray-100 text-gray-700 border-gray-200",
       unmarked: "bg-orange-100 text-orange-700 border-orange-200", // Orange for unmarked
       late: "bg-orange-100 text-orange-700 border-orange-200",
+      grace: "bg-sky-100 text-sky-700 border-sky-200",
     };
     return colors[status] || colors.miss;
   };
@@ -2327,7 +2355,9 @@ export default function AttendanceLog() {
                       const isTodayUnmarked = isToday && !hasRealRecords;
 
                       const statuses = records.map((r) => r.status);
-                      const hasPresent = statuses.includes("present");
+                      const hasPresent =
+                        statuses.includes("present") ||
+                        statuses.includes("grace");
                       const hasAbsent = statuses.includes("absent");
                       const hasHalf = statuses.includes("half");
                       const hasLeave =
@@ -2340,6 +2370,7 @@ export default function AttendanceLog() {
                         statuses.includes("week_off") ||
                         statuses.includes("holiday");
                       const hasLate = statuses.includes("late");
+                      const hasGrace = statuses.includes("grace");
                       const hasUnmarked =
                         statuses.includes("unmarked") || isTodayUnmarked;
                       const hasFlag = records.some((r) => r.autoFlag);
@@ -2378,6 +2409,8 @@ export default function AttendanceLog() {
                           bgColor = "bg-violet-50 border-violet-300";
                         else if (hasWeekOff)
                           bgColor = "bg-gray-100 border-gray-300";
+                        else if (hasGrace)
+                          bgColor = "bg-sky-50 border-sky-300";
                         else if (hasPresent)
                           bgColor = "bg-green-50 border-green-300";
                         else if (hasHalf)
@@ -2527,7 +2560,10 @@ export default function AttendanceLog() {
                                     {hasWeekOff && (
                                       <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-500 flex-shrink-0"></div>
                                     )}
-                                    {hasPresent && (
+                                    {hasGrace && (
+                                      <Timer className="w-2 h-2 sm:w-3 sm:h-3 text-sky-600 flex-shrink-0" />
+                                    )}
+                                    {hasPresent && !hasGrace && (
                                       <CheckCircle2 className="w-2 h-2 sm:w-3 sm:h-3 text-green-600 flex-shrink-0" />
                                     )}
                                     {hasHalf && (
@@ -2542,6 +2578,7 @@ export default function AttendanceLog() {
                                     {!hasPresent &&
                                       !hasHalf &&
                                       !hasAbsent &&
+                                      !hasGrace &&
                                       !hasLate &&
                                       (hasUnmarked || isTodayUnmarked) && (
                                         <Clock className="w-2 h-2 sm:w-3 sm:h-3 text-orange-600 flex-shrink-0" />

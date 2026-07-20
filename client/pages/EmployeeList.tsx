@@ -72,6 +72,7 @@ import {
   FileSpreadsheet,
   FileUp,
   Calendar,
+  Eye,
 } from "lucide-react";
 import {
   Employee,
@@ -87,9 +88,12 @@ import {
   sanitizePhoneInput,
 } from "@/lib/validation";
 
-// Extend the Employee type to include shift_id from the API
-interface EmployeeWithShiftId extends Employee {
+// Extend the Employee type with list-only fields from the API
+interface EmployeeListItem extends Employee {
   shift_id?: number | string;
+  shiftName?: string;
+  branchId?: string;
+  branchName?: string;
 }
 
 type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
@@ -541,6 +545,8 @@ const getCanonicalRoleValue = (value: unknown, roleOptions: string[]) => {
   );
 };
 
+const isNumericLike = (value: unknown) => /^\d+$/.test(String(value || "").trim());
+
 export default function EmployeeList() {
   const { canPerformModuleAction } = useRole();
   //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
@@ -550,6 +556,9 @@ export default function EmployeeList() {
     "all",
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingEmployee, setViewingEmployee] =
+    useState<EmployeeListItem | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newEmployeeId, setNewEmployeeId] = useState<string>("");
@@ -558,7 +567,7 @@ export default function EmployeeList() {
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>(
     {},
   );
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<EmployeeListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -870,7 +879,44 @@ export default function EmployeeList() {
     }
   }, [formData.role, roles]);
 
-  const handleOpenDialog = (employee?: EmployeeWithShiftId) => {
+  const getShiftById = (shiftId?: string | number) =>
+    shifts.find((shift) => String(shift.id) === String(shiftId || ""));
+
+  const getShiftByName = (shiftName?: string) => {
+    const normalizedName = String(shiftName || "").trim().toLowerCase();
+    if (!normalizedName) return undefined;
+    return shifts.find(
+      (shift) => String(shift.name || "").trim().toLowerCase() === normalizedName,
+    );
+  };
+
+  const getEmployeeShiftId = (employee: EmployeeListItem) => {
+    const explicitShiftId = employee.shift_id?.toString();
+    if (explicitShiftId) return explicitShiftId;
+
+    const shiftValue = String(employee.shift || "").trim();
+    if (isNumericLike(shiftValue)) return shiftValue;
+
+    return getShiftByName(employee.shiftName || shiftValue)?.id?.toString() || "";
+  };
+
+  const getEmployeeShiftLabel = (employee: EmployeeListItem) => {
+    const shiftId = getEmployeeShiftId(employee);
+    const shiftById = getShiftById(shiftId);
+    if (shiftById?.name) return shiftById.name;
+
+    const shiftName = String(employee.shiftName || employee.shift || "").trim();
+    if (shiftName && !isNumericLike(shiftName)) return shiftName;
+
+    return "N/A";
+  };
+
+  const handleOpenViewDialog = (employee: EmployeeListItem) => {
+    setViewingEmployee(employee);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleOpenDialog = (employee?: EmployeeListItem) => {
     if (employee && !canEditEmployee) {
       showToast.error("You do not have permission to edit employees");
       return;
@@ -901,7 +947,7 @@ export default function EmployeeList() {
           (employee as any).branch_id?.toString() ||
           "",
         // Handle shift from the API response
-        shift: employee?.shift?.toString() || "",
+        shift: getEmployeeShiftId(employee),
         designationId: employee.designationId || "",
         department: employee.department || "",
         designation: employee.designation || "",
@@ -1165,10 +1211,6 @@ export default function EmployeeList() {
   //     return;
   //   }
 
-  //   if (!editingId && !formData.dateOfJoining) {
-  //     alert("Date of Joining is required!");
-  //     return;
-  //   }
 
   //   setSaving(true);
 
@@ -1221,7 +1263,7 @@ export default function EmployeeList() {
   //       formDataToSend.append("first_name", formData.firstName);
   //       formDataToSend.append("last_name", formData.lastName);
   //       formDataToSend.append("email", formData.email);
-  //       formDataToSend.append("doj", formData.dateOfJoining); // ← REQUIRED! 400 error fix
+  //       formDataToSend.append("doj", formData.dateOfJoining);
 
   //       // Optional fields
   //       if (formData.phone) formDataToSend.append("mobile", formData.phone);
@@ -1320,11 +1362,6 @@ export default function EmployeeList() {
       return;
     }
 
-    if (!formData.dateOfJoining) {
-      showToast.error("Date of Joining is required!");
-      return;
-    }
-
     // if (!formData.shift) {
     //   showToast.error("Shift is required!");
     //   return;
@@ -1364,7 +1401,9 @@ export default function EmployeeList() {
       const dojToSend = formData.dateOfJoining
         ? extractDatePart(formData.dateOfJoining)
         : "";
-      formDataToSend.append("doj", dojToSend);
+      if (dojToSend) {
+        formDataToSend.append("doj", dojToSend);
+      }
       // console.log("Sending DOJ:", dojToSend); // Debug
 
       formDataToSend.append("employment_type", formData.employmentType);
@@ -1533,10 +1572,6 @@ export default function EmployeeList() {
     }
 
     if (activeTab === "employment") {
-      if (!formData.dateOfJoining) {
-        showToast.error("Date of Joining is required!");
-        return false;
-      }
       // if (!formData.shift) {
       //   showToast.error("Shift is required!");
       //   return false;
@@ -1700,7 +1735,7 @@ export default function EmployeeList() {
     payload.append("first_name", employee.firstName);
     payload.append("last_name", employee.lastName);
     payload.append("email", employee.email);
-    payload.append("doj", employee.dateOfJoining);
+    if (employee.dateOfJoining) payload.append("doj", employee.dateOfJoining);
     payload.append("employment_type", employee.employmentType);
     payload.append("status", employee.status);
     payload.append("shift_id", employee.shiftId);
@@ -1766,11 +1801,10 @@ export default function EmployeeList() {
           !employee.employeeId ||
           !employee.firstName ||
           !employee.lastName ||
-          !employee.email ||
-          !employee.dateOfJoining
+          !employee.email
         ) {
           failures.push(
-            `Row ${rowNumber}: employee_id, first_name, last_name, email, doj required`,
+            `Row ${rowNumber}: employee_id, first_name, last_name, email required`,
           );
           return;
         }
@@ -2026,7 +2060,10 @@ export default function EmployeeList() {
 
       if (Array.isArray(apiEmployees)) {
         const transformedEmployees = apiEmployees.map((emp: any) => {
-          const transformed: Employee = {
+          const shiftId = emp.shift_id?.toString() || "";
+          const shiftName =
+            emp.shift_name || emp.shiftName || emp.shift || emp.shift_type || "";
+          const transformed: EmployeeListItem = {
             id: emp.id.toString(),
             employeeId: emp.employee_id || "",
             firstName: emp.first_name || "",
@@ -2065,7 +2102,9 @@ export default function EmployeeList() {
             emergencyPhone: emp.emergency_contact_phone || "",
             departmentId: emp.department_id?.toString() || "",
             designationId: emp.designation_id?.toString() || "",
-            shift: emp.shift_id?.toString() || "", // Add shift_id to the transformed data
+            shift: shiftName || shiftId,
+            shift_id: shiftId,
+            shiftName,
             department: emp.department || emp.department_name || "Unknown",
             designation: emp.designation || emp.designation_name || "Unknown",
             dateOfJoining: (() => {
@@ -2247,6 +2286,84 @@ export default function EmployeeList() {
 
     fetchEmployees();
   }, []);
+
+  const renderDetailValue = (value?: string | number | null) => {
+    const text = String(value ?? "").trim();
+    return text || "N/A";
+  };
+
+  const viewDetailGroups = viewingEmployee
+    ? [
+        {
+          title: "Personal",
+          fields: [
+            ["Employee ID", viewingEmployee.employeeId],
+            ["Name", `${viewingEmployee.firstName} ${viewingEmployee.lastName}`],
+            ["Email", viewingEmployee.email],
+            ["Phone", viewingEmployee.phone],
+            ["Date of Birth", formatDateForDisplay(viewingEmployee.dateOfBirth)],
+            ["Gender", viewingEmployee.gender],
+            ["Blood Group", viewingEmployee.bloodGroup],
+            ["Marital Status", viewingEmployee.maritalStatus],
+            ["Emergency Contact", viewingEmployee.emergencyContact],
+            ["Emergency Phone", viewingEmployee.emergencyPhone],
+          ],
+        },
+        {
+          title: "Employment",
+          fields: [
+            ["Department", viewingEmployee.department],
+            ["Designation", viewingEmployee.designation],
+            ["Branch", viewingEmployee.branchName],
+            ["Shift", getEmployeeShiftLabel(viewingEmployee)],
+            ["Date of Joining", formatDateForDisplay(viewingEmployee.dateOfJoining)],
+            ["Employment Type", getEmploymentTypeLabel(viewingEmployee.employmentType)],
+            ["Status", getStatusLabel(viewingEmployee.status)],
+            ["Role", viewingEmployee.role],
+            ["Location/Office", viewingEmployee.location],
+            [
+              "Live Tracking",
+              isLocationTrackingEnabled(viewingEmployee.location_tracking_enabled)
+                ? "Enabled"
+                : "Disabled",
+            ],
+            ["Office Email", viewingEmployee.officeEmail],
+            ["Office Phone", viewingEmployee.officePhone],
+            ["Salary", viewingEmployee.salary ? String(viewingEmployee.salary) : ""],
+          ],
+        },
+        {
+          title: "Statutory",
+          fields: [
+            ["Aadhaar", viewingEmployee.aadhaar],
+            ["PAN", viewingEmployee.pan],
+            ["UAN", viewingEmployee.uan],
+            ["ESIC", viewingEmployee.esic],
+          ],
+        },
+        {
+          title: "Bank",
+          fields: [
+            ["Account Holder", viewingEmployee.bankAccountHolder],
+            ["Bank Name", viewingEmployee.bankName],
+            ["Account Number", viewingEmployee.accountNumber],
+            ["IFSC Code", viewingEmployee.ifscCode],
+          ],
+        },
+        {
+          title: "Documents",
+          fields: [
+            ["Photo", viewingEmployee.photoUrl ? "Uploaded" : ""],
+            ["ID Proof", viewingEmployee.idProofUrl ? "Uploaded" : ""],
+            ["Address Proof", viewingEmployee.addressProofUrl ? "Uploaded" : ""],
+            ["Offer Letter", viewingEmployee.offerLetterUrl ? "Uploaded" : ""],
+            ["Certificates", viewingEmployee.certificatesUrl ? "Uploaded" : ""],
+            ["Bank Proof", viewingEmployee.bankProofUrl ? "Uploaded" : ""],
+          ],
+        },
+      ]
+    : [];
+
   return (
     <Layout>
       <div className="space-y-4 w-full">
@@ -2582,11 +2699,7 @@ export default function EmployeeList() {
                             {emp.designation}
                           </td>
                           <td className="px-3 py-3 text-xs whitespace-nowrap">
-                            {emp.shift
-                              ? shifts.find(
-                                  (s) => s.id.toString() === emp.shift,
-                                )?.name || emp.shift
-                              : "N/A"}
+                            {getEmployeeShiftLabel(emp)}
                           </td>
                           <td className="px-3 py-3">
                             {isLocationTrackingEnabled(
@@ -2610,28 +2723,37 @@ export default function EmployeeList() {
                             </span>
                           </td>
                           <td className="px-3 py-3">
-                            {(canEditEmployee || canDeleteEmployee) && (
-                              <div className="flex gap-1">
-                                {canEditEmployee && (
-                                  <button
-                                    onClick={() => handleOpenDialog(emp)}
-                                    className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </button>
-                                )}
-                                {canDeleteEmployee && (
-                                  <button
-                                    onClick={() => handleDeleteClick(emp.id)}
-                                    className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleOpenViewDialog(emp)}
+                                className="p-1 hover:bg-blue-100 text-blue-600 rounded transition-colors"
+                                title="View"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </button>
+                              {(canEditEmployee || canDeleteEmployee) && (
+                                <>
+                                  {canEditEmployee && (
+                                    <button
+                                      onClick={() => handleOpenDialog(emp)}
+                                      className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
+                                      title="Edit"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  {canDeleteEmployee && (
+                                    <button
+                                      onClick={() => handleDeleteClick(emp.id)}
+                                      className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -2668,28 +2790,37 @@ export default function EmployeeList() {
                             </div>
                           </div>
                         </div>
-                        {(canEditEmployee || canDeleteEmployee) && (
-                          <div className="flex gap-1 flex-shrink-0">
-                            {canEditEmployee && (
-                              <button
-                                onClick={() => handleOpenDialog(emp)}
-                                className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
-                                title="Edit"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </button>
-                            )}
-                            {canDeleteEmployee && (
-                              <button
-                                onClick={() => handleDeleteClick(emp.id)}
-                                className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => handleOpenViewDialog(emp)}
+                            className="p-1 hover:bg-blue-100 text-blue-600 rounded transition-colors"
+                            title="View"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </button>
+                          {(canEditEmployee || canDeleteEmployee) && (
+                            <>
+                              {canEditEmployee && (
+                                <button
+                                  onClick={() => handleOpenDialog(emp)}
+                                  className="p-1 hover:bg-[#17c491]/10 text-[#17c491] rounded transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </button>
+                              )}
+                              {canDeleteEmployee && (
+                                <button
+                                  onClick={() => handleDeleteClick(emp.id)}
+                                  className="p-1 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -2718,6 +2849,14 @@ export default function EmployeeList() {
                           >
                             {getStatusLabel(emp.status)}
                           </span>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">
+                            Shift
+                          </label>
+                          <p className="font-medium truncate">
+                            {getEmployeeShiftLabel(emp)}
+                          </p>
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground font-medium block mb-1">
@@ -2819,6 +2958,68 @@ export default function EmployeeList() {
           </CardContent>
         </Card>
       </div>
+
+      {/* View Dialog */}
+      <Dialog
+        open={isViewDialogOpen}
+        onOpenChange={(open) => {
+          setIsViewDialogOpen(open);
+          if (!open) setViewingEmployee(null);
+        }}
+      >
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">
+              Employee Details
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              View complete employee information
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingEmployee && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3">
+                <div className="w-10 h-10 rounded-full bg-[#17c491] flex items-center justify-center text-white text-sm font-bold">
+                  {viewingEmployee.firstName?.charAt(0)?.toUpperCase()}
+                  {viewingEmployee.lastName?.charAt(0)?.toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">
+                    {viewingEmployee.firstName} {viewingEmployee.lastName}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {viewingEmployee.employeeId || viewingEmployee.id}
+                  </p>
+                </div>
+              </div>
+
+              {viewDetailGroups.map((group) => (
+                <section key={group.title} className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {group.title}
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {group.fields.map(([label, value]) => (
+                      <div
+                        key={`${group.title}-${label}`}
+                        className="rounded-md border border-border px-3 py-2"
+                      >
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {label}
+                        </p>
+                        <p className="mt-1 break-words text-sm font-medium">
+                          {renderDetailValue(value)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Dialog with Tabs */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -3068,7 +3269,7 @@ export default function EmployeeList() {
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="dateOfJoining">Date of Joining *</Label>
+                  <Label htmlFor="dateOfJoining">Date of Joining</Label>
                   <Input
                     id="dateOfJoining"
                     type="date"

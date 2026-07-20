@@ -130,6 +130,8 @@ import {
   BarChart3,
   Activity,
   TrendingUp,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -149,6 +151,11 @@ type NavItem = {
   moduleName?: string; // Maps to module in RoleConfig
   subModuleName?: string; // Maps to sub-module in RoleConfig (e.g., "payslips" for Payroll)
 };
+
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
 
 const navigationItems: NavItem[] = [
   {
@@ -244,6 +251,13 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "organization",
       },
+      {
+        label: "Company Policy",
+        path: "/organization/policies",
+        roles: [],
+        icon: <div />,
+        moduleName: "organization",
+      },
       // {
       //   label: "Roles & Permissions",
       //   path: "/organization/roles",
@@ -298,7 +312,7 @@ const navigationItems: NavItem[] = [
     ],
   },
   {
-    label: "Field Attendance",
+    label: "Field Force",
     icon: <MapPin className="w-5 h-5" />,
     roles: [],
     submenu: [
@@ -797,7 +811,10 @@ const navigationItems: NavItem[] = [
   
 ];
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  isCollapsed = false,
+  onToggleCollapse,
+}) => {
   const SIDEBAR_SCROLL_KEY = "hrms.sidebar.scrollTop";
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -990,6 +1007,7 @@ export const Sidebar: React.FC = () => {
         if (path.includes("/organization/branches")) return "branches";
         if (path.includes("/organization/departments")) return "departments";
         if (path.includes("/organization/designations")) return "designations";
+        if (path.includes("/organization/policies")) return "policies";
         if (path.includes("/organization/role-management"))
           return "role_management";
         return undefined;
@@ -1275,9 +1293,20 @@ export const Sidebar: React.FC = () => {
       return (
         <div key={item.label} className="space-y-1">
           <button
-            onClick={() => toggleExpand(item.label)}
+            onClick={() => {
+              if (isCollapsed) {
+                onToggleCollapse?.();
+                setExpandedItems((prev) =>
+                  prev.includes(item.label) ? prev : [...prev, item.label],
+                );
+                return;
+              }
+              toggleExpand(item.label);
+            }}
+            title={isCollapsed ? item.label : undefined}
             className={cn(
               "sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium",
+              isCollapsed && "justify-center gap-0 px-0",
               isActive
                 ? "active text-primary-foreground"
                 : isExpanded
@@ -1286,15 +1315,18 @@ export const Sidebar: React.FC = () => {
             )}
           >
             <span className="flex-shrink-0">{item.icon}</span>
-            <span className="flex-1 text-left">{item.label}</span>
+            {!isCollapsed && (
+              <span className="flex-1 text-left">{item.label}</span>
+            )}
             <ChevronDown
               className={cn(
                 "w-4 h-4 transition-transform duration-300 flex-shrink-0",
+                isCollapsed && "hidden",
                 isExpanded && "rotate-180",
               )}
             />
           </button>
-          {isExpanded && filteredSubmenu.length > 0 && (
+          {!isCollapsed && isExpanded && filteredSubmenu.length > 0 && (
             <div className="ml-2 pl-3 border-l-2 border-primary/30 space-y-1 animate-in fade-in duration-200">
               {filteredSubmenu.map((subitem) => (
                 <Link
@@ -1322,15 +1354,17 @@ export const Sidebar: React.FC = () => {
         key={item.label}
         to={item.path!}
         onClick={persistScrollAndHandleNav}
+        title={isCollapsed ? item.label : undefined}
         className={cn(
           "sidebar-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium",
+          isCollapsed && "justify-center gap-0 px-0",
           isActive
             ? "active text-primary-foreground"
             : "text-sidebar-foreground hover:text-primary",
         )}
       >
         <span className="flex-shrink-0">{item.icon}</span>
-        <span>{item.label}</span>
+        {!isCollapsed && <span>{item.label}</span>}
       </Link>
     );
   };
@@ -1357,20 +1391,32 @@ export const Sidebar: React.FC = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col shadow-lg",
-          "transition-transform duration-300 ease-in-out",
+          "h-screen bg-sidebar border-r border-sidebar-border flex flex-col shadow-lg",
+          "transition-[width,transform] duration-300 ease-in-out",
+          isCollapsed ? "w-20" : "w-64",
           "lg:translate-x-0 lg:relative lg:z-0", // Desktop-ல எப்போதும் visible, relative positioning
           "fixed top-0 left-0 z-30", // Mobile-ல fixed
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         {/* Logo */}
-        <div className="h-24 p-2 flex items-center justify-center border-b border-sidebar-border/50 transition-colors">
+        <div
+          className={cn(
+            "h-24 p-2 flex items-center justify-center border-b border-sidebar-border/50 transition-colors relative",
+            isCollapsed && "h-20",
+          )}
+        >
           <Link
             to="/dashboard"
             className="flex items-center justify-center group"
+            title={isCollapsed ? "Dashboard" : undefined}
           >
-            <div className="w-28 h-28 flex items-center justify-center overflow-hidden transition-all duration-300 ">
+            <div
+              className={cn(
+                "w-28 h-28 flex items-center justify-center overflow-hidden transition-all duration-300",
+                isCollapsed && "w-14 h-14",
+              )}
+            >
               <img
                 src={logo}
                 alt="HRMS Logo"
@@ -1378,25 +1424,57 @@ export const Sidebar: React.FC = () => {
               />
             </div>
           </Link>
+          {onToggleCollapse && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onToggleCollapse}
+              className="hidden lg:flex absolute -right-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-background shadow-md"
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <ChevronsRight className="w-4 h-4" />
+              ) : (
+                <ChevronsLeft className="w-4 h-4" />
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Navigation Items */}
-        <nav ref={navRef} className="flex-1 overflow-y-auto p-3 space-y-2">
+        <nav
+          ref={navRef}
+          className={cn(
+            "flex-1 overflow-y-auto p-3 space-y-2",
+            isCollapsed && "px-2",
+          )}
+        >
           {filteredItems.map((item) => (
             <NavItemComponent key={item.label} item={item} />
           ))}
         </nav>
 
         {/* User Section */}
-        <div className="sidebar-user-section p-4 border-t border-sidebar-border/50 space-y-2">
+        <div
+          className={cn(
+            "sidebar-user-section p-4 border-t border-sidebar-border/50 space-y-2",
+            isCollapsed && "px-2",
+          )}
+        >
           <button
             onClick={async () => {
               await logout();
             }}
-            className="sidebar-logout-btn w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive rounded-lg font-medium"
+            title={isCollapsed ? "Logout" : undefined}
+            className={cn(
+              "sidebar-logout-btn w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive rounded-lg font-medium",
+              isCollapsed && "justify-center gap-0 px-0",
+            )}
           >
             <LogOut className="w-5 h-5" />
-            <span>Logout</span>
+            {!isCollapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>

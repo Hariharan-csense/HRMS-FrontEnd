@@ -794,6 +794,8 @@ export default function AttendanceCapture() {
           ? "Half Day"
           : attendanceStatus === "late"
             ? "Late"
+            : attendanceStatus === "grace"
+              ? "Grace"
             : attendanceStatus === "present"
               ? "Present"
               : "";

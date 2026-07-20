@@ -5,7 +5,7 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.17:3000/backend";
+// export const BASE_URL = "http://192.168.1.16:3000/backend";
 export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -574,6 +574,10 @@ const ENDPOINTS = {
   updateSequence: (id: string, data: any) => api.put(`/autonumber/${id}`, data),
 
   deleteSequence: (id: string) => api.delete(`/autonumber/${id}`),
+
+  getCompanyPolicy: () => api.get("/company-policy"),
+
+  updateCompanyPolicy: (data: any) => api.put("/company-policy", data),
 
   // employee
 
