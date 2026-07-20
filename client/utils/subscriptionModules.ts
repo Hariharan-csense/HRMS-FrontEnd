@@ -112,6 +112,7 @@ const STANDARD_MODULES = [
   "live_tracking",
   "tickets",
   "role_access",
+  "kpi",
 ];
 
 // Your "Advanced" plan definition: Standard + these modules.
