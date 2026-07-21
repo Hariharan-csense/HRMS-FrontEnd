@@ -331,6 +331,7 @@ import {
   Building,
   MapPin,
   ArrowRight,
+  Timer,
 } from "lucide-react";
 
 const StatCard: React.FC<{
@@ -1685,7 +1686,7 @@ const EmployeeDashboard = ({
         <p className="text-white/80">Here's your personal dashboard</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           title="Today's Status"
           value={dashboardData?.todayStatus?.status || "Not Marked"}
@@ -1704,6 +1705,16 @@ const EmployeeDashboard = ({
             "Days remaining this year"
           }
           colorClass="gradient-bg-blue"
+        />
+        <StatCard
+          title="Permission Balance"
+          value={dashboardData?.permissionBalance?.remaining ?? 0}
+          icon={<Timer className="w-7 h-7" />}
+          description={
+            dashboardData?.permissionBalance?.description ||
+            "Permission units remaining this month"
+          }
+          colorClass="gradient-bg-orange"
         />
         <StatCard
           title="Working Hours"

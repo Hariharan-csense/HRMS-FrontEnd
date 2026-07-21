@@ -86,6 +86,12 @@ export interface EmployeeDashboardData {
     totalDays: number;
     description: string;
   };
+  permissionBalance?: {
+    remaining: number;
+    used: number;
+    limit: number;
+    description: string;
+  };
   workingHours?: {
     hours: string | number;
     description: string;
@@ -258,6 +264,12 @@ export const getEmployeeDashboardData = async (): Promise<{
       leaveBalance: payload.leaveBalance || {
         totalDays: 0,
         description: "Days remaining this year",
+      },
+      permissionBalance: payload.permissionBalance || {
+        remaining: 0,
+        used: 0,
+        limit: 0,
+        description: "Permission balance this month",
       },
       workingHours: payload.workingHours || {
         hours: "0",

@@ -26,7 +26,23 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Check, X, Eye, Download, FileText, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Check,
+  X,
+  Eye,
+  Download,
+  FileText,
+  Loader2,
+  Search,
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import expenseApi from "@/components/helper/expense/expense";
 import { useAuth } from "@/context/AuthContext";
@@ -114,6 +130,9 @@ export default function ExpenseApprovals() {
   const [processingDecision, setProcessingDecision] = useState<
     "approved" | "rejected" | null
   >(null);
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [clientFilter, setClientFilter] = useState("all");
 
   const formatSubmitTimestamp = (value?: string | null) => {
     if (!value) return "N/A";
@@ -129,7 +148,60 @@ export default function ExpenseApprovals() {
     });
   };
 
-  const pendingExpenses = expenses.filter((e) => e.status === "pending");
+  const pendingExpenses = useMemo(
+    () => expenses.filter((e) => e.status === "pending"),
+    [expenses],
+  );
+  const normalizeFilterText = (value?: string | null) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+  const toDateInputValue = (value?: string | null) => {
+    if (!value || value === "N/A") return "";
+
+    const slashParts = String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashParts) {
+      const [, day, month, year] = slashParts;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const day = String(parsed.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const clientOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          pendingExpenses
+            .map((expense) => expense.clientName || "No client")
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [pendingExpenses],
+  );
+  const filteredPendingExpenses = useMemo(() => {
+    const employeeSearch = normalizeFilterText(employeeFilter);
+
+    return pendingExpenses.filter((expense) => {
+      const matchesEmployee =
+        !employeeSearch ||
+        normalizeFilterText(expense.employeeName).includes(employeeSearch) ||
+        normalizeFilterText(expense.employeeId).includes(employeeSearch);
+      const matchesDate =
+        !dateFilter || toDateInputValue(expense.date) === dateFilter;
+      const expenseClient = expense.clientName || "No client";
+      const matchesClient =
+        clientFilter === "all" || expenseClient === clientFilter;
+
+      return matchesEmployee && matchesDate && matchesClient;
+    });
+  }, [pendingExpenses, employeeFilter, dateFilter, clientFilter]);
+  const hasActiveFilters =
+    employeeFilter.trim() !== "" || dateFilter !== "" || clientFilter !== "all";
   const selectedPendingExpenses = useMemo(
     () =>
       pendingExpenses.filter((expense) =>
@@ -145,7 +217,7 @@ export default function ExpenseApprovals() {
   const groupedPending = useMemo(() => {
     const byClientDate = new Map<string, PendingExpenseGroup>();
 
-    pendingExpenses.forEach((expense) => {
+    filteredPendingExpenses.forEach((expense) => {
       const employeeKey =
         expense.employeeId || expense.employeeName || expense.id;
       const clientName = expense.clientName || "No client";
@@ -191,7 +263,7 @@ export default function ExpenseApprovals() {
         submittedAt: formatSubmitTimestamp(orderedExpenses[0]?.createdAt),
       };
     });
-  }, [pendingExpenses]);
+  }, [filteredPendingExpenses]);
   const selectedGroup = useMemo(
     () =>
       selectedExpense
@@ -327,7 +399,7 @@ export default function ExpenseApprovals() {
   };
 
   const handleExportSelected = async () => {
-    const expensesToExport = pendingExpenses.filter((e) =>
+    const expensesToExport = filteredPendingExpenses.filter((e) =>
       selectedExpenses.includes(e.id),
     );
     if (expensesToExport.length === 0) {
@@ -346,14 +418,14 @@ export default function ExpenseApprovals() {
   };
 
   const handleExportAll = async () => {
-    if (pendingExpenses.length === 0) {
+    if (filteredPendingExpenses.length === 0) {
       showToast.error("No pending expenses to export");
       return;
     }
 
     try {
       exportExpensesToExcel(
-        pendingExpenses,
+        filteredPendingExpenses,
         `pending-expenses-${new Date().toISOString().split("T")[0]}.xlsx`,
       );
     } catch (error) {
@@ -385,10 +457,19 @@ export default function ExpenseApprovals() {
   };
 
   const handleSelectAll = () => {
-    if (selectedExpenses.length === pendingExpenses.length) {
-      setSelectedExpenses([]);
+    const filteredIds = filteredPendingExpenses.map((e) => e.id);
+    const allFilteredSelected =
+      filteredIds.length > 0 &&
+      filteredIds.every((id) => selectedExpenses.includes(id));
+
+    if (allFilteredSelected) {
+      setSelectedExpenses((prev) =>
+        prev.filter((id) => !filteredIds.includes(id)),
+      );
     } else {
-      setSelectedExpenses(pendingExpenses.map((e) => e.id));
+      setSelectedExpenses((prev) =>
+        Array.from(new Set([...prev, ...filteredIds])),
+      );
     }
   };
 
@@ -612,6 +693,16 @@ export default function ExpenseApprovals() {
     fetchExpenses();
   }, []);
 
+  useEffect(() => {
+    const filteredIds = new Set(
+      filteredPendingExpenses.map((expense) => expense.id),
+    );
+    setSelectedExpenses((prev) => {
+      const next = prev.filter((id) => filteredIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [filteredPendingExpenses]);
+
   const totalPending = pendingExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
@@ -681,8 +772,9 @@ export default function ExpenseApprovals() {
                   Pending Expense Claims
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Claims awaiting approval from Finance team • Total ₹
-                  {totalPending.toLocaleString()}
+                  Claims awaiting approval from Finance team • Showing{" "}
+                  {filteredPendingExpenses.length} of {pendingExpenses.length} •
+                  Total ₹{totalPending.toLocaleString()}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -725,7 +817,7 @@ export default function ExpenseApprovals() {
                   variant="outline"
                   size="sm"
                   onClick={handleExportAll}
-                  disabled={pendingExpenses.length === 0}
+                  disabled={filteredPendingExpenses.length === 0}
                   className="text-xs"
                 >
                   <FileText className="w-4 h-4 mr-1" />
@@ -743,12 +835,79 @@ export default function ExpenseApprovals() {
                 </Button>
               </div>
             </div>
+            <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto]">
+              <div>
+                <Label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Employee
+                </Label>
+                <div className="relative mt-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={employeeFilter}
+                    onChange={(event) => setEmployeeFilter(event.target.value)}
+                    placeholder="Search employee"
+                    className="h-9 pl-9 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Date
+                </Label>
+                <Input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(event) => setDateFilter(event.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Client
+                </Label>
+                <Select value={clientFilter} onValueChange={setClientFilter}>
+                  <SelectTrigger className="mt-1 h-9 text-sm">
+                    <SelectValue placeholder="All clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All clients</SelectItem>
+                    {clientOptions.map((client) => (
+                      <SelectItem key={client} value={client}>
+                        {client}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEmployeeFilter("");
+                    setDateFilter("");
+                    setClientFilter("all");
+                  }}
+                  disabled={!hasActiveFilters}
+                  className="h-9 w-full text-xs lg:w-auto"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {pendingExpenses.length === 0 ? (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   No pending expenses to review
+                </p>
+              </div>
+            ) : filteredPendingExpenses.length === 0 ? (
+              <div className="text-center py-8 sm:py-12">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  No pending expenses match the selected filters
                 </p>
               </div>
             ) : (
@@ -890,9 +1049,10 @@ export default function ExpenseApprovals() {
                         <th className="px-3 py-3 text-left font-bold">
                           <Checkbox
                             checked={
-                              selectedExpenses.length ===
-                                pendingExpenses.length &&
-                              pendingExpenses.length > 0
+                              filteredPendingExpenses.length > 0 &&
+                              filteredPendingExpenses.every((expense) =>
+                                selectedExpenses.includes(expense.id),
+                              )
                             }
                             onCheckedChange={handleSelectAll}
                           />

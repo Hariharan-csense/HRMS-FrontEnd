@@ -23,6 +23,10 @@ type ScorecardUser = {
   designation: string;
 };
 
+type KpiDailyAchievements =
+  | Record<string, string>
+  | Record<string, Record<string, string>>;
+
 type KpiRow = {
   id: string;
   parameter: string;
@@ -31,7 +35,7 @@ type KpiRow = {
   commitment: string;
   weightage: string;
   achievement: string;
-  dailyAchievements?: Record<string, string>;
+  dailyAchievements?: KpiDailyAchievements;
   definition: string;
   measurement: string;
   dataSource: string;
