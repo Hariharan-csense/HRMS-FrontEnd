@@ -30,6 +30,7 @@ import {
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
 import { useRole } from "@/context/RoleContext";
+import { api } from "@/lib/endpoint";
 
 const dashboardStyles = `
   @keyframes dashboardEnter {
@@ -581,6 +582,7 @@ const DashboardAccessPlaceholder = ({
 
 const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [leadIndicatorSignals, setLeadIndicatorSignals] = useState<any>(null);
   const [metricDialog, setMetricDialog] = useState<{
     title: string;
     description: string;
@@ -616,13 +618,19 @@ const AdminDashboard = () => {
       try {
         setLoading(true);
         setError(null);
-        const result = await getAdminDashboardData();
+        const [result, leadSignalsResult] = await Promise.all([
+          getAdminDashboardData(),
+          api.get("/dashboard/widgets").catch(() => null),
+        ]);
 
         if (result.error) {
           setError(result.error);
         } else {
           setDashboardData(result.data);
         }
+        setLeadIndicatorSignals(
+          leadSignalsResult?.data?.leadIndicatorSignals || null,
+        );
       } catch (err) {
         setError("Failed to fetch dashboard data");
       } finally {
@@ -738,6 +746,11 @@ const AdminDashboard = () => {
     : `Trial ends in ${subscription?.trial_days_remaining || 0} days. Subscribe now.`;
   const presentTodayEmployees = dashboardData?.presentTodayEmployees || [];
   const onLeaveEmployees = dashboardData?.onLeaveEmployees || [];
+  const leadNeedsAttention = Number(leadIndicatorSignals?.needsAttention || 0);
+  const leadRedCount =
+    Number(leadIndicatorSignals?.red || 0) +
+    Number(leadIndicatorSignals?.missing || 0);
+  const leadYellowCount = Number(leadIndicatorSignals?.yellow || 0);
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-8">
@@ -784,6 +797,41 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {leadNeedsAttention > 0 ? (
+        <button
+          type="button"
+          onClick={() => navigate("/KPI/dashboard")}
+          className="dashboard-content-enter w-full rounded-2xl border border-amber-200 bg-white px-5 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900"
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-900 dark:text-white">
+                  KPI Dashboard Alert
+                </p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  {leadNeedsAttention} lead checklist item(s) need attention.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">
+                Red {leadRedCount}
+              </span>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                Yellow {leadYellowCount}
+              </span>
+              <span className="text-sm font-semibold text-[#17c491]">
+                Open KPI Dashboard
+              </span>
+            </div>
+          </div>
+        </button>
+      ) : null}
 
       {/* KPI Cards */}
       <div className="mb-8">

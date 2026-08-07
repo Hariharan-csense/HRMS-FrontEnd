@@ -63,7 +63,7 @@ const MyPulseSurveys: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
         <div className="max-w-6xl mx-auto p-6 space-y-8">
           {/* Header Section */}
           <div className="text-center space-y-4">

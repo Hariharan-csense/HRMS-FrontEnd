@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -7,27 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Building2, TrendingUp, Users, Star, BarChart3, User, UserCheck } from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Building2, MapPin, TrendingUp, Users, Star, BarChart3, User, UserCheck } from "lucide-react";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
-
-type TrendPoint = { label: string; score: number };
 
 const clampScore = (value: number) => Math.max(0, Math.min(10, value));
 
@@ -36,32 +19,6 @@ const formatScore = (value: number | null | undefined) => {
   if (Number.isNaN(value)) return "0/10";
   return `${clampScore(value).toFixed(0)}/10`;
 };
-
-const defaultDayTrend: TrendPoint[] = [
-  { label: "Mon", score: 0 },
-  { label: "Tue", score: 0 },
-  { label: "Wed", score: 0 },
-  { label: "Thu", score: 0 },
-  { label: "Fri", score: 0 },
-  { label: "Sat", score: 0 },
-  { label: "Sun", score: 0 },
-];
-
-const defaultWeekTrend: TrendPoint[] = [
-  { label: "W1", score: 0 },
-  { label: "W2", score: 0 },
-  { label: "W3", score: 0 },
-  { label: "W4", score: 0 },
-];
-
-const defaultMonthTrend: TrendPoint[] = [
-  { label: "Aug", score: 0 },
-  { label: "Sep", score: 0 },
-  { label: "Oct", score: 0 },
-  { label: "Nov", score: 0 },
-  { label: "Dec", score: 0 },
-  { label: "Jan", score: 0 },
-];
 
 const StatCard: React.FC<{
   title: string;
@@ -92,9 +49,6 @@ const PulseSurveysOverview: React.FC = () => {
 
   const [avgHappiness, setAvgHappiness] = useState(0);
   const [avgScoreTrend, setAvgScoreTrend] = useState(0);
-  const [dayTrend, setDayTrend] = useState<TrendPoint[]>(defaultDayTrend);
-  const [weekTrend, setWeekTrend] = useState<TrendPoint[]>(defaultWeekTrend);
-  const [monthTrend, setMonthTrend] = useState<TrendPoint[]>(defaultMonthTrend);
   const [genderStats, setGenderStats] = useState<{
     male: { employees: number; score: number };
     female: { employees: number; score: number };
@@ -103,6 +57,9 @@ const PulseSurveysOverview: React.FC = () => {
     female: { employees: 0, score: 0 },
   });
   const [departmentDetails, setDepartmentDetails] = useState<
+    Array<{ name: string; employees: number; score: number }>
+  >([]);
+  const [branchDetails, setBranchDetails] = useState<
     Array<{ name: string; employees: number; score: number }>
   >([]);
 
@@ -120,10 +77,6 @@ const PulseSurveysOverview: React.FC = () => {
         setDepartmentCount(Number(data?.kpis?.departments || 0));
         setAvgScoreTrend(Number(data?.kpis?.avgScoreTrend || 0));
 
-        setDayTrend(Array.isArray(data?.trend?.day) && data.trend.day.length ? data.trend.day : defaultDayTrend);
-        setWeekTrend(Array.isArray(data?.trend?.week) && data.trend.week.length ? data.trend.week : defaultWeekTrend);
-        setMonthTrend(Array.isArray(data?.trend?.month) && data.trend.month.length ? data.trend.month : defaultMonthTrend);
-
         setGenderStats({
           male: {
             employees: Number(data?.gender?.male?.employees || 0),
@@ -136,6 +89,7 @@ const PulseSurveysOverview: React.FC = () => {
         });
 
         setDepartmentDetails(Array.isArray(data?.departmentsDetails) ? data.departmentsDetails : []);
+        setBranchDetails(Array.isArray(data?.branchesDetails) ? data.branchesDetails : []);
       } catch (e: any) {
         if (cancelled) return;
         toast({
@@ -152,16 +106,9 @@ const PulseSurveysOverview: React.FC = () => {
     };
   }, []);
 
-  const chartConfig = useMemo(
-    () => ({
-      score: { label: "Happiness Score", color: "#10b981" },
-    }),
-    [],
-  );
-
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
         <div className="max-w-7xl mx-auto p-6 space-y-8">
           {/* Header Section */}
           <div className="text-center space-y-4">
@@ -206,123 +153,85 @@ const PulseSurveysOverview: React.FC = () => {
             />
           </div>
 
-          {/* Happiness Trend Chart */}
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-t-xl">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <TrendingUp className="h-5 w-5" />
-                Happiness Trend Analysis
-              </CardTitle>
-              <CardDescription className="text-emerald-100">
-                Employee happiness score progression over different time periods
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <Tabs defaultValue="week" className="w-full">
-                <TabsList className="mb-6 bg-emerald-50 border border-emerald-200">
-                  <TabsTrigger value="day" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">Day</TabsTrigger>
-                  <TabsTrigger value="week" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">Week</TabsTrigger>
-                  <TabsTrigger value="month" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">Month</TabsTrigger>
-                </TabsList>
-
-                {[
-                  { key: "day", data: dayTrend },
-                  { key: "week", data: weekTrend },
-                  { key: "month", data: monthTrend },
-                ].map(({ key, data }) => (
-                  <TabsContent value={key} key={key}>
-                    <ChartContainer config={chartConfig} className="h-[340px] w-full">
-                      <LineChart data={data} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="#6b7280" />
-                        <YAxis domain={[0, 10]} tickLine={false} axisLine={false} stroke="#6b7280" />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#10b981"
-                          strokeWidth={3}
-                          dot={{ fill: "#10b981", r: 4 }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ChartContainer>
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </CardContent>
-          </Card>
-
           {/* Gender and Department Analysis */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Gender Analysis */}
-            <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-t-xl">
-                <CardTitle className="flex items-center gap-2 text-xl">
+          <div className="space-y-6">
+            <section className="overflow-hidden rounded-xl bg-white/80 shadow-xl backdrop-blur-sm">
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 p-6 text-white">
+                <h2 className="flex items-center gap-2 text-xl font-semibold">
                   <UserCheck className="h-5 w-5" />
                   Gender Analysis
-                </CardTitle>
-                <CardDescription className="text-teal-100">
+                </h2>
+                <p className="mt-2 text-sm text-teal-100">
                   Happiness scores by gender distribution
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                {[
-                  {
-                    label: "Male",
-                    employees: genderStats.male.employees,
-                    score: genderStats.male.score,
-                    icon: <User className="h-4 w-4" />,
-                    color: "emerald"
-                  },
-                  {
-                    label: "Female",
-                    employees: genderStats.female.employees,
-                    score: genderStats.female.score,
-                    icon: <User className="h-4 w-4" />,
-                    color: "pink"
-                  },
-                ].map((row) => (
-                  <div key={row.label} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1 bg-${row.color}-100 rounded text-${row.color}-600`}>
-                          {row.icon}
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    {
+                      label: "Male",
+                      employees: genderStats.male.employees,
+                      score: genderStats.male.score,
+                      icon: <User className="h-4 w-4" />,
+                      iconClass: "bg-emerald-100 text-emerald-600",
+                    },
+                    {
+                      label: "Female",
+                      employees: genderStats.female.employees,
+                      score: genderStats.female.score,
+                      icon: <User className="h-4 w-4" />,
+                      iconClass: "bg-pink-100 text-pink-600",
+                    },
+                  ].map((row) => (
+                    <Card
+                      key={row.label}
+                      className={`border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 ${
+                        row.label === "Male"
+                          ? "bg-gradient-to-r from-emerald-50 to-teal-50"
+                          : "bg-gradient-to-r from-pink-50 to-rose-50"
+                      }`}
+                    >
+                      <CardContent className="pt-5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1 rounded ${row.iconClass}`}>
+                              {row.icon}
+                            </div>
+                            <span className="font-semibold text-gray-900">{row.label}</span>
+                          </div>
+                          <div className="font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                            {formatScore(row.score)}
+                          </div>
                         </div>
-                        <span className="font-semibold text-gray-900">{row.label}</span>
-                      </div>
-                      <div className="font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                        {formatScore(row.score)}
-                      </div>
-                    </div>
-                    <Progress 
-                      value={(clampScore(row.score) / 10) * 100} 
-                      className="h-3 bg-gray-200"
-                    />
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {row.employees} employee{row.employees === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                        <Progress
+                          value={(clampScore(row.score) / 10) * 100}
+                          className="h-3 bg-gray-200"
+                        />
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {row.employees} employee{row.employees === 1 ? "" : "s"}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </section>
 
-            {/* Department Details */}
-            <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-t-xl">
-                <CardTitle className="flex items-center gap-2 text-xl">
+            <section className="overflow-hidden rounded-xl bg-white/80 shadow-xl backdrop-blur-sm">
+              <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-6 text-white">
+                <h2 className="flex items-center gap-2 text-xl font-semibold">
                   <Building2 className="h-5 w-5" />
                   Department Performance
-                </CardTitle>
-                <CardDescription className="text-cyan-100">
+                </h2>
+                <p className="mt-2 text-sm text-cyan-100">
                   Happiness scores by department breakdown
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {departmentDetails.map((dept, index) => (
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                  {departmentDetails.length ? (
+                    departmentDetails.map((dept, index) => (
                     <Card 
                       key={dept.name} 
                       className={`border-0 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
@@ -348,11 +257,61 @@ const PulseSurveysOverview: React.FC = () => {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-500">No department scores to show.</div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </div>
+
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-sky-500 to-emerald-600 text-white rounded-t-xl">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <MapPin className="h-5 w-5" />
+                Branch Performance
+              </CardTitle>
+              <CardDescription className="text-sky-100">
+                Happiness scores by branch breakdown
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {branchDetails.length ? (
+                  branchDetails.map((branch, index) => (
+                    <Card
+                      key={branch.name}
+                      className={`border-0 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
+                        index % 2 === 0
+                          ? 'bg-gradient-to-r from-sky-50 to-emerald-50'
+                          : 'bg-gradient-to-r from-emerald-50 to-teal-50'
+                      }`}
+                    >
+                      <CardContent className="pt-5 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-bold text-gray-900 truncate">{branch.name}</div>
+                          <div className="font-bold bg-gradient-to-r from-sky-600 to-emerald-600 bg-clip-text text-transparent">
+                            {formatScore(branch.score)}
+                          </div>
+                        </div>
+                        <Progress
+                          value={(clampScore(branch.score) / 10) * 100}
+                          className="h-2 bg-gray-200"
+                        />
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {branch.employees} employee{branch.employees === 1 ? "" : "s"}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500">No branch scores to show.</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>

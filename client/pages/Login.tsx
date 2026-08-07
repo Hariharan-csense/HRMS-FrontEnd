@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Loader, ArrowRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole } from "lucide-react";
 import { showToast } from "@/utils/toast";
 import logo from "../assets/logo.png";
 import { profileManager } from "@/lib/profileManager";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
 import { isCordovaIOS } from "@/lib/platform";
 import { hasRefreshCredential, isAutoLoginPaused } from "@/lib/endpoint";
+
+const LOGIN_UNLOCK_KEY = "auth:loginUnlocking";
 
 const styles = `
   @keyframes fadeInDown {
@@ -56,6 +58,43 @@ const styles = `
     0% { opacity: 1; transform: perspective(1000px) rotateY(0deg); }
     100% { opacity: 0; transform: perspective(1000px) rotateY(360deg); }
   }
+  @keyframes unlockBackdrop {
+    0% { opacity: 0; backdrop-filter: blur(0px); }
+    16% { opacity: 1; backdrop-filter: blur(10px); }
+    100% { opacity: 1; backdrop-filter: blur(18px); }
+  }
+  @keyframes unlockCard {
+    0% { opacity: 0; transform: perspective(900px) rotateX(28deg) translateY(28px) scale(0.86); }
+    28% { opacity: 1; transform: perspective(900px) rotateX(0deg) translateY(0) scale(1); }
+    64% { transform: perspective(900px) rotateX(0deg) translateY(-8px) scale(1.04); }
+    100% { opacity: 0; transform: perspective(900px) rotateX(-22deg) translateY(-90px) scale(1.24); }
+  }
+  @keyframes lockShackle {
+    0%, 24% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    45% { transform: translateY(-12px) rotate(-24deg); opacity: 1; }
+    100% { transform: translateY(-34px) rotate(-42deg); opacity: 0; }
+  }
+  @keyframes unlockGlow {
+    0% { transform: scale(0.45); opacity: 0; }
+    34% { transform: scale(1); opacity: 0.95; }
+    100% { transform: scale(3.2); opacity: 0; }
+  }
+  @keyframes enterSweep {
+    0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+    35% { opacity: 0.85; }
+    100% { transform: translateX(130%) skewX(-18deg); opacity: 0; }
+  }
+  @keyframes unlockText {
+    0% { opacity: 0; transform: translateY(12px); }
+    28%, 74% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-18px); }
+  }
+  .unlock-backdrop { animation: unlockBackdrop 1.35s ease forwards; }
+  .unlock-card { animation: unlockCard 1.35s cubic-bezier(0.2, 0.9, 0.2, 1) forwards; }
+  .unlock-shackle { transform-origin: 60% 46%; animation: lockShackle 1.05s ease-in forwards; }
+  .unlock-glow { animation: unlockGlow 1.25s ease-out forwards; }
+  .enter-sweep { animation: enterSweep 1.05s ease-in-out forwards; }
+  .unlock-text { animation: unlockText 1.2s ease forwards; }
 `;
 
 export default function Login() {
@@ -68,6 +107,8 @@ export default function Login() {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
   const [attemptedSessionRestore, setAttemptedSessionRestore] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const holdAuthRedirectRef = useRef(false);
   const { login, autoLogin, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const hideRegistration = isCordovaIOS();
@@ -124,10 +165,22 @@ export default function Login() {
     });
   };
 
+  const playUnlockAnimationThenNavigate = () => {
+    holdAuthRedirectRef.current = true;
+    sessionStorage.setItem(LOGIN_UNLOCK_KEY, "true");
+    setIsUnlocking(true);
+    window.setTimeout(() => {
+      holdAuthRedirectRef.current = false;
+      sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
+      navigateAfterLogin();
+    }, 1180);
+  };
+
   useEffect(() => {
     if (isLoading) return;
 
     if (isAuthenticated) {
+      if (holdAuthRedirectRef.current || isUnlocking) return;
       navigateAfterLogin();
       return;
     }
@@ -140,13 +193,22 @@ export default function Login() {
 
     const restoreSession = async () => {
       setAttemptedSessionRestore(true);
+      holdAuthRedirectRef.current = true;
+      sessionStorage.setItem(LOGIN_UNLOCK_KEY, "true");
       setIsAutoLoggingIn(true);
 
       try {
         const result = await autoLogin();
         if (result.success) {
-          navigateAfterLogin();
+          showToast.success("Welcome back! Unlocking workspace...");
+          playUnlockAnimationThenNavigate();
+        } else {
+          holdAuthRedirectRef.current = false;
+          sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
         }
+      } catch (error) {
+        holdAuthRedirectRef.current = false;
+        sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
       } finally {
         setIsAutoLoggingIn(false);
       }
@@ -164,6 +226,8 @@ export default function Login() {
     }
 
     try {
+      holdAuthRedirectRef.current = true;
+      sessionStorage.setItem(LOGIN_UNLOCK_KEY, "true");
       const normalizedEmail = normalizeEmail(email);
       const result = await login(normalizedEmail, password, rememberMe);
       if (result.success) {
@@ -174,12 +238,16 @@ export default function Login() {
           profileManager.clearSavedProfile();
         }
 
-        showToast.success("Login successful! Redirecting...");
-        navigateAfterLogin();
+        showToast.success("Login successful! Unlocking workspace...");
+        playUnlockAnimationThenNavigate();
       } else {
+        holdAuthRedirectRef.current = false;
+        sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
         showToast.error(result.message || "Login failed. Please try again.");
       }
     } catch (error) {
+      holdAuthRedirectRef.current = false;
+      sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
       showToast.error("An error occurred during login. Please try again.");
       if (savedProfile) {
         setEmail(savedProfile.email);
@@ -216,18 +284,24 @@ export default function Login() {
 
     try {
       sessionStorage.removeItem("auth:showWelcomeBack");
+      holdAuthRedirectRef.current = true;
+      sessionStorage.setItem(LOGIN_UNLOCK_KEY, "true");
       setIsAutoLoggingIn(true);
       const result = await autoLogin();
       if (result.success) {
-        showToast.success("Welcome back! Login successful!");
-        navigateAfterLogin();
+        showToast.success("Welcome back! Unlocking workspace...");
+        playUnlockAnimationThenNavigate();
       } else {
+        holdAuthRedirectRef.current = false;
+        sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
         showToast.info("Please enter your password to continue.");
         setEmail(savedProfile.email);
         setRememberMe(true);
         setShowLoginForm(true);
       }
     } catch (error) {
+      holdAuthRedirectRef.current = false;
+      sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
       showToast.error("Auto-login failed. Please enter your credentials manually.");
       setEmail(savedProfile.email);
       setRememberMe(true);
@@ -246,6 +320,23 @@ export default function Login() {
           className="absolute -bottom-8 right-10 w-72 h-72 bg-cyan-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"
           style={{ animationDelay: "2s" }}
         ></div>
+
+        {isUnlocking && (
+          <div className="fixed inset-0 z-50 unlock-backdrop bg-[#041f1a]/70 flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-[#17c491]/60 to-transparent enter-sweep" />
+            <div className="absolute h-56 w-56 rounded-full bg-[#17c491]/35 blur-3xl unlock-glow" />
+            <div className="relative unlock-card flex flex-col items-center gap-5">
+              <div className="relative h-32 w-32 rounded-full bg-white/95 shadow-[0_0_70px_rgba(23,196,145,0.55)] flex items-center justify-center border border-[#bdf4df]">
+                <LockKeyhole className="h-16 w-16 text-[#064f3f]" />
+                <UnlockKeyhole className="unlock-shackle absolute h-16 w-16 text-[#17c491]" />
+              </div>
+              <div className="unlock-text text-center">
+                <p className="text-2xl font-bold text-white">Access Unlocked</p>
+                <p className="text-sm text-[#d8fff3]">Entering HRMS workspace...</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="w-full max-w-md relative z-10 login-page-container">
           <div className="text-center mb-8 animate-fade-in-down">

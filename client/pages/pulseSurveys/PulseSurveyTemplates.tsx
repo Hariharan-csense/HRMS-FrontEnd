@@ -162,7 +162,7 @@ const PulseSurveyTemplates: React.FC = () => {
   if (!isAdmin) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+        <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
           <div className="text-center space-y-6 max-w-md">
             <div className="p-4 bg-red-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
               <Shield className="h-10 w-10 text-red-600" />
@@ -184,7 +184,7 @@ const PulseSurveyTemplates: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
         <div className="max-w-7xl mx-auto p-6 space-y-8">
           {/* Header Section */}
           <div className="text-center space-y-4">

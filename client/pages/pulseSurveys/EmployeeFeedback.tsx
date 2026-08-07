@@ -58,7 +58,7 @@ const EmployeeFeedback: React.FC = () => {
 
   return (
     <Layout>
-      <div className="w-full">
+      <div className="pulse-theme w-full min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-6">
         <div className="mx-auto max-w-5xl">
           <Card className="border-0 shadow-lg overflow-hidden rounded-2xl">
             <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white px-6 py-5">

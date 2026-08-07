@@ -17,6 +17,9 @@ type ReviewRow = {
   id: number;
   templateId?: number;
   targetDate?: string | null;
+  whatWentWrong?: string | null;
+  lessonLearned?: string | null;
+  correctiveActions?: string | null;
   feedback?: string | null;
   status?: ReviewStatus | null;
   updatedAt?: string | null;
@@ -42,6 +45,13 @@ type ReviewRow = {
 
 type UserOption = { id: string; label: string };
 
+type ReviewDraft = {
+  whatWentWrong: string;
+  lessonLearned: string;
+  correctiveActions: string;
+  targetDate: string;
+};
+
 const MONTH_OPTIONS = [
   { value: "", label: "All months" },
   { value: "1", label: "January" },
@@ -64,10 +74,37 @@ const STATUS_OPTIONS: Array<{ value: ReviewStatus; label: string }> = [
   { value: "COMPLETED", label: "Completed" },
 ];
 
-const statusTone = (status?: ReviewStatus | null) => {
-  if (status === "COMPLETED") return "bg-emerald-100 text-emerald-700";
-  if (status === "IN_PROGRESS") return "bg-sky-100 text-sky-700";
-  return "bg-amber-100 text-amber-700";
+const getKpiScoreState = (row: ReviewRow) => {
+  const score = Number(row.kpiParameter?.kpiScore ?? 0);
+  const weightage = Number(row.kpiParameter?.weightage ?? 0);
+  const reference = Number(row.kpiParameter?.reference ?? 0);
+  const commitment = Number(row.kpiParameter?.commitment ?? 0);
+  const achievement = Number(row.kpiParameter?.achievement ?? 0);
+
+  if (weightage > 0) return score >= weightage ? "good" : "low";
+  if (commitment > 0) return achievement >= commitment ? "good" : "low";
+  if (reference > 0) return achievement >= reference ? "good" : "low";
+  return score > 0 ? "good" : "low";
+};
+
+const scoreTone = (row: ReviewRow) => {
+  const isGood = getKpiScoreState(row) === "good";
+  return {
+    isGood,
+    actionButton: isGood
+      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+      : "bg-rose-100 text-rose-700 hover:bg-rose-200",
+    panel: isGood
+      ? "border-emerald-200 bg-emerald-50"
+      : "border-rose-200 bg-rose-50",
+    focus: isGood ? "focus:border-emerald-500" : "focus:border-rose-500",
+    outlineButton: isGood
+      ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+      : "border-rose-300 text-rose-700 hover:bg-rose-50",
+    saveButton: isGood
+      ? "bg-emerald-600 hover:bg-emerald-700"
+      : "bg-rose-600 hover:bg-rose-700",
+  };
 };
 
 function normalizeRole(value: unknown) {
@@ -123,9 +160,7 @@ const KPIReviewPage: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingReviewId, setSavingReviewId] = useState<number | null>(null);
   const [submittingTemplateId, setSubmittingTemplateId] = useState<number | null>(null);
-  const [reviewDrafts, setReviewDrafts] = useState<
-    Record<number, { feedback: string; targetDate: string }>
-  >({});
+  const [reviewDrafts, setReviewDrafts] = useState<Record<number, ReviewDraft>>({});
 
   const toggleExpanded = (id: number) => {
     setExpandedId((current) => (current === id ? null : id));
@@ -136,10 +171,14 @@ const KPIReviewPage: React.FC = () => {
     hasLegacyKpiReviewUpdatePermission() ||
     hasAnyRole(["admin", "manager", "pdhead", "ceo", "hr", "pillars"]);
 
-  const saveReview = async (
-    row: ReviewRow,
-    changes: { feedback: string; targetDate: string },
-  ) => {
+  const buildReviewDraft = (row: ReviewRow): ReviewDraft => ({
+    whatWentWrong: row.whatWentWrong || "",
+    lessonLearned: row.lessonLearned || "",
+    correctiveActions: row.correctiveActions || row.feedback || "",
+    targetDate: row.targetDate || "",
+  });
+
+  const saveReview = async (row: ReviewRow, changes: ReviewDraft) => {
     if (!row.id) return;
     if (!canUpdateReview) return;
     if (row.submittedAt) return;
@@ -148,13 +187,23 @@ const KPIReviewPage: React.FC = () => {
     setRows((current) =>
       current.map((item) =>
         item.id === row.id
-          ? { ...item, feedback: changes.feedback, targetDate: changes.targetDate }
+          ? {
+              ...item,
+              whatWentWrong: changes.whatWentWrong,
+              lessonLearned: changes.lessonLearned,
+              correctiveActions: changes.correctiveActions,
+              feedback: changes.correctiveActions,
+              targetDate: changes.targetDate,
+            }
           : item,
       ),
     );
     try {
       await api.patch(`/kpi/parameter-reviews/${row.id}`, {
-        feedback: changes.feedback,
+        whatWentWrong: changes.whatWentWrong,
+        lessonLearned: changes.lessonLearned,
+        correctiveActions: changes.correctiveActions,
+        feedback: changes.correctiveActions,
         targetDate: changes.targetDate || null,
       });
       toast.success("KPI review saved successfully.");
@@ -195,7 +244,15 @@ const KPIReviewPage: React.FC = () => {
           sameOwner &&
           sameParam &&
           sameMonth &&
-          Boolean(String(r.feedback || "").trim() || r.targetDate)
+          Boolean(
+            String(
+              r.whatWentWrong ||
+                r.lessonLearned ||
+                r.correctiveActions ||
+                r.feedback ||
+                "",
+            ).trim() || r.targetDate,
+          )
         );
       }) || null
     );
@@ -210,10 +267,7 @@ const KPIReviewPage: React.FC = () => {
       return;
     }
 
-    const loaded = {
-      feedback: lastMonthReview.feedback || "",
-      targetDate: lastMonthReview.targetDate || "",
-    };
+    const loaded = buildReviewDraft(lastMonthReview);
 
     setError(null);
     setReviewDrafts((current) => ({
@@ -225,7 +279,10 @@ const KPIReviewPage: React.FC = () => {
         item.id === row.id
           ? {
               ...item,
-              feedback: loaded.feedback,
+              whatWentWrong: loaded.whatWentWrong,
+              lessonLearned: loaded.lessonLearned,
+              correctiveActions: loaded.correctiveActions,
+              feedback: loaded.correctiveActions,
               targetDate: loaded.targetDate,
         }
           : item,
@@ -587,9 +644,7 @@ const KPIReviewPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => toggleExpanded(row.id)}
-                              className={`inline-flex items-center justify-center rounded-full px-4 py-1 text-xs font-semibold ${statusTone(
-                                row.status,
-                              )}`}
+                              className={`inline-flex items-center justify-center rounded-full px-4 py-1 text-xs font-semibold transition ${scoreTone(row).actionButton}`}
                             >
                               {expandedId === row.id ? "Hide" : "Review"}
                             </button>
@@ -600,10 +655,7 @@ const KPIReviewPage: React.FC = () => {
                             <td colSpan={12} className="border border-slate-200 bg-slate-50 px-0 py-0">
                               <div
                                 className={`m-3 rounded-2xl border px-4 py-4 text-sm ${
-                                  (row.kpiParameter?.kpiScore ?? 0) <
-                                  (row.kpiParameter?.weightage ?? 0)
-                                    ? "border-rose-200 bg-rose-50"
-                                    : "border-emerald-200 bg-emerald-50"
+                                  scoreTone(row).panel
                                 }`}
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -612,9 +664,8 @@ const KPIReviewPage: React.FC = () => {
                                       {row.kpiParameter?.name || "Parameter"}
                                     </p>
                                     <p className="mt-1 text-xs text-slate-600">
-                                      {(row.kpiParameter?.kpiScore ?? 0) <
-                                      (row.kpiParameter?.weightage ?? 0)
-                                        ? "Corrective action needed because this KPI score is below the weightage."
+                                      {getKpiScoreState(row) === "low"
+                                        ? "Corrective action needed because this KPI score is below the expected target."
                                         : "Great result. Capture what went right and save a success note."}
                                     </p>
                                   </div>
@@ -627,12 +678,18 @@ const KPIReviewPage: React.FC = () => {
                                   </div>
                                 </div>
                                 {(() => {
-                                  const isGreen =
-                                    (row.kpiParameter?.kpiScore ?? 0) >=
-                                    (row.kpiParameter?.weightage ?? 0);
-                                  const draft = reviewDrafts[row.id] || {
-                                    feedback: row.feedback || "",
-                                    targetDate: row.targetDate || "",
+                                  const tone = scoreTone(row);
+                                  const isGreen = tone.isGood;
+                                  const draft =
+                                    reviewDrafts[row.id] || buildReviewDraft(row);
+                                  const updateDraft = (changes: Partial<ReviewDraft>) => {
+                                    setReviewDrafts((current) => ({
+                                      ...current,
+                                      [row.id]: {
+                                        ...(current[row.id] || draft),
+                                        ...changes,
+                                      },
+                                    }));
                                   };
 
                                   return (
@@ -644,9 +701,22 @@ const KPIReviewPage: React.FC = () => {
                                             : "What went wrong"}
                                         </label>
                                         <textarea
-                                          value={row.feedback || ""}
-                                          readOnly
-                                          className="min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
+                                          value={draft.whatWentWrong}
+                                          disabled={
+                                            !canUpdateReview ||
+                                            Boolean(row.submittedAt)
+                                          }
+                                          onChange={(event) =>
+                                            updateDraft({
+                                              whatWentWrong: event.target.value,
+                                            })
+                                          }
+                                          placeholder={
+                                            isGreen
+                                              ? "Type what went right"
+                                              : "Type what went wrong"
+                                          }
+                                          className={`min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none disabled:bg-slate-100 ${tone.focus}`}
                                         />
                                       </div>
 
@@ -657,9 +727,22 @@ const KPIReviewPage: React.FC = () => {
                                             : "Lesson learned"}
                                         </label>
                                         <textarea
-                                          value={row.feedback || ""}
-                                          readOnly
-                                          className="min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
+                                          value={draft.lessonLearned}
+                                          disabled={
+                                            !canUpdateReview ||
+                                            Boolean(row.submittedAt)
+                                          }
+                                          onChange={(event) =>
+                                            updateDraft({
+                                              lessonLearned: event.target.value,
+                                            })
+                                          }
+                                          placeholder={
+                                            isGreen
+                                              ? "Type key strengths"
+                                              : "Type lesson learned"
+                                          }
+                                          className={`min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none disabled:bg-slate-100 ${tone.focus}`}
                                         />
                                       </div>
 
@@ -668,30 +751,18 @@ const KPIReviewPage: React.FC = () => {
                                           Corrective Actions
                                         </label>
                                         <textarea
-                                          value={draft.feedback}
+                                          value={draft.correctiveActions}
                                           disabled={
                                             !canUpdateReview ||
                                             Boolean(row.submittedAt)
                                           }
-                                          onChange={(e) =>
-                                            setReviewDrafts((current) => ({
-                                              ...current,
-                                              [row.id]: {
-                                                feedback: e.target.value,
-                                                targetDate:
-                                                  current[row.id]
-                                                    ?.targetDate || draft.targetDate,
-                                              },
-                                            }))
-                                          }
-                                          onBlur={() =>
-                                            void saveReview(row, {
-                                              feedback: draft.feedback,
-                                              targetDate: draft.targetDate,
+                                          onChange={(event) =>
+                                            updateDraft({
+                                              correctiveActions: event.target.value,
                                             })
                                           }
                                           placeholder="Type corrective actions"
-                                          className="min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-cyan-500"
+                                          className={`min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none disabled:bg-slate-100 ${tone.focus}`}
                                         />
                                       </div>
 
@@ -707,23 +778,11 @@ const KPIReviewPage: React.FC = () => {
                                             Boolean(row.submittedAt)
                                           }
                                           onChange={(event) =>
-                                            setReviewDrafts((current) => ({
-                                              ...current,
-                                              [row.id]: {
-                                                feedback:
-                                                  current[row.id]?.feedback ??
-                                                  draft.feedback,
-                                                targetDate: event.target.value,
-                                              },
-                                            }))
-                                          }
-                                          onBlur={() =>
-                                            void saveReview(row, {
-                                              feedback: draft.feedback,
-                                              targetDate: draft.targetDate,
+                                            updateDraft({
+                                              targetDate: event.target.value,
                                             })
                                           }
-                                          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-cyan-500"
+                                          className={`h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none disabled:bg-slate-100 ${tone.focus}`}
                                         />
                                         {row.updatedAt ? (
                                           <p className="mt-2 text-[11px] text-slate-500">
@@ -740,24 +799,21 @@ const KPIReviewPage: React.FC = () => {
                                           disabled={
                                             !canUpdateReview || Boolean(row.submittedAt)
                                           }
-                                          className="rounded-xl border border-rose-300 bg-white px-5 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                          className={`rounded-xl border bg-white px-5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${tone.outlineButton}`}
                                         >
                                           Last Month Review
                                         </button>
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            void saveReview(row, {
-                                              feedback: draft.feedback,
-                                              targetDate: draft.targetDate,
-                                            })
+                                            void saveReview(row, draft)
                                           }
                                           disabled={
                                             !canUpdateReview ||
                                             Boolean(row.submittedAt) ||
                                             savingReviewId === row.id
                                           }
-                                          className="rounded-xl bg-rose-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                          className={`rounded-xl px-5 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${tone.saveButton}`}
                                         >
                                           {savingReviewId === row.id
                                             ? "Saving..."

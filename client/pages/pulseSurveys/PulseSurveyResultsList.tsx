@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
-import { BarChart3, MessageSquare, Calendar, Users, TrendingUp, Eye, Star, UserCheck, UserX } from "lucide-react";
+import { BarChart3, MessageSquare, Calendar, Users, TrendingUp, Eye, Star, UserCheck, UserX, Download } from "lucide-react";
+import { exportPulseSurveyExcelReport } from "./surveyExcelReport";
 
 const formatScore = (value: number | null | undefined) => {
   if (value === null || value === undefined) return "0/10";
@@ -36,10 +37,31 @@ const PulseSurveyResultsList: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const totalSent = rows.reduce((sum, row) => sum + Number(row.totalSent || 0), 0);
   const totalResponses = rows.reduce((sum, row) => sum + Number(row.responseCount || 0), 0);
   const totalPending = Math.max(totalSent - totalResponses, 0);
+
+  const exportSurveyExcel = async (survey: (typeof rows)[number]) => {
+    setDownloadingId(survey.id);
+    try {
+      const res = await ENDPOINTS.getPulseAdminSurveyResponses(survey.id);
+      const responses = Array.isArray(res.data) ? res.data : [];
+      exportPulseSurveyExcelReport({ survey, responses });
+    } catch (e: any) {
+      toast({
+        title: "Export failed",
+        description:
+          e?.response?.data?.message ||
+          e?.message ||
+          "Failed to generate survey report",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +91,7 @@ const PulseSurveyResultsList: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
         <div className="max-w-7xl mx-auto p-6 space-y-8">
           {/* Header Section */}
           <div className="text-center space-y-4">
@@ -269,6 +291,16 @@ const PulseSurveyResultsList: React.FC = () => {
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               View Analytics
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="px-6 py-2 rounded-lg font-medium border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                              disabled={downloadingId === row.id}
+                              onClick={() => void exportSurveyExcel(row)}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              {downloadingId === row.id ? "Exporting..." : "Excel"}
                             </Button>
                           </div>
                         </div>

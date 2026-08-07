@@ -496,7 +496,7 @@ export default function UserProfile() {
                 </div>
                 <div className="text-center">
                   <h2 className="text-2xl font-bold">{user.name}</h2>
-                  <p className="text-sm text-muted-foreground capitalize">
+                  <p className="text-sm text-muted-foreground">
                     {user.roles[0]}
                   </p>
                 </div>
@@ -794,7 +794,7 @@ export default function UserProfile() {
                     <Label className="text-sm font-medium text-muted-foreground">
                       Role
                     </Label>
-                    <p className="text-lg font-medium mt-1 capitalize">
+                    <p className="text-lg font-medium mt-1">
                       {user.roles[0]}
                     </p>
                   </div>

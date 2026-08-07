@@ -33,6 +33,14 @@ export interface CompanyPolicy {
       }
     >;
   };
+  loan: {
+    enabled: boolean;
+    maxRequestsPerYear: number;
+    maxAmountPerRequest: number;
+    maxTenureMonths: number;
+    requireOnePaidInstallmentBeforeNext: boolean;
+    includePendingInYearlyUsage: boolean;
+  };
 }
 
 export const defaultCompanyPolicy: CompanyPolicy = {
@@ -67,6 +75,14 @@ export const defaultCompanyPolicy: CompanyPolicy = {
       miscellaneous: { perClaimLimit: 0, monthlyLimit: 0 },
     },
   },
+  loan: {
+    enabled: true,
+    maxRequestsPerYear: 1,
+    maxAmountPerRequest: 0,
+    maxTenureMonths: 12,
+    requireOnePaidInstallmentBeforeNext: true,
+    includePendingInYearlyUsage: true,
+  },
 };
 
 const mergePolicy = (policy?: Partial<CompanyPolicy>): CompanyPolicy => ({
@@ -86,6 +102,10 @@ const mergePolicy = (policy?: Partial<CompanyPolicy>): CompanyPolicy => ({
       ...defaultCompanyPolicy.expense.categories,
       ...(policy?.expense?.categories || {}),
     },
+  },
+  loan: {
+    ...defaultCompanyPolicy.loan,
+    ...(policy?.loan || {}),
   },
 });
 

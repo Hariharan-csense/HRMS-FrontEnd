@@ -519,6 +519,15 @@ const navigationItems: NavItem[] = [
         moduleName: "payroll",
         subModuleName: "payslips",
       },
+
+      {
+        label: "Loan Management",
+        path: "/payroll/loans",
+        roles: [],
+        icon: <div />,
+        moduleName: "payroll",
+        subModuleName: "loans",
+      },
     ],
   },
   {
@@ -807,8 +816,6 @@ const navigationItems: NavItem[] = [
     moduleName: "tickets",
     path: "/tickets",
   },
-
-  
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -818,7 +825,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const SIDEBAR_SCROLL_KEY = "hrms.sidebar.scrollTop";
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { canPerformModuleAction, loading: roleLoading, userRoles } = useRole();
+  const {
+    canPerformModuleAction,
+    hasModuleAccess,
+    loading: roleLoading,
+    userRoles,
+    userRoleNames,
+  } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const [expandedItems, setExpandedItems] = useState<string[]>(() =>
     navigationItems
@@ -959,16 +972,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsMobileOpen(false);
   };
 
-  const normalizedUserRoles = [
-    ...(Array.isArray(user.roles) ? user.roles : []),
-    user.role || "",
-  ]
-    .map((role) => String(role || "").toLowerCase())
-    .filter(Boolean);
-  const isSuperAdmin = normalizedUserRoles.includes("superadmin");
-  const isCeo = normalizedUserRoles.includes("ceo");
-  const isAdmin = normalizedUserRoles.includes("admin");
-  const isEmployeeUser = normalizedUserRoles.includes("employee");
+  const normalizedUserRoles = userRoleNames.length
+    ? userRoleNames
+    : String(user.type || "").toLowerCase() === "employee"
+      ? [user.role || ""]
+          .map((role) => String(role || "").toLowerCase())
+          .filter(Boolean)
+      : [
+          ...(Array.isArray(user.roles) ? user.roles : []),
+          user.role || "",
+        ]
+          .map((role) => String(role || "").toLowerCase())
+          .filter(Boolean);
+  const primaryUserRole = String(user.role || "").trim().toLowerCase();
+  const effectiveSidebarRoles =
+    primaryUserRole &&
+    !["employee", "admin", "ceo", "superadmin"].includes(primaryUserRole)
+      ? [primaryUserRole]
+      : normalizedUserRoles;
+  const isSuperAdmin = effectiveSidebarRoles.includes("superadmin");
+  const isCeo = effectiveSidebarRoles.includes("ceo");
+  const isAdmin = effectiveSidebarRoles.includes("admin");
+  const isEmployeeUser = effectiveSidebarRoles.includes("employee");
 
   const allowedModulesForPlan = useMemo(() => {
     if (isSuperAdmin) return null;
@@ -1033,6 +1058,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (path.includes("/leave/config")) return "config";
         if (path.includes("/leave/permission")) return "permission";
         return undefined;
+      case "payroll":
+        if (path.includes("/payroll/structure")) return "salary_structure";
+        if (path.includes("/payroll/process")) return "processing";
+        if (path.includes("/payroll/payslips")) return "payslips";
+        if (path.includes("/payroll/loans")) return "loans";
+        return undefined;
       case "expenses":
         if (path.includes("/expenses/claims")) return "claims";
         if (path.includes("/expenses/approvals")) return "approvals";
@@ -1085,9 +1116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // Enforce explicit role restrictions when provided.
     if (item.roles && item.roles.length > 0) {
       const roleSet = new Set(
-        [...(Array.isArray(user.roles) ? user.roles : []), user.role || ""]
-          .map((r) => String(r || "").toLowerCase())
-          .filter(Boolean),
+        effectiveSidebarRoles,
       );
       const allowed = item.roles.some((requiredRole) =>
         roleSet.has(requiredRole.toLowerCase()),
@@ -1121,10 +1150,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     }
 
-    // Parent items with submenu should be shown when at least one submenu is accessible.
-    // This is important for grouped modules like Client Attendance where the parent itself
-    // is only a container and does not carry a direct module name.
+    // Parent modules with submenu must also have their own saved view permission.
+    // Example: KPI Management should not appear just because a stale child/default
+    // permission passes; the role's KPI parent view must be explicitly enabled.
     if (item.submenu && item.submenu.length > 0) {
+      if (item.moduleName && !hasModuleAccess(item.moduleName)) {
+        return false;
+      }
       return item.submenu.some((subItem) => hasItemAccess(subItem as NavItem));
     }
 
@@ -1133,10 +1165,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return item.moduleName === undefined;
     }
 
-    // Fallback behavior: if role records are not configured yet, keep modules visible
-    // and let page APIs enforce token-based data visibility.
+    // Strict RBAC: if role records are missing or failed to load, do not show
+    // permission-bound modules. Otherwise HR/other roles can see hardcoded menus.
     if (!hasConfiguredRoles) {
-      return true;
+      return item.moduleName === undefined;
     }
 
     // Add-on purchases are company entitlements. Admin/CEO should see purchased add-on modules
@@ -1215,11 +1247,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
     "/users",
   ]);
 
+  const getVisibleSubmenu = (item: NavItem): NavItem[] => {
+    if (!item.submenu?.length) return [];
+
+    let visibleSubmenu = item.submenu.filter((subItem) =>
+      hasItemAccess(subItem as NavItem),
+    );
+
+    if (item.label === "Employee Surveys" && isEmployeeUser) {
+      visibleSubmenu = visibleSubmenu.filter(
+        (subitem) =>
+          subitem.path === "/pulse-surveys/my-surveys" ||
+          subitem.path === "/pulse-surveys/feedback",
+      );
+    }
+
+    return visibleSubmenu;
+  };
+
   const filteredItems = isSuperAdmin
     ? navigationItems.filter(
         (item) => item.path && superAdminAllowedPaths.has(item.path),
       )
-    : navigationItems.filter((item) => hasItemAccess(item));
+    : navigationItems.filter((item) => {
+        if (item.submenu?.length) {
+          return hasItemAccess(item) && getVisibleSubmenu(item).length > 0;
+        }
+
+        return hasItemAccess(item);
+      });
 
   // Debug: Log filtered items
   if (process.env.NODE_ENV === "development") {
@@ -1245,32 +1301,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const isExpanded = expandedItems.includes(item.label);
     const hasSubmenu = item.submenu && item.submenu.length > 0;
 
-    let filteredSubmenu = hasSubmenu
-      ? item.submenu.filter((sub) => {
-          const hasAccess = hasItemAccess(sub as NavItem);
-          if (
-            process.env.NODE_ENV === "development" &&
-            sub.label === "ESSL Setup"
-          ) {
-            // console.log("ESSL Setup Submenu Filter:", {
-            //   label: sub.label,
-            //   hasAccess,
-            //   moduleName: sub.moduleName,
-            //   subModuleName: sub.subModuleName,
-            //   path: sub.path,
-            // });
-          }
-          return hasAccess;
-        })
-      : [];
-
-    if (item.label === "Employee Surveys" && isEmployeeUser) {
-      filteredSubmenu = filteredSubmenu.filter(
-        (subitem) =>
-          subitem.path === "/pulse-surveys/my-surveys" ||
-          subitem.path === "/pulse-surveys/feedback",
-      );
-    }
+    const filteredSubmenu = getVisibleSubmenu(item);
 
     const isItemActive = Boolean(
       item.path && location.pathname.startsWith(item.path),

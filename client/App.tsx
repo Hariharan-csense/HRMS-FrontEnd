@@ -97,6 +97,7 @@ import PulseSurveyResultsDetail from "./pages/pulseSurveys/PulseSurveyResultsDet
 import EmployeeFeedback from "./pages/pulseSurveys/EmployeeFeedback";
 import AdminFeedbackInbox from "./pages/pulseSurveys/AdminFeedbackInbox";
 import PulseSurveyTemplates from "./pages/pulseSurveys/PulseSurveyTemplates";
+import Loan from "./pages/loanRequestForm";
 import { isCordovaIOS } from "@/lib/platform";
 
 import { Hash } from "lucide-react";
@@ -157,6 +158,13 @@ const RootRoute = () => {
 const PublicRoute = ({ element }: { element: React.ReactNode }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
+  const isLoginUnlocking =
+    location.pathname === "/login" &&
+    sessionStorage.getItem("auth:loginUnlocking") === "true";
+
+  if (isLoginUnlocking) {
+    return <>{element}</>;
+  }
 
   if (isLoading) {
     return (
@@ -171,6 +179,7 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
 
   if (
     isAuthenticated &&
+    !isLoginUnlocking &&
     (location.pathname === "/" || location.pathname === "/login")
   ) {
     const isSuperAdmin =
@@ -528,6 +537,15 @@ function AppRoutes() {
           element={
             <RoleBasedRoute requiredModule="payroll" requiredAction="view">
               <PayrollSetup />
+            </RoleBasedRoute>
+          }
+        />
+
+        <Route
+          path="/payroll/loans"
+          element={
+            <RoleBasedRoute requiredModule="payroll" requiredAction="view">
+              <Loan />
             </RoleBasedRoute>
           }
         />

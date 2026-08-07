@@ -144,6 +144,7 @@ export default function OrganizationSetup() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("company");
+  const [activePolicyPage, setActivePolicyPage] = useState("attendance");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -579,9 +580,62 @@ export default function OrganizationSetup() {
     setSaving(false);
   };
 
-  const policyFieldClass = "w-full max-w-56";
+  const policyFieldClass =
+    "w-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#17c491]/40 hover:shadow-md";
   const policyToggleClass =
-    "flex items-center justify-between gap-4 rounded-md border p-3";
+    "flex min-h-20 items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#17c491]/40 hover:shadow-md";
+  const policyInputClass =
+    "mt-2 h-11 rounded-md border-slate-200 bg-slate-50/80 shadow-inner focus-visible:ring-[#17c491]";
+  const policyTableInputClass =
+    "h-10 w-40 rounded-md border-slate-200 bg-slate-50/80 shadow-inner focus-visible:ring-[#17c491]";
+  const policySectionCardClass =
+    "overflow-hidden border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 shadow-sm";
+  const policySectionContentClass =
+    "grid gap-4 bg-slate-50/60 p-5 sm:grid-cols-2 lg:grid-cols-4";
+  const policyPages = [
+    {
+      key: "attendance",
+      label: "Attendance",
+      title: "Attendance Grace",
+      description: "Work timing, grace minutes, and half-day threshold.",
+    },
+    {
+      key: "leave",
+      label: "Leave",
+      title: "Casual Leave",
+      description: "Casual leave earning and pending usage rules.",
+    },
+    {
+      key: "permission",
+      label: "Permission",
+      title: "Permission",
+      description: "Monthly short-permission limits and hour units.",
+    },
+    {
+      key: "loan",
+      label: "Loan",
+      title: "Loan & Advance",
+      description: "Loan frequency, request amount, and repayment rules.",
+    },
+    {
+      key: "expense",
+      label: "Expense",
+      title: "Expense Claims",
+      description: "Expense claim limits by category and month.",
+    },
+  ];
+  const activePolicyIndex = Math.max(
+    0,
+    policyPages.findIndex((page) => page.key === activePolicyPage),
+  );
+  const activePolicyMeta = policyPages[activePolicyIndex] || policyPages[0];
+  const goToPolicyPage = (direction: -1 | 1) => {
+    const nextIndex = Math.min(
+      policyPages.length - 1,
+      Math.max(0, activePolicyIndex + direction),
+    );
+    setActivePolicyPage(policyPages[nextIndex].key);
+  };
 
   return (
     <Layout>
@@ -1388,17 +1442,10 @@ export default function OrganizationSetup() {
                           Company Policy
                         </h2>
                         <p className="text-gray-600 text-sm mt-1">
-                          Configure attendance, leave, permission, and expense rules used by the system.
+                          Configure attendance, leave, permission, loan, and expense rules used by the system.
                         </p>
                       </div>
                     </div>
-                    <Button
-                      onClick={handleSaveCompanyPolicy}
-                      disabled={saving || loading.policies}
-                      className="whitespace-nowrap"
-                    >
-                      {saving ? "Saving..." : "Save Policy"}
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1409,14 +1456,66 @@ export default function OrganizationSetup() {
                 </div>
               )}
 
-              <Card>
+              <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+                <CardContent className="bg-gradient-to-r from-slate-50 via-white to-emerald-50/60 p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase text-slate-500">
+                        Section {activePolicyIndex + 1} of {policyPages.length}
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-slate-950">
+                        {activePolicyMeta.title}
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        {activePolicyMeta.description}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {policyPages.map((page, index) => {
+                        const isActive = activePolicyPage === page.key;
+                        const isComplete = index < activePolicyIndex;
+                        return (
+                          <button
+                            key={page.key}
+                            type="button"
+                            onClick={() => setActivePolicyPage(page.key)}
+                            className={`flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium transition ${
+                              isActive
+                                ? "border-[#17c491] bg-[#17c491] text-white shadow-sm"
+                                : isComplete
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span
+                              className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                                isActive
+                                  ? "bg-white/20 text-white"
+                                  : isComplete
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {index + 1}
+                            </span>
+                            {page.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {activePolicyPage === "attendance" && (
+              <Card className={policySectionCardClass}>
                 <CardHeader>
                   <CardTitle className="text-base">Attendance Grace</CardTitle>
                   <CardDescription>
                     Set company work timing and grace minutes used during punch-in.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <CardContent className={policySectionContentClass}>
                   <div className={`${policyToggleClass} sm:col-span-2 lg:col-span-4`}>
                     <Label htmlFor="attendanceGracePolicyEnabled">
                       Enable attendance grace policy
@@ -1441,7 +1540,7 @@ export default function OrganizationSetup() {
                           workStartTime: event.target.value,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
                   <div className={policyFieldClass}>
@@ -1454,7 +1553,7 @@ export default function OrganizationSetup() {
                           workEndTime: event.target.value,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
                   <div className={policyFieldClass}>
@@ -1468,7 +1567,7 @@ export default function OrganizationSetup() {
                           gracePeriodMinutes: Number(event.target.value) || 0,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
                   <div className={policyFieldClass}>
@@ -1482,7 +1581,7 @@ export default function OrganizationSetup() {
                           graceDaysPerMonth: Number(event.target.value) || 0,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                     <p className="mt-1 text-xs text-slate-500">
                       Enter 0 for unlimited grace days.
@@ -1500,20 +1599,22 @@ export default function OrganizationSetup() {
                           halfDayThresholdHours: Number(event.target.value) || 0,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
                 </CardContent>
               </Card>
+              )}
 
-              <Card>
+              {activePolicyPage === "leave" && (
+              <Card className={policySectionCardClass}>
                 <CardHeader>
                   <CardTitle className="text-base">Casual Leave</CardTitle>
                   <CardDescription>
                     Controls how casual leave is earned before an employee can apply.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <CardContent className={policySectionContentClass}>
                   <div className={`${policyToggleClass} lg:col-span-2`}>
                     <Label htmlFor="casualLeaveEnabled">Enable casual leave policy</Label>
                     <Switch
@@ -1538,10 +1639,10 @@ export default function OrganizationSetup() {
                           casualLeavePerMonth: Number(event.target.value) || 0,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
-                  <div className="w-full max-w-72">
+                  <div className={policyFieldClass}>
                     <Label>Accrual logic</Label>
                     <Select
                       value={companyPolicy.leave.casualLeaveAccrual}
@@ -1551,7 +1652,7 @@ export default function OrganizationSetup() {
                         })
                       }
                     >
-                      <SelectTrigger className="mt-2">
+                      <SelectTrigger className={policyInputClass}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1580,15 +1681,17 @@ export default function OrganizationSetup() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
-              <Card>
+              {activePolicyPage === "permission" && (
+              <Card className={policySectionCardClass}>
                 <CardHeader>
                   <CardTitle className="text-base">Permission</CardTitle>
                   <CardDescription>
                     Controls how many short permissions an employee can request per month.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <CardContent className={policySectionContentClass}>
                   <div className={`${policyToggleClass} lg:col-span-2`}>
                     <Label htmlFor="permissionPolicyEnabled">Enable permission policy</Label>
                     <Switch
@@ -1610,7 +1713,7 @@ export default function OrganizationSetup() {
                           maxPerMonth: Number(event.target.value) || 0,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
                   <div className={policyFieldClass}>
@@ -1625,7 +1728,7 @@ export default function OrganizationSetup() {
                           hoursPerPermission: Number(event.target.value) || 1,
                         })
                       }
-                      className="mt-2"
+                      className={policyInputClass}
                     />
                   </div>
                   <div className={`${policyToggleClass} lg:col-span-2`}>
@@ -1644,15 +1747,112 @@ export default function OrganizationSetup() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
-              <Card>
+              {activePolicyPage === "loan" && (
+              <Card className={policySectionCardClass}>
+                <CardHeader>
+                  <CardTitle className="text-base">Loan & Advance</CardTitle>
+                  <CardDescription>
+                    Controls employee loan request frequency, amount, and repayment tenure.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className={policySectionContentClass}>
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="loanPolicyEnabled">Enable loan policy</Label>
+                    <Switch
+                      id="loanPolicyEnabled"
+                      checked={companyPolicy.loan.enabled}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("loan", { enabled: checked })
+                      }
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Requests per year</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={companyPolicy.loan.maxRequestsPerYear}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("loan", {
+                          maxRequestsPerYear: Number(event.target.value) || 0,
+                        })
+                      }
+                      className={policyInputClass}
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Amount per request</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={companyPolicy.loan.maxAmountPerRequest}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("loan", {
+                          maxAmountPerRequest: Number(event.target.value) || 0,
+                        })
+                      }
+                      className={policyInputClass}
+                    />
+                  </div>
+                  <div className={policyFieldClass}>
+                    <Label>Repayment tenure months</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={companyPolicy.loan.maxTenureMonths}
+                      onChange={(event) =>
+                        updateCompanyPolicySection("loan", {
+                          maxTenureMonths: Number(event.target.value) || 1,
+                        })
+                      }
+                      className={policyInputClass}
+                    />
+                  </div>
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="includePendingLoan">
+                      Count pending loans in yearly usage
+                    </Label>
+                    <Switch
+                      id="includePendingLoan"
+                      checked={companyPolicy.loan.includePendingInYearlyUsage}
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("loan", {
+                          includePendingInYearlyUsage: checked,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={`${policyToggleClass} lg:col-span-2`}>
+                    <Label htmlFor="requireLoanInstallment">
+                      Allow next loan only when 1 installment is pending
+                    </Label>
+                    <Switch
+                      id="requireLoanInstallment"
+                      checked={
+                        companyPolicy.loan.requireOnePaidInstallmentBeforeNext
+                      }
+                      onCheckedChange={(checked) =>
+                        updateCompanyPolicySection("loan", {
+                          requireOnePaidInstallmentBeforeNext: checked,
+                        })
+                      }
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+              )}
+
+              {activePolicyPage === "expense" && (
+              <Card className={policySectionCardClass}>
                 <CardHeader>
                   <CardTitle className="text-base">Expense Claims</CardTitle>
                   <CardDescription>
                     Set daily and monthly limits for food, travel, accommodation, and other expenses.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 bg-slate-50/60 p-5">
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className={`${policyToggleClass} lg:col-span-2`}>
                       <Label htmlFor="expensePolicyEnabled">Enable expense policy</Label>
@@ -1675,22 +1875,22 @@ export default function OrganizationSetup() {
                             monthlyOverallLimit: Number(event.target.value) || 0,
                           })
                         }
-                        className="mt-2"
+                        className={policyInputClass}
                       />
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto rounded-md border">
+                  <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
                     <table className="w-full min-w-[520px]">
                       <thead>
-                        <tr className="bg-muted/60">
-                          <th className="px-4 py-3 text-left text-sm font-semibold">
+                        <tr className="bg-slate-100/80">
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">
                             Category
                           </th>
-                          <th className="w-44 px-4 py-3 text-left text-sm font-semibold">
+                          <th className="w-48 px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">
                             Daily Limit
                           </th>
-                          <th className="w-44 px-4 py-3 text-left text-sm font-semibold">
+                          <th className="w-48 px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">
                             Monthly Limit
                           </th>
                         </tr>
@@ -1698,8 +1898,8 @@ export default function OrganizationSetup() {
                       <tbody>
                         {Object.entries(companyPolicy.expense.categories).map(
                           ([category, limits]) => (
-                            <tr key={category} className="border-t">
-                              <td className="px-4 py-3 text-sm font-medium capitalize">
+                            <tr key={category} className="border-t border-slate-100">
+                              <td className="px-4 py-3 text-sm font-semibold capitalize text-slate-800">
                                 {category}
                               </td>
                               <td className="px-4 py-3">
@@ -1714,7 +1914,7 @@ export default function OrganizationSetup() {
                                       Number(event.target.value) || 0,
                                     )
                                   }
-                                  className="h-9 w-36"
+                                  className={policyTableInputClass}
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -1729,7 +1929,7 @@ export default function OrganizationSetup() {
                                       Number(event.target.value) || 0,
                                     )
                                   }
-                                  className="h-9 w-36"
+                                  className={policyTableInputClass}
                                 />
                               </td>
                             </tr>
@@ -1737,6 +1937,52 @@ export default function OrganizationSetup() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </CardContent>
+              </Card>
+              )}
+
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={activePolicyIndex === 0}
+                    onClick={() => goToPolicyPage(-1)}
+                  >
+                    Back
+                  </Button>
+                  <div className="flex items-center justify-center gap-2">
+                    {policyPages.map((page) => (
+                      <button
+                        key={page.key}
+                        type="button"
+                        aria-label={`Go to ${page.label} policy`}
+                        onClick={() => setActivePolicyPage(page.key)}
+                        className={`h-2.5 rounded-full transition-all ${
+                          activePolicyPage === page.key
+                            ? "w-8 bg-[#17c491]"
+                            : "w-2.5 bg-slate-300 hover:bg-slate-400"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    <Button
+                      type="button"
+                      onClick={handleSaveCompanyPolicy}
+                      disabled={saving || loading.policies}
+                      className="bg-[#17c491] hover:bg-[#12a77b]"
+                    >
+                      {saving ? "Saving..." : `Save ${activePolicyMeta.label}`}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={activePolicyIndex === policyPages.length - 1}
+                      onClick={() => goToPolicyPage(1)}
+                    >
+                      Next
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

@@ -53,7 +53,7 @@ const EmployeeCombobox: React.FC<{
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-full justify-between h-11"
+          className="h-10 w-full justify-between border-gray-300 text-sm"
         >
           <span className={cn("truncate", !selectedLabel && "text-muted-foreground")}>
             {disabled ? (
@@ -70,8 +70,8 @@ const EmployeeCombobox: React.FC<{
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search employee..." />
-          <CommandList>
+          <CommandInput placeholder="Search employee..." className="h-9" />
+          <CommandList className="max-h-56">
             <CommandEmpty>No employee found.</CommandEmpty>
             <CommandGroup>
               {options.map((o) => (
@@ -286,18 +286,18 @@ const CreatePulseSurvey: React.FC = () => {
 
   return (
     <Layout>
-      <div className="w-full">
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-5">
+      <div className="pulse-theme w-full min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-6">
+        <Card className="mx-auto max-w-5xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-4 text-white">
             <div className="text-xl font-bold">Create &amp; Send Survey</div>
-            <div className="text-xs opacity-90 mt-1">
+            <div className="mt-1 text-sm text-emerald-50">
               Send a happiness survey to your team
             </div>
           </div>
 
-          <CardContent className="space-y-6 pt-5">
-            <div className="space-y-2">
-              <Label>Template (optional)</Label>
+          <CardContent className="space-y-5 p-5">
+            <div className="max-w-2xl space-y-2">
+              <Label className="text-sm font-semibold text-gray-900">Template (optional)</Label>
               <Select
                 value={templateId}
                 onValueChange={(v) => {
@@ -309,71 +309,72 @@ const CreatePulseSurvey: React.FC = () => {
                   }
                 }}
               >
-                <SelectTrigger className="h-11">
+                <SelectTrigger className="h-10 border-gray-300 text-sm text-gray-900 focus:border-gray-500 focus:ring-gray-500">
                   <SelectValue placeholder="Select a template" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-56">
                   {templates.length === 0 ? (
-                    <SelectItem value="none" disabled>
+                    <SelectItem value="none" disabled className="h-9 text-sm focus:bg-gray-100 focus:text-gray-900">
                       No templates
                     </SelectItem>
                   ) : (
                     templates.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
+                      <SelectItem key={t.id} value={String(t.id)} className="h-9 text-sm focus:bg-gray-100 focus:text-gray-900">
                         {t.name}
                       </SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-500">
                 Selecting a template will fill the title and message (you can still edit).
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,640px)_320px]">
               <div className="space-y-2">
-                <Label htmlFor="survey-title">Survey Title</Label>
+                <Label htmlFor="survey-title" className="text-sm font-semibold text-gray-900">Survey Title</Label>
                 <Input
                   id="survey-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Are you happy?"
-                  className="h-11"
+                  className="h-10 border-gray-300 text-sm text-gray-900 focus-visible:ring-gray-500"
                 />
               </div>
 
-              <div className="flex items-start space-x-3 pt-7">
+              <div className="flex items-start gap-3 self-end rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                 <Checkbox
                   id="allow-anon"
                   checked={allowAnonymous}
                   onCheckedChange={(v) => setAllowAnonymous(Boolean(v))}
+                  className="mt-0.5 border-gray-400 data-[state=checked]:border-gray-900 data-[state=checked]:bg-gray-900"
                 />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor="allow-anon">Allow anonymous responses</Label>
-                  <p className="text-xs text-muted-foreground">
+                <div className="space-y-1">
+                  <Label htmlFor="allow-anon" className="text-sm font-semibold text-gray-900">Allow anonymous responses</Label>
+                  <p className="text-xs leading-5 text-gray-500">
                     Employees can choose to submit responses anonymously
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="survey-message">Message</Label>
+            <div className="max-w-4xl space-y-2">
+              <Label htmlFor="survey-message" className="text-sm font-semibold text-gray-900">Message</Label>
               <Textarea
                 id="survey-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={"How happy are you at work today? (1-10)\nTell us what could improve..."}
-                className="min-h-[140px]"
+                className="min-h-[92px] resize-y border-gray-300 text-sm text-gray-900 focus-visible:ring-gray-500"
               />
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label>Send To</Label>
+                <Label className="text-sm font-semibold text-gray-900">Send To</Label>
                 {loadingRecipients ? (
-                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Loading recipients...
                   </div>
@@ -382,7 +383,7 @@ const CreatePulseSurvey: React.FC = () => {
               <RadioGroup
                 value={recipientType}
                 onValueChange={(v) => setRecipientType(v as RecipientType)}
-                className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
               >
                 {[
                   { value: "all", label: "All Employees" },
@@ -394,21 +395,25 @@ const CreatePulseSurvey: React.FC = () => {
                     key={opt.value}
                     htmlFor={`send-${opt.value}`}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl border p-4 cursor-pointer transition-colors",
+                      "flex min-h-[52px] cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 transition-colors",
                       recipientType === opt.value
                         ? "border-emerald-500 bg-emerald-50"
-                        : "hover:bg-muted/40",
+                        : "border-gray-200 hover:bg-emerald-50/50",
                     )}
                   >
-                    <RadioGroupItem value={opt.value} id={`send-${opt.value}`} />
-                    <div className="font-medium">{opt.label}</div>
+                    <RadioGroupItem
+                      value={opt.value}
+                      id={`send-${opt.value}`}
+                      className="border-gray-400 text-gray-900"
+                    />
+                    <div className="text-sm font-semibold text-gray-900">{opt.label}</div>
                   </Label>
                 ))}
               </RadioGroup>
 
               {recipientType !== "all" && (
-                <div className="space-y-2 pt-2">
-                  <Label>Recipient</Label>
+                <div className="max-w-2xl space-y-2 pt-2">
+                  <Label className="text-sm font-semibold text-gray-900">Recipient</Label>
 
                   {recipientType === "department" ? (
                     <Select
@@ -416,12 +421,12 @@ const CreatePulseSurvey: React.FC = () => {
                       onValueChange={setSelectedDepartmentId}
                       disabled={loadingRecipients}
                     >
-                      <SelectTrigger className="h-11">
+                      <SelectTrigger className="h-10 border-gray-300 text-sm text-gray-900 focus:border-gray-500 focus:ring-gray-500">
                         <SelectValue placeholder={loadingRecipients ? "Loading..." : "Select department"} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-56">
                         {departments.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>
+                          <SelectItem key={d.id} value={d.id} className="h-9 text-sm focus:bg-gray-100 focus:text-gray-900">
                             {d.name}
                           </SelectItem>
                         ))}
@@ -435,12 +440,12 @@ const CreatePulseSurvey: React.FC = () => {
                       onValueChange={setSelectedDesignationId}
                       disabled={loadingRecipients}
                     >
-                      <SelectTrigger className="h-11">
+                      <SelectTrigger className="h-10 border-gray-300 text-sm text-gray-900 focus:border-gray-500 focus:ring-gray-500">
                         <SelectValue placeholder={loadingRecipients ? "Loading..." : "Select designation"} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-56">
                         {designations.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>
+                          <SelectItem key={d.id} value={d.id} className="h-9 text-sm focus:bg-gray-100 focus:text-gray-900">
                             {d.name}
                           </SelectItem>
                         ))}
@@ -460,17 +465,22 @@ const CreatePulseSurvey: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
+            <div className="flex flex-col justify-end gap-3 border-t border-gray-200 pt-4 sm:flex-row">
               <Button
                 variant="outline"
                 type="button"
                 onClick={() => navigate("/pulse-surveys/dashboard")}
                 disabled={submitting}
-                className="h-11"
+                className="h-10 border-gray-300 px-5 text-sm"
               >
                 Cancel
               </Button>
-              <Button type="button" onClick={onSubmit} disabled={submitting} className="h-11">
+              <Button
+                type="button"
+                onClick={onSubmit}
+                disabled={submitting}
+                className="h-10 bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-sm text-white hover:from-emerald-700 hover:to-teal-700"
+              >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

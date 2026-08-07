@@ -50,6 +50,7 @@ type RoleContextType = {
     subModule?: string,
   ) => boolean;
   userRoles: RoleData[];
+  userRoleNames: string[];
   loading: boolean;
 };
 
@@ -62,6 +63,7 @@ type RoleProviderProps = {
 export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [userRoles, setUserRoles] = useState<RoleData[]>([]);
+  const [effectiveRoleNames, setEffectiveRoleNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const normalizeRoleIdentifier = (value: unknown) =>
     String(value || "")
@@ -84,15 +86,29 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   const getNormalizedUserRoleNames = (): string[] => {
     const roleSet = new Set<string>();
-    if (Array.isArray(user?.roles)) {
-      user.roles.forEach((roleName) => {
+    const primaryRole = normalizeRoleIdentifier(user?.role);
+    const sourceRoles = effectiveRoleNames.length
+      ? effectiveRoleNames
+      : String(user?.type || "").toLowerCase() === "employee"
+        ? [user?.role]
+        : [
+            ...(Array.isArray(user?.roles) ? user.roles : []),
+            user?.role,
+          ];
+
+    sourceRoles.forEach((roleName) => {
         const normalized = normalizeRoleIdentifier(roleName);
         if (normalized) roleSet.add(normalized);
-      });
+    });
+
+    const systemRoles = new Set(["employee", "admin", "ceo", "superadmin"]);
+    const roles = [...roleSet];
+    const customRoles = roles.filter((role) => !systemRoles.has(role));
+    if (customRoles.length > 0) {
+      return roles.filter((role) => role !== "employee");
     }
-    const primaryRole = normalizeRoleIdentifier(user?.role);
-    if (primaryRole) roleSet.add(primaryRole);
-    return [...roleSet];
+
+    return roles;
   };
 
   const isTopAuthority = () =>
@@ -109,7 +125,6 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     const normalizedSubModule = String(subModule || "").toLowerCase();
 
     if (normalizedModule === "payroll") return true;
-    if (normalizedModule === "kpi") return true;
     if (normalizedModule === "employees" && normalizedSubModule === "profile") {
       return true;
     }
@@ -126,6 +141,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const fetchRoles = async () => {
       if (!user) {
         setUserRoles([]);
+        setEffectiveRoleNames([]);
         setLoading(false);
         return;
       }
@@ -136,6 +152,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         user.type?.toLowerCase() === "superadmin";
       if (isSuperAdmin) {
         setUserRoles([]);
+        setEffectiveRoleNames([]);
         setLoading(false);
         return;
       }
@@ -147,10 +164,14 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
           // console.log('Role API response:', data);
         }
         setUserRoles(data.roles || []);
+        setEffectiveRoleNames(
+          Array.isArray(data.currentUserRoles) ? data.currentUserRoles : [],
+        );
       } catch (error) {
         console.error("Error fetching roles:", error);
         // Strict RBAC behavior: never grant fallback permissions when API fails.
         setUserRoles([]);
+        setEffectiveRoleNames([]);
       } finally {
         setLoading(false);
       }
@@ -177,24 +198,14 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
   const hasRole = (role: string): boolean => {
     if (!user) return false;
     const wanted = normalizeRoleIdentifier(role);
-    const allRoles = [
-      ...(Array.isArray(user.roles) ? user.roles : []),
-      user.role,
-    ]
-      .map((r) => normalizeRoleIdentifier(r))
-      .filter(Boolean);
+    const allRoles = getNormalizedUserRoleNames();
     return allRoles.includes(wanted);
   };
 
   const hasAnyRole = (roles: string[]): boolean => {
     if (!user || !roles?.length) return false;
     const wanted = new Set(roles.map((r) => normalizeRoleIdentifier(r)));
-    const allRoles = [
-      ...(Array.isArray(user.roles) ? user.roles : []),
-      user.role,
-    ]
-      .map((r) => normalizeRoleIdentifier(r))
-      .filter(Boolean);
+    const allRoles = getNormalizedUserRoleNames();
     return allRoles.some((r) => wanted.has(r));
   };
 
@@ -250,25 +261,29 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       moduleEntry.permissions &&
       typeof moduleEntry.permissions === "object"
     ) {
-      // If submodule is requested, only check submodule permissions
-      // Fall back to module-level permissions when submodule is missing
-      if (
-        subModule &&
-        moduleEntry.submodules &&
-        typeof moduleEntry.submodules === "object"
-      ) {
+      // If submodule is requested, only check that exact submodule permission.
+      // Falling back to module-level permissions makes every child visible when
+      // only the parent module view is enabled.
+      if (subModule) {
+        if (
+          !moduleEntry.submodules ||
+          typeof moduleEntry.submodules !== "object"
+        ) {
+          return undefined;
+        }
         const subKey = getMatchingKey(moduleEntry.submodules, subModule);
         if (subKey && moduleEntry.submodules[subKey]?.permissions) {
           return normalizePermission(
             moduleEntry.submodules[subKey].permissions,
           );
         }
-        // Submodule requested but not found - fall back to module permissions
-        return normalizePermission(moduleEntry.permissions);
+        return undefined;
       }
 
       return normalizePermission(moduleEntry.permissions);
     }
+
+    if (subModule) return undefined;
 
     // Legacy shape: module directly contains action flags
     return normalizePermission(moduleEntry);
@@ -462,6 +477,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         hasModuleAccess,
         canPerformModuleAction,
         userRoles,
+        userRoleNames: getNormalizedUserRoleNames(),
         loading,
       }}
     >

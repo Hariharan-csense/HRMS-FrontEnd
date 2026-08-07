@@ -55,7 +55,7 @@ const RoleManagement: React.FC = () => {
   // Form states
   const [formData, setFormData] = useState({
     name: '',
-    modules: {} as { [key: string]: ModulePermission }
+    modules: {} as Role["modules"]
   });
 
   // Available modules - All modules from the system
@@ -75,13 +75,28 @@ const RoleManagement: React.FC = () => {
     'assets',
     'exit',
     'reports',
+    'kpi',
     'tickets',
     'pulse_surveys',
     'role_access'
   ];
 
   // Module actions
-  const moduleActions = ['create', 'edit', 'view', 'approve', 'reject'];
+  const moduleActions: Array<keyof ModulePermission> = ['view', 'create', 'update', 'delete', 'approve', 'reject'];
+  const moduleSubmodules: Record<string, string[]> = {
+    organization: ['company', 'branches', 'departments', 'designations', 'policies', 'role_management'],
+    employees: ['list', 'profile', 'reports'],
+    hr_management: ['requirements', 'recruitment', 'offer_letters', 'onboarding'],
+    attendance: ['capture', 'facial_recognition', 'log', 'override', 'shift', 'setup'],
+    leave: ['apply', 'balance', 'approvals', 'config', 'leave_types', 'applications', 'permission', 'configuration'],
+    payroll: ['salary_structure', 'processing', 'payslips', 'loans'],
+    expenses: ['claims', 'approvals', 'export'],
+    assets: ['list'],
+    exit: ['resignations', 'checklist', 'settlement'],
+    reports: ['attendance', 'payroll', 'leave', 'finance', 'export_data', 'employee_reports'],
+    kpi: ['dashboard', 'scorecard', 'review', 'corrective_actions', 'reports'],
+    pulse_surveys: ['dashboard', 'results', 'create', 'templates', 'feedback_inbox', 'my_surveys', 'feedback', 'respond'],
+  };
   const canCreateRole = canPerformModuleAction("role_access", "create");
   const canEditRole = canPerformModuleAction("role_access", "edit");
   const canDeleteRole = canEditRole;
@@ -113,16 +128,83 @@ const RoleManagement: React.FC = () => {
     }
   };
 
-  const initializeModulePermissions = () => {
-    const modules: { [key: string]: ModulePermission } = {};
-    availableModules.forEach(module => {
-      modules[module] = {
-        create: 0,
-        edit: 0,
-        view: 0,
-        approve: 0,
-        reject: 0
+  const emptyPermission = (): ModulePermission => ({
+    view: 0,
+    create: 0,
+    update: 0,
+    delete: 0,
+    approve: 0,
+    reject: 0,
+    edit: 0,
+  });
+
+  const normalizeActionKey = (action: keyof ModulePermission) =>
+    action === "edit" ? "update" : action;
+
+  const getModulePermissions = (moduleEntry: Role["modules"][string] | undefined): ModulePermission => {
+    if (!moduleEntry) return emptyPermission();
+    const raw = "permissions" in moduleEntry ? moduleEntry.permissions : moduleEntry;
+    const updateValue = raw.update ?? raw.edit ?? 0;
+    return {
+      ...emptyPermission(),
+      ...raw,
+      update: Number(updateValue) ? 1 : 0,
+      edit: Number(updateValue) ? 1 : 0,
+    };
+  };
+
+  const getPermissionValue = (
+    modules: Role["modules"],
+    module: string,
+    action: keyof ModulePermission,
+  ) => {
+    const permissions = getModulePermissions(modules[module]);
+    return Number(permissions[normalizeActionKey(action)] || 0) === 1;
+  };
+
+  const setModulePermissionValue = (
+    moduleEntry: Role["modules"][string] | undefined,
+    module: string,
+    action: keyof ModulePermission,
+    enabled: boolean,
+  ): Role["modules"][string] => {
+    const actionKey = normalizeActionKey(action);
+    const nextValue = enabled ? 1 : 0;
+    const currentPermissions = getModulePermissions(moduleEntry);
+    const nextPermissions = {
+      ...currentPermissions,
+      [actionKey]: nextValue,
+      ...(actionKey === "update" ? { edit: nextValue } : {}),
+    };
+
+    const existingSubmodules =
+      moduleEntry && "permissions" in moduleEntry && moduleEntry.submodules
+        ? moduleEntry.submodules
+        : {};
+    const submoduleKeys = moduleSubmodules[module] || Object.keys(existingSubmodules || {});
+    const submodules: Record<string, { permissions: ModulePermission }> = {};
+
+    submoduleKeys.forEach((submoduleKey) => {
+      const currentSubPermission = getModulePermissions(existingSubmodules?.[submoduleKey]);
+      submodules[submoduleKey] = {
+        permissions: {
+          ...currentSubPermission,
+          [actionKey]: nextValue,
+          ...(actionKey === "update" ? { edit: nextValue } : {}),
+        },
       };
+    });
+
+    return {
+      permissions: nextPermissions,
+      submodules,
+    };
+  };
+
+  const initializeModulePermissions = () => {
+    const modules: Role["modules"] = {};
+    availableModules.forEach(module => {
+      modules[module] = setModulePermissionValue(undefined, module, "view", false);
     });
     return modules;
   };
@@ -288,15 +370,12 @@ const RoleManagement: React.FC = () => {
     setSelectedRole(null);
   };
 
-  const handleModulePermissionChange = (module: string, action: string, value: boolean) => {
+  const handleModulePermissionChange = (module: string, action: keyof ModulePermission, value: boolean) => {
     setFormData(prev => ({
       ...prev,
       modules: {
         ...prev.modules,
-        [module]: {
-          ...prev.modules[module],
-          [action]: value ? 1 : 0
-        }
+        [module]: setModulePermissionValue(prev.modules[module], module, action, value),
       }
     }));
   };
@@ -306,13 +385,11 @@ const RoleManagement: React.FC = () => {
       const updatedModules = { ...prev.modules };
 
       availableModules.forEach((module) => {
-        updatedModules[module] = {
-          create: enabled ? 1 : 0,
-          edit: enabled ? 1 : 0,
-          view: enabled ? 1 : 0,
-          approve: enabled ? 1 : 0,
-          reject: enabled ? 1 : 0,
-        };
+        let nextEntry = updatedModules[module];
+        moduleActions.forEach((action) => {
+          nextEntry = setModulePermissionValue(nextEntry, module, action, enabled);
+        });
+        updatedModules[module] = nextEntry;
       });
 
       return {
@@ -326,14 +403,11 @@ const RoleManagement: React.FC = () => {
     if (availableModules.length === 0) return false;
 
     return availableModules.every((module) => {
-      const permissions = formData.modules[module];
-      if (!permissions) return false;
-
-      return moduleActions.every((action) => Number(permissions[action as keyof ModulePermission]) === 1);
+      return moduleActions.every((action) => getPermissionValue(formData.modules, module, action));
     });
   }, [availableModules, formData.modules]);
 
-  const getEnabledModulesCount = (modules: Record<string, ModulePermission>) => {
+  const getEnabledModulesCount = (modules: Role["modules"]) => {
     const normalizeModuleKey = (key: string) =>
       key.toLowerCase().replace(/[\s_-]+/g, "");
 
@@ -349,7 +423,7 @@ const RoleManagement: React.FC = () => {
       );
       if (!canonicalModule) return;
 
-      const hasAnyPermissionEnabled = Object.values(permission || {}).some(
+      const hasAnyPermissionEnabled = Object.values(getModulePermissions(permission)).some(
         (value) => Number(value) === 1
       );
 
@@ -429,7 +503,7 @@ const RoleManagement: React.FC = () => {
                             {moduleActions.map(action => (
                               <div key={action} className="flex items-center space-x-2">
                                 <Switch
-                                  checked={formData.modules[module]?.[action] === 1}
+                                  checked={getPermissionValue(formData.modules, module, action)}
                                   onCheckedChange={(checked) => handleModulePermissionChange(module, action, checked)}
                                 />
                                 <Label className="text-xs capitalize">{action}</Label>
@@ -564,7 +638,7 @@ const RoleManagement: React.FC = () => {
                         {moduleActions.map(action => (
                           <div key={action} className="flex items-center space-x-2">
                             <Switch
-                              checked={formData.modules[module]?.[action] === 1}
+                              checked={getPermissionValue(formData.modules, module, action)}
                               onCheckedChange={(checked) => handleModulePermissionChange(module, action, checked)}
                             />
                             <Label className="text-xs capitalize">{action}</Label>

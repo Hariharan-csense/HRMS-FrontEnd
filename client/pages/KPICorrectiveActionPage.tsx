@@ -53,9 +53,9 @@ const STATUS_STYLES: Record<
   { color: string; bg: string; text: string }
 > = {
   PENDING: { color: "#f59e0b", bg: "bg-amber-50", text: "text-amber-700" },
-  IN_PROGRESS: { color: "#0ea5e9", bg: "bg-sky-50", text: "text-sky-700" },
+  IN_PROGRESS: { color: "#17c491", bg: "bg-emerald-50", text: "text-emerald-700" },
   COMPLETED: {
-    color: "#10b981",
+    color: "#0fa372",
     bg: "bg-emerald-50",
     text: "text-emerald-700",
   },
@@ -241,20 +241,6 @@ const KPICorrectiveActionPage: React.FC = () => {
   }, [filteredRows]);
 
   const statusTotal = filteredRows.length;
-  const pieGradient = useMemo(() => {
-    if (!statusTotal) return "#e2e8f0";
-    let cursor = 0;
-    const segments = statusSummary
-      .filter((status) => status.count > 0)
-      .map((status) => {
-        const start = cursor;
-        const end = cursor + (status.count / statusTotal) * 360;
-        cursor = end;
-        return `${STATUS_STYLES[status.value].color} ${start}deg ${end}deg`;
-      });
-    return `conic-gradient(${segments.join(", ")})`;
-  }, [statusSummary, statusTotal]);
-
   const updateStatus = async (id: number, status: ReviewStatus) => {
     setSavingId(id);
     setError(null);
@@ -278,14 +264,18 @@ const KPICorrectiveActionPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-4 px-1 sm:space-y-6 sm:px-0">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6">
+      <div className="-m-4 min-h-full space-y-5 bg-[#e9fbf5] px-4 py-5 text-[#053b2e] sm:-m-6 sm:px-6 lg:-m-6 lg:p-7">
+        <section className="overflow-hidden rounded-[1.75rem] border border-[#bdf4df] bg-white/75 shadow-[0_18px_50px_rgba(23,196,145,0.16)] backdrop-blur sm:rounded-[2rem]">
+          <div className="border-b border-[#bdf4df] px-4 py-5 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+              <p className="text-sm font-medium text-[#0f8f70]">
+                KPI / Corrective Actions
+              </p>
+              <h1 className="mt-6 text-2xl font-semibold tracking-normal text-[#053b2e] sm:text-3xl">
                 Corrective Action Plan
               </h1>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-2 max-w-2xl text-sm text-[#0f8f70]">
                 View KPI parameter review corrective actions by year, month,
                 name, and status.
               </p>
@@ -293,22 +283,23 @@ const KPICorrectiveActionPage: React.FC = () => {
             <button
               type="button"
               onClick={() => void load()}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 sm:w-auto sm:py-1.5"
+              className="w-full rounded-xl bg-[#17c491] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(23,196,145,0.24)] transition hover:bg-[#0fa372] sm:w-auto"
             >
               Refresh
             </button>
           </div>
+          </div>
 
-          <div className="mt-5 grid gap-6 border-t border-slate-200 pt-5 lg:grid-cols-2">
+          <div className="grid gap-6 px-4 py-5 sm:px-7 sm:py-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <span className="mb-1.5 block text-xs font-semibold text-[#0f8f70]">
                   Year
                 </span>
                 <select
                   value={selectedYear}
                   onChange={(event) => setSelectedYear(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 outline-none focus:border-cyan-400"
+                  className="w-full rounded-xl border border-transparent bg-white px-4 py-3 text-sm font-medium text-[#053b2e] shadow-[0_8px_24px_rgba(23,196,145,0.10)] outline-none transition focus:border-[#17c491]"
                 >
                   <option value="">All years</option>
                   {yearOptions.map((year) => (
@@ -319,13 +310,13 @@ const KPICorrectiveActionPage: React.FC = () => {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <span className="mb-1.5 block text-xs font-semibold text-[#0f8f70]">
                   Month
                 </span>
                 <select
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 outline-none focus:border-cyan-400"
+                  className="w-full rounded-xl border border-transparent bg-white px-4 py-3 text-sm font-medium text-[#053b2e] shadow-[0_8px_24px_rgba(23,196,145,0.10)] outline-none transition focus:border-[#17c491]"
                 >
                   {MONTH_OPTIONS.map((month) => (
                     <option key={month.value || "all"} value={month.value}>
@@ -336,13 +327,13 @@ const KPICorrectiveActionPage: React.FC = () => {
               </label>
               {canUseNameFilter ? (
                 <label className="block">
-                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="mb-1.5 block text-xs font-semibold text-[#0f8f70]">
                     Name
                   </span>
                   <select
                     value={selectedName}
                     onChange={(event) => setSelectedName(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 outline-none focus:border-cyan-400"
+                    className="w-full rounded-xl border border-transparent bg-white px-4 py-3 text-sm font-medium text-[#053b2e] shadow-[0_8px_24px_rgba(23,196,145,0.10)] outline-none transition focus:border-[#17c491]"
                   >
                     <option value="">All names</option>
                     {nameOptions.map((name) => (
@@ -354,7 +345,7 @@ const KPICorrectiveActionPage: React.FC = () => {
                 </label>
               ) : null}
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <span className="mb-1.5 block text-xs font-semibold text-[#0f8f70]">
                   Status
                 </span>
                 <select
@@ -362,7 +353,7 @@ const KPICorrectiveActionPage: React.FC = () => {
                   onChange={(event) =>
                     setSelectedStatus(event.target.value as "" | ReviewStatus)
                   }
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 outline-none focus:border-cyan-400"
+                  className="w-full rounded-xl border border-transparent bg-white px-4 py-3 text-sm font-medium text-[#053b2e] shadow-[0_8px_24px_rgba(23,196,145,0.10)] outline-none transition focus:border-[#17c491]"
                 >
                   {STATUS_FILTER_OPTIONS.map((status) => (
                     <option key={status.value || "all"} value={status.value}>
@@ -373,41 +364,27 @@ const KPICorrectiveActionPage: React.FC = () => {
               </label>
             </div>
 
-            <div className="border-t border-slate-200 pt-5 lg:border-l lg:border-t-0 lg:pl-6">
+            <div className="rounded-3xl bg-white p-5 shadow-[0_14px_35px_rgba(23,196,145,0.12)]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    Status chart
+                  <p className="text-xs font-semibold text-[#0f8f70]">
+                    Status Summary
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-[#0f8f70]">
                     Counts based on filters.
                   </p>
                 </div>
-                <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+                <div className="rounded-xl bg-[#e9fbf5] px-4 py-2 text-sm font-semibold text-[#053b2e]">
                   Total: {statusTotal}
                 </div>
               </div>
-              <div className="flex flex-col items-center justify-center gap-6 sm:flex-row sm:flex-wrap xl:flex-nowrap">
-                <div
-                  className="relative h-40 w-40 shrink-0 rounded-full"
-                  style={{ background: pieGradient }}
-                >
-                  <div className="absolute inset-7 flex flex-col items-center justify-center rounded-full bg-white shadow-sm">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Total
-                    </span>
-                    <span className="text-2xl font-semibold text-slate-900">
-                      {statusTotal}
-                    </span>
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1 space-y-3">
+              <div className="grid gap-3">
                   {statusSummary.map((status) => {
                     const styles = STATUS_STYLES[status.value];
                     return (
                       <div
                         key={status.value}
-                        className="flex items-center justify-between gap-3"
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-[#bdf4df] bg-[#f3fdf9] px-4 py-3"
                       >
                         <div className="flex min-w-0 items-center gap-2">
                           <span
@@ -421,29 +398,28 @@ const KPICorrectiveActionPage: React.FC = () => {
                           </span>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="text-sm font-semibold text-[#053b2e]">
                             {status.count}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-[#0f8f70]">
                             {status.percent}%
                           </p>
                         </div>
                       </div>
                     );
                   })}
-                </div>
               </div>
             </div>
           </div>
         </section>
 
         {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
             {error}
           </div>
         ) : null}
 
-        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl">
+        <section className="overflow-hidden rounded-[1.75rem] border border-[#bdf4df] bg-white shadow-[0_18px_50px_rgba(23,196,145,0.14)] sm:rounded-[2rem]">
           <KpiParameterReviewMobileList
             rows={filteredRows}
             ownerName={ownerName}
@@ -457,44 +433,44 @@ const KPICorrectiveActionPage: React.FC = () => {
             emptyMessage="No corrective actions found."
           />
           <div className="hidden overflow-x-auto md:block">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <table className="min-w-full divide-y divide-[#d6f7eb] text-sm">
+              <thead className="bg-white text-left text-xs font-semibold text-[#0f8f70]">
                 <tr>
-                  <th className="px-4 py-3">#</th>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Parameter</th>
-                  <th className="px-4 py-3">Corrective Actions</th>
-                  <th className="px-4 py-3">Target Date</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-6 py-4">#</th>
+                  <th className="px-6 py-4">Name</th>
+                  <th className="px-6 py-4">Parameter</th>
+                  <th className="px-6 py-4">Corrective Actions</th>
+                  <th className="px-6 py-4">Target Date</th>
+                  <th className="px-6 py-4">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#e3faf2]">
                 {loading ? (
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-6 text-center text-slate-500"
+                      className="px-6 py-8 text-center text-[#0f8f70]"
                     >
                       Loading corrective actions...
                     </td>
                   </tr>
                 ) : filteredRows.length ? (
                   filteredRows.map((row, index) => (
-                    <tr key={row.id} className="align-top hover:bg-slate-50/70">
-                      <td className="px-4 py-3 text-slate-500">{index + 1}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                    <tr key={row.id} className="align-top text-[#053b2e] hover:bg-[#f3fdf9]">
+                      <td className="px-6 py-4 text-[#0f8f70]">{index + 1}</td>
+                      <td className="px-6 py-4 font-semibold text-[#053b2e]">
                         {ownerName(row)}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-6 py-4 text-[#053b2e]">
                         {row.kpiParameter?.name ?? "-"}
                       </td>
-                      <td className="max-w-xl whitespace-pre-wrap px-4 py-3 text-slate-700">
+                      <td className="max-w-xl whitespace-pre-wrap px-6 py-4 text-[#053b2e]">
                         {row.feedback || "-"}
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="px-6 py-4 text-[#053b2e]">
                         {displayDate(row.targetDate)}
                       </td>
-                      <td className="relative z-10 px-4 py-3">
+                      <td className="relative z-10 px-6 py-4">
                         <select
                           value={row.status ?? "PENDING"}
                           disabled={!canEditStatus || savingId === row.id}
@@ -504,7 +480,7 @@ const KPICorrectiveActionPage: React.FC = () => {
                               event.target.value as ReviewStatus,
                             )
                           }
-                          className="relative z-10 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="relative z-10 rounded-xl border border-transparent bg-[#e9fbf5] px-3 py-2 text-sm font-semibold text-[#053b2e] outline-none transition focus:border-[#17c491] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {STATUS_OPTIONS.map((status) => (
                             <option key={status.value} value={status.value}>
@@ -519,7 +495,7 @@ const KPICorrectiveActionPage: React.FC = () => {
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-6 text-center text-slate-500"
+                      className="px-6 py-8 text-center text-[#0f8f70]"
                     >
                       No corrective actions found.
                     </td>

@@ -5,8 +5,8 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.16:3000/backend";
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.6:3000/backend";
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -578,6 +578,16 @@ const ENDPOINTS = {
   getCompanyPolicy: () => api.get("/company-policy"),
 
   updateCompanyPolicy: (data: any) => api.put("/company-policy", data),
+
+  getLoanRequests: (params?: any) => api.get("/payroll/loans", { params }),
+
+  createLoanRequest: (data: any) => api.post("/payroll/loans", data),
+
+  updateLoanStatus: (id: string | number, data: any) =>
+    api.put(`/payroll/loans/${id}/status`, data),
+
+  addLoanRepayment: (id: string | number, data: any) =>
+    api.post(`/payroll/loans/${id}/repayments`, data),
 
   // employee
 

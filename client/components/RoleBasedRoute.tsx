@@ -25,7 +25,13 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
 }) => {
   const location = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { hasAnyRole, hasModuleAccess, canPerformModuleAction, loading: roleLoading } = useRole();
+  const {
+    hasAnyRole,
+    hasModuleAccess,
+    canPerformModuleAction,
+    loading: roleLoading,
+    userRoleNames,
+  } = useRole();
   const { subscription, loading: subscriptionLoading } = useSubscription();
 
   const inferSubmoduleFromPath = (moduleName?: string, pathname?: string): string | undefined => {
@@ -51,6 +57,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/attendance/facial-recognition")) return "facial_recognition";
         if (path.includes("/attendance/log")) return "log";
         if (path.includes("/attendance/override")) return "override";
+        if (path.includes("/attendance/shift")) return "shift";
         if (path.includes("/attendance/setup")) return "setup";
         return undefined;
       case "leave":
@@ -65,6 +72,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/payroll/structure")) return "salary_structure";
         if (path.includes("/payroll/process")) return "processing";
         if (path.includes("/payroll/payslips")) return "payslips";
+        if (path.includes("/payroll/loans")) return "loans";
         return undefined;
       case "expenses":
         if (path.includes("/expenses/claims")) return "claims";
@@ -136,15 +144,27 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   if (requiredModule) {
     const inferredSubmodule = inferSubmoduleFromPath(requiredModule, location.pathname);
     const currentEmployeeId = Number(user.employee_id || user.employeeId || user.id || 0) || null;
-    const normalizedUserRoles = [
-      ...(Array.isArray(user.roles) ? user.roles : []),
-      user.role || "",
-    ]
-      .map((role) => String(role || "").toLowerCase())
-      .filter(Boolean);
-    const isSuperAdmin = normalizedUserRoles.includes("superadmin");
+    const normalizedUserRoles = userRoleNames.length
+      ? userRoleNames
+      : String(user.type || "").toLowerCase() === "employee"
+        ? [user.role || ""]
+            .map((role) => String(role || "").toLowerCase())
+            .filter(Boolean)
+        : [
+            ...(Array.isArray(user.roles) ? user.roles : []),
+            user.role || "",
+          ]
+            .map((role) => String(role || "").toLowerCase())
+            .filter(Boolean);
+    const primaryUserRole = String(user.role || "").trim().toLowerCase();
+    const effectiveRouteRoles =
+      primaryUserRole &&
+      !["employee", "admin", "ceo", "superadmin"].includes(primaryUserRole)
+        ? [primaryUserRole]
+        : normalizedUserRoles;
+    const isSuperAdmin = effectiveRouteRoles.includes("superadmin");
     const isAdminOrCeo =
-      normalizedUserRoles.includes("admin") || normalizedUserRoles.includes("ceo");
+      effectiveRouteRoles.includes("admin") || effectiveRouteRoles.includes("ceo");
     const allowedModulesForPlan = isSuperAdmin
       ? null
       : getAllowedModulesFromSubscription(subscription, subscriptionLoading, {
@@ -157,7 +177,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || "").toLowerCase());
     const isAdminSelfServiceUser = isAdminOrCeo && isPulseSelfService;
     const addonUnlocksModule =
-      hasSubscriptionAddonModule(subscription, requiredModule, {
+      isAdminOrCeo && hasSubscriptionAddonModule(subscription, requiredModule, {
         currentEmployeeId,
         addonAdminBypass: isAdminOrCeo,
       });
@@ -184,10 +204,9 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       const hasRequiredAccess =
         isAdminSelfServiceUser ||
         addonUnlocksModule ||
-        canPerformModuleAction(requiredModule, requiredAction) ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, requiredAction, inferredSubmodule)
-          : false);
+          : canPerformModuleAction(requiredModule, requiredAction));
 
       if (!hasRequiredAccess) {
         // If a fallback path is provided, navigate there; otherwise show a not-authorized message
@@ -205,10 +224,9 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       const hasViewAccess =
         isAdminSelfServiceUser ||
         addonUnlocksModule ||
-        hasModuleAccess(requiredModule) ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, "view", inferredSubmodule)
-          : false);
+          : hasModuleAccess(requiredModule));
 
       if (!hasViewAccess) {
         return fallbackPath ? <Navigate to={fallbackPath} replace /> : (

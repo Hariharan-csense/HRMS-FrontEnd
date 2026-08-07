@@ -9,27 +9,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
-import { TrendingUp, BarChart3, MessageSquare, Calendar, Users, ArrowLeft, Star, User, UserCheck, UserX } from "lucide-react";
+import { TrendingUp, MessageSquare, Calendar, Users, ArrowLeft, Star, User, UserCheck, UserX, Download } from "lucide-react";
+import { exportPulseSurveyExcelReport } from "./surveyExcelReport";
 
 type ApiSurvey = {
   id: number;
@@ -52,7 +37,14 @@ type ApiResponse = {
   isAnonymous: boolean;
   respondedAt: string;
   updatedAt?: string;
+  department?: string | null;
+  branch?: string | null;
   employee?: { name: string; email: string; gender?: string } | null;
+};
+
+type GroupFilter = {
+  type: "department" | "branch";
+  label: string;
 };
 
 const clamp = (value: number) => Math.max(0, Math.min(10, value));
@@ -65,69 +57,63 @@ const formatScore = (value: number | null | undefined) => {
 
 const anonymizeUser = (employeeId: number) => `Employee • ${String(employeeId).padStart(4, "0")}`;
 
-const groupByDay = (responses: ApiResponse[]) => {
-  const map = new Map<string, { label: string; sum: number; count: number }>();
-  for (const r of responses) {
-    const d = new Date(r.respondedAt);
-    const key = d.toISOString().slice(0, 10);
-    const label = d.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
-    const prev = map.get(key) || { label, sum: 0, count: 0 };
-    map.set(key, { label: prev.label, sum: prev.sum + clamp(r.score || 0), count: prev.count + 1 });
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([, v]) => ({ label: v.label, score: v.count ? v.sum / v.count : 0 }));
+const pulseMoodOptions = [
+  { label: "Very Unhappy", score: 1, emoji: "😞" },
+  { label: "Unhappy", score: 2, emoji: "☹️" },
+  { label: "Low", score: 3, emoji: "🙁" },
+  { label: "Below Neutral", score: 4, emoji: "😕" },
+  { label: "Slightly Down", score: 5, emoji: "😐" },
+  { label: "Neutral", score: 6, emoji: "😶" },
+  { label: "Slightly Up", score: 7, emoji: "🙂" },
+  { label: "Happy", score: 8, emoji: "😊" },
+  { label: "Very Happy", score: 9, emoji: "😁" },
+  { label: "Extremely Happy", score: 10, emoji: "🤩" },
+];
+
+const getPulseMood = (response: ApiResponse) =>
+  pulseMoodOptions.find(
+    (option) =>
+      option.label.toLowerCase() === String(response.label || "").toLowerCase() ||
+      option.score === Math.round(clamp(Number(response.score || 0))),
+  ) || {
+    label: response.label || "Response recorded",
+    score: clamp(Number(response.score || 0)),
+    emoji: "🙂",
+  };
+
+const cleanGroupLabel = (value: string | null | undefined, fallback: string) => {
+  const label = String(value || "").trim();
+  return label || fallback;
 };
 
-const groupByWeek = (responses: ApiResponse[]) => {
+const groupByField = (
+  responses: ApiResponse[],
+  getLabel: (response: ApiResponse) => string,
+) => {
   const map = new Map<string, { label: string; sum: number; count: number }>();
   for (const r of responses) {
-    const d = new Date(r.respondedAt);
-    const year = d.getFullYear();
-    const first = new Date(Date.UTC(year, 0, 1));
-    const days = Math.floor(
-      (Date.UTC(year, d.getMonth(), d.getDate()) - first.getTime()) / 86400000,
-    );
-    const week = Math.floor(days / 7) + 1;
-    const key = `${year}-W${String(week).padStart(2, "0")}`;
-    const label = `W${week}`;
-    const prev = map.get(key) || { label, sum: 0, count: 0 };
-    map.set(key, { label: prev.label, sum: prev.sum + clamp(r.score || 0), count: prev.count + 1 });
+    const label = getLabel(r);
+    const prev = map.get(label) || { label, sum: 0, count: 0 };
+    map.set(label, {
+      label: prev.label,
+      sum: prev.sum + clamp(r.score || 0),
+      count: prev.count + 1,
+    });
   }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([, v]) => ({ label: v.label, score: v.count ? v.sum / v.count : 0 }));
+  return [...map.values()]
+    .map((v) => ({
+      label: v.label,
+      score: v.count ? v.sum / v.count : 0,
+      responses: v.count,
+    }))
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
 };
 
-const groupByMonth = (responses: ApiResponse[]) => {
-  const map = new Map<string, { label: string; sum: number; count: number }>();
-  for (const r of responses) {
-    const d = new Date(r.respondedAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString(undefined, { month: "short" });
-    const prev = map.get(key) || { label, sum: 0, count: 0 };
-    map.set(key, { label: prev.label, sum: prev.sum + clamp(r.score || 0), count: prev.count + 1 });
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([, v]) => ({ label: v.label, score: v.count ? v.sum / v.count : 0 }));
-};
+const groupByDepartment = (responses: ApiResponse[]) =>
+  groupByField(responses, (r) => cleanGroupLabel(r.department, "Unassigned Department"));
 
-const distribution = (responses: ApiResponse[]) => {
-  const buckets = [
-    { label: "2", score: 2, count: 0 },
-    { label: "4", score: 4, count: 0 },
-    { label: "6", score: 6, count: 0 },
-    { label: "8", score: 8, count: 0 },
-    { label: "10", score: 10, count: 0 },
-  ];
-  const index = new Map<number, number>(buckets.map((b, i) => [b.score, i]));
-  for (const r of responses) {
-    const i = index.get(clamp(r.score || 0));
-    if (i !== undefined) buckets[i].count += 1;
-  }
-  return buckets.map((b) => ({ label: b.label, count: b.count }));
-};
+const groupByBranch = (responses: ApiResponse[]) =>
+  groupByField(responses, (r) => cleanGroupLabel(r.branch, "Unassigned Branch"));
 
 const PulseSurveyResultsDetail: React.FC = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
@@ -136,6 +122,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
   const [survey, setSurvey] = useState<ApiSurvey | null>(null);
   const [responses, setResponses] = useState<ApiResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [groupFilter, setGroupFilter] = useState<GroupFilter | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,26 +160,38 @@ const PulseSurveyResultsDetail: React.FC = () => {
     return responses.reduce((sum, r) => sum + clamp(r.score || 0), 0) / responses.length;
   }, [responses]);
 
-  const chartConfig = useMemo(
-    () => ({
-      score: { label: "Avg Score", color: "#10b981" },
-      count: { label: "Responses", color: "#14b8a6" },
-    }),
-    [],
-  );
+  const departmentData = useMemo(() => groupByDepartment(responses), [responses]);
+  const branchData = useMemo(() => groupByBranch(responses), [responses]);
+  const filteredResponses = useMemo(() => {
+    if (!groupFilter) return responses;
 
-  const dayData = useMemo(() => groupByDay(responses), [responses]);
-  const weekData = useMemo(() => groupByWeek(responses), [responses]);
-  const monthData = useMemo(() => groupByMonth(responses), [responses]);
-  const distData = useMemo(() => distribution(responses), [responses]);
+    return responses.filter((r) => {
+      const label =
+        groupFilter.type === "department"
+          ? cleanGroupLabel(r.department, "Unassigned Department")
+          : cleanGroupLabel(r.branch, "Unassigned Branch");
+
+      return label === groupFilter.label;
+    });
+  }, [groupFilter, responses]);
   const sentCount = Number(survey?.totalSent || 0);
   const responseCount = survey?.responseCount ?? responses.length;
   const pendingCount = Math.max(sentCount - Number(responseCount || 0), 0);
 
+  const exportSurveyExcel = () => {
+    if (!survey) return;
+    exportPulseSurveyExcelReport({
+      survey: { ...survey, avgScore: avg },
+      responses,
+      departmentData,
+      branchData,
+    });
+  };
+
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+        <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-500 mx-auto"></div>
             <div className="space-y-2">
@@ -208,7 +207,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
   if (!survey) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+        <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
           <div className="text-center space-y-6 max-w-md">
             <div className="p-4 bg-red-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
               <MessageSquare className="h-10 w-10 text-red-600" />
@@ -232,7 +231,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
         <div className="max-w-7xl mx-auto p-6 space-y-8">
           {/* Header Section */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-emerald-100">
@@ -280,6 +279,13 @@ const PulseSurveyResultsDetail: React.FC = () => {
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
+                </Button>
+                <Button
+                  onClick={exportSurveyExcel}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Excel Report
                 </Button>
                 <div className="text-center bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
                   <div className="flex items-center gap-2 mb-2">
@@ -343,78 +349,127 @@ const PulseSurveyResultsDetail: React.FC = () => {
             </div>
           </div>
 
-        {/* Charts Section */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-t-xl">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <TrendingUp className="h-5 w-5" />
-                  Score Trend
-                </CardTitle>
-                <CardDescription className="text-emerald-100">
-                  Average score over time analysis
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <Tabs defaultValue="week" className="w-full">
-                  <TabsList className="mb-6 bg-emerald-50 border border-emerald-200">
-                    <TabsTrigger value="day" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">Day</TabsTrigger>
-                    <TabsTrigger value="week" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">Week</TabsTrigger>
-                    <TabsTrigger value="month" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">Month</TabsTrigger>
-                  </TabsList>
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white rounded-t-xl">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <span aria-hidden="true">🏢</span>
+                Department Score
+              </CardTitle>
+              <CardDescription className="text-violet-100">
+                Click a department card to see anonymous responses from that department
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {departmentData.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {departmentData.map((department, index) => {
+                    const active =
+                      groupFilter?.type === "department" &&
+                      groupFilter.label === department.label;
 
-                  {[
-                    { key: "day", data: dayData },
-                    { key: "week", data: weekData },
-                    { key: "month", data: monthData },
-                  ].map(({ key, data }) => (
-                    <TabsContent value={key} key={key}>
-                      <ChartContainer config={chartConfig} className="h-[320px] w-full">
-                        <LineChart data={data} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="#6b7280" />
-                          <YAxis domain={[0, 10]} tickLine={false} axisLine={false} stroke="#6b7280" />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <ChartLegend content={<ChartLegendContent />} />
-                          <Line
-                            type="monotone"
-                            dataKey="score"
-                            stroke="#10b981"
-                            strokeWidth={3}
-                            dot={{ fill: "#10b981", r: 4 }}
-                            activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      </ChartContainer>
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              </CardContent>
-            </Card>
+                    return (
+                      <button
+                        key={department.label}
+                        type="button"
+                        onClick={() =>
+                          setGroupFilter(active ? null : { type: "department", label: department.label })
+                        }
+                        className={`text-left rounded-xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+                          active
+                            ? "border-violet-400 bg-gradient-to-r from-violet-100 to-emerald-100 ring-2 ring-violet-200"
+                            : index % 2 === 0
+                              ? "border-violet-100 bg-gradient-to-r from-violet-50 to-emerald-50"
+                              : "border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 font-bold text-gray-900">
+                              <span aria-hidden="true">🏢</span>
+                              <span className="truncate">{department.label}</span>
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {department.responses} response{department.responses === 1 ? "" : "s"}
+                            </div>
+                          </div>
+                          <div className="rounded-full bg-white px-3 py-1 text-sm font-bold text-violet-700 shadow-sm">
+                            {formatScore(department.score)}
+                          </div>
+                        </div>
+                        <Progress
+                          value={(clamp(department.score) / 10) * 100}
+                          className="mt-4 h-2 bg-white"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">No department scores to show.</div>
+              )}
+            </CardContent>
+          </Card>
 
-            <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-t-xl">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <BarChart3 className="h-5 w-5" />
-                  Score Distribution
-                </CardTitle>
-                <CardDescription className="text-teal-100">
-                  How many employees chose each score range
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <ChartContainer config={chartConfig} className="h-[320px] w-full">
-                  <BarChart data={distData} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="#6b7280" />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="#6b7280" />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="#14b8a6" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-sky-500 to-emerald-600 text-white rounded-t-xl">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <span aria-hidden="true">📍</span>
+                Branch Score
+              </CardTitle>
+              <CardDescription className="text-sky-100">
+                Click a branch card to see anonymous responses from that branch
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {branchData.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {branchData.map((branch, index) => {
+                    const active =
+                      groupFilter?.type === "branch" && groupFilter.label === branch.label;
+
+                    return (
+                    <button
+                      key={branch.label}
+                      type="button"
+                      onClick={() =>
+                        setGroupFilter(active ? null : { type: "branch", label: branch.label })
+                      }
+                      className={`text-left rounded-xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+                        active
+                          ? "border-sky-400 bg-gradient-to-r from-sky-100 to-emerald-100 ring-2 ring-sky-200"
+                          : index % 2 === 0
+                            ? "border-sky-100 bg-gradient-to-r from-sky-50 to-emerald-50"
+                            : "border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50"
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2 font-bold text-gray-900">
+                            <span aria-hidden="true">📍</span>
+                            <span className="truncate">{branch.label}</span>
+                          </div>
+                          <div className="font-bold bg-gradient-to-r from-sky-600 to-emerald-600 bg-clip-text text-transparent">
+                            {formatScore(branch.score)}
+                          </div>
+                        </div>
+                        <Progress
+                          value={(clamp(branch.score) / 10) * 100}
+                          className="h-2 bg-gray-200"
+                        />
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {branch.responses} response{branch.responses === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">No branch scores to show.</div>
+              )}
+            </CardContent>
+          </Card>
 
         {/* Responses Section */}
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
@@ -424,23 +479,44 @@ const PulseSurveyResultsDetail: React.FC = () => {
                 Individual Responses
               </CardTitle>
               <CardDescription className="text-emerald-100">
-                {responses.length ? `Showing ${responses.length} responses (latest first)` : "No responses yet"}
+                {filteredResponses.length
+                  ? `Showing ${filteredResponses.length} of ${responses.length} responses (latest first)`
+                  : responses.length
+                    ? "No responses match this filter"
+                    : "No responses yet"}
               </CardDescription>
+              {groupFilter && (
+                <button
+                  type="button"
+                  onClick={() => setGroupFilter(null)}
+                  className="mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-white"
+                >
+                  <span aria-hidden="true">{groupFilter.type === "department" ? "🏢" : "📍"}</span>
+                  {groupFilter.label}
+                  <span aria-hidden="true">✕</span>
+                </button>
+              )}
             </CardHeader>
             <CardContent className="p-6">
-              {responses.length === 0 ? (
+              {filteredResponses.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
                   <div className="p-4 bg-gray-100 rounded-full">
                     <MessageSquare className="h-12 w-12 text-gray-400" />
                   </div>
                   <div className="text-center">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Responses Yet</h3>
-                    <p className="text-gray-500">Employees haven't responded to this survey yet</p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {responses.length ? "No Responses In This Group" : "No Responses Yet"}
+                    </h3>
+                    <p className="text-gray-500">
+                      {responses.length
+                        ? "Choose another department or branch to view its responses."
+                        : "Employees haven't responded to this survey yet"}
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {responses
+                  {filteredResponses
                     .slice()
                     .sort((a, b) => String(b.respondedAt).localeCompare(String(a.respondedAt)))
                     .map((r, index) => (
@@ -459,8 +535,11 @@ const PulseSurveyResultsDetail: React.FC = () => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-bold text-lg text-gray-900 truncate">
+                                    <span className="mr-2 align-middle text-2xl">
+                                      {getPulseMood(r).emoji}
+                                    </span>
                                     {r.isAnonymous || survey.allowAnonymous
-                                      ? "Anonymous Employee"
+                                      ? "👤 Anonymous Employee"
                                       : r.employee?.name || anonymizeUser(r.employeeId)}
                                   </h3>
                                   <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
@@ -472,6 +551,22 @@ const PulseSurveyResultsDetail: React.FC = () => {
                                         <span>Updated {new Date(r.updatedAt).toLocaleString()}</span>
                                       </>
                                     )}
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-sm font-medium text-violet-700 shadow-sm border border-violet-100">
+                                      <span aria-hidden="true">🏢</span>
+                                      <span>
+                                        <span className="text-gray-500">Department:</span>{" "}
+                                        {cleanGroupLabel(r.department, "Unassigned Department")}
+                                      </span>
+                                    </div>
+                                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-sm font-medium text-sky-700 shadow-sm border border-sky-100">
+                                      <span aria-hidden="true">📍</span>
+                                      <span>
+                                        <span className="text-gray-500">Branch:</span>{" "}
+                                        {cleanGroupLabel(r.branch, "Unassigned Branch")}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -495,15 +590,15 @@ const PulseSurveyResultsDetail: React.FC = () => {
 
                             <div className="flex flex-col items-end gap-3 min-w-fit">
                               <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-emerald-200">
+                                <div className="mb-2 text-5xl leading-none">
+                                  {getPulseMood(r).emoji}
+                                </div>
                                 <div className="flex items-center gap-2 mb-1">
                                   <Star className="h-4 w-4 text-emerald-600" />
                                   <span className="text-xs text-gray-500 font-medium">Score</span>
                                 </div>
                                 <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                                   {clamp(r.score || 0)}/10
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {r.label || "Response recorded"}
                                 </div>
                               </div>
                             </div>

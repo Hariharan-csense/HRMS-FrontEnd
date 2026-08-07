@@ -66,6 +66,17 @@ type OptionalColumns = {
 
 type DailyAchievementDraft = Record<string, Record<string, string>>;
 
+type LeadIndicatorType = "number" | "yesno";
+
+type LeadIndicatorDefinition = {
+  label: string;
+  type: LeadIndicatorType;
+  targetValue: string;
+  minimumValue: string;
+};
+
+type DailyIndicatorAlertTone = "" | "success" | "warning" | "danger";
+
 type EditingParameterState = {
   scorecardId: string;
   draft: KpiRow;
@@ -233,6 +244,20 @@ const leadIndicatorLines = (value: string | null | undefined) => {
   const raw = String(value || "").trim();
   if (!raw) return [];
 
+  if (raw.startsWith("[") || raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      const items = Array.isArray(parsed) ? parsed : parsed?.items;
+      if (Array.isArray(items)) {
+        return items
+          .map((item) => String(item?.label || "").trim())
+          .filter(Boolean);
+      }
+    } catch {
+      // Fall back to legacy text parsing.
+    }
+  }
+
   // Support comma/newline/semicolon and already-numbered text like "1.1 foo 1.2 bar".
   const normalized = raw
     .replace(/(\d+\.\d+)\s+/g, "\n$1 ")
@@ -246,8 +271,54 @@ const leadIndicatorLines = (value: string | null | undefined) => {
     .filter(Boolean);
 };
 
+const parseLeadIndicatorDefinitions = (
+  value: string | null | undefined,
+): LeadIndicatorDefinition[] => {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  if (raw.startsWith("[") || raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      const items = Array.isArray(parsed) ? parsed : parsed?.items;
+      if (Array.isArray(items)) {
+        return items
+          .map((item): LeadIndicatorDefinition => ({
+            label: String(item?.label || "").trim(),
+            type: item?.type === "yesno" ? "yesno" : "number",
+            targetValue: String(item?.targetValue ?? item?.target ?? "").trim(),
+            minimumValue: String(item?.minimumValue ?? item?.minimum ?? "").trim(),
+          }))
+          .filter((item) => item.label);
+      }
+    } catch {
+      // Fall back to legacy text parsing.
+    }
+  }
+
+  return leadIndicatorLines(raw).map((label) => ({
+    label,
+    type: "number",
+    targetValue: "",
+    minimumValue: "",
+  }));
+};
+
+const serializeLeadIndicatorDefinitions = (items: LeadIndicatorDefinition[]) => {
+  const cleaned = items
+    .map((item) => ({
+      label: item.label.trim(),
+      type: item.type,
+      targetValue: item.type === "number" ? item.targetValue.trim() : "",
+      minimumValue: item.type === "number" ? item.minimumValue.trim() : "",
+    }))
+    .filter((item) => item.label);
+
+  return cleaned.length ? JSON.stringify(cleaned) : "";
+};
+
 const formatLeadIndicators = (value: string | null | undefined, rowNumber: number) => {
-  const lines = leadIndicatorLines(value);
+  const lines = parseLeadIndicatorDefinitions(value).map((item) => item.label);
   if (!lines.length) return "-";
   return lines.map((line, index) => `${rowNumber}.${index + 1} ${line}`).join("\n");
 };
@@ -268,6 +339,91 @@ const getPeriodDays = (date: Date) => {
 const parseAchievementValue = (value: string) => {
   const parsed = Number(value.replace(/,/g, "").trim());
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getDailyIndicatorAlertClass = (tone: DailyIndicatorAlertTone) => {
+  switch (tone) {
+    case "success":
+      return "border-emerald-200 bg-emerald-50 text-emerald-900";
+    case "warning":
+      return "border-amber-200 bg-amber-50 text-amber-900";
+    case "danger":
+      return "border-rose-200 bg-rose-50 text-rose-900";
+    default:
+      return "";
+  }
+};
+
+const getDailyIndicatorAlertTone = (
+  indicator: LeadIndicatorDefinition,
+  value: string,
+): DailyIndicatorAlertTone => {
+  const raw = value.trim();
+  if (!raw) return "";
+
+  if (indicator.type === "yesno") {
+    const normalized = raw.toLowerCase();
+    if (["yes", "y", "true", "1"].includes(normalized)) {
+      return "success";
+    }
+    if (["no", "n", "false", "0"].includes(normalized)) {
+      return "warning";
+    }
+    return "warning";
+  }
+
+  const numericValue = parseNumber(raw);
+  const target = parseNumber(indicator.targetValue);
+  const minimum = parseNumber(indicator.minimumValue);
+  if (numericValue === undefined) return "warning";
+  if (minimum !== undefined && numericValue < minimum) {
+    return "danger";
+  }
+  if (target !== undefined && numericValue < target) {
+    return "warning";
+  }
+  return "success";
+};
+
+const getDailyIndicatorAlertClasses = (
+  indicator: LeadIndicatorDefinition,
+  rowDraft: Record<string, string> | undefined,
+  days: Array<{ key: string; label: string }>,
+) => {
+  const tonesByDay = days.reduce<Record<string, DailyIndicatorAlertTone>>(
+    (acc, day) => {
+      acc[day.key] = getDailyIndicatorAlertTone(
+        indicator,
+        rowDraft?.[day.key] || "",
+      );
+      return acc;
+    },
+    {},
+  );
+
+  let warningRun: string[] = [];
+  const flushWarningRun = () => {
+    if (warningRun.length >= 4) {
+      warningRun.forEach((dayKey) => {
+        tonesByDay[dayKey] = "danger";
+      });
+    }
+    warningRun = [];
+  };
+
+  days.forEach((day) => {
+    if (tonesByDay[day.key] === "warning") {
+      warningRun.push(day.key);
+    } else {
+      flushWarningRun();
+    }
+  });
+  flushWarningRun();
+
+  return days.reduce<Record<string, string>>((acc, day) => {
+    acc[day.key] = getDailyIndicatorAlertClass(tonesByDay[day.key]);
+    return acc;
+  }, {});
 };
 
 const mapEmployeeToUser = (emp: Record<string, unknown>): ScorecardUser => {
@@ -386,8 +542,13 @@ const KPIScoreboardPage: React.FC = () => {
   } | null>(null);
   const [dailyAchievementDraft, setDailyAchievementDraft] = useState<DailyAchievementDraft>({});
   const [showDailyLeadIndicators, setShowDailyLeadIndicators] = useState(false);
-  const [visibleDailyLeadIndicatorCount, setVisibleDailyLeadIndicatorCount] =
-    useState(0);
+  const [leadIndicatorModal, setLeadIndicatorModal] = useState<{
+    rowId: string;
+    mode: "create" | "edit";
+  } | null>(null);
+  const [leadIndicatorDraft, setLeadIndicatorDraft] = useState<
+    LeadIndicatorDefinition[]
+  >([]);
   const [loadingScorecards, setLoadingScorecards] = useState(false);
   const [savingScorecard, setSavingScorecard] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -539,7 +700,6 @@ const KPIScoreboardPage: React.FC = () => {
     setDailyAchievementModal(null);
     setDailyAchievementDraft({});
     setShowDailyLeadIndicators(false);
-    setVisibleDailyLeadIndicatorCount(0);
     if (rowId) {
       setDirectAchievementEntryIds((current) => {
         const next = new Set(current);
@@ -592,7 +752,6 @@ const KPIScoreboardPage: React.FC = () => {
     });
     setDailyAchievementDraft(normalizedDraft);
     setShowDailyLeadIndicators(false);
-    setVisibleDailyLeadIndicatorCount(0);
   };
 
   const activeDailyRow = useMemo(() => {
@@ -613,14 +772,14 @@ const KPIScoreboardPage: React.FC = () => {
     return rows.find((row) => row.id === dailyAchievementModal.rowId) || null;
   }, [dailyAchievementModal, editingParameter, rows, scorecards]);
 
-  const dailyLeadIndicatorLines = useMemo(
-    () => leadIndicatorLines(activeDailyRow?.leadIndicators),
+  const dailyLeadIndicators = useMemo(
+    () => parseLeadIndicatorDefinitions(activeDailyRow?.leadIndicators),
     [activeDailyRow],
   );
 
   const dailyDraftRows = useMemo(() => {
     if (!dailyAchievementModal || !activeDailyRow) return [];
-    const base = [
+    return [
       {
         key: "main",
         serial: String(dailyAchievementModal.rowNumber),
@@ -628,35 +787,14 @@ const KPIScoreboardPage: React.FC = () => {
         uom: activeDailyRow.uom || dailyAchievementModal.uom,
       },
     ];
-    if (!showDailyLeadIndicators) return base;
-    return [
-      ...base,
-      ...dailyLeadIndicatorLines.slice(0, visibleDailyLeadIndicatorCount).map((line, index) => ({
-        key: `li-${index}`,
-        serial: `${dailyAchievementModal.rowNumber}.${index + 1}`,
-        label: line,
-        uom: activeDailyRow.uom || dailyAchievementModal.uom,
-      })),
-    ];
-  }, [
-    activeDailyRow,
-    dailyAchievementModal,
-    dailyLeadIndicatorLines,
-    showDailyLeadIndicators,
-    visibleDailyLeadIndicatorCount,
-  ]);
+  }, [activeDailyRow, dailyAchievementModal]);
 
   const dailyAchievementTotal = useMemo(
     () =>
-      Object.values(dailyAchievementDraft).reduce((sum, rowDraft) => {
-        return (
-          sum +
-          Object.values(rowDraft || {}).reduce(
-            (innerSum, value) => innerSum + parseAchievementValue(value || ""),
-            0,
-          )
-        );
-      }, 0),
+      Object.values(dailyAchievementDraft.main || {}).reduce(
+        (sum, value) => sum + parseAchievementValue(value || ""),
+        0,
+      ),
     [dailyAchievementDraft],
   );
 
@@ -697,6 +835,7 @@ const KPIScoreboardPage: React.FC = () => {
     }
     setDailyAchievementModal(null);
     setDailyAchievementDraft({});
+    setShowDailyLeadIndicators(false);
     if (dailyAchievementModal?.rowId) {
       setDirectAchievementEntryIds((current) => {
         const next = new Set(current);
@@ -746,6 +885,79 @@ const KPIScoreboardPage: React.FC = () => {
 
   const cancelEditParameter = () => {
     setEditingParameter(null);
+  };
+
+  const openLeadIndicatorModal = (row: KpiRow, mode: "create" | "edit") => {
+    const parsed = parseLeadIndicatorDefinitions(row.leadIndicators);
+    setLeadIndicatorModal({ rowId: row.id, mode });
+    setLeadIndicatorDraft(
+      parsed.length
+        ? parsed
+        : [{ label: "", type: "number", targetValue: "", minimumValue: "" }],
+    );
+  };
+
+  const closeLeadIndicatorModal = () => {
+    setLeadIndicatorModal(null);
+    setLeadIndicatorDraft([]);
+  };
+
+  const addLeadIndicatorDraftRow = () => {
+    setLeadIndicatorDraft((current) => [
+      ...current,
+      { label: "", type: "number", targetValue: "", minimumValue: "" },
+    ]);
+  };
+
+  const updateLeadIndicatorDraft = (
+    index: number,
+    field: keyof LeadIndicatorDefinition,
+    value: string,
+  ) => {
+    setLeadIndicatorDraft((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              [field]: value,
+              ...(field === "type" && value === "yesno"
+                ? { targetValue: "", minimumValue: "" }
+                : {}),
+            }
+          : item,
+      ),
+    );
+  };
+
+  const removeLeadIndicatorDraftRow = (index: number) => {
+    setLeadIndicatorDraft((current) =>
+      current.length <= 1
+        ? [{ label: "", type: "number", targetValue: "", minimumValue: "" }]
+        : current.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
+  const applyLeadIndicators = () => {
+    if (!leadIndicatorModal) return;
+    const serialized = serializeLeadIndicatorDefinitions(leadIndicatorDraft);
+
+    if (leadIndicatorModal.mode === "edit" && editingParameter) {
+      setEditingParameter((current) =>
+        current
+          ? { ...current, draft: { ...current.draft, leadIndicators: serialized } }
+          : current,
+      );
+    } else {
+      setRows((current) =>
+        current.map((row) =>
+          row.id === leadIndicatorModal.rowId
+            ? { ...row, leadIndicators: serialized }
+            : row,
+        ),
+      );
+    }
+
+    closeLeadIndicatorModal();
   };
 
   const saveEditParameter = async (scorecard: Scorecard) => {
@@ -1377,10 +1589,11 @@ const KPIScoreboardPage: React.FC = () => {
                                     />
                                   ) : null}
                                   {listOptionalColumns.leadIndicators ? (
-                                    <TableCellArea
+                                    <LeadIndicatorsCell
                                       value={displayRow.leadIndicators}
-                                      onChange={(value) =>
-                                        updateEditingParameter("leadIndicators", value)
+                                      rowNumber={index + 1}
+                                      onOpen={() =>
+                                        openLeadIndicatorModal(displayRow, "edit")
                                       }
                                     />
                                   ) : null}
@@ -1752,11 +1965,10 @@ const KPIScoreboardPage: React.FC = () => {
                               />
                             ) : null}
                             {optionalColumns.leadIndicators ? (
-                              <TableCellArea
+                              <LeadIndicatorsCell
                                 value={row.leadIndicators}
-                                onChange={(value) =>
-                                  updateRow(row.id, "leadIndicators", value)
-                                }
+                                rowNumber={index + 1}
+                                onOpen={() => openLeadIndicatorModal(row, "create")}
                               />
                             ) : null}
                             <TableCell>
@@ -1875,9 +2087,9 @@ const KPIScoreboardPage: React.FC = () => {
       ) : null}
 
       {dailyAchievementModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-2 py-4 sm:px-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 sm:p-4">
+          <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-[calc(100vw-2rem)] xl:max-w-6xl">
+            <div className="shrink-0 flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Daily Achievement
@@ -1903,7 +2115,7 @@ const KPIScoreboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="px-3 py-4 sm:px-5 sm:py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-700">
                   {dailyAchievementModal.periodDate.toLocaleString("default", {
@@ -1914,43 +2126,32 @@ const KPIScoreboardPage: React.FC = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!showDailyLeadIndicators) {
-                      setShowDailyLeadIndicators(true);
-                      setVisibleDailyLeadIndicatorCount(
-                        dailyLeadIndicatorLines.length ? 1 : 0,
-                      );
-                      return;
-                    }
-
-                    setVisibleDailyLeadIndicatorCount((current) =>
-                      Math.min(current + 1, dailyLeadIndicatorLines.length),
-                    );
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => setShowDailyLeadIndicators((current) => !current)}
+                  disabled={!dailyLeadIndicators.length}
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  Lead Indicators
+                  4-Daily Indicators
                 </button>
               </div>
 
-              <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
-                <table className="min-w-[1400px] table-fixed border-collapse text-sm">
+              <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-[2420px] table-fixed border-collapse text-sm">
                   <thead>
                     <tr className="bg-slate-50 text-slate-700">
-                      <th className="w-16 whitespace-nowrap border border-slate-200 px-3 py-2 text-center text-xs font-semibold">
+                      <th className="w-14 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
                         S.No
                       </th>
-                      <th className="w-64 whitespace-nowrap border border-slate-200 px-3 py-2 text-left text-xs font-semibold">
+                      <th className="w-44 whitespace-nowrap border border-slate-200 px-3 py-2 text-left text-xs font-semibold">
                         KPI
                       </th>
-                      <th className="w-24 whitespace-nowrap border border-slate-200 px-3 py-2 text-center text-xs font-semibold">
+                      <th className="w-16 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
                         UoM
                       </th>
                       {getPeriodDays(dailyAchievementModal.periodDate).map((day) => (
                         <th
                           key={day.key}
-                          className="min-w-[78px] whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold"
+                          className="w-[70px] whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold"
                         >
                           {day.label}
                         </th>
@@ -1960,13 +2161,13 @@ const KPIScoreboardPage: React.FC = () => {
                   <tbody>
                     {dailyDraftRows.map((row) => (
                       <tr key={row.key}>
-                        <td className="whitespace-nowrap border border-slate-200 px-3 py-2 text-center text-sm text-slate-600">
+                        <td className="whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-sm text-slate-600">
                           {row.serial}
                         </td>
-                        <td className="w-64 border border-slate-200 px-3 py-2 align-top text-sm font-medium leading-5 text-slate-900 whitespace-normal break-normal">
+                        <td className="w-44 border border-slate-200 px-3 py-2 align-top text-sm font-medium leading-5 text-slate-900 whitespace-normal break-normal">
                           {row.label || "-"}
                         </td>
-                        <td className="w-24 whitespace-nowrap border border-slate-200 px-3 py-2 text-center text-sm text-slate-700">
+                        <td className="w-16 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-sm text-slate-700">
                           {row.uom || "-"}
                         </td>
                         {getPeriodDays(dailyAchievementModal.periodDate).map((day) => (
@@ -1985,7 +2186,7 @@ const KPIScoreboardPage: React.FC = () => {
                                   },
                                 }))
                               }
-                              className="h-9 min-w-[68px] w-full rounded-md border border-slate-200 px-2 text-xs text-slate-900 outline-none focus:border-teal-500"
+                              className="h-11 w-full rounded-md border border-slate-200 px-2 text-sm text-slate-900 outline-none focus:border-teal-500"
                             />
                           </td>
                         ))}
@@ -1997,9 +2198,133 @@ const KPIScoreboardPage: React.FC = () => {
                   Enter day-wise achievement. The total will update the main Achievement field.
                 </p>
               </div>
+
+              {showDailyLeadIndicators && dailyLeadIndicators.length ? (
+                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        4-Daily Indicators Checklist
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Checklist values are saved separately and do not change the KPI total.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDailyLeadIndicators(false)}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                    <table className="min-w-[2460px] table-fixed border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-white text-slate-700">
+                          <th className="w-14 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
+                            S.No
+                          </th>
+                          <th className="w-44 whitespace-nowrap border border-slate-200 px-3 py-2 text-left text-xs font-semibold">
+                            Daily Indicator
+                          </th>
+                          <th className="w-24 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
+                            Type
+                          </th>
+                          {getPeriodDays(dailyAchievementModal.periodDate).map((day) => (
+                            <th
+                              key={`li-head-${day.key}`}
+                              className="w-[70px] whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold"
+                            >
+                              {day.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dailyLeadIndicators.map((indicator, indicatorIndex) => {
+                          const rowKey = `li-${indicatorIndex}`;
+                          const periodDays = getPeriodDays(
+                            dailyAchievementModal.periodDate,
+                          );
+                          const alertClasses = getDailyIndicatorAlertClasses(
+                            indicator,
+                            dailyAchievementDraft[rowKey],
+                            periodDays,
+                          );
+                          return (
+                            <tr key={rowKey}>
+                              <td className="whitespace-nowrap border border-slate-200 bg-white px-2 py-2 text-center text-sm text-slate-600">
+                                {dailyAchievementModal.rowNumber}.{indicatorIndex + 1}
+                              </td>
+                              <td className="w-44 border border-slate-200 bg-white px-3 py-2 align-top text-sm font-medium leading-5 text-slate-900 whitespace-normal">
+                                {indicator.label}
+                                {indicator.type === "number" ? (
+                                  <span className="mt-1 block text-[11px] font-normal text-slate-500">
+                                    Target {indicator.targetValue || "-"} / Min {indicator.minimumValue || "-"}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="w-24 whitespace-nowrap border border-slate-200 bg-white px-2 py-2 text-center text-[11px] font-semibold uppercase text-slate-600">
+                                {indicator.type === "yesno" ? "Yes/No" : "Number"}
+                              </td>
+                              {periodDays.map((day) => {
+                                const value =
+                                  dailyAchievementDraft[rowKey]?.[day.key] || "";
+                                const alertClass = alertClasses[day.key] || "";
+
+                                return (
+                                  <td
+                                    key={`${rowKey}-${day.key}`}
+                                    className="border border-slate-200 bg-white px-1 py-1 text-center align-middle"
+                                  >
+                                    {indicator.type === "yesno" ? (
+                                      <select
+                                        value={value}
+                                        onChange={(event) =>
+                                          setDailyAchievementDraft((current) => ({
+                                            ...current,
+                                            [rowKey]: {
+                                              ...(current[rowKey] || {}),
+                                              [day.key]: event.target.value,
+                                            },
+                                          }))
+                                        }
+                                        className={`h-11 w-full rounded-md border px-2 text-sm outline-none focus:border-teal-500 ${alertClass || "border-slate-200 text-slate-900"}`}
+                                      >
+                                        <option value=""></option>
+                                        <option value="Yes">Yes</option>
+                                        <option value="No">No</option>
+                                      </select>
+                                    ) : (
+                                      <input
+                                        value={value}
+                                        onChange={(event) =>
+                                          setDailyAchievementDraft((current) => ({
+                                            ...current,
+                                            [rowKey]: {
+                                              ...(current[rowKey] || {}),
+                                              [day.key]: event.target.value,
+                                            },
+                                          }))
+                                        }
+                                        className={`h-11 w-full rounded-md border px-2 text-sm outline-none focus:border-teal-500 ${alertClass || "border-slate-200 text-slate-900"}`}
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:space-x-3 sm:px-5">
+            <div className="shrink-0 flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:space-x-3 sm:px-5">
               <button
                 type="button"
                 onClick={cancelDailyAchievement}
@@ -2013,6 +2338,145 @@ const KPIScoreboardPage: React.FC = () => {
                 className="w-full rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto"
               >
                 Apply Total
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {leadIndicatorModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Lead Indicators
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                  Indicator Setup
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeLeadIndicatorModal}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50"
+                aria-label="Close lead indicators dialog"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-5">
+              <div className="grid gap-3">
+                {leadIndicatorDraft.map((indicator, index) => (
+                  <div
+                    key={`${index}-${indicator.type}`}
+                    className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_150px_130px_130px_40px] sm:items-end"
+                  >
+                    <label className="block">
+                      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        Indicator
+                      </span>
+                      <input
+                        value={indicator.label}
+                        onChange={(event) =>
+                          updateLeadIndicatorDraft(index, "label", event.target.value)
+                        }
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        Indicator Type
+                      </span>
+                      <select
+                        value={indicator.type}
+                        onChange={(event) =>
+                          updateLeadIndicatorDraft(
+                            index,
+                            "type",
+                            event.target.value as LeadIndicatorType,
+                          )
+                        }
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500"
+                      >
+                        <option value="number">Numbers</option>
+                        <option value="yesno">Yes/No</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        Target Value
+                      </span>
+                      <input
+                        value={indicator.targetValue}
+                        onChange={(event) =>
+                          updateLeadIndicatorDraft(
+                            index,
+                            "targetValue",
+                            event.target.value,
+                          )
+                        }
+                        disabled={indicator.type === "yesno"}
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        Minimum Value
+                      </span>
+                      <input
+                        value={indicator.minimumValue}
+                        onChange={(event) =>
+                          updateLeadIndicatorDraft(
+                            index,
+                            "minimumValue",
+                            event.target.value,
+                          )
+                        }
+                        disabled={indicator.type === "yesno"}
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => removeLeadIndicatorDraftRow(index)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-100 bg-white text-rose-500 transition hover:bg-rose-50"
+                      aria-label="Remove lead indicator"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addLeadIndicatorDraftRow}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Plus className="h-4 w-4" />
+                Add Indicator
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeLeadIndicatorModal}
+                className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applyLeadIndicators}
+                className="w-full rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto"
+              >
+                Apply
               </button>
             </div>
           </div>
@@ -2349,6 +2813,35 @@ function TableCellArea({
         rows={2}
         className="min-h-[58px] w-full resize-y border-0 bg-transparent px-3 py-2 text-sm text-slate-900 outline-none transition focus:bg-teal-50"
       />
+    </td>
+  );
+}
+
+function LeadIndicatorsCell({
+  value,
+  rowNumber,
+  onOpen,
+}: {
+  value: string;
+  rowNumber: number;
+  onOpen: () => void;
+}) {
+  const indicators = parseLeadIndicatorDefinitions(value);
+
+  return (
+    <td className="h-[58px] border border-slate-200 px-2 py-2 align-middle">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+      >
+        {indicators.length ? `${indicators.length} indicator(s)` : "Add indicators"}
+      </button>
+      {indicators.length ? (
+        <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">
+          {formatLeadIndicators(value, rowNumber)}
+        </p>
+      ) : null}
     </td>
   );
 }

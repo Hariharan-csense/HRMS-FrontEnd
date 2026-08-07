@@ -306,138 +306,6 @@ function Section({
   );
 }
 
-function BarChart({
-  data,
-  label,
-}: {
-  data: { label: string; value: number }[];
-  label: string;
-}) {
-  const max = Math.max(...data.map((item) => item.value), 1);
-  return (
-    <div className="space-y-3">
-      {data.map((item, index) => (
-        <div
-          key={`${item.label}-${index}`}
-          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_3rem] items-center gap-2 text-sm sm:grid-cols-[8rem_1fr_3rem] sm:gap-3"
-        >
-          <span className="truncate font-medium text-slate-700">
-            {item.label}
-          </span>
-          <div className="h-3 rounded-full bg-slate-100">
-            <div
-              className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500"
-              style={{ width: `${(item.value / max) * 100}%` }}
-            />
-          </div>
-          <span className="text-right font-semibold text-slate-900">
-            {Math.round(item.value)}
-          </span>
-        </div>
-      ))}
-      <p className="text-xs text-slate-500">{label}</p>
-    </div>
-  );
-}
-
-function LineChart({ data }: { data: { label: string; score: number }[] }) {
-  const points = data
-    .map((item, index) => {
-      const x = 20 + index * (260 / Math.max(data.length - 1, 1));
-      const y = 130 - item.score;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  return (
-    <svg
-      viewBox="0 0 310 150"
-      className="h-52 w-full"
-      role="img"
-      aria-label="KPI score trend line chart"
-    >
-      <path d="M20 20V130H295" fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
-      <polyline
-        points={points}
-        fill="none"
-        stroke="#10b981"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {data.map((item, index) => {
-        const x = 20 + index * (260 / Math.max(data.length - 1, 1));
-        const y = 130 - item.score;
-        return (
-          <g key={item.label}>
-            <circle cx={x} cy={y} r="4" fill="#0891b2" />
-            <text
-              x={x}
-              y="144"
-              textAnchor="middle"
-              className="fill-slate-500 text-[8px] font-semibold"
-            >
-              {item.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function DonutChart({
-  values,
-}: {
-  values: { label: string; value: number; color: string }[];
-}) {
-  const total = values.reduce((sum, item) => sum + item.value, 0) || 1;
-  const segments = values.map((item, index) => {
-    const previous = values
-      .slice(0, index)
-      .reduce((sum, segment) => sum + segment.value, 0);
-    const dash = (item.value / total) * 100;
-    const offset = 25 - (previous / total) * 100;
-    return { ...item, dash, offset };
-  });
-  return (
-    <div className="flex flex-col flex-wrap items-center justify-center gap-4 sm:flex-row sm:gap-5">
-      <svg
-        viewBox="0 0 120 120"
-        className="h-36 w-36 shrink-0 -rotate-90 sm:h-44 sm:w-44"
-        role="img"
-        aria-label="KPI distribution chart"
-      >
-        {segments.map((item) => (
-          <circle
-            key={item.label}
-            cx="60"
-            cy="60"
-            r="38"
-            fill="none"
-            stroke={item.color}
-            strokeWidth="18"
-            pathLength="100"
-            strokeDasharray={`${item.dash} ${100 - item.dash}`}
-            strokeDashoffset={item.offset}
-          />
-        ))}
-      </svg>
-      <div className="space-y-2">
-        {values.map((item) => (
-          <div key={item.label} className="flex items-center gap-2 text-sm">
-            <span
-              className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: item.color }}
-            />
-            <span className="font-medium text-slate-700">{item.label}</span>
-            <span className="text-slate-500">{item.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function DataTable({
   headers,
   rows,
@@ -918,12 +786,6 @@ const KPIReportsPage: React.FC = () => {
 
   const renderReport = () => {
     if (activeReport === "Employee KPI" && employeeProfile) {
-      const radarData = selectedEmployeeRows
-        .slice(0, 5)
-        .map((row) => ({
-          label: row.parameter.split(" ")[0],
-          value: row.score,
-        }));
       return (
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-4">
@@ -942,66 +804,35 @@ const KPIReportsPage: React.FC = () => {
               value={employeeProfile.actionsClosed}
             />
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Section title="KPI Score Trend">
-              <LineChart data={monthlyTrend.slice(0, 6)} />
-            </Section>
-            <Section title="Parameter Comparison">
-              <div className="flex justify-center">
-                <svg
-                  viewBox="0 0 180 180"
-                  className="h-64 w-full"
-                  role="img"
-                  aria-label="Radar chart for KPI parameters"
-                >
-                  {[0.25, 0.5, 0.75, 1].map((level) => (
-                    <circle
-                      key={level}
-                      cx="90"
-                      cy="90"
-                      r={64 * level}
-                      fill="none"
-                      stroke="#e2e8f0"
-                    />
-                  ))}
-                  {radarData.length
-                    ? radarData.map((item, index) => {
-                        const angle =
-                          (Math.PI * 2 * index) / radarData.length -
-                          Math.PI / 2;
-                        const x = 90 + Math.cos(angle) * (64 + 18);
-                        const y = 90 + Math.sin(angle) * (64 + 18);
-                        return (
-                          <text
-                            key={item.label}
-                            x={x}
-                            y={y}
-                            textAnchor="middle"
-                            className="fill-slate-600 text-[8px] font-semibold"
-                          >
-                            {item.label}
-                          </text>
-                        );
-                      })
-                    : null}
-                  <polygon
-                    points={radarData
-                      .map((item, index) => {
-                        const angle =
-                          (Math.PI * 2 * index) /
-                            Math.max(radarData.length, 1) -
-                          Math.PI / 2;
-                        const radius = 64 * (item.value / 100);
-                        return `${90 + Math.cos(angle) * radius},${90 + Math.sin(angle) * radius}`;
-                      })
-                      .join(" ")}
-                    fill="#14b8a655"
-                    stroke="#0f766e"
-                    strokeWidth="2"
-                  />
-                </svg>
-              </div>
-            </Section>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+              KPI Score Trend
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              {(monthlyTrend.length ? monthlyTrend.slice(0, 6) : [{ label: "-", score: 0 }]).map((item) => (
+                <Card
+                  key={item.label}
+                  label={item.label}
+                  value={pct(item.score)}
+                  detail="KPI score"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+              Parameter Comparison
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+              {selectedEmployeeRows.slice(0, 5).map((row) => (
+                <Card
+                  key={`${row.employee}-${row.parameter}`}
+                  label={row.parameter}
+                  value={pct(row.score)}
+                  detail={`${pct(row.achievement)} achievement`}
+                />
+              ))}
+            </div>
           </div>
           <Section title="KPI Parameters">
             <DataTable
@@ -1048,15 +879,21 @@ const KPIReportsPage: React.FC = () => {
               )}
             />
           </div>
-          <Section title="Department Ranking Bar Chart">
-            <BarChart
-              data={departmentStats.map((item) => ({
-                label: item.department,
-                value: item.avg,
-              }))}
-              label="Average KPI score by department"
-            />
-          </Section>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+              Department Ranking
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+              {departmentStats.map((item) => (
+                <Card
+                  key={item.department}
+                  label={item.department}
+                  value={pct(item.avg)}
+                  detail={`${item.employees} employees`}
+                />
+              ))}
+            </div>
+          </div>
           <Section title="Department Metrics">
             <DataTable
               headers={[
@@ -1184,28 +1021,52 @@ const KPIReportsPage: React.FC = () => {
               value={pct(Math.max(0, lowest.score - highest.score))}
             />
           </div>
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Section title="Monthly KPI Trend">
-              <LineChart data={trendRows} />
-            </Section>
-            <Section title="Quarterly KPI Trend">
-              <BarChart
-                data={quarterlyTrend.map((item) => ({
-                  label: item.label,
-                  value: item.score,
-                }))}
-                label="Quarterly score"
-              />
-            </Section>
-            <Section title="Yearly KPI Trend">
-              <BarChart
-                data={yearlyTrend.map((item) => ({
-                  label: item.label,
-                  value: item.score,
-                }))}
-                label="Yearly score"
-              />
-            </Section>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+              Monthly KPI Trend
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              {trendRows.map((item) => (
+                <Card
+                  key={item.label}
+                  label={item.label}
+                  value={pct(item.score)}
+                  detail="Monthly score"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-3">
+              <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+                Quarterly KPI Trend
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(quarterlyTrend.length ? quarterlyTrend : [{ label: "-", score: 0 }]).map((item) => (
+                  <Card
+                    key={item.label}
+                    label={item.label}
+                    value={pct(item.score)}
+                    detail="Quarterly score"
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+                Yearly KPI Trend
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(yearlyTrend.length ? yearlyTrend : [{ label: "-", score: 0 }]).map((item) => (
+                  <Card
+                    key={item.label}
+                    label={item.label}
+                    value={pct(item.score)}
+                    detail="Yearly score"
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -1233,35 +1094,35 @@ const KPIReportsPage: React.FC = () => {
               )}
             />
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Section title="Growth Trend">
-              <LineChart
-                data={monthlyTrend.map((item, index) => ({
-                  label: item.label,
-                  score: Math.min(95, item.score - 8 + index),
-                }))}
-              />
-            </Section>
-            <Section title="Competency Heatmap">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {filteredRows.slice(0, 9).map((row) => (
-                  <div
-                    key={`${row.employee}-${row.parameter}`}
-                    className="rounded-xl border border-slate-200 p-3"
-                    style={{
-                      backgroundColor: `rgba(16, 185, 129, ${Math.max(0.12, row.currentCompetency / 130)})`,
-                    }}
-                  >
-                    <p className="font-semibold text-slate-900">
-                      {row.employee}
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      {pct(row.currentCompetency)} current
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Section>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+              Growth Trend
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              {(monthlyTrend.length ? monthlyTrend : [{ label: "-", score: 0 }]).map((item, index) => (
+                <Card
+                  key={item.label}
+                  label={item.label}
+                  value={pct(Math.min(95, item.score - 8 + index))}
+                  detail="Growth score"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+              Competency Summary
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              {filteredRows.slice(0, 9).map((row) => (
+                <Card
+                  key={`${row.employee}-${row.parameter}`}
+                  label={row.employee}
+                  value={pct(row.currentCompetency)}
+                  detail={`${row.parameter} current`}
+                />
+              ))}
+            </div>
           </div>
           <Section title="Competency Growth Report">
             <DataTable
@@ -1342,29 +1203,29 @@ const KPIReportsPage: React.FC = () => {
 
     return (
       <div className="space-y-5">
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Section title="Department-wise KPI Score">
-            <BarChart
-              data={departmentStats.map((item) => ({
-                label: item.department,
-                value: item.avg,
-              }))}
-              label="Average KPI by department"
-            />
-          </Section>
-          <Section title="KPI Distribution Chart">
-            <DonutChart
-              values={[
-                { label: "Excellent", value: excellentCount, color: "#10b981" },
-                { label: "Good", value: goodCount, color: "#06b6d4" },
-                {
-                  label: "Needs Improvement",
-                  value: needsCount,
-                  color: "#f43f5e",
-                },
-              ]}
-            />
-          </Section>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
+            Department-wise KPI Score
+          </h2>
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+            {departmentStats.map((item) => (
+              <Card
+                key={item.department}
+                label={item.department}
+                value={pct(item.avg)}
+                detail={`${item.employees} employees`}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card label="Excellent" value={excellentCount} detail="KPI rows" />
+          <Card label="Good" value={goodCount} detail="KPI rows" />
+          <Card
+            label="Needs Improvement"
+            value={needsCount}
+            detail="KPI rows"
+          />
         </div>
         <Section title="KPI Performance Report">
           <DataTable
