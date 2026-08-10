@@ -627,6 +627,14 @@ const navigationItems: NavItem[] = [
         moduleName: "pulse_surveys",
       },
       {
+        label: "Daily Log",
+        path: "/pulse-surveys/daily-log",
+        roles: [],
+        icon: <div />,
+        moduleName: "pulse_surveys",
+        subModuleName: "results",
+      },
+      {
         label: "Create Survey",
         path: "/pulse-surveys/create",
         roles: [],
@@ -1079,6 +1087,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return undefined;
       case "pulse_surveys":
         if (path.includes("/pulse-surveys/dashboard")) return "dashboard";
+        if (path.includes("/pulse-surveys/daily-log")) return "results";
         if (path.includes("/pulse-surveys/results")) return "results";
         if (path.includes("/pulse-surveys/create")) return "create";
         if (path.includes("/pulse-surveys/templates")) return "templates";
@@ -1303,15 +1312,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const filteredSubmenu = getVisibleSubmenu(item);
 
-    const isItemActive = Boolean(
-      item.path && location.pathname.startsWith(item.path),
-    );
+    const isPathActive = (path?: string) => {
+      if (!path) return false;
+      if (location.pathname === path) return true;
+      return path === "/pulse-surveys/results"
+        ? location.pathname.startsWith("/pulse-surveys/results/")
+        : false;
+    };
+
+    const isItemActive = isPathActive(item.path);
 
     const isAnySubmenuActive = Boolean(
       hasSubmenu &&
-      filteredSubmenu.some((subitem) =>
-        Boolean(subitem.path && location.pathname.startsWith(subitem.path)),
-      ),
+      filteredSubmenu.some((subitem) => isPathActive(subitem.path)),
     );
 
     const isActive = isItemActive || isAnySubmenuActive;
@@ -1366,7 +1379,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={persistScrollAndHandleNav}
                   className={cn(
                     "sidebar-submenu-item flex items-center gap-3 px-3 py-2 text-xs rounded-md transition-all",
-                    subitem.path && location.pathname.startsWith(subitem.path)
+                    isPathActive(subitem.path)
                       ? "active text-primary-foreground bg-primary/20 font-medium"
                       : "text-sidebar-foreground hover:text-primary",
                   )}

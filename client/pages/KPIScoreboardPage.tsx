@@ -73,6 +73,7 @@ type LeadIndicatorDefinition = {
   type: LeadIndicatorType;
   targetValue: string;
   minimumValue: string;
+  assignedEmployeeId: string;
 };
 
 type DailyIndicatorAlertTone = "" | "success" | "warning" | "danger";
@@ -288,6 +289,9 @@ const parseLeadIndicatorDefinitions = (
             type: item?.type === "yesno" ? "yesno" : "number",
             targetValue: String(item?.targetValue ?? item?.target ?? "").trim(),
             minimumValue: String(item?.minimumValue ?? item?.minimum ?? "").trim(),
+            assignedEmployeeId: String(
+              item?.assignedEmployeeId ?? item?.assigned_employee_id ?? "",
+            ).trim(),
           }))
           .filter((item) => item.label);
       }
@@ -301,6 +305,7 @@ const parseLeadIndicatorDefinitions = (
     type: "number",
     targetValue: "",
     minimumValue: "",
+    assignedEmployeeId: "",
   }));
 };
 
@@ -311,6 +316,7 @@ const serializeLeadIndicatorDefinitions = (items: LeadIndicatorDefinition[]) => 
       type: item.type,
       targetValue: item.type === "number" ? item.targetValue.trim() : "",
       minimumValue: item.type === "number" ? item.minimumValue.trim() : "",
+      assignedEmployeeId: item.assignedEmployeeId.trim(),
     }))
     .filter((item) => item.label);
 
@@ -893,7 +899,15 @@ const KPIScoreboardPage: React.FC = () => {
     setLeadIndicatorDraft(
       parsed.length
         ? parsed
-        : [{ label: "", type: "number", targetValue: "", minimumValue: "" }],
+        : [
+            {
+              label: "",
+              type: "number",
+              targetValue: "",
+              minimumValue: "",
+              assignedEmployeeId: "",
+            },
+          ],
     );
   };
 
@@ -905,7 +919,13 @@ const KPIScoreboardPage: React.FC = () => {
   const addLeadIndicatorDraftRow = () => {
     setLeadIndicatorDraft((current) => [
       ...current,
-      { label: "", type: "number", targetValue: "", minimumValue: "" },
+      {
+        label: "",
+        type: "number",
+        targetValue: "",
+        minimumValue: "",
+        assignedEmployeeId: "",
+      },
     ]);
   };
 
@@ -932,7 +952,15 @@ const KPIScoreboardPage: React.FC = () => {
   const removeLeadIndicatorDraftRow = (index: number) => {
     setLeadIndicatorDraft((current) =>
       current.length <= 1
-        ? [{ label: "", type: "number", targetValue: "", minimumValue: "" }]
+        ? [
+            {
+              label: "",
+              type: "number",
+              targetValue: "",
+              minimumValue: "",
+              assignedEmployeeId: "",
+            },
+          ]
         : current.filter((_, itemIndex) => itemIndex !== index),
     );
   };
@@ -2371,7 +2399,7 @@ const KPIScoreboardPage: React.FC = () => {
                 {leadIndicatorDraft.map((indicator, index) => (
                   <div
                     key={`${index}-${indicator.type}`}
-                    className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_150px_130px_130px_40px] sm:items-end"
+                    className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_150px_150px_120px_120px_40px] sm:items-end"
                   >
                     <label className="block">
                       <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
@@ -2403,6 +2431,30 @@ const KPIScoreboardPage: React.FC = () => {
                       >
                         <option value="number">Numbers</option>
                         <option value="yesno">Yes/No</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        Assign To
+                      </span>
+                      <select
+                        value={indicator.assignedEmployeeId}
+                        onChange={(event) =>
+                          updateLeadIndicatorDraft(
+                            index,
+                            "assignedEmployeeId",
+                            event.target.value,
+                          )
+                        }
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500"
+                      >
+                        <option value="">Not assigned</option>
+                        {users.map((scorecardUser) => (
+                          <option key={scorecardUser.id} value={scorecardUser.id}>
+                            {scorecardUser.label}
+                          </option>
+                        ))}
                       </select>
                     </label>
 

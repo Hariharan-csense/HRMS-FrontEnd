@@ -5,7 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Mail, Phone, MapPin, Clock, Send, MessageSquare } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  Send,
+  MessageSquare,
+} from "lucide-react";
 import { showToast } from "@/utils/toast";
 import Footer from "@/components/Footer";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
@@ -20,24 +28,30 @@ const ContactPage = () => {
     email: "",
     company: "",
     subject: "",
-    message: ""
+    message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Validate form data
-    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+    if (
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.message.trim()
+    ) {
       showToast.error("Please fill in all required fields");
       setIsSubmitting(false);
       return;
@@ -75,9 +89,11 @@ const ContactPage = () => {
           email: "",
           company: "",
           subject: "",
-          message: ""
+          message: "",
         });
-        showToast.success("Thank you for your message! We'll get back to you soon.");
+        showToast.success(
+          "Thank you for your message! We'll get back to you soon.",
+        );
       } else {
         showToast.error("Failed to send message. Please try again.");
       }
@@ -94,39 +110,46 @@ const ContactPage = () => {
       icon: Mail,
       title: "Email Us",
       details: ["support@procease.co ", ""],
-      description: "We'll respond within 24 hours"
+      description: "We'll respond within 24 hours",
     },
     {
       icon: Phone,
       title: "Call Us",
-      details: ["91 9042894918", ""],
-      description: "Mon-Fri 9.30 AM-6 PM IST"
+      details: ["91 7397394918", ""],
+      description: "Mon-Fri 9.30 AM-6 PM IST",
     },
     {
       icon: MapPin,
       title: "Visit Us",
-      details: ["First Floor, Osian Chloroplaza, 106, Link Road,", "Gandhi Nagar, Porur, Chennai, Tamil Nadu 600116"],
-      description: "Schedule a meeting in advance"
-    }
+      details: [
+        "First Floor, Osian Chloroplaza, 106, Link Road,",
+        "Gandhi Nagar, Porur, Chennai, Tamil Nadu 600116",
+      ],
+      description: "Schedule a meeting in advance",
+    },
   ];
 
   const faqs = [
     {
       question: "What industries do you serve?",
-      answer: "We serve businesses across all industries including technology, healthcare, manufacturing, retail, and professional services."
+      answer:
+        "We serve businesses across all industries including technology, healthcare, manufacturing, retail, and professional services.",
     },
     {
       question: "Do you offer custom solutions?",
-      answer: "Yes, we offer customizable solutions tailored to your specific business needs and requirements."
+      answer:
+        "Yes, we offer customizable solutions tailored to your specific business needs and requirements.",
     },
     {
       question: "What is your implementation timeline?",
-      answer: "Typical implementation takes 2-4 weeks depending on the complexity and customization requirements."
+      answer:
+        "Typical implementation takes 2-4 weeks depending on the complexity and customization requirements.",
     },
     {
       question: "Do you provide training and support?",
-      answer: "Yes, we provide comprehensive onboarding training and 24/7 customer support to ensure your success."
-    }
+      answer:
+        "Yes, we provide comprehensive onboarding training and 24/7 customer support to ensure your success.",
+    },
   ];
 
   return (
@@ -140,11 +163,36 @@ const ContactPage = () => {
               {/* <h1 className="text-2xl font-bold text-gray-900">HRMS</h1> */}
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="/" className="text-gray-700 hover:text-gray-900 transition-colors">Home</a>
-              <a href="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</a>
-              <a href="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</a>
-              <a href="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</a>
-              <a href="/contact" className="text-green-600 font-medium hover:text-green-700 transition-colors">Contact</a>
+              <a
+                href="/"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Home
+              </a>
+              <a
+                href="/features"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="/pricing"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Pricing
+              </a>
+              <a
+                href="/about"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                About
+              </a>
+              <a
+                href="/contact"
+                className="text-green-600 font-medium hover:text-green-700 transition-colors"
+              >
+                Contact
+              </a>
             </nav>
             <Button variant="outline" onClick={() => navigate("/login")}>
               Sign In
@@ -160,7 +208,8 @@ const ContactPage = () => {
             Get in Touch
           </h1>
           <p className="text-xl text-green-100 mb-8">
-            We're here to help you transform your HR operations. Reach out to us anytime.
+            We're here to help you transform your HR operations. Reach out to us
+            anytime.
           </p>
         </div>
       </section>
@@ -170,13 +219,21 @@ const ContactPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8 mb-16">
             {contactInfo.map((info, index) => (
-              <Card key={index} className="p-6 text-center hover:shadow-lg transition-shadow">
+              <Card
+                key={index}
+                className="p-6 text-center hover:shadow-lg transition-shadow"
+              >
                 <CardContent className="pt-6">
                   <info.icon className="h-12 w-12 text-green-600 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold mb-3">{info.title}</h3>
                   <div className="space-y-2 mb-3">
                     {info.details.map((detail, detailIndex) => (
-                      <p key={detailIndex} className="text-gray-700 font-medium">{detail}</p>
+                      <p
+                        key={detailIndex}
+                        className="text-gray-700 font-medium"
+                      >
+                        {detail}
+                      </p>
                     ))}
                   </div>
                   <p className="text-gray-600 text-sm">{info.description}</p>
@@ -193,7 +250,9 @@ const ContactPage = () => {
           <div className="grid md:grid-cols-2 gap-12">
             {/* Contact Form */}
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Send Us a Message</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                Send Us a Message
+              </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -256,9 +315,9 @@ const ContactPage = () => {
                     placeholder="Tell us more about your needs..."
                   />
                 </div>
-                <Button 
-                  type="submit" 
-                  size="lg" 
+                <Button
+                  type="submit"
+                  size="lg"
                   className="w-full"
                   disabled={isSubmitting}
                 >
@@ -280,7 +339,9 @@ const ContactPage = () => {
             {/* Office Hours & FAQ */}
             <div>
               <div className="mb-12">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Office Hours</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  Office Hours
+                </h3>
                 <Card className="p-6">
                   <CardContent className="pt-0">
                     <div className="space-y-4">
@@ -311,12 +372,16 @@ const ContactPage = () => {
               </div>
 
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  Frequently Asked Questions
+                </h3>
                 <div className="space-y-4">
                   {faqs.map((faq, index) => (
                     <Card key={index} className="p-4">
                       <CardContent className="pt-0">
-                        <h4 className="font-medium text-gray-900 mb-2">{faq.question}</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {faq.question}
+                        </h4>
                         <p className="text-gray-600 text-sm">{faq.answer}</p>
                       </CardContent>
                     </Card>
@@ -329,7 +394,6 @@ const ContactPage = () => {
       </section>
 
       {/* Chat Support */}
-     
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-green-600">
@@ -338,11 +402,12 @@ const ContactPage = () => {
             Ready to Transform Your HR Operations?
           </h2>
           <p className="text-xl text-green-100 mb-8">
-            Get in touch with our team to learn how HRMS can help your business grow
+            Get in touch with our team to learn how HRMS can help your business
+            grow
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               variant="secondary"
               onClick={() => navigate("/login")}
             >

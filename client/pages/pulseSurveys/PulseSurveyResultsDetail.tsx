@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { useNavigate, useParams } from "react-router-dom";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
-import { TrendingUp, MessageSquare, Calendar, Users, ArrowLeft, Star, User, UserCheck, UserX, Download } from "lucide-react";
+import { TrendingUp, MessageSquare, Calendar, Users, ArrowLeft, Star, User, UserCheck, UserX, Download, Search } from "lucide-react";
 import { exportPulseSurveyExcelReport } from "./surveyExcelReport";
 
 type ApiSurvey = {
@@ -55,19 +55,19 @@ const formatScore = (value: number | null | undefined) => {
   return `${clamp(value).toFixed(1)}/10`;
 };
 
-const anonymizeUser = (employeeId: number) => `Employee • ${String(employeeId).padStart(4, "0")}`;
+const anonymizeUser = (employeeId: number) => `Employee #${String(employeeId).padStart(4, "0")}`;
 
 const pulseMoodOptions = [
-  { label: "Very Unhappy", score: 1, emoji: "😞" },
-  { label: "Unhappy", score: 2, emoji: "☹️" },
-  { label: "Low", score: 3, emoji: "🙁" },
-  { label: "Below Neutral", score: 4, emoji: "😕" },
-  { label: "Slightly Down", score: 5, emoji: "😐" },
-  { label: "Neutral", score: 6, emoji: "😶" },
-  { label: "Slightly Up", score: 7, emoji: "🙂" },
-  { label: "Happy", score: 8, emoji: "😊" },
-  { label: "Very Happy", score: 9, emoji: "😁" },
-  { label: "Extremely Happy", score: 10, emoji: "🤩" },
+  { label: "Very Unhappy", score: 1, emoji: "??" },
+  { label: "Unhappy", score: 2, emoji: "??" },
+  { label: "Low", score: 3, emoji: "??" },
+  { label: "Below Neutral", score: 4, emoji: "??" },
+  { label: "Slightly Down", score: 5, emoji: "??" },
+  { label: "Neutral", score: 6, emoji: "??" },
+  { label: "Slightly Up", score: 7, emoji: "??" },
+  { label: "Happy", score: 8, emoji: "??" },
+  { label: "Very Happy", score: 9, emoji: "??" },
+  { label: "Extremely Happy", score: 10, emoji: "??" },
 ];
 
 const getPulseMood = (response: ApiResponse) =>
@@ -78,7 +78,7 @@ const getPulseMood = (response: ApiResponse) =>
   ) || {
     label: response.label || "Response recorded",
     score: clamp(Number(response.score || 0)),
-    emoji: "🙂",
+    emoji: "??",
   };
 
 const cleanGroupLabel = (value: string | null | undefined, fallback: string) => {
@@ -123,6 +123,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
   const [responses, setResponses] = useState<ApiResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupFilter, setGroupFilter] = useState<GroupFilter | null>(null);
+  const [employeeFilter, setEmployeeFilter] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -163,17 +164,38 @@ const PulseSurveyResultsDetail: React.FC = () => {
   const departmentData = useMemo(() => groupByDepartment(responses), [responses]);
   const branchData = useMemo(() => groupByBranch(responses), [responses]);
   const filteredResponses = useMemo(() => {
-    if (!groupFilter) return responses;
+    const search = employeeFilter.trim().toLowerCase();
 
     return responses.filter((r) => {
+      if (groupFilter) {
       const label =
         groupFilter.type === "department"
           ? cleanGroupLabel(r.department, "Unassigned Department")
           : cleanGroupLabel(r.branch, "Unassigned Branch");
 
-      return label === groupFilter.label;
+        if (label !== groupFilter.label) return false;
+      }
+
+      if (!search) return true;
+
+      const visibleName =
+        r.isAnonymous || survey?.allowAnonymous
+          ? anonymizeUser(r.employeeId)
+          : r.employee?.name || anonymizeUser(r.employeeId);
+      const haystack = [
+        visibleName,
+        r.employee?.email,
+        r.employeeId,
+        r.label,
+        r.department,
+        r.branch,
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      return haystack.includes(search);
     });
-  }, [groupFilter, responses]);
+  }, [employeeFilter, groupFilter, responses, survey?.allowAnonymous]);
   const sentCount = Number(survey?.totalSent || 0);
   const responseCount = survey?.responseCount ?? responses.length;
   const pendingCount = Math.max(sentCount - Number(responseCount || 0), 0);
@@ -474,28 +496,44 @@ const PulseSurveyResultsDetail: React.FC = () => {
         {/* Responses Section */}
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
             <CardHeader className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-t-xl">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <MessageSquare className="h-5 w-5" />
-                Individual Responses
-              </CardTitle>
-              <CardDescription className="text-emerald-100">
-                {filteredResponses.length
-                  ? `Showing ${filteredResponses.length} of ${responses.length} responses (latest first)`
-                  : responses.length
-                    ? "No responses match this filter"
-                    : "No responses yet"}
-              </CardDescription>
-              {groupFilter && (
-                <button
-                  type="button"
-                  onClick={() => setGroupFilter(null)}
-                  className="mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-white"
-                >
-                  <span aria-hidden="true">{groupFilter.type === "department" ? "🏢" : "📍"}</span>
-                  {groupFilter.label}
-                  <span aria-hidden="true">✕</span>
-                </button>
-              )}
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <MessageSquare className="h-5 w-5" />
+                    Individual Responses
+                  </CardTitle>
+                  <CardDescription className="text-emerald-100">
+                    {filteredResponses.length
+                      ? `Showing ${filteredResponses.length} of ${responses.length} responses (latest first)`
+                      : responses.length
+                        ? "No responses match this filter"
+                        : "No responses yet"}
+                  </CardDescription>
+                  {groupFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setGroupFilter(null)}
+                      className="mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-white"
+                    >
+                      <span aria-hidden="true">
+                        {groupFilter.type === "department" ? "??" : "??"}
+                      </span>
+                      {groupFilter.label}
+                      <span aria-hidden="true">�</span>
+                    </button>
+                  )}
+                </div>
+                <div className="relative w-full lg:w-80">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-700" />
+                  <input
+                    type="search"
+                    value={employeeFilter}
+                    onChange={(event) => setEmployeeFilter(event.target.value)}
+                    placeholder="Filter employee..."
+                    className="h-10 w-full rounded-lg border border-white/40 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-white focus:ring-2 focus:ring-white/40"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-6">
               {filteredResponses.length === 0 ? (

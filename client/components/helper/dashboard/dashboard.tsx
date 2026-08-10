@@ -112,6 +112,22 @@ export interface EmployeeDashboardData {
       total: number;
     };
   };
+  assignedLeadIndicators?: Array<{
+    parameterId: string;
+    scorecardId: string;
+    parameterName: string;
+    scorecardOwner: string;
+    uom: string;
+    indicatorIndex: number;
+    indicatorLabel: string;
+    type: "number" | "yesno";
+    targetValue: string;
+    minimumValue: string;
+    values: Record<string, string>;
+    todayKey: string;
+    todayValue: string;
+    periodDate: string;
+  }>;
 }
 
 export interface ManagerDashboardData {

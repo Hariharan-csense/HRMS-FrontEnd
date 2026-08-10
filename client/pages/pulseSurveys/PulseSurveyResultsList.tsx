@@ -34,13 +34,19 @@ const PulseSurveyResultsList: React.FC = () => {
       totalSent: number;
       responseCount: number;
       avgScore: number;
+      category?: "daily_log" | "survey";
     }>
   >([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const filteredRows = rows.filter(
+    (row) =>
+      row.category !== "daily_log" &&
+      !row.title.toLowerCase().startsWith("daily log -"),
+  );
 
-  const totalSent = rows.reduce((sum, row) => sum + Number(row.totalSent || 0), 0);
-  const totalResponses = rows.reduce((sum, row) => sum + Number(row.responseCount || 0), 0);
+  const totalSent = filteredRows.reduce((sum, row) => sum + Number(row.totalSent || 0), 0);
+  const totalResponses = filteredRows.reduce((sum, row) => sum + Number(row.responseCount || 0), 0);
   const totalPending = Math.max(totalSent - totalResponses, 0);
 
   const exportSurveyExcel = async (survey: (typeof rows)[number]) => {
@@ -109,7 +115,7 @@ const PulseSurveyResultsList: React.FC = () => {
           </div>
 
           {/* Stats Cards */}
-          {!loading && rows.length > 0 && (
+          {!loading && filteredRows.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3">
@@ -117,7 +123,7 @@ const PulseSurveyResultsList: React.FC = () => {
                     <MessageSquare className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{rows.length}</p>
+                    <p className="text-2xl font-bold text-gray-900">{filteredRows.length}</p>
                     <p className="text-sm text-gray-500">Total Surveys</p>
                   </div>
                 </div>
@@ -163,7 +169,8 @@ const PulseSurveyResultsList: React.FC = () => {
                   <div>
                     <p className="text-2xl font-bold text-gray-900">
                       {formatScore(
-                        rows.reduce((sum, row) => sum + row.avgScore, 0) / rows.length
+                        filteredRows.reduce((sum, row) => sum + row.avgScore, 0) /
+                          filteredRows.length
                       )}
                     </p>
                     <p className="text-sm text-gray-500">Overall Average</p>
@@ -177,7 +184,7 @@ const PulseSurveyResultsList: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">
-                      {rows.filter(row => row.avgScore >= 7).length}
+                      {filteredRows.filter(row => row.avgScore >= 7).length}
                     </p>
                     <p className="text-sm text-gray-500">Happy Surveys</p>
                   </div>
@@ -189,17 +196,21 @@ const PulseSurveyResultsList: React.FC = () => {
           {/* Main Content Card */}
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
             <CardHeader className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-t-xl">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <MessageSquare className="h-5 w-5" />
-                All Surveys Analytics
-              </CardTitle>
-              <CardDescription className="text-emerald-100">
-                {loading
-                  ? "Loading survey data..."
-                  : rows.length
-                    ? `Showing ${rows.length} survey(s) - Click to view detailed analytics`
-                    : "No surveys available yet"}
-              </CardDescription>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <MessageSquare className="h-5 w-5" />
+                    Survey Analytics
+                  </CardTitle>
+                  <CardDescription className="text-emerald-100">
+                    {loading
+                      ? "Loading survey data..."
+                      : filteredRows.length
+                        ? `Showing ${filteredRows.length} record(s) - Click to view detailed analytics`
+                        : "No surveys available yet"}
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
 
             <CardContent className="p-6">
@@ -208,19 +219,21 @@ const PulseSurveyResultsList: React.FC = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
                   <p className="text-gray-500">Loading survey analytics...</p>
                 </div>
-              ) : rows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
                   <div className="p-4 bg-gray-100 rounded-full">
                     <MessageSquare className="h-12 w-12 text-gray-400" />
                   </div>
                   <div className="text-center">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Surveys Available</h3>
-                    <p className="text-gray-500">Create and publish surveys to see analytics here</p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Records Available</h3>
+                    <p className="text-gray-500">
+                      Create and publish surveys to see analytics here
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {rows.map((row, index) => (
+                  {filteredRows.map((row, index) => (
                     <Card 
                       key={row.id} 
                       className={`border-0 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
@@ -267,6 +280,12 @@ const PulseSurveyResultsList: React.FC = () => {
                               {row.allowAnonymous && (
                                 <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-0">
                                   Anonymous allowed
+                                </Badge>
+                              )}
+                              {(row.category === "daily_log" ||
+                                row.title.toLowerCase().startsWith("daily log -")) && (
+                                <Badge className="bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border-0">
+                                  Daily Log
                                 </Badge>
                               )}
                             </div>

@@ -333,6 +333,7 @@ import {
   MapPin,
   ArrowRight,
   Timer,
+  Target,
 } from "lucide-react";
 
 const StatCard: React.FC<{
@@ -1644,6 +1645,73 @@ const AdminDashboard = () => {
   );
 };
 
+type AssignedLeadIndicator = NonNullable<
+  EmployeeDashboardData["assignedLeadIndicators"]
+>[number];
+
+type AssignedLeadIndicatorGroup = {
+  key: string;
+  parameterId: string;
+  scorecardId: string;
+  parameterName: string;
+  scorecardOwner: string;
+  uom: string;
+  periodDate: string;
+  items: AssignedLeadIndicator[];
+};
+
+const getLeadValueKey = (
+  item: Pick<AssignedLeadIndicator, "parameterId" | "indicatorIndex">,
+  dayKey: string,
+) => `${item.parameterId}-${item.indicatorIndex}-${dayKey}`;
+
+const getDashboardPeriodDays = (periodDate?: string) => {
+  const date = periodDate ? new Date(periodDate) : new Date();
+  const year = Number.isNaN(date.getTime())
+    ? new Date().getFullYear()
+    : date.getFullYear();
+  const month = Number.isNaN(date.getTime())
+    ? new Date().getMonth()
+    : date.getMonth();
+  const days = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: days }, (_, index) => ({
+    key: String(index + 1),
+    label: String(index + 1).padStart(2, "0"),
+  }));
+};
+
+const getDashboardPeriodLabel = (periodDate?: string) => {
+  const date = periodDate ? new Date(periodDate) : new Date();
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  return safeDate.toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const groupAssignedLeadIndicators = (
+  items: AssignedLeadIndicator[] = [],
+): AssignedLeadIndicatorGroup[] => {
+  const groups = new Map<string, AssignedLeadIndicatorGroup>();
+  items.forEach((item) => {
+    const key = `${item.scorecardId}-${item.parameterId}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        parameterId: item.parameterId,
+        scorecardId: item.scorecardId,
+        parameterName: item.parameterName,
+        scorecardOwner: item.scorecardOwner,
+        uom: item.uom,
+        periodDate: item.periodDate,
+        items: [],
+      });
+    }
+    groups.get(key)?.items.push(item);
+  });
+  return [...groups.values()];
+};
+
 const EmployeeDashboard = ({
   navigate,
   userName,
@@ -1663,14 +1731,29 @@ const EmployeeDashboard = ({
     useState<EmployeeDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [leadIndicatorValues, setLeadIndicatorValues] = useState<
+    Record<string, string>
+  >({});
+  const [savingLeadIndicatorKey, setSavingLeadIndicatorKey] = useState<
+    string | null
+  >(null);
+  const [activeLeadIndicatorGroupKey, setActiveLeadIndicatorGroupKey] =
+    useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [dashboardResult, leaveBalanceResult] = await Promise.all([
+        const [
+          dashboardResult,
+          leaveBalanceResult,
+          assignedLeadIndicatorResult,
+        ] = await Promise.all([
           getEmployeeDashboardData(),
           leaveTypeApi.getLeaveBalances(),
+          api
+            .get("/kpi/scorecards/assigned-lead-indicators")
+            .catch(() => null),
         ]);
 
         if (dashboardResult.error) {
@@ -1683,6 +1766,11 @@ const EmployeeDashboard = ({
 
           setDashboardData({
             ...dashboardResult.data,
+            assignedLeadIndicators: Array.isArray(
+              assignedLeadIndicatorResult?.data,
+            )
+              ? assignedLeadIndicatorResult.data
+              : [],
             leaveBalance: {
               totalDays:
                 leaveBalanceResult.error || totalLeaveBalance === undefined
@@ -1693,6 +1781,24 @@ const EmployeeDashboard = ({
                 "Days remaining this year",
             },
           });
+          const nextLeadValues: Record<string, string> = {};
+          if (Array.isArray(assignedLeadIndicatorResult?.data)) {
+            assignedLeadIndicatorResult.data.forEach((item: any) => {
+              Object.entries(item.values || {}).forEach(([dayKey, value]) => {
+                nextLeadValues[
+                  `${item.parameterId}-${item.indicatorIndex}-${dayKey}`
+                ] = String(value || "");
+              });
+              if (item.todayKey) {
+                nextLeadValues[
+                  `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
+                ] = String(item.todayValue || nextLeadValues[
+                  `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
+                ] || "");
+              }
+            });
+          }
+          setLeadIndicatorValues(nextLeadValues);
         }
       } catch (err) {
         setError("Failed to fetch dashboard data");
@@ -1703,6 +1809,62 @@ const EmployeeDashboard = ({
 
     fetchDashboardData();
   }, []);
+
+  const saveAssignedLeadIndicatorGroup = async (
+    group: AssignedLeadIndicatorGroup,
+  ) => {
+    setSavingLeadIndicatorKey(group.key);
+    try {
+      const periodDays = getDashboardPeriodDays(group.periodDate);
+      const results = await Promise.all(
+        group.items.map((item) =>
+          api.patch(
+            `/kpi/scorecards/assigned-lead-indicators/${item.parameterId}/${item.indicatorIndex}`,
+            {
+              dayKey: item.todayKey,
+              values: Object.fromEntries(
+                periodDays.map((day) => [
+                  day.key,
+                  leadIndicatorValues[getLeadValueKey(item, day.key)] || "",
+                ]),
+              ),
+            },
+          ),
+        ),
+      );
+
+      setDashboardData((current) =>
+        current
+          ? {
+              ...current,
+              assignedLeadIndicators: (
+                current.assignedLeadIndicators || []
+              ).map((entry) => {
+                const result = results.find(
+                  (response) =>
+                    String(response.data?.parameterId) ===
+                      String(entry.parameterId) &&
+                    Number(response.data?.indicatorIndex) ===
+                      Number(entry.indicatorIndex),
+                );
+                return result
+                  ? {
+                      ...entry,
+                      todayValue: String(
+                        result.data?.values?.[entry.todayKey] || "",
+                      ),
+                      values: result.data?.values || entry.values,
+                    }
+                  : entry;
+              }),
+            }
+          : current,
+      );
+      setActiveLeadIndicatorGroupKey(null);
+    } finally {
+      setSavingLeadIndicatorKey(null);
+    }
+  };
 
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const allowedModules = getAllowedModulesFromSubscription(
@@ -1823,6 +1985,230 @@ const EmployeeDashboard = ({
           ))}
         </div>
       </div>
+
+      {groupAssignedLeadIndicators(
+        dashboardData?.assignedLeadIndicators || [],
+      ).length > 0 && (
+        <Card className="chart-container border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-xl">
+            <CardTitle className="flex items-center gap-2 text-gray-800 font-bold">
+              <Target className="h-5 w-5 text-emerald-600" />
+              Assigned KPI Lead Indicators
+            </CardTitle>
+            <CardDescription className="text-gray-600">
+              Open your assigned daily indicator checklist
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {groupAssignedLeadIndicators(
+                dashboardData?.assignedLeadIndicators || [],
+              ).map((group) => {
+                return (
+                  <div
+                    key={group.key}
+                    className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                          {getDashboardPeriodLabel(group.periodDate)} -{" "}
+                          {group.uom || "UoM"}
+                        </p>
+                        <h3 className="mt-1 text-lg font-bold text-gray-900">
+                          {group.parameterName}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {group.items.length} assigned lead indicator(s)
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeadIndicatorGroupKey(group.key)}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      >
+                        Fill Indicators
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(() => {
+        const activeGroup = groupAssignedLeadIndicators(
+          dashboardData?.assignedLeadIndicators || [],
+        ).find((group) => group.key === activeLeadIndicatorGroupKey);
+        if (!activeGroup) return null;
+        const periodDays = getDashboardPeriodDays(activeGroup.periodDate);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-2 sm:p-4">
+            <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-[calc(100vw-2rem)] xl:max-w-6xl">
+              <div className="shrink-0 flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Daily Achievement
+                  </p>
+                  <h2 className="mt-1 text-base font-semibold text-slate-900 sm:text-lg">
+                    {activeGroup.parameterName}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {getDashboardPeriodLabel(activeGroup.periodDate)} -{" "}
+                    {activeGroup.uom || "UoM not set"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Total
+                  </p>
+                  <p className="text-2xl font-semibold text-slate-900">0</p>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-700">
+                    {getDashboardPeriodLabel(activeGroup.periodDate)} -{" "}
+                    {activeGroup.uom || "UoM"}
+                  </p>
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                    <Target className="h-4 w-4" />
+                    Assigned Lead Indicators
+                  </span>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        4-Daily Indicators Checklist
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Only indicators assigned to you are editable here.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLeadIndicatorGroupKey(null)}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200">
+                    <table className="min-w-[2460px] table-fixed border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-white text-slate-700">
+                          <th className="w-14 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
+                            S.No
+                          </th>
+                          <th className="w-44 whitespace-nowrap border border-slate-200 px-3 py-2 text-left text-xs font-semibold">
+                            Daily Indicator
+                          </th>
+                          <th className="w-24 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
+                            Type
+                          </th>
+                          {periodDays.map((day) => (
+                            <th
+                              key={`assigned-li-head-${day.key}`}
+                              className="w-[70px] whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold"
+                            >
+                              {day.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeGroup.items.map((item, itemIndex) => (
+                          <tr key={`${item.parameterId}-${item.indicatorIndex}`}>
+                            <td className="whitespace-nowrap border border-slate-200 bg-white px-2 py-2 text-center text-sm text-slate-600">
+                              1.{itemIndex + 1}
+                            </td>
+                            <td className="w-44 border border-slate-200 bg-white px-3 py-2 align-top text-sm font-medium leading-5 text-slate-900 whitespace-normal">
+                              {item.indicatorLabel}
+                              {item.type === "number" ? (
+                                <span className="mt-1 block text-[11px] font-normal text-slate-500">
+                                  Target {item.targetValue || "-"} / Min{" "}
+                                  {item.minimumValue || "-"}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="w-24 whitespace-nowrap border border-slate-200 bg-white px-2 py-2 text-center text-[11px] font-semibold uppercase text-slate-600">
+                              {item.type === "yesno" ? "Yes/No" : "Number"}
+                            </td>
+                            {periodDays.map((day) => {
+                              const key = getLeadValueKey(item, day.key);
+                              const value = leadIndicatorValues[key] || "";
+                              return (
+                                <td
+                                  key={`${key}-cell`}
+                                  className="border border-slate-200 bg-white px-1 py-1 text-center align-middle"
+                                >
+                                  {item.type === "yesno" ? (
+                                    <select
+                                      value={value}
+                                      onChange={(event) =>
+                                        setLeadIndicatorValues((current) => ({
+                                          ...current,
+                                          [key]: event.target.value,
+                                        }))
+                                      }
+                                      className="h-11 w-full rounded-md border border-slate-200 px-2 text-sm text-slate-900 outline-none focus:border-teal-500"
+                                    >
+                                      <option value=""></option>
+                                      <option value="Yes">Yes</option>
+                                      <option value="No">No</option>
+                                    </select>
+                                  ) : (
+                                    <input
+                                      value={value}
+                                      onChange={(event) =>
+                                        setLeadIndicatorValues((current) => ({
+                                          ...current,
+                                          [key]: event.target.value,
+                                        }))
+                                      }
+                                      className="h-11 w-full rounded-md border border-slate-200 px-2 text-sm text-slate-900 outline-none focus:border-teal-500"
+                                    />
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:space-x-3 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => setActiveLeadIndicatorGroupKey(null)}
+                  className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveAssignedLeadIndicatorGroup(activeGroup)}
+                  disabled={savingLeadIndicatorKey === activeGroup.key}
+                  className="w-full rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {savingLeadIndicatorKey === activeGroup.key
+                    ? "Saving..."
+                    : "Save Lead Indicators"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <Card className="chart-container border-0 shadow-xl">
         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">

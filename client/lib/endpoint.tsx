@@ -5,8 +5,8 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-export const BASE_URL = "http://192.168.1.6:3000/backend";
-// export const BASE_URL="https://hrms.procease.co/backend";
+// export const BASE_URL = "http://192.168.1.6:3000/backend";
+export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -645,6 +645,9 @@ const ENDPOINTS = {
 
   respondPulseSurvey: (id: string | number, data: any) =>
     api.post(`/pulse-surveys/${id}/respond`, data),
+
+  respondDailyPulseSurvey: (data: any) =>
+    api.post("/pulse-surveys/daily-log/respond", data),
 
   getPulseSurveyTemplates: (params?: any) =>
     api.get("/pulse-surveys/templates", { params }),

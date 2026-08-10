@@ -94,6 +94,7 @@ import MyPulseSurveys from "./pages/pulseSurveys/MyPulseSurveys";
 import RespondPulseSurvey from "./pages/pulseSurveys/RespondPulseSurvey";
 import PulseSurveyResultsList from "./pages/pulseSurveys/PulseSurveyResultsList";
 import PulseSurveyResultsDetail from "./pages/pulseSurveys/PulseSurveyResultsDetail";
+import DailyLogAnalytics from "./pages/pulseSurveys/DailyLogAnalytics";
 import EmployeeFeedback from "./pages/pulseSurveys/EmployeeFeedback";
 import AdminFeedbackInbox from "./pages/pulseSurveys/AdminFeedbackInbox";
 import PulseSurveyTemplates from "./pages/pulseSurveys/PulseSurveyTemplates";
@@ -939,6 +940,21 @@ function AppRoutes() {
                   requiredAction="view"
                 >
                   <PulseSurveyResultsDetail />
+                </RoleBasedRoute>
+              }
+            />
+          }
+        />
+        <Route
+          path="/pulse-surveys/daily-log"
+          element={
+            <ProtectedRoute
+              element={
+                <RoleBasedRoute
+                  requiredModule="pulse_surveys"
+                  requiredAction="view"
+                >
+                  <DailyLogAnalytics />
                 </RoleBasedRoute>
               }
             />

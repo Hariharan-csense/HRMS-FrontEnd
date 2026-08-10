@@ -103,6 +103,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         return undefined;
       case "pulse_surveys":
         if (path.includes("/pulse-surveys/dashboard")) return "dashboard";
+        if (path.includes("/pulse-surveys/daily-log")) return "results";
         if (path.includes("/pulse-surveys/results")) return "results";
         if (path.includes("/pulse-surveys/create")) return "create";
         if (path.includes("/pulse-surveys/templates")) return "templates";
@@ -175,7 +176,11 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     const isPulseSelfService =
       String(requiredModule).toLowerCase() === "pulse_surveys" &&
       ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || "").toLowerCase());
-    const isAdminSelfServiceUser = isAdminOrCeo && isPulseSelfService;
+    const isEmployeeUser =
+      String(user.type || "").toLowerCase() === "employee" ||
+      effectiveRouteRoles.includes("employee");
+    const isPulseSelfServiceUser =
+      isPulseSelfService && (isAdminOrCeo || isEmployeeUser);
     const addonUnlocksModule =
       isAdminOrCeo && hasSubscriptionAddonModule(subscription, requiredModule, {
         currentEmployeeId,
@@ -202,7 +207,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     // If specific action is required, check for that action
     if (requiredAction) {
       const hasRequiredAccess =
-        isAdminSelfServiceUser ||
+        isPulseSelfServiceUser ||
         addonUnlocksModule ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, requiredAction, inferredSubmodule)
@@ -222,7 +227,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     } else {
       // Otherwise, just check for view access
       const hasViewAccess =
-        isAdminSelfServiceUser ||
+        isPulseSelfServiceUser ||
         addonUnlocksModule ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, "view", inferredSubmodule)

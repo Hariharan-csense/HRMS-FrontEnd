@@ -33,6 +33,9 @@ import {
   AlertCircle,
   Loader2,
   ExternalLink,
+  MessageSquare,
+  Send,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { reverseGeocode } from "@/lib/locationUtils";
@@ -81,6 +84,19 @@ interface AssignedClient {
 const SELFIE_OUTPUT_SIZE = 1080;
 const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
 
+const dailyPulseOptions = [
+  { label: "Very Unhappy", score: 1, emoji: "😞" },
+  { label: "Unhappy", score: 2, emoji: "☹️" },
+  { label: "Low", score: 3, emoji: "🙁" },
+  { label: "Below Neutral", score: 4, emoji: "😕" },
+  { label: "Slightly Down", score: 5, emoji: "😐" },
+  { label: "Neutral", score: 6, emoji: "😶" },
+  { label: "Slightly Up", score: 7, emoji: "🙂" },
+  { label: "Happy", score: 8, emoji: "😊" },
+  { label: "Very Happy", score: 9, emoji: "😁" },
+  { label: "Extremely Happy", score: 10, emoji: "🤩" },
+];
+
 export default function AttendanceCapture() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -108,6 +124,10 @@ export default function AttendanceCapture() {
   const [assignedClients, setAssignedClients] = useState<AssignedClient[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [isDailyPulseOpen, setIsDailyPulseOpen] = useState(false);
+  const [dailyPulseScore, setDailyPulseScore] = useState<number | null>(null);
+  const [dailyPulseComment, setDailyPulseComment] = useState("");
+  const [isSubmittingDailyPulse, setIsSubmittingDailyPulse] = useState(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -807,9 +827,13 @@ export default function AttendanceCapture() {
         },
       );
 
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+      if (pendingAttendance.type === "check-out") {
+        setIsDailyPulseOpen(true);
+      } else {
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 2000);
+      }
     } catch (err: any) {
       console.error("Attendance submit error:", err);
       toast.error(
@@ -820,6 +844,48 @@ export default function AttendanceCapture() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const submitDailyPulse = async () => {
+    if (dailyPulseScore === null) {
+      toast.error("Please select a rating before submitting.");
+      return;
+    }
+
+    const selected = dailyPulseOptions.find(
+      (option) => option.score === dailyPulseScore,
+    );
+
+    setIsSubmittingDailyPulse(true);
+    try {
+      await ENDPOINTS.respondDailyPulseSurvey({
+        score: dailyPulseScore,
+        label: selected?.label || "",
+        comment: dailyPulseComment.trim(),
+      });
+
+      toast.success("Daily log submitted successfully.");
+      setIsDailyPulseOpen(false);
+      setDailyPulseScore(null);
+      setDailyPulseComment("");
+      navigate("/dashboard");
+    } catch (err: any) {
+      console.error("Daily pulse submit error:", err);
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to submit daily log",
+      );
+    } finally {
+      setIsSubmittingDailyPulse(false);
+    }
+  };
+
+  const skipDailyPulse = () => {
+    setIsDailyPulseOpen(false);
+    setDailyPulseScore(null);
+    setDailyPulseComment("");
+    navigate("/dashboard");
   };
 
   return (
@@ -1322,6 +1388,110 @@ export default function AttendanceCapture() {
               className="w-full sm:w-auto"
             >
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDailyPulseOpen} onOpenChange={(open) => {
+        if (!open && !isSubmittingDailyPulse) {
+          skipDailyPulse();
+        }
+      }}>
+        <DialogContent className="w-[95vw] max-w-5xl max-h-[92vh] overflow-y-auto p-5 sm:p-6">
+          <DialogHeader className="text-center">
+            <DialogTitle className="flex items-center justify-center gap-2 text-2xl font-bold">
+              <MessageSquare className="h-6 w-6 text-emerald-600" />
+              How are you feeling today?
+            </DialogTitle>
+            <DialogDescription>
+              Share a quick daily log after check-out.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              {dailyPulseOptions.map((option) => {
+                const active = dailyPulseScore === option.score;
+                return (
+                  <button
+                    key={option.score}
+                    type="button"
+                    onClick={() => setDailyPulseScore(option.score)}
+                    className={`rounded-xl border-2 bg-white p-4 text-center transition-all hover:border-emerald-300 hover:bg-emerald-50 ${
+                      active
+                        ? "border-emerald-400 bg-emerald-50 shadow-md"
+                        : "border-slate-200"
+                    }`}
+                  >
+                    <div className="mb-2 text-5xl leading-none">
+                      {option.emoji}
+                    </div>
+                    <div className="min-h-10 text-sm font-semibold text-slate-900">
+                      {option.label}
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-slate-500">
+                      {option.score}/10
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5 text-center">
+              <div className="text-6xl leading-none">
+                {dailyPulseOptions.find((o) => o.score === dailyPulseScore)
+                  ?.emoji || "🙂"}
+              </div>
+              <p className="mt-2 text-xl font-bold text-slate-900">
+                {dailyPulseOptions.find((o) => o.score === dailyPulseScore)
+                  ?.label || "Select a rating"}
+              </p>
+              <div className="mt-2 flex items-center justify-center gap-2 text-emerald-700">
+                <Star className="h-5 w-5" />
+                <span className="font-semibold">
+                  Score: {dailyPulseScore ?? 0}/10
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="dailyPulseComment"
+                className="text-sm font-semibold text-slate-800"
+              >
+                Notes (optional)
+              </label>
+              <textarea
+                id="dailyPulseComment"
+                value={dailyPulseComment}
+                onChange={(event) => setDailyPulseComment(event.target.value)}
+                placeholder="Anything you want to add about today?"
+                className="min-h-24 w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={skipDailyPulse}
+              disabled={isSubmittingDailyPulse}
+              className="w-full sm:w-auto"
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={submitDailyPulse}
+              disabled={isSubmittingDailyPulse || dailyPulseScore === null}
+              className="w-full bg-[#17c491] text-white hover:bg-[#12a978] sm:w-auto"
+            >
+              {isSubmittingDailyPulse ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Submit Daily Log
             </Button>
           </DialogFooter>
         </DialogContent>

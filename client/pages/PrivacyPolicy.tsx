@@ -16,11 +16,36 @@ const PrivacyPolicy = () => {
               <img src={logo} alt="HRMS Logo" className="h-20 w-20 mr-2" />
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="/" className="text-gray-700 hover:text-gray-900 transition-colors">Home</a>
-              <a href="/features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</a>
-              <a href="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors">Pricing</a>
-              <a href="/about" className="text-gray-700 hover:text-gray-900 transition-colors">About</a>
-              <a href="/contact" className="text-gray-700 hover:text-gray-900 transition-colors">Contact</a>
+              <a
+                href="/"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Home
+              </a>
+              <a
+                href="/features"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="/pricing"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Pricing
+              </a>
+              <a
+                href="/about"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                About
+              </a>
+              <a
+                href="/contact"
+                className="text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Contact
+              </a>
             </nav>
             <Button variant="outline" onClick={() => navigate("/login")}>
               Sign In
@@ -36,7 +61,8 @@ const PrivacyPolicy = () => {
             Privacy Policy
           </h1>
           <p className="text-xl text-green-100 mb-8">
-            Your privacy is our priority. Learn how we protect and handle your data.
+            Your privacy is our priority. Learn how we protect and handle your
+            data.
           </p>
         </div>
       </section>
@@ -45,26 +71,39 @@ const PrivacyPolicy = () => {
       <main className="flex justify-center px-4 sm:px-6 lg:px-8 py-12">
         <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-8">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Introduction</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              1. Introduction
+            </h2>
             <p className="text-gray-600 leading-relaxed">
-              CSENSE MANAGEMENT SOLUTIONS PRIVATE LIMITED ("we", "us", or "our") is committed to protecting your privacy. 
-              This Privacy Policy explains how we collect, use, process, store, and protect your personal information when you use our 
-              HRMS platform, mobile applications, attendance management tools, assessment tools, and related services 
-              (collectively, the "Services").
+              CSENSE MANAGEMENT SOLUTIONS PRIVATE LIMITED ("we", "us", or "our")
+              is committed to protecting your privacy. This Privacy Policy
+              explains how we collect, use, process, store, and protect your
+              personal information when you use our HRMS platform, mobile
+              applications, attendance management tools, assessment tools, and
+              related services (collectively, the "Services").
             </p>
             <p className="text-gray-600 leading-relaxed mt-4">
-              By using our Services, you agree to the collection and use of information in accordance with this Privacy Policy.
+              By using our Services, you agree to the collection and use of
+              information in accordance with this Privacy Policy.
             </p>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Information We Collect</h2>
-            <p className="text-gray-600 mb-4">We collect the following types of information:</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              2. Information We Collect
+            </h2>
+            <p className="text-gray-600 mb-4">
+              We collect the following types of information:
+            </p>
             <div className="space-y-6 text-gray-600">
               <div>
-                <h4 className="font-semibold text-gray-900">Personal Information:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Personal Information:
+                </h4>
                 <p className="mb-3">
-                  When you register for an account, create an employee profile, use our Services, or make a payment, we may collect personal information including:
+                  When you register for an account, create an employee profile,
+                  use our Services, or make a payment, we may collect personal
+                  information including:
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li>Name</li>
@@ -73,12 +112,17 @@ const PrivacyPolicy = () => {
                   <li>Employee identification details</li>
                   <li>Organization details</li>
                   <li>Payment information</li>
-                  <li>Other information necessary for providing our Services</li>
+                  <li>
+                    Other information necessary for providing our Services
+                  </li>
                 </ul>
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900">Usage Data:</h4>
-                <p className="mb-3">We collect information regarding your interaction with our Site and Services, including:</p>
+                <p className="mb-3">
+                  We collect information regarding your interaction with our
+                  Site and Services, including:
+                </p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li>IP address</li>
                   <li>Device information</li>
@@ -91,27 +135,52 @@ const PrivacyPolicy = () => {
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900">Cookies:</h4>
-                <p>We use cookies and similar technologies to enhance your experience on our Site. You can control cookie settings through your browser preferences.</p>
+                <p>
+                  We use cookies and similar technologies to enhance your
+                  experience on our Site. You can control cookie settings
+                  through your browser preferences.
+                </p>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">Face Data and Biometric Information:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Face Data and Biometric Information:
+                </h4>
                 <p className="mb-3">
-                  Our HRMS platform may provide Face Attendance functionality for attendance management and employee verification.
+                  Our HRMS platform may provide Face Attendance functionality
+                  for attendance management and employee verification.
                 </p>
-                <p className="mb-3">When this feature is enabled by an organization, we may collect and process:</p>
+                <p className="mb-3">
+                  When this feature is enabled by an organization, we may
+                  collect and process:
+                </p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Facial photographs captured during employee registration.</li>
-                  <li>Facial photographs captured during attendance check-in and check-out.</li>
-                  <li>Facial feature data generated solely for face matching and identity verification purposes.</li>
+                  <li>
+                    Facial photographs captured during employee registration.
+                  </li>
+                  <li>
+                    Facial photographs captured during attendance check-in and
+                    check-out.
+                  </li>
+                  <li>
+                    Facial feature data generated solely for face matching and
+                    identity verification purposes.
+                  </li>
                 </ul>
-                <p className="mt-3">Face data is collected only when users voluntarily use the Face Attendance feature.</p>
+                <p className="mt-3">
+                  Face data is collected only when users voluntarily use the
+                  Face Attendance feature.
+                </p>
               </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">3. How We Use Your Information</h2>
-            <p className="text-gray-600 mb-4">We use your information for the following purposes:</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              3. How We Use Your Information
+            </h2>
+            <p className="text-gray-600 mb-4">
+              We use your information for the following purposes:
+            </p>
             <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
               <li>To process payments and provide access to our Services.</li>
               <li>To manage employee records and attendance.</li>
@@ -119,11 +188,16 @@ const PrivacyPolicy = () => {
               <li>To improve our Site and Services.</li>
               <li>To provide customer support.</li>
               <li>To comply with legal and regulatory requirements.</li>
-              <li>To send promotional communications where permitted and where users have opted to receive them.</li>
+              <li>
+                To send promotional communications where permitted and where
+                users have opted to receive them.
+              </li>
             </ul>
             <div className="space-y-4 text-gray-600 mt-6">
               <div>
-                <h4 className="font-semibold text-gray-900">Face Data Usage:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Face Data Usage:
+                </h4>
                 <p className="mb-3">Face data is used exclusively for:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li>Employee identity verification.</li>
@@ -141,73 +215,120 @@ const PrivacyPolicy = () => {
                   <li>User profiling</li>
                   <li>Behavioral tracking</li>
                   <li>Analytics unrelated to attendance management</li>
-                  <li>Any purpose unrelated to identity verification and attendance management</li>
+                  <li>
+                    Any purpose unrelated to identity verification and
+                    attendance management
+                  </li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">Face Recognition Processing:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Face Recognition Processing:
+                </h4>
                 <p>
-                  When Face Attendance is enabled, the application may compare a facial image captured during attendance marking with the employee's registered facial image to verify identity.
+                  When Face Attendance is enabled, the application may compare a
+                  facial image captured during attendance marking with the
+                  employee's registered facial image to verify identity.
                 </p>
                 <p className="mt-3">
-                  Face recognition processing is performed solely for attendance verification and fraud prevention purposes.
+                  Face recognition processing is performed solely for attendance
+                  verification and fraud prevention purposes.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">4. Data Sharing and Disclosure</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              4. Data Sharing and Disclosure
+            </h2>
             <p className="text-gray-600 mb-4">
-              We do not sell, rent, trade, or lease your personal information, face data, or biometric information to third parties.
+              We do not sell, rent, trade, or lease your personal information,
+              face data, or biometric information to third parties.
             </p>
             <p className="text-gray-600 mb-4">We may share information with:</p>
             <div className="space-y-6 text-gray-600">
               <div>
-                <h4 className="font-semibold text-gray-900">Service Providers:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Service Providers:
+                </h4>
                 <p>
-                  We use trusted third-party service providers, such as payment gateways and cloud infrastructure providers, to support our Services.
-                  These providers are contractually obligated to protect your information and use it only for authorized purposes.
+                  We use trusted third-party service providers, such as payment
+                  gateways and cloud infrastructure providers, to support our
+                  Services. These providers are contractually obligated to
+                  protect your information and use it only for authorized
+                  purposes.
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">Legal Requirements:</h4>
-                <p>We may disclose information when required by law, court order, governmental authority, or regulatory obligation.</p>
+                <h4 className="font-semibold text-gray-900">
+                  Legal Requirements:
+                </h4>
+                <p>
+                  We may disclose information when required by law, court order,
+                  governmental authority, or regulatory obligation.
+                </p>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">Face Data Disclosure:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Face Data Disclosure:
+                </h4>
                 <p className="mb-3">
-                  Face data and biometric information are not shared with third parties for advertising, marketing, analytics, or commercial purposes.
+                  Face data and biometric information are not shared with third
+                  parties for advertising, marketing, analytics, or commercial
+                  purposes.
                 </p>
                 <p className="mb-3">Face data may only be disclosed:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>To the organization that owns and administers the HRMS platform.</li>
+                  <li>
+                    To the organization that owns and administers the HRMS
+                    platform.
+                  </li>
                   <li>When required by applicable law.</li>
-                  <li>To protect the security, rights, and lawful interests of users, organizations, or the public.</li>
+                  <li>
+                    To protect the security, rights, and lawful interests of
+                    users, organizations, or the public.
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Data Storage, Retention, and Security</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              5. Data Storage, Retention, and Security
+            </h2>
             <p className="text-gray-600 mb-4">
-              We implement reasonable technical, administrative, and organizational safeguards to protect personal information from unauthorized access, use, alteration, disclosure, or destruction.
+              We implement reasonable technical, administrative, and
+              organizational safeguards to protect personal information from
+              unauthorized access, use, alteration, disclosure, or destruction.
             </p>
             <p className="text-gray-600 mb-6">
-              However, no method of transmission over the Internet or electronic storage can be guaranteed to be completely secure.
+              However, no method of transmission over the Internet or electronic
+              storage can be guaranteed to be completely secure.
             </p>
             <div className="space-y-6 text-gray-600">
               <div>
-                <h4 className="font-semibold text-gray-900">Face Data Storage:</h4>
+                <h4 className="font-semibold text-gray-900">
+                  Face Data Storage:
+                </h4>
                 <p className="mb-3">
-                  Facial photographs and face verification data are securely stored within authorized databases and server infrastructure controlled by the organization using the HRMS platform.
+                  Facial photographs and face verification data are securely
+                  stored within authorized databases and server infrastructure
+                  controlled by the organization using the HRMS platform.
                 </p>
-                <p>Access is restricted to authorized personnel who require access for attendance and workforce management purposes.</p>
+                <p>
+                  Access is restricted to authorized personnel who require
+                  access for attendance and workforce management purposes.
+                </p>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">Face Data Retention:</h4>
-                <p className="mb-3">Face data is retained only for as long as necessary to:</p>
+                <h4 className="font-semibold text-gray-900">
+                  Face Data Retention:
+                </h4>
+                <p className="mb-3">
+                  Face data is retained only for as long as necessary to:
+                </p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li>Provide attendance management services.</li>
                   <li>Fulfill contractual obligations.</li>
@@ -221,13 +342,18 @@ const PrivacyPolicy = () => {
                   <li>Upon deletion of organizational records.</li>
                   <li>Upon a valid deletion request where applicable.</li>
                 </ul>
-                <p className="mt-3">Following the retention period, face data will be securely deleted or anonymized.</p>
+                <p className="mt-3">
+                  Following the retention period, face data will be securely
+                  deleted or anonymized.
+                </p>
               </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">6. Your Rights</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              6. Your Rights
+            </h2>
             <p className="text-gray-600 mb-4">You may have the right to:</p>
             <ul className="list-disc list-inside space-y-2 text-gray-600 ml-4">
               <li>Access your personal information.</li>
@@ -237,29 +363,53 @@ const PrivacyPolicy = () => {
               <li>Opt out of promotional communications.</li>
             </ul>
             <p className="text-gray-600 mt-4">
-              Organizations and users may also request access to, correction of, or deletion of face data, subject to applicable legal and operational requirements.
+              Organizations and users may also request access to, correction of,
+              or deletion of face data, subject to applicable legal and
+              operational requirements.
             </p>
-            <p className="text-gray-600 mt-4">Requests may be submitted using the contact details provided below.</p>
+            <p className="text-gray-600 mt-4">
+              Requests may be submitted using the contact details provided
+              below.
+            </p>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">7. Changes to this Privacy Policy</h2>
-            <p className="text-gray-600 mb-4">We may update this Privacy Policy from time to time.</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              7. Changes to this Privacy Policy
+            </h2>
+            <p className="text-gray-600 mb-4">
+              We may update this Privacy Policy from time to time.
+            </p>
             <p className="text-gray-600">
-              Any changes will become effective immediately upon publication on our Site. Continued use of the Services following any updates constitutes acceptance of the revised Privacy Policy.
+              Any changes will become effective immediately upon publication on
+              our Site. Continued use of the Services following any updates
+              constitutes acceptance of the revised Privacy Policy.
             </p>
           </div>
 
           <div className="mt-12 p-6 bg-gray-50 rounded-lg">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">8. Contact Information</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">
+              8. Contact Information
+            </h2>
             <p className="text-gray-600 mb-4 text-center">
-              If you have any questions, concerns, or requests regarding this Privacy Policy or the processing of your information, please contact us:
+              If you have any questions, concerns, or requests regarding this
+              Privacy Policy or the processing of your information, please
+              contact us:
             </p>
             <div className="space-y-2 text-sm text-gray-600 text-center">
-              <p><strong>CSENSE MANAGEMENT SOLUTIONS PRIVATE LIMITED</strong></p>
-              <p>106, First Floor, Osian Chloroplaza, Link Road, Porur, Chennai - 600116, Tamil Nadu, India</p>
-              <p><strong>Email:</strong> support@procease.co</p>
-              <p><strong>Phone:</strong> +91 9042894918</p>
+              <p>
+                <strong>CSENSE MANAGEMENT SOLUTIONS PRIVATE LIMITED</strong>
+              </p>
+              <p>
+                106, First Floor, Osian Chloroplaza, Link Road, Porur, Chennai -
+                600116, Tamil Nadu, India
+              </p>
+              <p>
+                <strong>Email:</strong> support@procease.co
+              </p>
+              <p>
+                <strong>Phone:</strong> +91 7397394918
+              </p>
             </div>
           </div>
         </div>
@@ -274,30 +424,95 @@ const PrivacyPolicy = () => {
                 <img src={logo} alt="HRMS Logo" className="h-16 w-16 mr-3" />
                 {/* <h3 className="text-lg font-semibold">HRMS</h3> */}
               </div>
-              <p className="text-gray-600">Comprehensive HR management solution for modern businesses.</p>
+              <p className="text-gray-600">
+                Comprehensive HR management solution for modern businesses.
+              </p>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-600">
-                <li><a href="/features" className="hover:text-gray-900 transition-colors">Features</a></li>
-                <li><a href="/pricing" className="hover:text-gray-900 transition-colors">Pricing</a></li>
-                <li><a href="/security" className="hover:text-gray-900 transition-colors">Security</a></li>
+                <li>
+                  <a
+                    href="/features"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/pricing"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Pricing
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/security"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Security
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-600">
-                <li><a href="/about" className="hover:text-gray-900 transition-colors">About Us</a></li>
-                <li><a href="/careers" className="hover:text-gray-900 transition-colors">Careers</a></li>
-                <li><a href="/contact" className="hover:text-gray-900 transition-colors">Contact</a></li>
+                <li>
+                  <a
+                    href="/about"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    About Us
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/careers"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Careers
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/contact"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Contact
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-gray-600">
-                <li><a href="/privacy-policy" className="hover:text-gray-900 transition-colors">Privacy Policy</a></li>
-                <li><a href="/terms-conditions" className="hover:text-gray-900 transition-colors">Terms and Conditions</a></li>
-                <li><a href="/refund-cancellation" className="hover:text-gray-900 transition-colors">Refund and Cancellation Policy</a></li>
+                <li>
+                  <a
+                    href="/privacy-policy"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Privacy Policy
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/terms-conditions"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Terms and Conditions
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/refund-cancellation"
+                    className="hover:text-gray-900 transition-colors"
+                  >
+                    Refund and Cancellation Policy
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

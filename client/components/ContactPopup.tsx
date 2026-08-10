@@ -5,7 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Send, MessageSquare } from "lucide-react";
 import { showToast } from "@/utils/toast";
-import { isOptionalPhoneValid, isValidEmail, normalizeEmail } from "@/lib/validation";
+import {
+  isOptionalPhoneValid,
+  isValidEmail,
+  normalizeEmail,
+} from "@/lib/validation";
 
 interface ContactPopupProps {
   isOpen: boolean;
@@ -18,10 +22,10 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
     email: "",
     phone: "",
     organization: "",
-    message: ""
+    message: "",
   });
   const [errors, setErrors] = useState({
-    phone: ""
+    phone: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -39,18 +43,20 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
     return "";
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
 
     // Real-time phone validation
     if (name === "phone") {
       const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
-      setFormData(prev => ({ ...prev, phone: digitsOnly }));
-      setErrors(prev => ({ ...prev, phone: validatePhone(digitsOnly) }));
+      setFormData((prev) => ({ ...prev, phone: digitsOnly }));
+      setErrors((prev) => ({ ...prev, phone: validatePhone(digitsOnly) }));
     }
   };
 
@@ -59,7 +65,12 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
 
     // Validate form data
-    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.message.trim()) {
+    if (
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.phone.trim() ||
+      !formData.message.trim()
+    ) {
       showToast.error("Please fill in all required fields");
       setIsSubmitting(false);
       return;
@@ -72,7 +83,7 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
     const phoneError = validatePhone(formData.phone);
     if (phoneError) {
       showToast.error(phoneError);
-      setErrors(prev => ({ ...prev, phone: phoneError }));
+      setErrors((prev) => ({ ...prev, phone: phoneError }));
       setIsSubmitting(false);
       return;
     }
@@ -103,9 +114,11 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
           email: "",
           phone: "",
           organization: "",
-          message: ""
+          message: "",
         });
-        showToast.success("Thank you for your message! We'll get back to you soon.");
+        showToast.success(
+          "Thank you for your message! We'll get back to you soon.",
+        );
         onClose();
       } else {
         showToast.error("Failed to send message. Please try again.");
@@ -120,14 +133,14 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
       // Trigger animation after a small delay
       setTimeout(() => setIsAnimating(true), 50);
     } else {
@@ -135,8 +148,8 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
 
@@ -159,8 +172,8 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
         style={{
           opacity: isAnimating ? 1 : 0,
           transform: isAnimating
-            ? 'scale(1) translateY(0) translateX(0)'
-            : 'scale(0.7) translateY(20px) translateX(0)',
+            ? "scale(1) translateY(0) translateX(0)"
+            : "scale(0.7) translateY(20px) translateX(0)",
         }}
       >
         {/* Header */}
@@ -184,7 +197,9 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium text-gray-700">Full Name *</Label>
+            <Label htmlFor="name" className="text-sm font-medium text-gray-700">
+              Full Name *
+            </Label>
             <Input
               id="name"
               name="name"
@@ -198,7 +213,12 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email *</Label>
+            <Label
+              htmlFor="email"
+              className="text-sm font-medium text-gray-700"
+            >
+              Email *
+            </Label>
             <Input
               id="email"
               name="email"
@@ -212,7 +232,10 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+            <Label
+              htmlFor="phone"
+              className="text-sm font-medium text-gray-700"
+            >
               Phone Number <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -223,12 +246,13 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
               maxLength={10}
               value={formData.phone}
               onChange={handleInputChange}
-              placeholder="9042894918"
+              placeholder="7397394918"
               required
-              className={`transition-all duration-200 ${errors.phone
+              className={`transition-all duration-200 ${
+                errors.phone
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                   : "border-gray-200 focus:border-green-500 focus:ring-green-500"
-                }`}
+              }`}
             />
             {errors.phone && (
               <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
@@ -237,7 +261,12 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="organization" className="text-sm font-medium text-gray-700">Organization</Label>
+            <Label
+              htmlFor="organization"
+              className="text-sm font-medium text-gray-700"
+            >
+              Organization
+            </Label>
             <Input
               id="organization"
               name="organization"
@@ -250,7 +279,12 @@ const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="message" className="text-sm font-medium text-gray-700">Message *</Label>
+            <Label
+              htmlFor="message"
+              className="text-sm font-medium text-gray-700"
+            >
+              Message *
+            </Label>
             <Textarea
               id="message"
               name="message"
