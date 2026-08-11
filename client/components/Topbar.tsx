@@ -48,6 +48,7 @@ export const Topbar: React.FC = () => {
   const getCurrentPageTitle = () => {
     const pathname = location.pathname;
 
+    if (pathname.startsWith("/hr/helpdesk")) return "HR Helpdesk";
     if (pathname.startsWith("/tickets")) return "Ticket Management";
     if (pathname.startsWith("/attendance")) return "Attendance Management";
     if (pathname.startsWith("/organization")) return "Organization Setup";

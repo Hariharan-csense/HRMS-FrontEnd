@@ -58,6 +58,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/attendance/log")) return "log";
         if (path.includes("/attendance/override")) return "override";
         if (path.includes("/attendance/shift")) return "shift";
+        if (path.includes("/attendance/roster")) return "roster";
         if (path.includes("/attendance/setup")) return "setup";
         return undefined;
       case "leave":
@@ -73,6 +74,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/payroll/process")) return "processing";
         if (path.includes("/payroll/payslips")) return "payslips";
         if (path.includes("/payroll/loans")) return "loans";
+        if (path.includes("/payroll/audit-trail")) return "audit_trail";
         return undefined;
       case "expenses":
         if (path.includes("/expenses/claims")) return "claims";

@@ -132,6 +132,7 @@ import {
   TrendingUp,
   ChevronsLeft,
   ChevronsRight,
+  Bot,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -311,6 +312,7 @@ const navigationItems: NavItem[] = [
       },
     ],
   },
+
   {
     label: "Field Force",
     icon: <MapPin className="w-5 h-5" />,
@@ -397,7 +399,7 @@ const navigationItems: NavItem[] = [
         moduleName: "attendance",
       },
       {
-        label: "Shift Management",
+        label: "Shift/Roster Planner",
         path: "/attendance/shift",
         roles: [],
         icon: <div />,
@@ -527,6 +529,14 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "payroll",
         subModuleName: "loans",
+      },
+      {
+        label: "Audit Trail",
+        path: "/payroll/audit-trail",
+        roles: [],
+        icon: <div />,
+        moduleName: "payroll",
+        subModuleName: "audit_trail",
       },
     ],
   },
@@ -824,6 +834,22 @@ const navigationItems: NavItem[] = [
     moduleName: "tickets",
     path: "/tickets",
   },
+
+  {
+    label: "HR Helpdesk",
+    icon: <HelpCircle className="w-5 h-5" />,
+    roles: [],
+    moduleName: "hr_helpdesk",
+    path: "/hr/helpdesk",
+  },
+
+  {
+    label: "AI Assistant",
+    icon: <Bot className="w-5 h-5" />,
+    roles: [],
+    moduleName: "ai_assistant",
+    path: "/ai-assistant",
+  },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -1056,6 +1082,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return "facial_recognition";
         if (path.includes("/attendance/log")) return "log";
         if (path.includes("/attendance/override")) return "override";
+        if (path.includes("/attendance/shift")) return "shift";
+        if (path.includes("/attendance/roster")) return "roster";
         if (path.includes("/attendance/setup")) return "setup";
         return undefined;
       case "leave":
@@ -1071,6 +1099,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (path.includes("/payroll/process")) return "processing";
         if (path.includes("/payroll/payslips")) return "payslips";
         if (path.includes("/payroll/loans")) return "loans";
+        if (path.includes("/payroll/audit-trail")) return "audit_trail";
         return undefined;
       case "expenses":
         if (path.includes("/expenses/claims")) return "claims";
@@ -1148,6 +1177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // never appear in the sidebar even if a child would otherwise pass a fallback.
     if (!isSuperAdmin) {
       if (item.label === "Dashboard") return true;
+      if (item.moduleName === "ai_assistant") return true;
 
       if (allowedModulesForPlan) {
         if (item.moduleName === undefined && !item.submenu?.length) return false;

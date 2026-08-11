@@ -27,6 +27,23 @@ export interface ShiftFilters {
   is_active?: boolean;
 }
 
+export interface ShiftRosterRow {
+  rosterId?: string | number | null;
+  employeeId: string | number;
+  employeeCode?: string;
+  employeeName?: string;
+  department?: string;
+  rosterDate?: string;
+  shiftId?: string | number | null;
+  shiftName?: string;
+  defaultShiftId?: string | number | null;
+  defaultShiftName?: string;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  notes?: string;
+}
+
 export const shiftApi = {
   // Get all shifts (with optional filters/pagination if backend supports)
   getShifts: async (filters?: ShiftFilters): Promise<{
@@ -102,6 +119,49 @@ export const shiftApi = {
     } catch (error: any) {
       return {
         error: error.response?.data?.message || "Failed to delete shift",
+      };
+    }
+  },
+
+  getRoster: async (params?: any): Promise<{
+    data?: ShiftRosterRow[];
+    summary?: any;
+    error?: string;
+  }> => {
+    try {
+      const response = await ENDPOINTS.getShiftRoster(params);
+      return {
+        data: response.data?.data || [],
+        summary: response.data?.summary || {},
+      };
+    } catch (error: any) {
+      return {
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch roster",
+      };
+    }
+  },
+
+  saveRoster: async (data: any): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      await ENDPOINTS.saveShiftRoster(data);
+      return { success: true };
+    } catch (error: any) {
+      return {
+        error: error.response?.data?.message || "Failed to save roster",
+      };
+    }
+  },
+
+  deleteRoster: async (id: string): Promise<{ success?: boolean; error?: string }> => {
+    try {
+      await ENDPOINTS.deleteShiftRoster(id);
+      return { success: true };
+    } catch (error: any) {
+      return {
+        error: error.response?.data?.message || "Failed to remove roster",
       };
     }
   },

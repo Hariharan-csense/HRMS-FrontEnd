@@ -112,6 +112,13 @@ interface EmployeeOption {
   lastName: string;
 }
 
+const getCurrentPayrollMonth = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 // Mock Attendance Data for payable days calculation
 const mockAttendanceRecords = [
   // EMP001 - April 2024
@@ -758,6 +765,9 @@ export default function PayrollSetup() {
   const payslipContentRef = useRef<HTMLDivElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [processingMonth, setProcessingMonth] = useState(
+    getCurrentPayrollMonth,
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewPayslipOpen, setIsViewPayslipOpen] = useState(false);
@@ -1290,7 +1300,9 @@ export default function PayrollSetup() {
       setError(null);
 
       try {
-        const result = await payrollApi.getPayrollProcessing();
+        const result = await payrollApi.getPayrollProcessing({
+          month: processingMonth,
+        });
         // console.log("Payroll processing API result:", result);
 
         if (result.data) {
@@ -1311,7 +1323,7 @@ export default function PayrollSetup() {
     };
 
     fetchPayrollProcessing();
-  }, [activeTab, canViewProcessPayroll]);
+  }, [activeTab, canViewProcessPayroll, processingMonth]);
 
   // Filter functions
   const filteredStructures = useMemo(() => {
@@ -1335,9 +1347,10 @@ export default function PayrollSetup() {
     // Apply search filter
     return filtered.filter((s) => {
       if (!searchTerm) return true;
+      const salaryMonth = (s as SalaryStructure & { month?: string }).month;
       return (
         s.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.month.includes(searchTerm)
+        salaryMonth?.includes(searchTerm)
       );
     });
   }, [salaryStructures, searchTerm, user]);
@@ -1437,6 +1450,10 @@ export default function PayrollSetup() {
     }
     // Admins and HR see all
 
+    if (processingMonth) {
+      filtered = filtered.filter((p) => p.month === processingMonth);
+    }
+
     // Apply search filter
     return filtered.filter((p) => {
       if (!searchTerm) return true;
@@ -1445,7 +1462,7 @@ export default function PayrollSetup() {
         p.month.includes(searchTerm)
       );
     });
-  }, [payrollProcessing, searchTerm, user]);
+  }, [payrollProcessing, processingMonth, searchTerm, user]);
 
   const processableEmployees = useMemo(() => {
     const seen = new Set<string>();
@@ -1566,10 +1583,13 @@ export default function PayrollSetup() {
         setPayslips(result.data);
       }
 
-      const processingResult = await payrollApi.getPayrollProcessing();
+      const processingResult = await payrollApi.getPayrollProcessing({
+        month,
+      });
       if (processingResult.data) {
         setPayrollProcessing(processingResult.data);
       }
+      setProcessingMonth(month);
 
       // Reset form
       setFormData({ employeeId: "", month: "" });
@@ -2482,18 +2502,44 @@ export default function PayrollSetup() {
                     </div>
                   </div>
 
-                  {/* Export Section */}
-                  {filteredProcessing.length > 0 && (
-                    <div className="mb-6 flex justify-end">
+                  <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div className="w-full md:w-64">
+                      <Label htmlFor="processing-month-filter">
+                        Processed Payroll Month
+                      </Label>
+                      <Input
+                        id="processing-month-filter"
+                        type="month"
+                        value={processingMonth}
+                        onChange={(e) =>
+                          setProcessingMonth(
+                            e.target.value || getCurrentPayrollMonth(),
+                          )
+                        }
+                        className="mt-2"
+                      />
+                    </div>
+                    {processingMonth !== getCurrentPayrollMonth() && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setProcessingMonth(getCurrentPayrollMonth())
+                        }
+                      >
+                        Current Month
+                      </Button>
+                    )}
+                    {filteredProcessing.length > 0 && (
                       <Button
                         onClick={handleExportPayrollToCSV}
-                        className="gap-2 bg-green-600 hover:bg-green-700"
+                        className="gap-2 bg-green-600 hover:bg-green-700 md:ml-auto"
                       >
                         <Download className="w-4 h-4" />
                         Export to CSV
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-4">

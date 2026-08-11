@@ -159,10 +159,12 @@ export const payrollApi = {
     }
   },
 
-  getPayrollProcessing: async (): Promise<{ data?: any; error?: string }> => {
+  getPayrollProcessing: async (
+    params?: { month?: string },
+  ): Promise<{ data?: any; error?: string }> => {
     try {
       // console.log('Fetching payroll processing data from /payroll endpoint');
-      const response = await api.get("/payroll");
+      const response = await api.get("/payroll", { params });
       // console.log('Raw payroll processing API response:', response.data);
 
       if (response.data && response.data.payrolls) {

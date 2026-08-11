@@ -1751,9 +1751,7 @@ const EmployeeDashboard = ({
         ] = await Promise.all([
           getEmployeeDashboardData(),
           leaveTypeApi.getLeaveBalances(),
-          api
-            .get("/kpi/scorecards/assigned-lead-indicators")
-            .catch(() => null),
+          api.get("/kpi/scorecards/assigned-lead-indicators").catch(() => null),
         ]);
 
         if (dashboardResult.error) {
@@ -1792,9 +1790,13 @@ const EmployeeDashboard = ({
               if (item.todayKey) {
                 nextLeadValues[
                   `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
-                ] = String(item.todayValue || nextLeadValues[
-                  `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
-                ] || "");
+                ] = String(
+                  item.todayValue ||
+                    nextLeadValues[
+                      `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
+                    ] ||
+                    "",
+                );
               }
             });
           }
@@ -1986,9 +1988,8 @@ const EmployeeDashboard = ({
         </div>
       </div>
 
-      {groupAssignedLeadIndicators(
-        dashboardData?.assignedLeadIndicators || [],
-      ).length > 0 && (
+      {groupAssignedLeadIndicators(dashboardData?.assignedLeadIndicators || [])
+        .length > 0 && (
         <Card className="chart-container border-0 shadow-xl">
           <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-xl">
             <CardTitle className="flex items-center gap-2 text-gray-800 font-bold">
@@ -2024,7 +2025,9 @@ const EmployeeDashboard = ({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setActiveLeadIndicatorGroupKey(group.key)}
+                        onClick={() =>
+                          setActiveLeadIndicatorGroupKey(group.key)
+                        }
                         className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                       >
                         Fill Indicators
@@ -2124,7 +2127,9 @@ const EmployeeDashboard = ({
                       </thead>
                       <tbody>
                         {activeGroup.items.map((item, itemIndex) => (
-                          <tr key={`${item.parameterId}-${item.indicatorIndex}`}>
+                          <tr
+                            key={`${item.parameterId}-${item.indicatorIndex}`}
+                          >
                             <td className="whitespace-nowrap border border-slate-200 bg-white px-2 py-2 text-center text-sm text-slate-600">
                               1.{itemIndex + 1}
                             </td>
@@ -2196,7 +2201,9 @@ const EmployeeDashboard = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => void saveAssignedLeadIndicatorGroup(activeGroup)}
+                  onClick={() =>
+                    void saveAssignedLeadIndicatorGroup(activeGroup)
+                  }
                   disabled={savingLeadIndicatorKey === activeGroup.key}
                   className="w-full rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 >

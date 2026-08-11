@@ -131,6 +131,15 @@ export default function ReportsAnalytics() {
   // Define types
   interface PayrollSummary {
     totalEmployees?: number;
+    processedEmployees?: number;
+    pendingPayroll?: number;
+    grossSalary?: string;
+    totalDeductions?: string;
+    netSalary?: string;
+    employerContributions?: string;
+    totalPayrollCost?: string;
+    lopDays?: number;
+    paidDays?: number;
     avgSalary?: string;
     totalPayroll?: string;
     ytdAmount?: string;
@@ -648,6 +657,27 @@ export default function ReportsAnalytics() {
     URL.revokeObjectURL(url);
   };
 
+  const formatExportDate = (value: any) => {
+    if (!value) return "";
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      const [year, month, day] = value.slice(0, 10).split("-");
+      const monthName = new Date(Number(year), Number(month) - 1, 1)
+        .toLocaleString("en-US", { month: "short" })
+        .replace(".", "");
+      return `${day}-${monthName}-${year}`;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+
+    const day = String(parsed.getDate()).padStart(2, "0");
+    const month = parsed
+      .toLocaleString("en-US", { month: "short" })
+      .replace(".", "");
+    const year = parsed.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
   const formatExpenseModelDate = (value: any) => {
     if (!value) return "";
     const date = new Date(value);
@@ -872,6 +902,10 @@ export default function ReportsAnalytics() {
           "Date",
           "Status",
           "Hours worked (HH:MM:SS)",
+          "Overall Time (HH:MM:SS)",
+          "Break Time (HH:MM:SS)",
+          "Sessions",
+          "Session Details",
           "Late Arrival (HH:MM:SS)",
           "Early Departure (HH:MM:SS)",
           "Overtime (HH:MM:SS)",
@@ -1020,6 +1054,14 @@ export default function ReportsAnalytics() {
             "Hours worked (HH:MM:SS)": fmtDuration(
               get("hoursWorked", "hours_worked", "total_hours", "duration"),
             ),
+            "Overall Time (HH:MM:SS)": fmtDuration(
+              get("overallDuration", "overall_hours_duration", "overallHours"),
+            ),
+            "Break Time (HH:MM:SS)": fmtDuration(
+              get("breakDuration", "break_hours_duration", "breakHours"),
+            ),
+            Sessions: get("sessionCount", "session_count"),
+            "Session Details": get("sessionDetails", "session_details"),
             "Late Arrival (HH:MM:SS)": fmtDuration(
               get("lateArrival", "late_by"),
             ),
@@ -1300,6 +1342,12 @@ export default function ReportsAnalytics() {
                 ? value.join("; ")
                 : JSON.stringify(value);
             }
+            if (
+              reportType === "leave" &&
+              ["fromDate", "toDate", "overrideDate"].includes(header)
+            ) {
+              value = formatExportDate(value);
+            }
             row[formattedHeaders[index]] = value ?? "";
           });
           return row;
@@ -1308,6 +1356,16 @@ export default function ReportsAnalytics() {
         if (format === "xlsx") {
           const workbook = XLSX.utils.book_new();
           const worksheet = XLSX.utils.json_to_sheet(normalizedRows);
+          worksheet["!cols"] = formattedHeaders.map((header) => {
+            if (["From Date", "To Date", "Override Date"].includes(header)) {
+              return { wch: 16 };
+            }
+            const maxValueLength = normalizedRows.reduce((max, row: any) => {
+              const value = String(row?.[header] ?? "");
+              return Math.max(max, value.length);
+            }, String(header).length);
+            return { wch: Math.min(Math.max(maxValueLength + 2, 12), 42) };
+          });
           XLSX.utils.book_append_sheet(
             workbook,
             worksheet,
@@ -1600,6 +1658,16 @@ export default function ReportsAnalytics() {
           if (payrollResult?.summary) {
             setPayrollSummary({
               totalEmployees: payrollResult.summary.totalEmployees,
+              processedEmployees: payrollResult.summary.processedEmployees,
+              pendingPayroll: payrollResult.summary.pendingPayroll,
+              grossSalary: payrollResult.summary.grossSalary,
+              totalDeductions: payrollResult.summary.totalDeductions,
+              netSalary: payrollResult.summary.netSalary,
+              employerContributions:
+                payrollResult.summary.employerContributions,
+              totalPayrollCost: payrollResult.summary.totalPayrollCost,
+              lopDays: payrollResult.summary.lopDays,
+              paidDays: payrollResult.summary.paidDays,
               avgSalary: payrollResult.summary.avgSalary,
               totalPayroll: payrollResult.summary.totalPayroll,
               ytdAmount: payrollResult.summary.ytdAmount,
@@ -1687,6 +1755,24 @@ export default function ReportsAnalytics() {
     return `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
   };
 
+  const formatReportDuration = (value: any) => {
+    if (value === null || value === undefined || value === "")
+      return "00:00:00";
+    if (typeof value === "string") {
+      const match = value.trim().match(/^(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
+      if (match) {
+        return `${String(Number(match[1])).padStart(2, "0")}:${match[2]}:${match[3] || "00"}`;
+      }
+    }
+    const hours = Number(value || 0);
+    if (!Number.isFinite(hours)) return "00:00:00";
+    const totalSeconds = Math.round(hours * 3600);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
   const ReportTable = ({ title, rows, columns }: any) => (
     <Card className="border-0 shadow-xl">
       <CardHeader className="pb-4 border-b border-slate-200">
@@ -1741,6 +1827,35 @@ export default function ReportsAnalytics() {
     </Card>
   );
 
+  const attendanceColumns = [
+    { key: "employeeCode", label: "Employee Code" },
+    { key: "employeeName", label: "Employee Name" },
+    { key: "department", label: "Department" },
+    { key: "date", label: "Date" },
+    { key: "status", label: "Status" },
+    { key: "checkInTime", label: "First Check In" },
+    { key: "checkOutTime", label: "Last Check Out" },
+    {
+      key: "overallDuration",
+      label: "Overall Time",
+      render: (row: any) =>
+        formatReportDuration(row.overallDuration || row.overallHours),
+    },
+    {
+      key: "breakDuration",
+      label: "Break Time",
+      render: (row: any) =>
+        formatReportDuration(row.breakDuration || row.breakHours),
+    },
+    { key: "sessionCount", label: "Sessions" },
+    { key: "sessionDetails", label: "Session Details" },
+    {
+      key: "overtimeHours",
+      label: "Overtime",
+      render: (row: any) => formatReportDuration(row.overtimeHours),
+    },
+  ];
+
   const leaveColumns = [
     { key: "employeeCode", label: "Employee Code" },
     { key: "employeeName", label: "Employee Name" },
@@ -1780,27 +1895,36 @@ export default function ReportsAnalytics() {
     { key: "employeeCode", label: "Employee Code" },
     { key: "employeeName", label: "Employee Name" },
     { key: "department", label: "Department" },
-    { key: "month", label: "Payroll Month" },
-    {
-      key: "basicSalary",
-      label: "Basic",
-      render: (row: any) => formatCurrency(row.basicSalary),
-    },
-    {
-      key: "grossAmount",
-      label: "Gross",
-      render: (row: any) => formatCurrency(row.grossAmount),
-    },
-    { key: "totalDays", label: "Total Days" },
+    { key: "designation", label: "Designation" },
+    { key: "workingDays", label: "Working Days" },
     { key: "presentDays", label: "Present Days" },
-    { key: "absentDays", label: "Absent Days" },
-    { key: "approvedLeaveDays", label: "Leave Days" },
-    { key: "payableDays", label: "Payable Days" },
+    { key: "paidDays", label: "Paid Days" },
     { key: "lopDays", label: "LOP Days" },
     {
-      key: "lopAmount",
-      label: "LOP Amount",
-      render: (row: any) => formatCurrency(row.lopAmount),
+      key: "basicSalary",
+      label: "Basic Salary",
+      render: (row: any) => formatCurrency(row.basicSalary),
+    },
+    { key: "hra", label: "HRA", render: (row: any) => formatCurrency(row.hra) },
+    {
+      key: "allowances",
+      label: "Allowances",
+      render: (row: any) => formatCurrency(row.allowances),
+    },
+    {
+      key: "overtime",
+      label: "Overtime",
+      render: (row: any) => formatCurrency(row.overtime),
+    },
+    {
+      key: "bonus",
+      label: "Bonus",
+      render: (row: any) => formatCurrency(row.bonus),
+    },
+    {
+      key: "grossEarnings",
+      label: "Gross Earnings",
+      render: (row: any) => formatCurrency(row.grossEarnings),
     },
     { key: "pf", label: "PF", render: (row: any) => formatCurrency(row.pf) },
     { key: "esi", label: "ESI", render: (row: any) => formatCurrency(row.esi) },
@@ -1817,22 +1941,29 @@ export default function ReportsAnalytics() {
     },
     {
       key: "deductions",
-      label: "Total Deductions",
-      render: (row: any) => formatCurrency(row.deductions),
+      label: "Total Deduction",
+      render: (row: any) => formatCurrency(row.totalDeduction ?? row.deductions),
     },
     {
-      key: "netPay",
-      label: "Net Pay",
-      render: (row: any) => formatCurrency(row.netPay ?? row.payrollAmount),
+      key: "netSalary",
+      label: "Net Salary",
+      render: (row: any) => formatCurrency(row.netSalary ?? row.netPay),
     },
     {
-      key: "details",
-      label: "Processed Payroll Details",
-      render: (row: any) =>
-        `HRA ${formatCurrency(row.hra)} | Allowances ${formatCurrency(row.allowances)} | Incentives ${formatCurrency(row.incentives)}`,
+      key: "employerPF",
+      label: "Employer PF",
+      render: (row: any) => formatCurrency(row.employerPF),
     },
-    { key: "payrollDate", label: "Payroll Date" },
-    { key: "status", label: "Status" },
+    {
+      key: "employerESI",
+      label: "Employer ESI",
+      render: (row: any) => formatCurrency(row.employerESI),
+    },
+    {
+      key: "totalCTC",
+      label: "Total CTC",
+      render: (row: any) => formatCurrency(row.totalCTC),
+    },
   ];
 
   // Add filter controls component
@@ -2285,7 +2416,7 @@ export default function ReportsAnalytics() {
                               ? "Absent"
                               : "On Leave",
                           value: attendanceSummary?.onLeave ?? 0,
-                          gradient: "from-cyan-500 via-cyan-600 to-cyan-700",
+                          gradient: "from-red-500 via-red-600 to-red-700",
                           icon: "🏖️",
                           tooltip:
                             filters.month || filters.day
@@ -2321,9 +2452,9 @@ export default function ReportsAnalytics() {
                 </Card>
 
                 <ReportTable
-                  title="Leave Report Details"
-                  rows={leaveRows}
-                  columns={leaveColumns}
+                  title="Attendance Report Details"
+                  rows={filteredAttendanceRows}
+                  columns={attendanceColumns}
                 />
               </div>
             )}
@@ -2453,39 +2584,58 @@ export default function ReportsAnalytics() {
                       {[
                         {
                           label: "Total Employees",
-                          value:
-                            (leaveSummary?.totalEmployees ?? 0) > 0
-                              ? leaveSummary?.totalEmployees
-                              : 125,
+                          value: leaveSummary?.totalEmployees ?? 0,
                           gradient:
                             "from-purple-500 via-purple-600 to-purple-700",
                           icon: "👥",
                         },
                         {
-                          label: "Approved Leaves",
+                          label: "Approved",
                           value:
-                            (leaveSummary?.approvedLeaves ?? 0) > 0
-                              ? leaveSummary?.approvedLeaves
-                              : 42,
+                            leaveSummary?.approved ??
+                            leaveSummary?.approvedLeaves ??
+                            0,
                           gradient: "from-green-500 via-green-600 to-green-700",
                           icon: "✅",
                         },
                         {
-                          label: "Pending Requests",
+                          label: "Pending",
                           value:
-                            (leaveSummary?.pendingRequests ?? 0) > 0
-                              ? leaveSummary?.pendingRequests
-                              : 8,
+                            leaveSummary?.pending ??
+                            leaveSummary?.pendingRequests ??
+                            0,
                           gradient:
                             "from-orange-500 via-orange-600 to-orange-700",
                           icon: "⏳",
                         },
                         {
-                          label: "Avg Days Used",
-                          value:
-                            (leaveSummary?.avgDaysUsed ?? 0) > 0
-                              ? leaveSummary?.avgDaysUsed
-                              : 6.5,
+                          label: "Total Leave Requests",
+                          value: leaveSummary?.totalLeaveRequests ?? 0,
+                          gradient: "from-blue-500 via-blue-600 to-blue-700",
+                          icon: "Req",
+                        },
+                        {
+                          label: "Total Leave Days",
+                          value: leaveSummary?.totalLeaveDays ?? 0,
+                          gradient: "from-cyan-500 via-cyan-600 to-cyan-700",
+                          icon: "Days",
+                        },
+                        {
+                          label: "Paid Leave Days",
+                          value: leaveSummary?.paidLeaveDays ?? 0,
+                          gradient:
+                            "from-emerald-500 via-emerald-600 to-emerald-700",
+                          icon: "Paid",
+                        },
+                        {
+                          label: "LOP Days",
+                          value: leaveSummary?.lopDays ?? 0,
+                          gradient: "from-rose-500 via-rose-600 to-rose-700",
+                          icon: "LOP",
+                        },
+                        {
+                          label: "Rejected",
+                          value: leaveSummary?.rejected ?? 0,
                           gradient: "from-cyan-500 via-cyan-600 to-cyan-700",
                           icon: "📅",
                         },
@@ -2518,9 +2668,9 @@ export default function ReportsAnalytics() {
                 </Card>
 
                 <ReportTable
-                  title="Payroll Report Details"
-                  rows={payrollRows}
-                  columns={payrollColumns}
+                  title="Leave Report Details"
+                  rows={leaveRows}
+                  columns={leaveColumns}
                 />
               </div>
             )}
@@ -2617,7 +2767,7 @@ export default function ReportsAnalytics() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       {[
                         {
                           label: "Total Employees",
@@ -2626,6 +2776,67 @@ export default function ReportsAnalytics() {
                           gradient:
                             "from-purple-500 via-purple-600 to-purple-700",
                           icon: "👥",
+                        },
+                        {
+                          label: "Processed Employees",
+                          value:
+                            payrollSummary.processedEmployees?.toString() ||
+                            "0",
+                          gradient:
+                            "from-indigo-500 via-indigo-600 to-indigo-700",
+                          icon: "OK",
+                        },
+                        {
+                          label: "Pending Payroll",
+                          value:
+                            payrollSummary.pendingPayroll?.toString() || "0",
+                          gradient:
+                            "from-orange-500 via-orange-600 to-orange-700",
+                          icon: "...",
+                        },
+                        {
+                          label: "Gross Salary",
+                          value: payrollSummary.grossSalary || "0",
+                          gradient: "from-green-500 via-green-600 to-green-700",
+                          icon: "G",
+                        },
+                        {
+                          label: "Total Deductions",
+                          value: payrollSummary.totalDeductions || "0",
+                          gradient: "from-red-500 via-red-600 to-red-700",
+                          icon: "-",
+                        },
+                        {
+                          label: "Net Salary",
+                          value: payrollSummary.netSalary || "0",
+                          gradient: "from-cyan-500 via-cyan-600 to-cyan-700",
+                          icon: "N",
+                        },
+                        {
+                          label: "Employer Contributions",
+                          value:
+                            payrollSummary.employerContributions || "0",
+                          gradient: "from-blue-500 via-blue-600 to-blue-700",
+                          icon: "ER",
+                        },
+                        {
+                          label: "Total Payroll Cost",
+                          value: payrollSummary.totalPayrollCost || "0",
+                          gradient: "from-teal-500 via-teal-600 to-teal-700",
+                          icon: "TC",
+                        },
+                        {
+                          label: "LOP Days",
+                          value: payrollSummary.lopDays?.toString() || "0",
+                          gradient: "from-rose-500 via-rose-600 to-rose-700",
+                          icon: "L",
+                        },
+                        {
+                          label: "Paid Days",
+                          value: payrollSummary.paidDays?.toString() || "0",
+                          gradient:
+                            "from-emerald-500 via-emerald-600 to-emerald-700",
+                          icon: "P",
                         },
                         {
                           label: "Avg Salary",
@@ -2673,6 +2884,12 @@ export default function ReportsAnalytics() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <ReportTable
+                  title="Payroll Report Details"
+                  rows={payrollRows}
+                  columns={payrollColumns}
+                />
               </div>
             )}
 
@@ -2774,10 +2991,48 @@ export default function ReportsAnalytics() {
                   </CardHeader>
 
                   <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       {[
                         {
-                          label: "Total Claims",
+                          label: "Total Expenses",
+                          value: expenseStats?.totalExpenses ?? "₹0",
+                          gradient: "from-blue-500 via-blue-600 to-blue-700",
+                          icon: "TE",
+                        },
+                        {
+                          label: "Approved",
+                          value: expenseStats?.approved ?? "₹0",
+                          gradient: "from-green-500 via-green-600 to-green-700",
+                          icon: "OK",
+                        },
+                        {
+                          label: "Pending",
+                          value: expenseStats?.pending ?? "₹0",
+                          gradient:
+                            "from-orange-500 via-orange-600 to-orange-700",
+                          icon: "...",
+                        },
+                        {
+                          label: "Rejected",
+                          value: expenseStats?.rejected ?? "₹0",
+                          gradient: "from-red-500 via-red-600 to-red-700",
+                          icon: "X",
+                        },
+                        {
+                          label: "Reimbursed",
+                          value: expenseStats?.reimbursed ?? "₹0",
+                          gradient:
+                            "from-emerald-500 via-emerald-600 to-emerald-700",
+                          icon: "R",
+                        },
+                        {
+                          label: "Pending Reimbursement",
+                          value: expenseStats?.pendingReimbursement ?? "₹0",
+                          gradient: "from-pink-500 via-pink-600 to-pink-700",
+                          icon: "PR",
+                        },
+                        {
+                          label: "No. of Claims",
                           value: expenseStats?.totalClaims ?? 0,
                           gradient: "from-blue-500 via-blue-600 to-blue-700",
                           icon: "📋",

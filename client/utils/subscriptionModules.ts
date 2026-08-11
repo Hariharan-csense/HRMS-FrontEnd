@@ -42,9 +42,23 @@ export const getAddonModuleAliases = (moduleKey?: string | null, name?: string |
   }
 
   if (key === "expenses" || text.includes("expense")) modules.add("expenses");
-  if (key === "tickets" || text.includes("ticket")) modules.add("tickets");
+  if (key === "tickets" || key === "hr_helpdesk" || text.includes("ticket") || text.includes("helpdesk")) {
+    modules.add("tickets");
+    modules.add("hr_helpdesk");
+  }
   if (key === "assets" || text.includes("asset")) modules.add("assets");
-  if (key === "payroll" || text.includes("payroll")) modules.add("payroll");
+  if (
+    key === "ai_assistant" ||
+    key === "ai_chat" ||
+    key === "chatbot" ||
+    text.includes("ai assistant") ||
+    text.includes("ai chat") ||
+    text.includes("chatbot")
+  ) {
+    modules.add("ai_assistant");
+  }
+  if (key === "payroll" || key === "payroll_audit" || text.includes("payroll")) modules.add("payroll");
+  if (key === "shift_roster" || key === "roster" || text.includes("roster")) modules.add("attendance");
   if (key === "hr_management" || text.includes("recruitment") || text.includes("rms")) modules.add("hr_management");
   if (key === "exit" || text.includes("offboarding")) modules.add("exit");
   if (key === "kpi" || text.includes("kpi")) modules.add("kpi");
@@ -111,6 +125,8 @@ const STANDARD_MODULES = [
   "assets",
   "live_tracking",
   "tickets",
+  "hr_helpdesk",
+  "ai_assistant",
   "role_access",
   "kpi",
 ];
@@ -165,11 +181,19 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
       modules.add("attendance");
       modules.add("shift management");
     }
+    if (line.includes("roster") || line.includes("shift planner")) modules.add("attendance");
 
     if (line.includes("leave")) modules.add("leave");
     if (line.includes("payroll")) modules.add("payroll");
     if (line.includes("expense")) modules.add("expenses");
     if (line.includes("asset")) modules.add("assets");
+    if (
+      line.includes("ai assistant") ||
+      line.includes("ai chat") ||
+      line.includes("chatbot")
+    ) {
+      modules.add("ai_assistant");
+    }
     if (line.includes("exit") || line.includes("offboarding")) modules.add("exit");
 
     if (line.includes("reports")) modules.add("reports");
@@ -199,7 +223,10 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
       modules.add("my_analytics");
     }
 
-    if (line.includes("ticket")) modules.add("tickets");
+    if (line.includes("ticket") || line.includes("helpdesk")) {
+      modules.add("tickets");
+      modules.add("hr_helpdesk");
+    }
     if (line.includes("pulse") || line.includes("survey")) modules.add("pulse_surveys");
   }
 };

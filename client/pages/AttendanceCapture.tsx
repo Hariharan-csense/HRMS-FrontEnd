@@ -686,8 +686,8 @@ export default function AttendanceCapture() {
       return;
     }
 
-    if (type === "check-in" && hasCheckedInToday) {
-      toast.error("You have already checked in today.");
+    if (type === "check-in" && isCheckedIn) {
+      toast.error("You are already checked in.");
       return;
     }
 
@@ -827,7 +827,10 @@ export default function AttendanceCapture() {
         },
       );
 
-      if (pendingAttendance.type === "check-out") {
+      if (
+        pendingAttendance.type === "check-out" &&
+        apiResponse.data?.shouldPromptDailyPulse
+      ) {
         setIsDailyPulseOpen(true);
       } else {
         setTimeout(() => {
@@ -959,9 +962,9 @@ export default function AttendanceCapture() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={() => captureAttendance("check-in")}
-                    disabled={isProcessing || hasCheckedInToday}
-                    variant={hasCheckedInToday ? "secondary" : "default"}
-                    className={`gap-2 ${hasCheckedInToday ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-[#17c491] hover:bg-[#12a978] text-white"}`}
+                    disabled={isProcessing || isCheckedIn}
+                    variant={isCheckedIn ? "secondary" : "default"}
+                    className={`gap-2 ${isCheckedIn ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-[#17c491] hover:bg-[#12a978] text-white"}`}
                     size="lg"
                   >
                     {isProcessing && (

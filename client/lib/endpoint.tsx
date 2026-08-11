@@ -5,8 +5,8 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.6:3000/backend";
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.9:3000/backend";
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -999,6 +999,9 @@ const ENDPOINTS = {
   deletePayrollProcessing: (id: string) =>
     api.delete(`/payroll/processing/${id}`),
 
+  getPayrollAuditTrail: (params?: any) =>
+    api.get("/payroll/audit-trail", { params }),
+
   getpayslip: () => api.get("/payroll"),
 
   getEmployeePayslips: () => api.get("/payroll/employee/payslips"),
@@ -1028,6 +1031,12 @@ const ENDPOINTS = {
   updateShift: (id: string, data: any) => api.put(`/shifts/${id}`, data),
 
   deleteShift: (id: string) => api.delete(`/shifts/${id}`),
+
+  getShiftRoster: (params?: any) => api.get("/shifts/roster", { params }),
+
+  saveShiftRoster: (data: any) => api.post("/shifts/roster", data),
+
+  deleteShiftRoster: (id: string) => api.delete(`/shifts/roster/${id}`),
 
   //dashboard
 
@@ -1360,6 +1369,18 @@ const ENDPOINTS = {
   deleteTicket: (id: string) => api.delete(`/tickets/${id}`),
 
   getTicketUsers: () => api.get("/tickets/users"),
+
+  getHrHelpdeskTickets: (params?: any) =>
+    api.get("/hr-helpdesk", { params }),
+
+  createHrHelpdeskTicket: (data: any) => api.post("/hr-helpdesk", data),
+
+  updateHrHelpdeskTicket: (id: string, data: any) =>
+    api.put(`/hr-helpdesk/${id}`, data),
+
+  getHrHelpdeskAssignees: () => api.get("/hr-helpdesk/assignees"),
+
+  sendAiAssistantMessage: (data: any) => api.post("/ai-assistant/chat", data),
 
   // Super Admin
 

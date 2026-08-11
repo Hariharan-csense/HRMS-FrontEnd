@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import ENDPOINTS from "@/lib/endpoint";
 import attendanceApi from "@/components/helper/attendance/attendance";
 import { cn } from "@/lib/utils";
+import AIAssistantChat from "@/components/AIAssistantChat";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -220,6 +221,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
       </div>
+      <AIAssistantChat />
     </div>
   );
 };

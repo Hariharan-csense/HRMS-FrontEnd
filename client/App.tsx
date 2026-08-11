@@ -44,6 +44,7 @@ import LeaveApprovals from "./pages/LeaveApprovals";
 import LeaveConfiguration from "./pages/LeaveConfiguration";
 import LeavePermission from "./pages/LeavePermission";
 import PayrollSetup from "./pages/PayrollSetup";
+import PayrollAuditTrail from "./pages/PayrollAuditTrail";
 import PayrollManagement from "./pages/PayrollManagement";
 import ExpenseClaims from "./pages/ExpenseClaims";
 import OrganizationSetup from "./pages/OrganizationSetup";
@@ -66,6 +67,8 @@ import ClientAttendanceAdmin from "./pages/ClientAttendanceAdmin";
 import SalesAttendanceReport from "./pages/SalesAttendanceReport";
 import ClientGeoFence from "./pages/ClientGeoFence";
 import TicketManagement from "./pages/TicketManagement";
+import HRHelpdesk from "./pages/HRHelpdesk";
+import AIAssistant from "./pages/AIAssistant";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SubscriptionManagement from "./pages/SubscriptionManagement";
 import SubscriptionPlansManagement from "./pages/SubscriptionPlansManagement";
@@ -943,6 +946,31 @@ function AppRoutes() {
                 </RoleBasedRoute>
               }
             />
+          }
+        />
+        <Route
+          path="/hr/helpdesk"
+          element={
+            <RoleBasedRoute requiredModule="hr_helpdesk" requiredAction="view">
+              <HRHelpdesk />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/ai-assistant"
+          element={
+            <RoleBasedRoute requiredModule="ai_assistant" requiredAction="view">
+              <AIAssistant />
+            </RoleBasedRoute>
+          }
+        />
+
+        <Route
+          path="/payroll/audit-trail"
+          element={
+            <RoleBasedRoute requiredModule="payroll" requiredAction="view">
+              <PayrollAuditTrail />
+            </RoleBasedRoute>
           }
         />
         <Route

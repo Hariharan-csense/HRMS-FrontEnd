@@ -9,6 +9,7 @@ import { Plus, Edit, Trash2, Clock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts"; // Adjust path if needed
+import ENDPOINTS from "@/lib/endpoint";
 
 export default function ShiftManagement() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -18,6 +19,16 @@ export default function ShiftManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Shift>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [rosterRows, setRosterRows] = useState<any[]>([]);
+  const [rosterSummary, setRosterSummary] = useState<any>({});
+  const [rosterForm, setRosterForm] = useState({
+    employeeId: "",
+    shiftId: "",
+    rosterDate: new Date().toISOString().slice(0, 10),
+    status: "scheduled",
+    notes: "",
+  });
 
   // Centralized function to load shifts
   const loadShifts = async () => {
@@ -32,10 +43,37 @@ export default function ShiftManagement() {
     setIsLoading(false);
   };
 
+  const loadRoster = async () => {
+    const { data, summary, error } = await shiftApi.getRoster({
+      startDate: rosterForm.rosterDate,
+      endDate: rosterForm.rosterDate,
+    });
+    if (error) {
+      toast.error(error);
+    } else {
+      setRosterRows(data || []);
+      setRosterSummary(summary || {});
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      const response = await ENDPOINTS.getReportFilters();
+      setEmployees(response.data?.data?.employees || []);
+    } catch (error) {
+      console.error("Failed to load employees for roster", error);
+    }
+  };
+
   // Load on mount
   useEffect(() => {
     loadShifts();
+    loadEmployees();
   }, []);
+
+  useEffect(() => {
+    loadRoster();
+  }, [rosterForm.rosterDate]);
 
   // Validate form data
   const validateForm = (): boolean => {
@@ -198,6 +236,40 @@ export default function ShiftManagement() {
     }
   };
 
+  const handleSaveRoster = async () => {
+    if (!rosterForm.employeeId || !rosterForm.shiftId || !rosterForm.rosterDate) {
+      toast.error("Employee, shift and date are required");
+      return;
+    }
+
+    const { error } = await shiftApi.saveRoster({
+      employeeId: rosterForm.employeeId,
+      shiftId: rosterForm.shiftId,
+      rosterDate: rosterForm.rosterDate,
+      status: rosterForm.status,
+      notes: rosterForm.notes,
+    });
+
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    toast.success("Roster assignment saved");
+    setRosterForm((prev) => ({ ...prev, employeeId: "", shiftId: "", notes: "" }));
+    await loadRoster();
+  };
+
+  const handleDeleteRoster = async (id: string) => {
+    const { error } = await shiftApi.deleteRoster(id);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    toast.success("Roster assignment removed");
+    await loadRoster();
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -291,6 +363,149 @@ export default function ShiftManagement() {
             ))}
           </div>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Shift/Roster Planner</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div>
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={rosterForm.rosterDate}
+                  onChange={(e) =>
+                    setRosterForm({ ...rosterForm, rosterDate: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Employee</Label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={rosterForm.employeeId}
+                  onChange={(e) =>
+                    setRosterForm({ ...rosterForm, employeeId: e.target.value })
+                  }
+                >
+                  <option value="">Select employee</option>
+                  {employees
+                    .filter((employee: any) => employee.id !== "all")
+                    .map((employee: any) => (
+                      <option key={employee.pkId || employee.id} value={employee.pkId || employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <Label>Shift</Label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={rosterForm.shiftId}
+                  onChange={(e) =>
+                    setRosterForm({ ...rosterForm, shiftId: e.target.value })
+                  }
+                >
+                  <option value="">Select shift</option>
+                  {shifts.map((shift) => (
+                    <option key={shift.id} value={shift.id}>
+                      {shift.name} ({shift.startTime} - {shift.endTime})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={rosterForm.status}
+                  onChange={(e) =>
+                    setRosterForm({ ...rosterForm, status: e.target.value })
+                  }
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="week_off">Week Off</option>
+                  <option value="holiday">Holiday</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <Button className="w-full" onClick={handleSaveRoster}>
+                  Save Roster
+                </Button>
+              </div>
+            </div>
+            <Input
+              placeholder="Notes"
+              value={rosterForm.notes}
+              onChange={(e) =>
+                setRosterForm({ ...rosterForm, notes: e.target.value })
+              }
+            />
+
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                ["Total Rows", rosterSummary.total || 0],
+                ["Assigned", rosterSummary.assigned || 0],
+                ["Unassigned", rosterSummary.unassigned || 0],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-md border p-3">
+                  <div className="text-xs text-muted-foreground">{label}</div>
+                  <div className="text-xl font-bold">{value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="p-3 text-left">Employee</th>
+                    <th className="p-3 text-left">Department</th>
+                    <th className="p-3 text-left">Date</th>
+                    <th className="p-3 text-left">Shift</th>
+                    <th className="p-3 text-left">Status</th>
+                    <th className="p-3 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rosterRows.length === 0 ? (
+                    <tr>
+                      <td className="p-4 text-center text-muted-foreground" colSpan={6}>
+                        No roster assignments for this date
+                      </td>
+                    </tr>
+                  ) : (
+                    rosterRows.map((row: any) => (
+                      <tr key={`${row.employeeId}-${row.rosterId || row.rosterDate}`} className="border-t">
+                        <td className="p-3">
+                          {row.employeeName || row.employeeCode}
+                          <div className="text-xs text-muted-foreground">{row.employeeCode}</div>
+                        </td>
+                        <td className="p-3">{row.department || "-"}</td>
+                        <td className="p-3">{row.rosterDate || rosterForm.rosterDate}</td>
+                        <td className="p-3">{row.shiftName || row.defaultShiftName || "Unassigned"}</td>
+                        <td className="p-3">{row.status || "default"}</td>
+                        <td className="p-3">
+                          {row.rosterId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRoster(String(row.rosterId))}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
