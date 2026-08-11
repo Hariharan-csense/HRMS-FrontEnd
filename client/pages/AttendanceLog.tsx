@@ -1015,6 +1015,23 @@ export default function AttendanceLog() {
       let mappedLogs: AttendanceLogRecord[] = [];
 
       if (attendanceData.length > 0) {
+        // Used to avoid marking late/half-day on subsequent break-session check-ins.
+        // We treat only the FIRST punch of a day (per employee) as eligible for shift-based late calculation.
+        const firstCheckInByEmployeeDay = new Map<string, string>();
+        for (const item of attendanceData) {
+          if (!item?.check_in) continue;
+          const dayKey = new Date(item.check_in).toISOString().slice(0, 10);
+          const employeeKey = String(item.employee_id ?? "");
+          if (!employeeKey) continue;
+          const mapKey = `${employeeKey}|${dayKey}`;
+          const prev = firstCheckInByEmployeeDay.get(mapKey);
+          const currTs = new Date(item.check_in).getTime();
+          const prevTs = prev ? new Date(prev).getTime() : null;
+          if (!prev || (prevTs !== null && currTs < prevTs)) {
+            firstCheckInByEmployeeDay.set(mapKey, item.check_in);
+          }
+        }
+
         // Map backend response → frontend interface
         mappedLogs = attendanceData.map((item: any) => {
           const parseGeoLocation = (
@@ -1149,40 +1166,53 @@ export default function AttendanceLog() {
           if (item.check_in && item.shift_id) {
             const attendanceDate =
               getDate(item.check_in, item.created_at) || "";
-            const shiftCalculation = calculateAttendanceStatus(
-              item.check_in,
-              item.shift_id.toString(),
-              attendanceDate,
-            );
+            const employeeKey = String(item.employee_id ?? "");
+            const mapKey = `${employeeKey}|${attendanceDate}`;
+            const firstCheckInIso = firstCheckInByEmployeeDay.get(mapKey);
+            const isFirstPunchForUI = firstCheckInIso
+              ? new Date(firstCheckInIso).getTime() ===
+                new Date(item.check_in).getTime()
+              : true;
 
-            // Keep backend late/grace as-is; otherwise upgrade present using shift calculation
-            if (
-              item.status !== "late" &&
-              item.status !== "grace" &&
-              item.status === "present" &&
-              shiftCalculation.status === "late"
-            ) {
-              actualStatus = "late";
-            } else if (
-              item.status === "present" &&
-              shiftCalculation.status === "grace"
-            ) {
-              actualStatus = "grace";
+            // Skip shift-based late/grace upgrade for subsequent sessions (after break).
+            if (!isFirstPunchForUI) {
+              // keep actualStatus from backend (expected: present)
+            } else {
+              const shiftCalculation = calculateAttendanceStatus(
+                item.check_in,
+                item.shift_id.toString(),
+                attendanceDate,
+              );
+
+              // Keep backend late/grace as-is; otherwise upgrade present using shift calculation
+              if (
+                item.status !== "late" &&
+                item.status !== "grace" &&
+                item.status === "present" &&
+                shiftCalculation.status === "late"
+              ) {
+                actualStatus = "late";
+              } else if (
+                item.status === "present" &&
+                shiftCalculation.status === "grace"
+              ) {
+                actualStatus = "grace";
+              }
+
+              if (actualStatus === "late") {
+                calculatedLateBy = shiftCalculation.lateBy || "";
+              }
+
+              // console.log("Shift-based attendance calculation:", {
+              //   employee: item.first_name,
+              //   checkIn: item.check_in,
+              //   shiftId: item.shift_id,
+              //   backendStatus: item.status,
+              //   finalStatus: actualStatus,
+              //   lateBy: shiftCalculation.lateBy,
+              //   reason: shiftCalculation.reason,
+              // });
             }
-
-            if (actualStatus === "late") {
-              calculatedLateBy = shiftCalculation.lateBy || "";
-            }
-
-            // console.log("Shift-based attendance calculation:", {
-            //   employee: item.first_name,
-            //   checkIn: item.check_in,
-            //   shiftId: item.shift_id,
-            //   backendStatus: item.status,
-            //   finalStatus: actualStatus,
-            //   lateBy: shiftCalculation.lateBy,
-            //   reason: shiftCalculation.reason,
-            // });
           } else if (!item.check_in && item.status === "absent") {
             // If no check_in and status is absent, it might be unmarked attendance
             actualStatus = "unmarked";
@@ -2760,28 +2790,108 @@ export default function AttendanceLog() {
                                   )}
                                 </div>
                               </div>
-                              <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap items-start gap-x-3 gap-y-1 text-sm text-gray-600">
-                                <span className="whitespace-nowrap">
-                                  Check-in: {record.inTime || "—"}
-                                </span>
-                                <span className="whitespace-nowrap">
-                                  Check-out: {record.outTime || "—"}
-                                </span>
-                                <span className="whitespace-nowrap">
-                                  Hours:{" "}
-                                  {record.hoursWorked > 0
-                                    ? `${record.hoursWorked.toFixed(2)}h`
-                                    : "—"}
-                                </span>
-                                {record.clientName && (
-                                  <span className="col-span-2 whitespace-nowrap font-medium text-emerald-700">
-                                    Client: {record.clientName}
-                                    {record.clientCode
-                                      ? ` (${record.clientCode})`
-                                      : ""}
-                                  </span>
-                                )}
-                              </div>
+                              {(() => {
+                                // All sessions for this employee on this date, sorted by check-in asc
+                                const empSessions = selectedDateRecords
+                                  .filter(
+                                    (r) =>
+                                      String(r.employeeId) ===
+                                      String(record.employeeId),
+                                  )
+                                  .slice()
+                                  .sort((a, b) => {
+                                    const ta = a.inTime
+                                      ? new Date(`1970-01-01T${a.inTime}:00`).getTime()
+                                      : 0;
+                                    const tb = b.inTime
+                                      ? new Date(`1970-01-01T${b.inTime}:00`).getTime()
+                                      : 0;
+                                    return ta - tb;
+                                  });
+
+                                const isFirstSession =
+                                  empSessions.length > 0 &&
+                                  empSessions[0].id === record.id;
+
+                                // Total worked hours across all sessions
+                                const dayTotalHours = empSessions.reduce(
+                                  (sum, r) => sum + (Number(r.hoursWorked) || 0),
+                                  0,
+                                );
+
+                                // Total break minutes = sum of gaps between session[i].outTime and session[i+1].inTime
+                                let totalBreakMinutes = 0;
+                                for (let i = 0; i < empSessions.length - 1; i++) {
+                                  const outRaw = empSessions[i].outTime;
+                                  const inRaw = empSessions[i + 1].inTime;
+                                  if (outRaw && inRaw) {
+                                    const outMs = new Date(`1970-01-01T${outRaw}:00`).getTime();
+                                    const inMs = new Date(`1970-01-01T${inRaw}:00`).getTime();
+                                    const diffMin = Math.round((inMs - outMs) / 60000);
+                                    if (diffMin > 0) totalBreakMinutes += diffMin;
+                                  }
+                                }
+
+                                const formatBreak = (mins: number) => {
+                                  if (mins <= 0) return null;
+                                  const h = Math.floor(mins / 60);
+                                  const m = mins % 60;
+                                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                };
+
+                                const breakLabel = formatBreak(totalBreakMinutes);
+                                const hasMultipleSessions = empSessions.length > 1;
+
+                                return (
+                                  <>
+                                    <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap items-start gap-x-3 gap-y-1 text-sm text-gray-600">
+                                      <span className="whitespace-nowrap">
+                                        Check-in: {record.inTime || "—"}
+                                      </span>
+                                      <span className="whitespace-nowrap">
+                                        Check-out: {record.outTime || "—"}
+                                      </span>
+                                      {isFirstSession && (
+                                        <span className="whitespace-nowrap font-medium text-blue-700">
+                                          Total Worked:{" "}
+                                          {dayTotalHours > 0
+                                            ? `${dayTotalHours.toFixed(2)}h`
+                                            : "—"}
+                                        </span>
+                                      )}
+                                      {isFirstSession && hasMultipleSessions && breakLabel && (
+                                        <span className="whitespace-nowrap font-medium text-orange-600">
+                                          ☕ Break: {breakLabel}
+                                        </span>
+                                      )}
+                                      {record.clientName && (
+                                        <span className="col-span-2 whitespace-nowrap font-medium text-emerald-700">
+                                          Client: {record.clientName}
+                                          {record.clientCode
+                                            ? ` (${record.clientCode})`
+                                            : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {isFirstSession && hasMultipleSessions && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {empSessions.map((s, idx) => (
+                                          <span
+                                            key={s.id}
+                                            className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
+                                          >
+                                            Session {idx + 1}:{" "}
+                                            {s.inTime || "—"} → {s.outTime || "ongoing"}
+                                            {Number(s.hoursWorked) > 0
+                                              ? ` (${Number(s.hoursWorked).toFixed(2)}h)`
+                                              : ""}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
 
                               {/* Attendance Photos */}
                               <div className="mt-4">
