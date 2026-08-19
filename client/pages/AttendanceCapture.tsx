@@ -1476,14 +1476,14 @@ export default function AttendanceCapture() {
           </div>
 
           <DialogFooter className="gap-2 pt-2">
-            <Button
+            {/* <Button
               variant="outline"
               onClick={skipDailyPulse}
               disabled={isSubmittingDailyPulse}
               className="w-full sm:w-auto"
             >
               Skip
-            </Button>
+            </Button> */}
             <Button
               onClick={submitDailyPulse}
               disabled={isSubmittingDailyPulse || dailyPulseScore === null}

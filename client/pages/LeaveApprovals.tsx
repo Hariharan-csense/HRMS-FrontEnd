@@ -96,6 +96,7 @@ const getLeaveApplications = async (): Promise<{
           la.employee_id?.toString() || la.employeeId?.toString() || "",
         employeeName: la.employee_name || la.employeeName || "Unknown Employee",
         leaveType:
+          la.configured_leave_type_name ||
           la.leave_type_name ||
           la.leave_type ||
           la.leaveType ||

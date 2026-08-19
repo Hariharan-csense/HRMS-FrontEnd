@@ -824,13 +824,16 @@ export default function LeaveManagement() {
     });
 
     if (isAdminUser && !isHrUser) {
-      const filtered = baseUsers.filter((u: any) => inferUserRole(u) === "hr");
+      const filtered = baseUsers.filter((u: any) => {
+        const role = inferUserRole(u);
+        return role === "hr" || role === "ceo";
+      });
       return filtered.length > 0
         ? filtered
         : baseUsers.filter((u: any) => {
             const txt =
               `${u?.role || ""} ${u?.designation || ""} ${u?.designationName || ""} ${u?.designation_name || ""}`.toLowerCase();
-            return txt.includes("hr");
+            return txt.includes("hr") || txt.includes("ceo");
           });
     }
 
