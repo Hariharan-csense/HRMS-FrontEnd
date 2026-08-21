@@ -94,6 +94,10 @@ interface EmployeeListItem extends Employee {
   shiftName?: string;
   branchId?: string;
   branchName?: string;
+  salary_type?: "MONTHLY" | "HOURLY";
+  monthly_salary?: number;
+  hourly_rate?: number;
+  overtime_hourly_rate?: number;
 }
 
 type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
@@ -104,6 +108,10 @@ type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
   officePhone?: string;
   officeEmail?: string;
   salary?: number;
+  salaryType?: "MONTHLY" | "HOURLY";
+  monthlySalary?: number;
+  hourlyRate?: number;
+  overtimeHourlyRate?: number;
 };
 
 const initialFormData: FormData = {
@@ -132,6 +140,10 @@ const initialFormData: FormData = {
   role: "",
   location: "",
   salary: 0,
+  salaryType: "MONTHLY",
+  monthlySalary: 0,
+  hourlyRate: 0,
+  overtimeHourlyRate: 0,
   aadhaar: "",
   pan: "",
   uan: "",
@@ -957,6 +969,10 @@ export default function EmployeeList() {
         role: getCanonicalRoleValue(employee.role, roles),
         location: employee.location || "",
         salary: employee.salary || 0,
+        salaryType: (employee as any).salary_type || "MONTHLY",
+        monthlySalary: Number((employee as any).monthly_salary ?? employee.salary) || 0,
+        hourlyRate: Number((employee as any).hourly_rate) || 0,
+        overtimeHourlyRate: Number((employee as any).overtime_hourly_rate) || 0,
         aadhaar: employee.aadhaar || "",
         pan: employee.pan || "",
         uan: employee.uan || "",
@@ -1452,6 +1468,14 @@ export default function EmployeeList() {
       if (formData.location)
         formDataToSend.append("location_office", formData.location);
       if (formData.role) formDataToSend.append("role", formData.role);
+      formDataToSend.append("salary_type", formData.salaryType || "MONTHLY");
+      if (formData.salaryType === "HOURLY") {
+        formDataToSend.append("hourly_rate", String(formData.hourlyRate || 0));
+        if (formData.overtimeHourlyRate) formDataToSend.append("overtime_hourly_rate", String(formData.overtimeHourlyRate));
+      } else {
+        formDataToSend.append("monthly_salary", String(formData.monthlySalary ?? formData.salary ?? 0));
+        formDataToSend.append("salary", String(formData.monthlySalary ?? formData.salary ?? 0));
+      }
 
       // Statutory
       if (formData.aadhaar)
@@ -2136,6 +2160,10 @@ export default function EmployeeList() {
             role: emp.role || "",
             location: emp.location_office || "",
             salary: Number(emp.salary) || 0,
+            salary_type: emp.salary_type || "MONTHLY",
+            monthly_salary: Number(emp.monthly_salary ?? emp.salary) || 0,
+            hourly_rate: Number(emp.hourly_rate) || 0,
+            overtime_hourly_rate: Number(emp.overtime_hourly_rate) || 0,
             aadhaar: emp.aadhaar || "",
             pan: emp.pan || "",
             uan: emp.uan || "",
@@ -3128,6 +3156,24 @@ export default function EmployeeList() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="salaryType">Salary Type</Label>
+                  <Select value={formData.salaryType || "MONTHLY"} onValueChange={(value: "MONTHLY" | "HOURLY") => handleFormChange("salaryType", value)}>
+                    <SelectTrigger id="salaryType" className="mt-2"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="MONTHLY">Monthly</SelectItem><SelectItem value="HOURLY">Hourly</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                {formData.salaryType === "HOURLY" ? (
+                  <>
+                    <div><Label htmlFor="hourlyRate">Hourly Rate *</Label><Input id="hourlyRate" type="number" min="0" step="0.01" value={formData.hourlyRate || ""} onChange={(e) => handleFormChange("hourlyRate", Number(e.target.value))} className="mt-2" /></div>
+                    <div><Label htmlFor="overtimeHourlyRate">Overtime Hourly Rate (optional)</Label><Input id="overtimeHourlyRate" type="number" min="0" step="0.01" value={formData.overtimeHourlyRate || ""} onChange={(e) => handleFormChange("overtimeHourlyRate", Number(e.target.value))} className="mt-2" /></div>
+                  </>
+                ) : (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 mt-6">
+                    <p className="text-sm font-medium text-slate-800">Monthly salary is managed in Salary Structure</p>
+                    <p className="text-xs text-slate-500 mt-1">Set Gross Salary, Basic, allowances and deductions under Payroll → Salary Structure.</p>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="gender">Gender</Label>
                   <Select

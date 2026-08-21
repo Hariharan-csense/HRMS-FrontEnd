@@ -26,13 +26,22 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, MessageCircle } from "lucide-react";
 
 type RecipientType = "all" | "department" | "designation" | "employee";
 
 type SimpleEmployee = {
   id: string;
   label: string;
+};
+
+type SurveyTemplate = {
+  id: number;
+  name: string;
+  title: string;
+  message: string;
+  whatsappLanguage?: string;
+  whatsappButtons?: Array<{ id: string; label: string; score: number }>;
 };
 
 const EmployeeCombobox: React.FC<{
@@ -104,8 +113,9 @@ const CreatePulseSurvey: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("How happy are you at work today?");
   const [message, setMessage] = useState("On a scale of 1-10, how happy are you with your work today? Share your feedback to help us improve your workplace experience.");
-  const [templates, setTemplates] = useState<Array<{ id: number; name: string; title: string; message: string }>>([]);
+  const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
   const [templateId, setTemplateId] = useState<string>("");
+  const [sendViaWhatsApp, setSendViaWhatsApp] = useState(false);
   const [recipientType, setRecipientType] = useState<RecipientType>("all");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [selectedDesignationId, setSelectedDesignationId] = useState("");
@@ -229,6 +239,15 @@ const CreatePulseSurvey: React.FC = () => {
       return;
     }
 
+    if (sendViaWhatsApp && !templateId) {
+      toast({
+        title: "WhatsApp template required",
+        description: "Select a Pulse Survey template to send via WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload: any = {
@@ -236,6 +255,8 @@ const CreatePulseSurvey: React.FC = () => {
         message: trimmedMessage,
         recipientType,
         allowAnonymous,
+        templateId: templateId ? Number(templateId) : undefined,
+        sendViaWhatsApp,
       };
 
       if (recipientType === "employee") payload.selectedEmployeeIds = [selectedEmployeeId];
@@ -249,6 +270,8 @@ const CreatePulseSurvey: React.FC = () => {
       const pushSent = Number(res?.data?.push?.sent || 0);
       const pushFailed = Number(res?.data?.push?.failed || 0);
       const pushSkipped = Number(res?.data?.push?.skipped || 0);
+      const whatsappSent = Number(res?.data?.whatsapp?.sent || 0);
+      const whatsappFailed = Number(res?.data?.whatsapp?.failed || 0);
       const pushSkipReasons = Array.isArray(res?.data?.push?.skipReasons)
         ? res.data.push.skipReasons
         : [];
@@ -267,7 +290,7 @@ const CreatePulseSurvey: React.FC = () => {
       toast({
         title: "Survey sent",
         description: totalSent
-          ? `Survey assigned to ${totalSent} employee(s). Push sent: ${pushSent}${pushFailed ? `, failed: ${pushFailed}` : ""}${pushSkipped ? `, skipped: ${pushSkipped}` : ""}${pushSkipHint}. Emails sent: ${emailSent}${emailFailed ? `, failed: ${emailFailed}` : ""}.`
+          ? `Survey assigned to ${totalSent} employee(s). WhatsApp sent: ${whatsappSent}${whatsappFailed ? `, failed: ${whatsappFailed}` : ""}. Push sent: ${pushSent}${pushFailed ? `, failed: ${pushFailed}` : ""}${pushSkipped ? `, skipped: ${pushSkipped}` : ""}${pushSkipHint}. Emails sent: ${emailSent}${emailFailed ? `, failed: ${emailFailed}` : ""}.`
           : "Survey created successfully.",
       });
 
@@ -313,7 +336,7 @@ const CreatePulseSurvey: React.FC = () => {
                   <SelectValue placeholder="Select a template" />
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
-                  {templates.length === 0 ? (
+                {templates.length === 0 ? (
                     <SelectItem value="none" disabled className="h-9 text-sm focus:bg-gray-100 focus:text-gray-900">
                       No templates
                     </SelectItem>
@@ -329,6 +352,26 @@ const CreatePulseSurvey: React.FC = () => {
               <p className="text-xs text-gray-500">
                 Selecting a template will fill the title and message (you can still edit).
               </p>
+            </div>
+
+            <div className="max-w-2xl rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="send-whatsapp"
+                  checked={sendViaWhatsApp}
+                  onCheckedChange={(v) => setSendViaWhatsApp(Boolean(v))}
+                  className="mt-0.5 border-emerald-500 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="send-whatsapp" className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <MessageCircle className="h-4 w-4 text-emerald-700" />
+                    Send Survey via WhatsApp
+                  </Label>
+                  <p className="text-xs leading-5 text-gray-600">
+                    Sends the survey with a tappable emoji-rating link. Any quick-reply buttons in the approved WhatsApp template may also remain visible.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,640px)_320px]">
@@ -484,10 +527,10 @@ const CreatePulseSurvey: React.FC = () => {
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
+                    {sendViaWhatsApp ? "Sending via WhatsApp..." : "Sending..."}
                   </>
                 ) : (
-                  "Send Survey"
+                  sendViaWhatsApp ? "Send Survey via WhatsApp" : "Send Survey"
                 )}
               </Button>
             </div>

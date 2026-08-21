@@ -80,6 +80,13 @@ interface PayrollProcessing {
   tdsAmount?: number;
   deductions: number;
   net: number;
+  salaryType?: "MONTHLY" | "HOURLY";
+  hourlyRate?: number;
+  totalWorkedHours?: number;
+  normalHours?: number;
+  overtimeHours?: number;
+  normalPay?: number;
+  overtimePay?: number;
   status: "draft" | "final" | "paid" | "processed";
   createdAt: string;
 }
@@ -110,6 +117,7 @@ interface EmployeeOption {
   name: string;
   firstName: string;
   lastName: string;
+  salaryType?: "MONTHLY" | "HOURLY";
 }
 
 const getCurrentPayrollMonth = () => {
@@ -768,6 +776,7 @@ export default function PayrollSetup() {
   const [processingMonth, setProcessingMonth] = useState(
     getCurrentPayrollMonth,
   );
+  const [payslipMonth, setPayslipMonth] = useState(getCurrentPayrollMonth);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewPayslipOpen, setIsViewPayslipOpen] = useState(false);
@@ -1133,6 +1142,7 @@ export default function PayrollSetup() {
             name: fullName,
             firstName: firstName,
             lastName: lastName,
+            salaryType: String(emp.salary_type || "MONTHLY").toUpperCase() as "MONTHLY" | "HOURLY",
           };
         });
 
@@ -1385,6 +1395,8 @@ export default function PayrollSetup() {
     }
     // Admins and HR see all
 
+    filtered = filtered.filter((p) => p.month === payslipMonth);
+
     // Apply search filter
     const finalFiltered = filtered.filter(
       (p) =>
@@ -1394,7 +1406,7 @@ export default function PayrollSetup() {
     // console.log("After search filtering:", finalFiltered);
 
     return finalFiltered;
-  }, [payslips, searchTerm, user]);
+  }, [payslips, searchTerm, user, payslipMonth]);
 
   useEffect(() => {
     setSelectedPayslipIds((current) =>
@@ -1467,17 +1479,20 @@ export default function PayrollSetup() {
   const processableEmployees = useMemo(() => {
     const seen = new Set<string>();
 
-    return salaryStructures.reduce<EmployeeOption[]>((list, structure) => {
+    const list = salaryStructures.reduce<EmployeeOption[]>((list, structure) => {
       const employee = employees.find((emp) => emp.id === structure.employeeId);
       const employeeId = structure.employeeId?.toString();
+      const uniqueEmployeeId = employee?.dbId || employeeId;
 
-      if (!employeeId || seen.has(employeeId)) {
+      if (!employeeId || !uniqueEmployeeId || seen.has(uniqueEmployeeId)) {
         return list;
       }
 
-      seen.add(employeeId);
+      seen.add(uniqueEmployeeId);
       list.push({
-        id: employeeId,
+        // Payroll structures use the DB employee ID, while the employee list
+        // may use the employee code. Keep one canonical ID for this dropdown.
+        id: uniqueEmployeeId,
         dbId: employee?.dbId,
         name:
           structure.employeeName || employee?.name || `Employee ${employeeId}`,
@@ -1487,6 +1502,19 @@ export default function PayrollSetup() {
 
       return list;
     }, []);
+
+    // Monthly employees still require a salary structure. Hourly employees use
+    // their saved hourly rate, so they must be selectable without one.
+    employees
+      .filter((employee) => employee.salaryType === "HOURLY")
+      .forEach((employee) => {
+        const uniqueEmployeeId = employee.dbId || employee.id;
+        if (seen.has(uniqueEmployeeId)) return;
+        seen.add(uniqueEmployeeId);
+        list.push({ ...employee, id: uniqueEmployeeId });
+      });
+
+    return list;
   }, [employees, salaryStructures]);
 
   // Check if payroll already exists for selected employee and month
@@ -2760,6 +2788,13 @@ export default function PayrollSetup() {
           {/* Payslips Tab */}
           {canViewPayslips && (
             <TabsContent value="payslips">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <Label htmlFor="payslip-month">Payslip Month</Label>
+                  <Input id="payslip-month" type="month" value={payslipMonth} onChange={(event) => setPayslipMonth(event.target.value)} className="mt-2 w-full sm:w-56" />
+                </div>
+                <p className="text-sm text-muted-foreground">Showing payslips for {payslipMonth}</p>
+              </div>
               <Card>
                 <CardContent className="pt-6">
                   {filteredPayslips.length === 0 ? (

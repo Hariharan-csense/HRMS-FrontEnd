@@ -390,6 +390,14 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "attendance",
       },
+      {
+        label: "Monthly Report",
+        path: "/attendance/monthly-report",
+        roles: [],
+        icon: <div />,
+        moduleName: "attendance",
+        subModuleName: "monthly_report",
+      },
 
       {
         label: "Override Management",
@@ -1081,6 +1089,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (path.includes("/attendance/facial-recognition"))
           return "facial_recognition";
         if (path.includes("/attendance/log")) return "log";
+        if (path.includes("/attendance/monthly-report")) return "monthly_report";
         if (path.includes("/attendance/override")) return "override";
         if (path.includes("/attendance/shift")) return "shift";
         if (path.includes("/attendance/roster")) return "roster";

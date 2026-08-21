@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Building2, MapPin, TrendingUp, Users, Star, BarChart3, User, UserCheck } from "lucide-react";
+import { Building2, MapPin, TrendingUp, Users, Star, BarChart3, User, UserCheck, MessageCircle, Send, Clock, XCircle } from "lucide-react";
 import ENDPOINTS from "@/lib/endpoint";
 import { toast } from "@/components/ui/use-toast";
 
@@ -62,6 +62,14 @@ const PulseSurveysOverview: React.FC = () => {
   const [branchDetails, setBranchDetails] = useState<
     Array<{ name: string; employees: number; score: number }>
   >([]);
+  const [whatsappStats, setWhatsappStats] = useState({
+    sent: 0,
+    responded: 0,
+    pending: 0,
+    failed: 0,
+    responseRate: 0,
+    answerDistribution: [] as Array<{ label: string; score: number; count: number }>,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +98,16 @@ const PulseSurveysOverview: React.FC = () => {
 
         setDepartmentDetails(Array.isArray(data?.departmentsDetails) ? data.departmentsDetails : []);
         setBranchDetails(Array.isArray(data?.branchesDetails) ? data.branchesDetails : []);
+        setWhatsappStats({
+          sent: Number(data?.whatsapp?.sent || 0),
+          responded: Number(data?.whatsapp?.responded || 0),
+          pending: Number(data?.whatsapp?.pending || 0),
+          failed: Number(data?.whatsapp?.failed || 0),
+          responseRate: Number(data?.whatsapp?.responseRate || 0),
+          answerDistribution: Array.isArray(data?.whatsapp?.answerDistribution)
+            ? data.whatsapp.answerDistribution
+            : [],
+        });
       } catch (e: any) {
         if (cancelled) return;
         toast({
@@ -152,6 +170,48 @@ const PulseSurveysOverview: React.FC = () => {
               color={avgScoreTrend > 0 ? "emerald" : "amber"}
             />
           </div>
+
+          <section className="overflow-hidden rounded-xl bg-white/80 shadow-xl backdrop-blur-sm">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white">
+              <h2 className="flex items-center gap-2 text-xl font-semibold">
+                <MessageCircle className="h-5 w-5" />
+                WhatsApp Survey Delivery
+              </h2>
+              <p className="mt-2 text-sm text-emerald-100">
+                OwnChat delivery and response tracking for Pulse Surveys
+              </p>
+            </div>
+            <div className="space-y-6 p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+                <StatCard title="Sent" value={whatsappStats.sent} icon={<Send className="h-6 w-6" />} color="emerald" />
+                <StatCard title="Responded" value={whatsappStats.responded} icon={<UserCheck className="h-6 w-6" />} color="teal" />
+                <StatCard title="Pending" value={whatsappStats.pending} icon={<Clock className="h-6 w-6" />} color="amber" />
+                <StatCard title="Failed" value={whatsappStats.failed} icon={<XCircle className="h-6 w-6" />} color="red" />
+                <StatCard title="Response Rate" value={`${whatsappStats.responseRate}%`} icon={<TrendingUp className="h-6 w-6" />} color="cyan" />
+              </div>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                <div className="mb-3 text-sm font-semibold text-gray-900">Answer Distribution</div>
+                {whatsappStats.answerDistribution.length ? (
+                  <div className="space-y-3">
+                    {whatsappStats.answerDistribution.map((answer) => {
+                      const max = Math.max(...whatsappStats.answerDistribution.map((item) => item.count), 1);
+                      return (
+                        <div key={`${answer.score}-${answer.label}`} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-gray-800">{answer.label || answer.score}</span>
+                            <span className="text-gray-500">{answer.count}</span>
+                          </div>
+                          <Progress value={(answer.count / max) * 100} className="h-2 bg-white" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">No WhatsApp responses yet.</div>
+                )}
+              </div>
+            </div>
+          </section>
 
           {/* Gender and Department Analysis */}
           <div className="space-y-6">

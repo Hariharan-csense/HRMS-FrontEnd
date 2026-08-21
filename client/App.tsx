@@ -38,6 +38,7 @@ import AttendanceCapture from "./pages/AttendanceCapture";
 import AttendanceFacialRecognition from "./pages/AttendanceFacialRecognition";
 import AttendanceOverride from "./pages/AttendanceOverride";
 import AttendanceSetup from "./pages/AttendanceSetup";
+import AttendanceMonthlyReport from "./pages/AttendanceMonthlyReport";
 //import LiveLocationDashboard from "./pages/LiveLocationDashboard";
 import LeaveManagement from "./pages/LeaveManagementNew";
 import LeaveApprovals from "./pages/LeaveApprovals";
@@ -269,7 +270,7 @@ function AppRoutes() {
         path="/login"
         element={<PublicRoute element={<LandingPage />} />}
       /> */}
-        <Route path="/" element={<PublicRoute element={<Login />} />} />
+        <Route path="/" element={<PublicRoute element={<LandingPage />} />} />
         <Route
           path="/features"
           element={<PublicRoute element={<FeaturesPage />} />}
@@ -422,6 +423,7 @@ function AppRoutes() {
             </RoleBasedRoute>
           }
         />
+        <Route path="/attendance/monthly-report" element={<RoleBasedRoute requiredModule="attendance" requiredAction="view"><AttendanceMonthlyReport /></RoleBasedRoute>} />
         <Route
           path="/attendance/override"
           element={

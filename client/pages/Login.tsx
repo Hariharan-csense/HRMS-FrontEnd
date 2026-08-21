@@ -15,7 +15,7 @@ import { Loader, ArrowRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole } from "luc
 import { showToast } from "@/utils/toast";
 import logo from "../assets/logo.png";
 import { profileManager } from "@/lib/profileManager";
-import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { isValidLoginIdentifier, normalizeEmail } from "@/lib/validation";
 import { isCordovaIOS } from "@/lib/platform";
 import { hasRefreshCredential, isAutoLoginPaused } from "@/lib/endpoint";
 
@@ -220,19 +220,21 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isValidEmail(email)) {
-      showToast.error("Please enter a valid email address.");
+    if (!isValidLoginIdentifier(email)) {
+      showToast.error("Please enter a valid email address or mobile number.");
       return;
     }
 
     try {
       holdAuthRedirectRef.current = true;
       sessionStorage.setItem(LOGIN_UNLOCK_KEY, "true");
-      const normalizedEmail = normalizeEmail(email);
-      const result = await login(normalizedEmail, password, rememberMe);
+      const normalizedIdentifier = email.includes("@")
+        ? normalizeEmail(email)
+        : email.trim();
+      const result = await login(normalizedIdentifier, password, rememberMe);
       if (result.success) {
         if (rememberMe) {
-          profileManager.saveCredentials(normalizedEmail, true);
+          profileManager.saveCredentials(normalizedIdentifier, true);
         } else {
           profileManager.clearSavedCredentials();
           profileManager.clearSavedProfile();
@@ -433,7 +435,7 @@ export default function Login() {
                 <CardHeader>
                   <CardTitle>Login</CardTitle>
                   <CardDescription>
-                    Enter your email and password to access the system
+                    Enter your email or mobile number and password
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -443,12 +445,13 @@ export default function Login() {
                       style={{ animationDelay: "0.1s" }}
                     >
                       <Label htmlFor="email" className="text-slate-700">
-                        Email Address
+                        Email or Mobile Number
                       </Label>
                       <Input
                         id="email"
-                        type="email"
-                        placeholder="Enter your email"
+                        type="text"
+                        autoComplete="username"
+                        placeholder="Enter email or mobile number"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required

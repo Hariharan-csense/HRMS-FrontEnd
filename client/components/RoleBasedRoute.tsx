@@ -56,6 +56,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/attendance/capture")) return "capture";
         if (path.includes("/attendance/facial-recognition")) return "facial_recognition";
         if (path.includes("/attendance/log")) return "log";
+        if (path.includes("/attendance/monthly-report")) return "monthly_report";
         if (path.includes("/attendance/override")) return "override";
         if (path.includes("/attendance/shift")) return "shift";
         if (path.includes("/attendance/roster")) return "roster";

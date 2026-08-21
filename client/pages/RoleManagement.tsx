@@ -89,7 +89,7 @@ const RoleManagement: React.FC = () => {
     organization: ['company', 'branches', 'departments', 'designations', 'policies', 'role_management'],
     employees: ['list', 'profile', 'reports'],
     hr_management: ['requirements', 'recruitment', 'offer_letters', 'onboarding'],
-    attendance: ['capture', 'facial_recognition', 'log', 'override', 'shift', 'roster', 'setup'],
+    attendance: ['capture', 'facial_recognition', 'log', 'monthly_report', 'override', 'shift', 'roster', 'setup'],
     leave: ['apply', 'balance', 'approvals', 'config', 'leave_types', 'applications', 'permission', 'configuration'],
     payroll: ['salary_structure', 'processing', 'payslips', 'loans', 'audit_trail'],
     expenses: ['claims', 'approvals', 'export'],

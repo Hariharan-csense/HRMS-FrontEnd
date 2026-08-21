@@ -249,7 +249,7 @@ const PulseSurveyTemplates: React.FC = () => {
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={"How happy are you at work today? (Rate 1-10)\n\nWhat could make your workday better?\nShare any suggestions or concerns..."}
+                  placeholder={"Hi {{employee_name}}, please answer {{survey_title}}: {{question}}"}
                   className="min-h-[140px] border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>

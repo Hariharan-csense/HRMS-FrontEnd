@@ -10,7 +10,7 @@ import ENDPOINTS, {
   resolveFileUrl,
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
-import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { isValidLoginIdentifier, normalizeEmail } from "@/lib/validation";
 import {
   registerWebPushNotifications,
   unregisterStoredWebPushToken,
@@ -423,15 +423,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
-      if (!isValidEmail(email)) {
+      if (!isValidLoginIdentifier(email)) {
         return {
           success: false,
-          message: "Please enter a valid email address.",
+          message: "Please enter a valid email address or mobile number.",
         };
       }
 
-      const normalizedEmail = normalizeEmail(email);
-      const response = await ENDPOINTS.login(normalizedEmail, password).catch(
+      const normalizedIdentifier = email.includes("@")
+        ? normalizeEmail(email)
+        : email.trim();
+      const response = await ENDPOINTS.login(normalizedIdentifier, password).catch(
         (error) => {
           console.error("API call failed:", error);
           throw new Error(
@@ -495,8 +497,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         name:
           responseData.user?.name ||
           responseData.name ||
-          normalizedEmail.split("@")[0],
-        email: responseData.user?.email || normalizedEmail,
+          normalizedIdentifier.split("@")[0],
+        email: responseData.user?.email || normalizedIdentifier,
         role: (
           responseData.user?.role ||
           responseData.role ||
@@ -513,7 +515,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         type: responseData.user?.type || responseData.type || undefined,
         avatar:
           resolveFileUrl(responseData.user?.avatar || responseData.avatar) ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${normalizedEmail}`,
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${responseData.user?.email || normalizedIdentifier}`,
       };
 
       const resolvedUser = await finalizeUserSession(
@@ -538,7 +540,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Login error:", error);
       const status = error.response?.status;
       const errorMessage =
-        (status === 401 && "Invalid email or password. Please try again.") ||
+        (status === 401 && "Invalid email/mobile number or password. Please try again.") ||
         error.response?.data?.message ||
         error.message ||
         "Login failed. Please check your credentials.";

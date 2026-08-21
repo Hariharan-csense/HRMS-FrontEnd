@@ -61,6 +61,27 @@ const RespondPulseSurvey: React.FC = () => {
 
     (async () => {
       try {
+        if (surveyId.toLowerCase() === "latest") {
+          const listRes = await ENDPOINTS.getMyPulseSurveys();
+          if (cancelled) return;
+          const surveys = Array.isArray(listRes.data) ? listRes.data : [];
+          const latestPending = surveys.find((item: ApiSurvey) => !item.myResponse);
+
+          if (latestPending?.id) {
+            navigate(`/pulse-surveys/respond/${latestPending.id}`, {
+              replace: true,
+            });
+            return;
+          }
+
+          toast({
+            title: "No pending surveys",
+            description: "You have already completed all available surveys.",
+          });
+          navigate("/pulse-surveys/my-surveys", { replace: true });
+          return;
+        }
+
         const res = await ENDPOINTS.getPulseSurvey(surveyId);
         if (cancelled) return;
         const data = res.data as ApiSurvey;
@@ -85,7 +106,7 @@ const RespondPulseSurvey: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [surveyId]);
+  }, [navigate, surveyId]);
 
   const selected = useMemo(() => {
     if (selectedScore === null) return null;

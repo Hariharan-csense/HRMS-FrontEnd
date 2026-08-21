@@ -5,7 +5,7 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.6:3000/backend";
+// export const BASE_URL = "http://192.168.1.9:3000/backend";
 export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -438,10 +438,12 @@ export {
 const ENDPOINTS = {
   // Auth
 
-  login: (email: string, password: string) =>
+  login: (identifier: string, password: string) =>
     // use bare client so 401 doesn't trigger global refresh/clears
 
-    authApi.post("/auth/login", { email, password }),
+    // Send both keys during deployment transition: newer backends use
+    // `identifier`, while older instances still read `email`.
+    authApi.post("/auth/login", { identifier, email: identifier, password }),
 
   refreshAccessToken: () => {
     const storedRefreshToken = getStoredRefreshToken();
@@ -716,6 +718,7 @@ const ENDPOINTS = {
   }) => api.post("/attendance/facial-recognition/descriptor", data),
 
   getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
+  getAttendanceMonthlyReport: (month: string) => api.get("/attendance/monthly-report", { params: { month } }),
 
   createOverride: (data: any) => api.post("/attendance/overrides", data),
 
