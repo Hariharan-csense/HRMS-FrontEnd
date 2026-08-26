@@ -131,7 +131,8 @@ export default function ExpenseApprovals() {
     "approved" | "rejected" | null
   >(null);
   const [employeeFilter, setEmployeeFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [fromDateFilter, setFromDateFilter] = useState("");
+  const [toDateFilter, setToDateFilter] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
 
   const formatSubmitTimestamp = (value?: string | null) => {
@@ -191,17 +192,23 @@ export default function ExpenseApprovals() {
         !employeeSearch ||
         normalizeFilterText(expense.employeeName).includes(employeeSearch) ||
         normalizeFilterText(expense.employeeId).includes(employeeSearch);
-      const matchesDate =
-        !dateFilter || toDateInputValue(expense.date) === dateFilter;
+      const expenseDate = toDateInputValue(expense.date);
+      const matchesFromDate =
+        !fromDateFilter || (expenseDate && expenseDate >= fromDateFilter);
+      const matchesToDate =
+        !toDateFilter || (expenseDate && expenseDate <= toDateFilter);
       const expenseClient = expense.clientName || "No client";
       const matchesClient =
         clientFilter === "all" || expenseClient === clientFilter;
 
-      return matchesEmployee && matchesDate && matchesClient;
+      return matchesEmployee && matchesFromDate && matchesToDate && matchesClient;
     });
-  }, [pendingExpenses, employeeFilter, dateFilter, clientFilter]);
+  }, [pendingExpenses, employeeFilter, fromDateFilter, toDateFilter, clientFilter]);
   const hasActiveFilters =
-    employeeFilter.trim() !== "" || dateFilter !== "" || clientFilter !== "all";
+    employeeFilter.trim() !== "" ||
+    fromDateFilter !== "" ||
+    toDateFilter !== "" ||
+    clientFilter !== "all";
   const selectedPendingExpenses = useMemo(
     () =>
       pendingExpenses.filter((expense) =>
@@ -835,7 +842,7 @@ export default function ExpenseApprovals() {
                 </Button>
               </div>
             </div>
-            <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto]">
+            <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr_auto]">
               <div>
                 <Label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                   Employee
@@ -852,12 +859,25 @@ export default function ExpenseApprovals() {
               </div>
               <div>
                 <Label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                  Date
+                  From Date
                 </Label>
                 <Input
                   type="date"
-                  value={dateFilter}
-                  onChange={(event) => setDateFilter(event.target.value)}
+                  value={fromDateFilter}
+                  max={toDateFilter || undefined}
+                  onChange={(event) => setFromDateFilter(event.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  To Date
+                </Label>
+                <Input
+                  type="date"
+                  value={toDateFilter}
+                  min={fromDateFilter || undefined}
+                  onChange={(event) => setToDateFilter(event.target.value)}
                   className="mt-1 h-9 text-sm"
                 />
               </div>
@@ -886,7 +906,8 @@ export default function ExpenseApprovals() {
                   size="sm"
                   onClick={() => {
                     setEmployeeFilter("");
-                    setDateFilter("");
+                    setFromDateFilter("");
+                    setToDateFilter("");
                     setClientFilter("all");
                   }}
                   disabled={!hasActiveFilters}

@@ -28,7 +28,10 @@ import {
   YAxis,
 } from "recharts";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
+import {
+  formatTrialTimeRemaining,
+  getAllowedModulesFromSubscription,
+} from "@/utils/subscriptionModules";
 import { useRole } from "@/context/RoleContext";
 import { api } from "@/lib/endpoint";
 
@@ -621,7 +624,7 @@ const AdminDashboard = () => {
         setError(null);
         const [result, leadSignalsResult] = await Promise.all([
           getAdminDashboardData(),
-          api.get("/dashboard/widgets").catch(() => null),
+          api.get("/kpi/scorecards/assigned-lead-indicators").catch(() => null),
         ]);
 
         if (result.error) {
@@ -629,9 +632,26 @@ const AdminDashboard = () => {
         } else {
           setDashboardData(result.data);
         }
-        setLeadIndicatorSignals(
-          leadSignalsResult?.data?.leadIndicatorSignals || null,
+        const individualIndicators = Array.isArray(leadSignalsResult?.data)
+          ? leadSignalsResult.data
+          : [];
+        const counts = individualIndicators.reduce(
+          (summary: Record<string, number>, indicator: any) => {
+            const status = ["green", "yellow", "red", "missing"].includes(
+              String(indicator?.status || ""),
+            )
+              ? String(indicator.status)
+              : "missing";
+            summary[status] += 1;
+            return summary;
+          },
+          { green: 0, yellow: 0, red: 0, missing: 0 },
         );
+        setLeadIndicatorSignals({
+          ...counts,
+          total: individualIndicators.length,
+          needsAttention: counts.yellow + counts.red + counts.missing,
+        });
       } catch (err) {
         setError("Failed to fetch dashboard data");
       } finally {
@@ -744,7 +764,7 @@ const AdminDashboard = () => {
   const shouldShowTrialBanner = isTrialExpired || isTrialEndingSoon;
   const trialBannerText = isTrialExpired
     ? "Trial ended. Subscribe now."
-    : `Trial ends in ${subscription?.trial_days_remaining || 0} days. Subscribe now.`;
+    : `Trial ends in ${formatTrialTimeRemaining(subscription!)}. Subscribe now.`;
   const presentTodayEmployees = dashboardData?.presentTodayEmployees || [];
   const onLeaveEmployees = dashboardData?.onLeaveEmployees || [];
   const leadNeedsAttention = Number(leadIndicatorSignals?.needsAttention || 0);

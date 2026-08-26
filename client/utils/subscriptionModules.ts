@@ -4,6 +4,9 @@ type SubscriptionLike = {
   status?: string;
   is_trial_active?: boolean;
   trial_days_remaining?: number;
+  trial_hours_remaining?: number;
+  trial_minutes_remaining?: number;
+  is_internal_company?: boolean;
   addons?: Array<{
     module_key?: string | null;
     name?: string | null;
@@ -11,6 +14,21 @@ type SubscriptionLike = {
     users_count?: number;
     assigned_employee_ids?: number[];
   }>;
+};
+
+export const formatTrialTimeRemaining = (subscription: SubscriptionLike): string => {
+  const days = Math.max(0, Number(subscription.trial_days_remaining || 0));
+  const totalHours = Math.max(0, Number(subscription.trial_hours_remaining ?? days * 24));
+  const totalMinutes = Math.max(0, Number(subscription.trial_minutes_remaining ?? totalHours * 60));
+
+  if (days > 0) return `${days} ${days === 1 ? "day" : "days"}`;
+  if (totalHours > 0) {
+    const hours = Math.floor(totalHours);
+    const minutes = Math.max(0, totalMinutes - hours * 60);
+    return `${hours} ${hours === 1 ? "hour" : "hours"}${minutes > 0 ? ` ${minutes} min` : ""}`;
+  }
+
+  return `${Math.max(1, totalMinutes)} min`;
 };
 
 const normalizeLine = (line: string) => line.trim().toLowerCase();
@@ -96,6 +114,7 @@ const addAll = (set: Set<string>, items: string[]) => {
 
 /** Modules included on the Free Plan tier (and when subscription is inactive). */
 export const FREEPLAN_MODULES = [
+  "dashboard",
   "subscription",
   "organization",
   "role_access",
@@ -242,22 +261,21 @@ export const getAllowedModulesFromSubscription = (
   // No subscription: keep free-forever modules available.
   if (!subscription) return new Set<string>(FREE_FOREVER_MODULES);
 
+  // The product owner's own company does not require a commercial subscription.
+  if (subscription.is_internal_company) return null;
+
   const status = (subscription.status || "").toLowerCase();
   const isTrialActive = Boolean(subscription.is_trial_active);
-  const trialDaysRemaining = Number(subscription.trial_days_remaining ?? 0);
-  const trialEndingSoonDays = options?.trialEndingSoonDays ?? 2;
-
-  // During an active trial (not ending soon), allow the full app (no subscription-based restriction).
+  // Every active trial has full access through its exact expiry timestamp.
+  // "Ending soon" is a display concern and must never reduce entitlements.
   if (status === "trial" && isTrialActive) {
-    if (trialDaysRemaining > trialEndingSoonDays) {
-      return null;
-    }
+    return null;
   }
 
   const isInactive =
     status === "expired" ||
     status === "cancelled" ||
-    (status === "trial" && (!isTrialActive || trialDaysRemaining <= 0));
+    (status === "trial" && !isTrialActive);
 
   if (isInactive) return new Set<string>(FREE_FOREVER_MODULES);
 

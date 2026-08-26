@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button';
 import { AlertCircle, CheckCircle, Clock, Users, CreditCard, Calendar, AlertTriangle } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
+import { formatTrialTimeRemaining } from '../utils/subscriptionModules';
 
 interface CompanySubscription {
   id: number;
@@ -23,6 +24,8 @@ interface CompanySubscription {
   days_remaining: number;
   is_trial_active: boolean;
   trial_days_remaining: number;
+  trial_hours_remaining?: number;
+  trial_minutes_remaining?: number;
 }
 
 interface SubscriptionStatusProps {
@@ -122,7 +125,9 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false
             <p className="text-sm text-gray-600">Duration</p>
             <p className="font-semibold flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              {subscription.days_remaining} days remaining
+              {subscription.status === 'trial' && subscription.is_trial_active
+                ? `${formatTrialTimeRemaining(subscription)} remaining`
+                : `${subscription.days_remaining} days remaining`}
             </p>
           </div>
           <div>
@@ -140,7 +145,7 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({ compact = false
           <div className="mb-4 p-3 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800">
               <Clock className="inline w-4 h-4 mr-1" />
-              Trial ends in {subscription.trial_days_remaining} days
+              Trial ends in {formatTrialTimeRemaining(subscription)}
             </p>
           </div>
         )}

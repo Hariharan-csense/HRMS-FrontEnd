@@ -38,19 +38,16 @@ type FacialResponse = {
 };
 
 const SCAN_INTERVAL_MS = 2800;
-const SUCCESS_COOLDOWN_MS = 9000;
 const NO_FACE_TOAST_COOLDOWN_MS = 6000;
 const FACE_MODEL_URL = "/models";
 
 export default function AttendanceFacialRecognition() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const attendanceRequestRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(false);
-  const scanTimerRef = useRef<ReturnType<typeof window.setInterval> | null>(
-    null,
-  );
+  const scanTimerRef = useRef<number | null>(null);
   const processingRef = useRef(false);
-  const lastSuccessAtRef = useRef(0);
   const lastNoFaceToastAtRef = useRef(0);
   const scannerPausedRef = useRef(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -91,6 +88,7 @@ export default function AttendanceFacialRecognition() {
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
+      attendanceRequestRef.current?.abort();
       stopCamera();
     };
   }, []);
@@ -125,8 +123,10 @@ export default function AttendanceFacialRecognition() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    setIsCameraReady(false);
-    setScannerStatus("Camera stopped");
+    if (mountedRef.current) {
+      setIsCameraReady(false);
+      setScannerStatus("Camera stopped");
+    }
   };
 
   const startCamera = async () => {
@@ -236,11 +236,7 @@ export default function AttendanceFacialRecognition() {
   };
 
   const submitFacialAttendance = async () => {
-    const now = Date.now();
-    if (
-      processingRef.current ||
-      now - lastSuccessAtRef.current < SUCCESS_COOLDOWN_MS
-    ) {
+    if (processingRef.current || scannerPausedRef.current) {
       return;
     }
 
@@ -267,17 +263,26 @@ export default function AttendanceFacialRecognition() {
       }
 
       setScannerStatus("Recognizing employee...");
+      attendanceRequestRef.current?.abort();
+      const requestController = new AbortController();
+      attendanceRequestRef.current = requestController;
       const response = await ENDPOINTS.facialRecognitionDescriptorAttendance({
         action: "auto",
         descriptor,
         location,
-      });
+      }, { signal: requestController.signal });
+      if (!mountedRef.current) return;
       const result = response.data as FacialResponse;
       setLastResult(result);
-      lastSuccessAtRef.current = Date.now();
-      setScannerStatus("Attendance marked");
+      scannerPausedRef.current = true;
+      if (scanTimerRef.current) {
+        window.clearInterval(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
+      setScannerStatus("Attendance marked - ready for next employee");
       toast.success(result.message || "Attendance marked successfully");
     } catch (error: any) {
+      if (error?.code === "ERR_CANCELED" || !mountedRef.current) return;
       console.error("Facial attendance error:", error);
       if (error?.response?.status === 503) {
         scannerPausedRef.current = true;
@@ -295,9 +300,15 @@ export default function AttendanceFacialRecognition() {
           "Facial attendance failed",
       );
     } finally {
+      attendanceRequestRef.current = null;
       processingRef.current = false;
-      setIsProcessing(false);
+      if (mountedRef.current) setIsProcessing(false);
     }
+  };
+
+  const restartScanner = () => {
+    setLastResult(null);
+    startCamera();
   };
 
   const employeeName = lastResult?.employee
@@ -364,12 +375,12 @@ export default function AttendanceFacialRecognition() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={startCamera}
+                  onClick={restartScanner}
                   disabled={isProcessing}
                   className="gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Restart
+                  {lastResult ? "Scan next employee" : "Restart"}
                 </Button>
               </div>
             </CardContent>

@@ -186,7 +186,14 @@ export const payrollApi = {
             item.employeeName ||
             `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
             `Employee ${item.employee_id || item.employeeId}`,
+          dateOfJoining: item.date_of_joining || item.doj || null,
+          designation: item.designation_name || item.designation || null,
           month: item.month,
+          presentDays: parseFloat(item.present_days) || 0,
+          leaveDays: parseFloat(item.approved_leave_days) || 0,
+          lateCount: parseInt(item.late_count, 10) || 0,
+          permissionCount: parseInt(item.permission_count, 10) || 0,
+          graceCount: parseInt(item.grace_count, 10) || 0,
           payableDays: item.payable_days || 0,
           lopDays: parseFloat(item.lop_days) || 0,
           unpayableDays: parseFloat(item.lop_days) || 0,
@@ -200,6 +207,13 @@ export const payrollApi = {
           normalPay: parseFloat(item.normal_pay) || 0,
           overtimePay: parseFloat(item.overtime_pay) || 0,
           tdsAmount: parseFloat(item.tds_amount) || 0,
+          configuredGross: parseFloat(item.configured_gross) || 0,
+          providentFund: parseFloat(item.provident_fund) || 0,
+          esiDeduction: parseFloat(item.esi_deduction) || 0,
+          professionalTax: parseFloat(item.professional_tax) || 0,
+          otherDeductions: parseFloat(item.other_deductions) || 0,
+          tdsPercentage:
+            parseFloat(item.tds_percentage ?? item.legacy_tds_percentage) || 0,
           deductions: parseFloat(item.deductions) || 0,
           net: parseFloat(item.net) || 0,
           status: item.status || "draft",

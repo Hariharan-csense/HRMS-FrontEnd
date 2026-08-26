@@ -63,21 +63,35 @@ import payrollApi, {
 import axios from "axios";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // Types
 interface PayrollProcessing {
   id: string;
   employeeId: string;
+  employeeCode?: string | null;
   employeeName: string;
+  dateOfJoining?: string | null;
+  designation?: string | null;
   reportingManager?: string;
   month: string;
+  presentDays?: number;
+  leaveDays?: number;
+  lateCount?: number;
+  permissionCount?: number;
+  graceCount?: number;
   payableDays: number;
   lopDays?: number;
   unpayableDays?: number;
   lopAmount?: number;
   gross: number;
   tdsAmount?: number;
+  configuredGross?: number;
+  providentFund?: number;
+  esiDeduction?: number;
+  professionalTax?: number;
+  otherDeductions?: number;
+  tdsPercentage?: number;
   deductions: number;
   net: number;
   salaryType?: "MONTHLY" | "HOURLY";
@@ -2103,49 +2117,298 @@ export default function PayrollSetup() {
     });
   };
 
-  // CSV Export function for payroll processing
-  const handleExportPayrollToCSV = () => {
+  const handleExportPayrollWorkbook = async () => {
     if (filteredProcessing.length === 0) {
       toast.error("No payroll data available to export");
       return;
     }
 
+    const exportToast = toast.loading("Preparing payroll and attendance workbook...");
+
     try {
-      // Prepare CSV data
-      const csvData = filteredProcessing.map((process) => ({
-        "Employee Name": process.employeeName,
-        "Employee ID": process.employeeId,
-        Month: process.month,
-        "Payable Days": process.payableDays,
-        "Unpayable Days": process.unpayableDays ?? process.lopDays ?? 0,
-        "LOP Amount": process.lopAmount || 0,
-        "Gross Salary": process.gross,
-        TDS: process.tdsAmount || 0,
-        Deductions: process.deductions,
-        "Net Salary": process.net,
-        Status:
+      const [year, month] = processingMonth.split("-").map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const startDate = `${processingMonth}-01`;
+      const endDate = `${processingMonth}-${String(daysInMonth).padStart(2, "0")}`;
+
+      const [attendanceResponse, leaveResponse, permissionResponse, holidayResponse] = await Promise.all([
+        ENDPOINTS.getAttendanceLogs({ startDate, endDate, page: 1, limit: 10000 }),
+        ENDPOINTS.getleaveapplications(),
+        ENDPOINTS.getLeavePermissionApplications(),
+        ENDPOINTS.getHolidays(),
+      ]);
+      const attendanceLogs = Array.isArray(attendanceResponse.data?.data)
+        ? attendanceResponse.data.data
+        : [];
+      const leaveApplications = Array.isArray(leaveResponse.data?.applications)
+        ? leaveResponse.data.applications
+        : Array.isArray(leaveResponse.data?.leaveApplications)
+          ? leaveResponse.data.leaveApplications
+          : Array.isArray(leaveResponse.data)
+            ? leaveResponse.data
+            : [];
+      const permissions = Array.isArray(permissionResponse.data?.applications)
+        ? permissionResponse.data.applications
+        : [];
+      const holidays = Array.isArray(holidayResponse.data?.holidays)
+        ? holidayResponse.data.holidays
+        : Array.isArray(holidayResponse.data)
+          ? holidayResponse.data
+          : [];
+
+      const statusByEmployeeDate = new Map<string, string>();
+      const normalizeStatus = (value: unknown) => {
+        const status = String(value || "").trim().toLowerCase();
+        const labels: Record<string, string> = {
+          present: "P",
+          absent: "A",
+          permission: "PR",
+          grace: "P",
+          late: "P",
+          half: "HL",
+          half_day: "HL",
+          "half-day": "HL",
+          leave: "L",
+          holiday: "H",
+          weekend: "H",
+          week_off: "H",
+        };
+        return labels[status] || "-";
+      };
+
+      attendanceLogs.forEach((log: any) => {
+        const employeeId = String(log.employee_id || "");
+        const date = String(log.attendance_date || log.check_in || "").slice(0, 10);
+        if (employeeId && date) {
+          statusByEmployeeDate.set(`${employeeId}|${date}`, normalizeStatus(log.status));
+        }
+      });
+
+      const toDateKey = (value: unknown) => String(value || "").slice(0, 10);
+      const addDays = (dateKey: string, amount: number) => {
+        const date = new Date(`${dateKey}T00:00:00`);
+        date.setDate(date.getDate() + amount);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      };
+
+      leaveApplications.forEach((leave: any) => {
+        if (String(leave.status || "").toLowerCase() !== "approved") return;
+        const employeeId = String(leave.employee_id || leave.employeeId || "");
+        let date = toDateKey(leave.from_date || leave.fromDate);
+        const toDate = toDateKey(leave.to_date || leave.toDate);
+        if (!employeeId || !date || !toDate) return;
+        const leaveName = String(
+          leave.configured_leave_type_name ||
+          leave.leave_type_name ||
+          leave.leaveType ||
+          "",
+        ).toLowerCase();
+        const isHalfDay = Number(leave.days) === 0.5 || Boolean(leave.half_day_session);
+        const code = isHalfDay ? "HL" : leaveName.includes("casual") ? "CL" : "L";
+        while (date <= toDate) {
+          if (date.startsWith(processingMonth)) {
+            const key = `${employeeId}|${date}`;
+            if (statusByEmployeeDate.get(key) !== "P") {
+              statusByEmployeeDate.set(key, code);
+            }
+          }
+          date = addDays(date, 1);
+        }
+      });
+
+      permissions.forEach((permission: any) => {
+        if (String(permission.status || "").toLowerCase() !== "approved") return;
+        const employeeId = String(permission.employee_id || "");
+        const date = String(permission.permission_date || "").slice(0, 10);
+        if (employeeId && date.startsWith(processingMonth)) {
+          const key = `${employeeId}|${date}`;
+          if (!statusByEmployeeDate.has(key)) statusByEmployeeDate.set(key, "PR");
+        }
+      });
+
+      const dateKeys = Array.from({ length: daysInMonth }, (_, index) =>
+        `${processingMonth}-${String(index + 1).padStart(2, "0")}`,
+      );
+
+      const holidayDateSet = new Set(
+        holidays
+          .map((holiday: any) => toDateKey(holiday.date || holiday.holiday_date))
+          .filter((date: string) => date.startsWith(processingMonth)),
+      );
+      dateKeys.forEach((date) => {
+        const day = new Date(`${date}T00:00:00`).getDay();
+        if (day === 0 || day === 6) holidayDateSet.add(date);
+      });
+
+      const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("en-GB", {
+        month: "short",
+        year: "2-digit",
+      }).replace(" ", "-");
+      const summaryHeaders = [
+        "Present Full",
+        "Present Half",
+        "Leave",
+        "Late LOP",
+        "Casual Leave",
+        "Holidays",
+        "Total Days in Month",
+        "Total Working Days",
+        "Net Salary",
+        "Payable Salary",
+        "TDS Deduction",
+        "Deduction",
+        "Professional Tax",
+        "Salary in Hand",
+        "Uniform (3 months)",
+        "TOTAL",
+        `${monthLabel} Salary`,
+        "FF",
+        "Remarks",
+      ];
+      const headers = [
+        "S. No",
+        "Employee No.",
+        "Employee Name",
+        "DOJ",
+        "Designation",
+        ...dateKeys.map((date) =>
+          new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+          }),
+        ),
+        ...summaryHeaders,
+      ];
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "HRMS Payroll";
+      const sheet = workbook.addWorksheet("Payroll Register", {
+        views: [{ state: "frozen", xSplit: 5, ySplit: 1 }],
+      });
+      sheet.addRow(headers);
+
+      filteredProcessing.forEach((process, index) => {
+        const codes = dateKeys.map((date) => {
+          const key = `${process.employeeId}|${date}`;
+          return statusByEmployeeDate.get(key) || (holidayDateSet.has(date) ? "H" : "-");
+        });
+        const presentFull = codes.filter((code) => code === "P").length;
+        const presentHalf = codes.filter((code) => code === "HL").length;
+        const casualLeave = codes.filter((code) => code === "CL").length;
+        const leave = codes.filter((code) => ["L", "CL", "HL"].includes(code)).length;
+        const holidayCount = codes.filter((code) => code === "H").length;
+        const workingDays = daysInMonth - holidayDateSet.size;
+        const configuredSalary = process.configuredGross || process.gross || 0;
+        const tds = process.tdsAmount || 0;
+        const professionalTax = process.professionalTax || 0;
+        const otherDeduction =
+          (process.providentFund || 0) +
+          (process.esiDeduction || 0) +
+          (process.otherDeductions || 0);
+        const uniformDeduction = 0;
+        const total = Math.max(0, (process.net || 0) - uniformDeduction);
+
+        sheet.addRow([
+          index + 1,
+          process.employeeCode || process.employeeId,
+          process.employeeName,
+          process.dateOfJoining ? new Date(process.dateOfJoining) : "",
+          process.designation || "",
+          ...codes,
+          presentFull,
+          presentHalf,
+          leave,
+          process.lateCount || 0,
+          casualLeave,
+          holidayCount,
+          daysInMonth,
+          workingDays,
+          configuredSalary,
+          process.gross || 0,
+          tds,
+          otherDeduction,
+          professionalTax,
+          process.net || 0,
+          uniformDeduction,
+          total,
+          total,
+          "",
           process.status.charAt(0).toUpperCase() + process.status.slice(1),
-        "Reporting Manager": process.reportingManager || "",
-      }));
+        ]);
+      });
 
-      // Create worksheet
-      const ws = XLSX.utils.json_to_sheet(csvData);
-
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Payroll Processing");
+      const identityColumnCount = 5;
+      const dayStartColumn = identityColumnCount + 1;
+      const dayEndColumn = identityColumnCount + daysInMonth;
+      sheet.getRow(1).height = 92;
+      sheet.getRow(1).eachCell((cell, columnNumber) => {
+        cell.font = { bold: true, color: { argb: "FF333333" } };
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "bottom",
+          textRotation: columnNumber > dayEndColumn ? 90 : 0,
+          wrapText: true,
+        };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: columnNumber <= identityColumnCount || columnNumber > dayEndColumn ? "FFFF6D00" : "FFFCE0CD" },
+        };
+        cell.border = {
+          top: { style: "thin" }, left: { style: "thin" },
+          bottom: { style: "thin" }, right: { style: "thin" },
+        };
+      });
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.height = 24;
+        row.eachCell((cell, columnNumber) => {
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          cell.border = {
+            top: { style: "thin" }, left: { style: "thin" },
+            bottom: { style: "thin" }, right: { style: "thin" },
+          };
+          if (columnNumber >= dayStartColumn && columnNumber <= dayEndColumn) {
+            const colors: Record<string, string> = {
+              P: "FFC6EFCE", H: "FFFFEB9C", HL: "FFFFC7CE",
+              CL: "FFD9EAD3", L: "FFD9EAD3", A: "FFFFC7CE", PR: "FFDDEBF7",
+            };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors[String(cell.value)] || "FFFFFFFF" } };
+            cell.font = { bold: true, color: { argb: "FF7F6000" } };
+          }
+        });
+        row.getCell(4).numFmt = "dd-mm-yyyy";
+      });
+      [1, 2, 3, 4, 5].forEach((column, index) => {
+        sheet.getColumn(column).width = [8, 16, 25, 14, 22][index];
+      });
+      for (let column = dayStartColumn; column <= dayEndColumn; column += 1) {
+        sheet.getColumn(column).width = 10;
+      }
+      for (let column = dayEndColumn + 1; column <= headers.length; column += 1) {
+        sheet.getColumn(column).width = 14;
+      }
+      sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: sheet.rowCount, column: headers.length } };
 
       // Generate filename with current date
       const currentDate = new Date().toISOString().split("T")[0];
-      const fileName = `Payroll_Processing_${currentDate}.csv`;
+      const fileName = `Payroll_Processing_${processingMonth}_${currentDate}.xlsx`;
 
-      // Write file
-      XLSX.writeFile(wb, fileName);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer as unknown as BlobPart], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
 
-      toast.success("Payroll data exported successfully");
+      toast.success("Payroll workbook exported successfully", { id: exportToast });
     } catch (error) {
-      console.error("Error exporting CSV:", error);
-      toast.error("Failed to export payroll data");
+      console.error("Error exporting payroll workbook:", error);
+      toast.error("Failed to export payroll and attendance data", { id: exportToast });
     }
   };
 
@@ -2560,11 +2823,11 @@ export default function PayrollSetup() {
                     )}
                     {filteredProcessing.length > 0 && (
                       <Button
-                        onClick={handleExportPayrollToCSV}
+                        onClick={handleExportPayrollWorkbook}
                         className="gap-2 bg-green-600 hover:bg-green-700 md:ml-auto"
                       >
                         <Download className="w-4 h-4" />
-                        Export to CSV
+                        Export Excel
                       </Button>
                     )}
                   </div>

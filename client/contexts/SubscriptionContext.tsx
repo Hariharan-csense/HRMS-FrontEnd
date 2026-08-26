@@ -28,6 +28,9 @@ interface CompanySubscription {
   days_remaining: number;
   is_trial_active: boolean;
   trial_days_remaining: number;
+  trial_hours_remaining?: number;
+  trial_minutes_remaining?: number;
+  is_internal_company?: boolean;
   addons?: Array<{
     id: number;
     addon_id: number;
@@ -102,7 +105,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
         if (
           subscriptionData?.status === "expired" ||
           (subscriptionData?.status === "trial" &&
-            subscriptionData?.trial_days_remaining <= 0)
+            !subscriptionData?.is_trial_active)
         ) {
           // Don't show modal automatically - let user see subscribe button
           // console.log('Trial has expired, but not showing modal automatically');
@@ -193,11 +196,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
   const isTrialExpired =
     subscription?.status === "expired" ||
     (subscription?.status === "trial" &&
-      subscription?.trial_days_remaining <= 0);
+      !subscription?.is_trial_active);
 
   const isTrialEndingSoon =
     subscription?.status === "trial" &&
-    subscription?.trial_days_remaining > 0 &&
+    subscription?.is_trial_active &&
     subscription?.trial_days_remaining <= 2;
 
   const isUserLimitExceeded =

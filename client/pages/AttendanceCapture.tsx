@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -83,6 +84,7 @@ interface AssignedClient {
 
 const SELFIE_OUTPUT_SIZE = 1080;
 const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
+const LSK_COMPANY_NAME = "csense management solutions pvt ltd";
 
 const dailyPulseOptions = [
   { label: "Very Unhappy", score: 1, emoji: "😞" },
@@ -121,6 +123,7 @@ export default function AttendanceCapture() {
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [pendingAttendance, setPendingAttendance] =
     useState<PendingAttendanceCapture | null>(null);
+  const [withLsk, setWithLsk] = useState(false);
   const [assignedClients, setAssignedClients] = useState<AssignedClient[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -128,11 +131,15 @@ export default function AttendanceCapture() {
   const [dailyPulseScore, setDailyPulseScore] = useState<number | null>(null);
   const [dailyPulseComment, setDailyPulseComment] = useState("");
   const [isSubmittingDailyPulse, setIsSubmittingDailyPulse] = useState(false);
+  const canUseLsk =
+    String(user?.companyName || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase() === LSK_COMPANY_NAME;
 
   useEffect(() => {
     mountedRef.current = true;
     startWebcam();
-    fetchAttendanceStatus();
     fetchLiveLocations();
     fetchAssignedClients();
 
@@ -304,6 +311,18 @@ export default function AttendanceCapture() {
       }
     }
   };
+
+  // Attendance is identity-specific. Clear any previous account's data and
+  // refetch whenever the authenticated employee changes.
+  useEffect(() => {
+    setTodayRecords([]);
+    setIsCheckedIn(false);
+    setHasCheckedInToday(false);
+
+    if (user?.id) {
+      fetchAttendanceStatus();
+    }
+  }, [user?.id, user?.employee_id, user?.type]);
 
   // Fetch live location history
   const fetchLiveLocations = async () => {
@@ -769,8 +788,9 @@ export default function AttendanceCapture() {
       if (selectedClientId) {
         formData.append("clientId", selectedClientId.toString());
       }
-      formData.append("employeeId", user.id.toString());
-
+      if (pendingAttendance.type === "check-in") {
+        formData.append("withLsk", String(withLsk));
+      }
       const apiResponse =
         pendingAttendance.type === "check-in"
           ? await attendanceApi.checkIn(formData)
@@ -806,6 +826,7 @@ export default function AttendanceCapture() {
         }
       }
       setPendingAttendance(null);
+      setWithLsk(false);
       stopWebcam();
       await fetchAttendanceStatus();
 
@@ -1323,6 +1344,7 @@ export default function AttendanceCapture() {
         onOpenChange={(open) => {
           if (!open && !isProcessing) {
             setPendingAttendance(null);
+            setWithLsk(false);
           }
         }}
       >
@@ -1370,6 +1392,22 @@ export default function AttendanceCapture() {
                   {Math.round(pendingAttendance.location.accuracy)}m
                 </p>
               </div>
+              {pendingAttendance.type === "check-in" && canUseLsk && (
+                <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <Checkbox
+                    id="with-lsk"
+                    checked={withLsk}
+                    onCheckedChange={(checked) => setWithLsk(checked === true)}
+                    disabled={isProcessing}
+                  />
+                  <label htmlFor="with-lsk" className="cursor-pointer text-sm text-slate-700">
+                    <span className="block font-semibold text-slate-900">With LSK</span>
+                    <span className="block text-xs text-slate-600">
+                      Check-ins from 9:30 AM through 10:00 AM will be marked Present instead of Late.
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -1386,7 +1424,10 @@ export default function AttendanceCapture() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setPendingAttendance(null)}
+              onClick={() => {
+                setPendingAttendance(null);
+                setWithLsk(false);
+              }}
               disabled={isProcessing}
               className="w-full sm:w-auto"
             >

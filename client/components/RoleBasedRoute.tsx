@@ -5,7 +5,6 @@ import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import {
   getAllowedModulesFromSubscription,
-  hasSubscriptionAddonModule,
 } from "@/utils/subscriptionModules";
 
 interface RoleBasedRouteProps {
@@ -44,6 +43,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         if (path.includes("/organization/branches")) return "branches";
         if (path.includes("/organization/departments")) return "departments";
         if (path.includes("/organization/designations")) return "designations";
+        if (path.includes("/organization/policies")) return "policies";
         if (path.includes("/organization/role-management")) return "role_management";
         return undefined;
       case "hr_management":
@@ -87,13 +87,13 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       case "exit":
         if (path.includes("/exit/resignations")) return "resignations";
         if (path.includes("/exit/checklist")) return "checklist";
-        if (path.includes("/exit/no-due")) return "no-due";
+        if (path.includes("/exit/no-due")) return "no_due";
         if (path.includes("/exit/settlement")) return "settlement";
         return undefined;
       case "employees":
         if (path === "/employees" || path.endsWith("/employees")) return "list";
         if (path.includes("/employees/register")) return "list";
-        if (path.includes("/employees/reports")) return "employee_reports";
+        if (path.includes("/employees/reports")) return "reports";
         if (path.includes("/profile")) return "profile";
         return undefined;
       case "reports":
@@ -106,7 +106,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         return undefined;
       case "pulse_surveys":
         if (path.includes("/pulse-surveys/dashboard")) return "dashboard";
-        if (path.includes("/pulse-surveys/daily-log")) return "results";
+        if (path.includes("/pulse-surveys/daily-log")) return "daily_log";
         if (path.includes("/pulse-surveys/results")) return "results";
         if (path.includes("/pulse-surveys/create")) return "create";
         if (path.includes("/pulse-surveys/templates")) return "templates";
@@ -157,18 +157,23 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
         : [
             ...(Array.isArray(user.roles) ? user.roles : []),
             user.role || "",
+            user.type || "",
           ]
             .map((role) => String(role || "").toLowerCase())
             .filter(Boolean);
     const primaryUserRole = String(user.role || "").trim().toLowerCase();
+    const accountType = String(user.type || "").trim().toLowerCase();
     const effectiveRouteRoles =
       primaryUserRole &&
       !["employee", "admin", "ceo", "superadmin"].includes(primaryUserRole)
         ? [primaryUserRole]
         : normalizedUserRoles;
-    const isSuperAdmin = effectiveRouteRoles.includes("superadmin");
+    const isSuperAdmin =
+      primaryUserRole === "superadmin" || accountType === "superadmin";
+    const isAdmin =
+      primaryUserRole === "admin" || accountType === "admin";
     const isAdminOrCeo =
-      effectiveRouteRoles.includes("admin") || effectiveRouteRoles.includes("ceo");
+      isAdmin || primaryUserRole === "ceo";
     const allowedModulesForPlan = isSuperAdmin
       ? null
       : getAllowedModulesFromSubscription(subscription, subscriptionLoading, {
@@ -176,19 +181,6 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
           currentEmployeeId,
           addonAdminBypass: isAdminOrCeo,
         });
-    const isPulseSelfService =
-      String(requiredModule).toLowerCase() === "pulse_surveys" &&
-      ["my_surveys", "feedback", "respond"].includes(String(inferredSubmodule || "").toLowerCase());
-    const isEmployeeUser =
-      String(user.type || "").toLowerCase() === "employee" ||
-      effectiveRouteRoles.includes("employee");
-    const isPulseSelfServiceUser =
-      isPulseSelfService && (isAdminOrCeo || isEmployeeUser);
-    const addonUnlocksModule =
-      isAdminOrCeo && hasSubscriptionAddonModule(subscription, requiredModule, {
-        currentEmployeeId,
-        addonAdminBypass: isAdminOrCeo,
-      });
     const blockedByPlan =
       !isSuperAdmin &&
       allowedModulesForPlan !== null &&
@@ -210,8 +202,6 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     // If specific action is required, check for that action
     if (requiredAction) {
       const hasRequiredAccess =
-        isPulseSelfServiceUser ||
-        addonUnlocksModule ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, requiredAction, inferredSubmodule)
           : canPerformModuleAction(requiredModule, requiredAction));
@@ -230,8 +220,6 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     } else {
       // Otherwise, just check for view access
       const hasViewAccess =
-        isPulseSelfServiceUser ||
-        addonUnlocksModule ||
         (inferredSubmodule
           ? canPerformModuleAction(requiredModule, "view", inferredSubmodule)
           : hasModuleAccess(requiredModule));
@@ -250,7 +238,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   }
 
   // Check role-based access control (legacy support)
-  if (allowedRoles && allowedRoles.length > 0) {
+  if (!requiredModule && allowedRoles && allowedRoles.length > 0) {
     if (!hasAnyRole(allowedRoles)) {
       return fallbackPath ? <Navigate to={fallbackPath} replace /> : (
         <div className="min-h-screen flex items-center justify-center bg-background">

@@ -677,7 +677,11 @@ const ENDPOINTS = {
 
   // attendance
 
-  getAttendanceStatus: () => api.get("/attendance/status"),
+  getAttendanceStatus: () =>
+    api.get("/attendance/status", {
+      headers: { "Cache-Control": "no-cache" },
+      params: { _: Date.now() },
+    }),
 
   getAttendanceAssignedClients: () => api.get("/attendance/assigned-clients"),
 
@@ -715,7 +719,8 @@ const ENDPOINTS = {
     action?: "auto" | "check-in" | "check-out";
     descriptor: number[];
     location?: any;
-  }) => api.post("/attendance/facial-recognition/descriptor", data),
+  }, config?: { signal?: AbortSignal }) =>
+    api.post("/attendance/facial-recognition/descriptor", data, config),
 
   getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
   getAttendanceMonthlyReport: (month: string) => api.get("/attendance/monthly-report", { params: { month } }),

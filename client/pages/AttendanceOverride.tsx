@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import {
@@ -155,6 +155,9 @@ export default function AttendanceOverride() {
   const [processingOverrideId, setProcessingOverrideId] = useState<string | null>(null);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
+  const employeeIdInputRef = useRef<HTMLInputElement>(null);
+  const overrideDateInputRef = useRef<HTMLInputElement>(null);
+  const overrideReasonInputRef = useRef<HTMLTextAreaElement>(null);
   const [overrideForm, setOverrideForm] = useState({
     employeeId: "",
     date: "",
@@ -277,22 +280,6 @@ const requiresTimeFields =
   overrideForm.leaveMode === "none" &&
   (overrideForm.overriddenStatus === "present" || overrideForm.overriddenStatus === "half");
 
-const buildOverrideReason = () => {
-  const trimmedReason = overrideForm.reason.trim();
-  const leaveLabel =
-    overrideForm.leaveMode === "paid"
-      ? "Paid Leave"
-      : overrideForm.leaveMode === "half"
-        ? "Half Day Leave"
-        : "";
-
-  if (!leaveLabel || !overrideForm.leaveTypeName) {
-    return trimmedReason;
-  }
-
-  return `[${leaveLabel} - ${overrideForm.leaveTypeName}] ${trimmedReason}`;
-};
-
 const resetOverrideForm = () => {
   setOverrideForm({
     employeeId: defaultEmployeeId,
@@ -349,19 +336,25 @@ const handleLeaveModeSelection = (leaveMode: LeaveMode) => {
 
 
 const handleCreateOverride = async () => {
-  if (
-    !overrideForm.employeeId.trim() ||
-    !overrideForm.date ||
-    !overrideForm.reason.trim()
-  ) {
-    toast.error("Employee ID, date and reason are required");
+  // Browser autofill can update a visible field without firing React's change event.
+  const employeeId = (employeeIdInputRef.current?.value ?? overrideForm.employeeId).trim();
+  const date = (overrideDateInputRef.current?.value ?? overrideForm.date).trim();
+  const reason = (overrideReasonInputRef.current?.value ?? overrideForm.reason).trim();
+  const missingFields = [
+    !employeeId && "Employee ID",
+    !date && "attendance date",
+    !reason && "reason",
+  ].filter(Boolean);
+
+  if (missingFields.length > 0) {
+    toast.error(`${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`);
     return;
   }
 
-  if (requiresTimeFields && (!overrideForm.requestedCheckIn || !overrideForm.requestedCheckOut)) {
-    toast.error("Requested check-in and check-out are required for present or half day override");
-    return;
-  }
+  // if (requiresTimeFields && (!overrideForm.requestedCheckIn || !overrideForm.requestedCheckOut)) {
+  //   toast.error("Requested check-in and check-out are required for present or half day override");
+  //   return;
+  // }
 
   if (overrideForm.leaveMode !== "none" && !overrideForm.leaveTypeName) {
     toast.error("Select a leave type");
@@ -371,12 +364,15 @@ const handleCreateOverride = async () => {
   setIsSubmittingOverride(true);
   try {
     const result = await attendanceApi.createOverride({
-      employeeId: overrideForm.employeeId,
-      reason: buildOverrideReason(),
+      employeeId,
+      reason:
+        overrideForm.leaveMode !== "none" && overrideForm.leaveTypeName
+          ? `[${overrideForm.leaveMode === "paid" ? "Paid Leave" : "Half Day Leave"} - ${overrideForm.leaveTypeName}] ${reason}`
+          : reason,
       requestedCheckIn: requiresTimeFields ? overrideForm.requestedCheckIn || undefined : undefined,
       requestedCheckOut: requiresTimeFields ? overrideForm.requestedCheckOut || undefined : undefined,
       leaveMode: overrideForm.leaveMode,
-      date: overrideForm.date,
+      date,
       originalStatus: overrideForm.originalStatus,
       overriddenStatus: overrideForm.overriddenStatus,
     });
@@ -652,6 +648,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                         Employee ID <span className="text-red-500">*</span>
                       </Label>
                       <Input
+                        ref={employeeIdInputRef}
                         id="employeeId"
                         placeholder="e.g., EMP003 / CMS001"
                         value={overrideForm.employeeId}
@@ -670,6 +667,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                       </Label>
                       <div className="flex items-center gap-2">
                         <Input
+                          ref={overrideDateInputRef}
                           id="overrideDate"
                           type="date"
                           value={overrideForm.date}
@@ -834,7 +832,8 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="requestedCheckIn">
-                          Requested Check-in <span className="text-red-500">*</span>
+                          Requested Check-in
+                           {/* <span className="text-red-500">*</span> */}
                         </Label>
                         <Input
                           id="requestedCheckIn"
@@ -850,7 +849,8 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="requestedCheckOut">
-                          Requested Check-out <span className="text-red-500">*</span>
+                          Requested Check-out 
+                          {/* <span className="text-red-500">*</span> */}
                         </Label>
                         <Input
                           id="requestedCheckOut"
@@ -872,6 +872,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                       Reason for Override <span className="text-red-500">*</span>
                     </Label>
                     <Textarea
+                      ref={overrideReasonInputRef}
                       id="reason"
                       placeholder="Provide detailed reason for this override"
                       className="min-h-32"

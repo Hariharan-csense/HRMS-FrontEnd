@@ -139,7 +139,6 @@ import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import {
   getAllowedModulesFromSubscription,
-  hasSubscriptionAddonModule,
 } from "@/utils/subscriptionModules";
 import { Button } from "@/components/ui/button";
 
@@ -163,8 +162,8 @@ const navigationItems: NavItem[] = [
     label: "Dashboard",
     icon: <LayoutDashboard className="w-5 h-5" />,
     path: "/dashboard",
-    roles: [], // Empty roles - access controlled by moduleName being undefined
-    moduleName: undefined, // Always accessible
+    roles: [],
+    moduleName: "dashboard",
   },
   // {
   //   label: "Quick Actions",
@@ -1023,19 +1022,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       : [
           ...(Array.isArray(user.roles) ? user.roles : []),
           user.role || "",
+          user.type || "",
         ]
           .map((role) => String(role || "").toLowerCase())
           .filter(Boolean);
   const primaryUserRole = String(user.role || "").trim().toLowerCase();
+  const accountType = String(user.type || "").trim().toLowerCase();
   const effectiveSidebarRoles =
     primaryUserRole &&
     !["employee", "admin", "ceo", "superadmin"].includes(primaryUserRole)
       ? [primaryUserRole]
       : normalizedUserRoles;
-  const isSuperAdmin = effectiveSidebarRoles.includes("superadmin");
-  const isCeo = effectiveSidebarRoles.includes("ceo");
-  const isAdmin = effectiveSidebarRoles.includes("admin");
+  // Only the account's primary role/type can grant authority. Assigned role
+  // names must never turn a normal Employee account into an Admin/CEO, while
+  // employee-table accounts whose actual primary role is Admin/CEO still work.
+  const isSuperAdmin =
+    primaryUserRole === "superadmin" || accountType === "superadmin";
+  const isCeo = primaryUserRole === "ceo";
+  const isAdmin =
+    primaryUserRole === "admin" || accountType === "admin";
   const isEmployeeUser = effectiveSidebarRoles.includes("employee");
+  const isInternalCompany = Boolean(subscription?.is_internal_company);
 
   const allowedModulesForPlan = useMemo(() => {
     if (isSuperAdmin) return null;
@@ -1084,6 +1091,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (path.includes("/hr/offer-letters")) return "offer_letters";
         if (path.includes("/hr/onboarding")) return "onboarding";
         return undefined;
+      case "employees":
+        if (path === "/employees" || path.endsWith("/employees")) return "list";
+        if (path.includes("/employees/register")) return "list";
+        if (path.includes("/employees/reports")) return "reports";
+        if (path.includes("/profile")) return "profile";
+        return undefined;
       case "attendance":
         if (path.includes("/attendance/capture")) return "capture";
         if (path.includes("/attendance/facial-recognition"))
@@ -1120,12 +1133,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case "exit":
         if (path.includes("/exit/resignations")) return "resignations";
         if (path.includes("/exit/checklist")) return "checklist";
-        if (path.includes("/exit/no-due")) return "no-due";
+        if (path.includes("/exit/no-due")) return "no_due";
         if (path.includes("/exit/settlement")) return "settlement";
         return undefined;
       case "pulse_surveys":
         if (path.includes("/pulse-surveys/dashboard")) return "dashboard";
-        if (path.includes("/pulse-surveys/daily-log")) return "results";
+        if (path.includes("/pulse-surveys/daily-log")) return "daily_log";
         if (path.includes("/pulse-surveys/results")) return "results";
         if (path.includes("/pulse-surveys/create")) return "create";
         if (path.includes("/pulse-surveys/templates")) return "templates";
@@ -1162,21 +1175,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const hasItemAccess = (item: NavItem): boolean => {
     // Enforce explicit role restrictions when provided.
     if (item.roles && item.roles.length > 0) {
+      const isPlatformSuperAdminItem = item.roles.some(
+        (role) => String(role).toLowerCase() === "superadmin",
+      );
       const roleSet = new Set(
         effectiveSidebarRoles,
       );
       const allowed = item.roles.some((requiredRole) =>
         roleSet.has(requiredRole.toLowerCase()),
       );
-      if (!allowed) {
+      // Company modules are governed by saved RBAC. Keep hard-coded roles only
+      // for platform-only entries that are not part of company role setup.
+      if (isPlatformSuperAdminItem && !allowed) {
         return false;
       }
-    }
-
-    // Keep role debug entries visible for allowed roles (admin/ceo),
-    // without plan/module permission gating.
-    if (item.path === "/debug/roles" || item.path === "/debug/role-test") {
-      return true;
     }
 
     const hasConfiguredRoles = Array.isArray(userRoles) && userRoles.length > 0;
@@ -1185,9 +1197,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // Run this before submenu recursion so plan-blocked parent modules like KPI
     // never appear in the sidebar even if a child would otherwise pass a fallback.
     if (!isSuperAdmin) {
-      if (item.label === "Dashboard") return true;
-      if (item.moduleName === "ai_assistant") return true;
-
       if (allowedModulesForPlan) {
         if (item.moduleName === undefined && !item.submenu?.length) return false;
         if (item.moduleName && !allowedModulesForPlan.has(item.moduleName)) {
@@ -1198,9 +1207,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     }
 
-    // Parent modules with submenu must also have their own saved view permission.
-    // Example: KPI Management should not appear just because a stale child/default
-    // permission passes; the role's KPI parent view must be explicitly enabled.
+    // A parent is visible when its module is enabled and at least one child is
+    // assigned. This supports roles configured at either module or submodule
+    // granularity without displaying an empty menu.
     if (item.submenu && item.submenu.length > 0) {
       if (item.moduleName && !hasModuleAccess(item.moduleName)) {
         return false;
@@ -1219,28 +1228,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return item.moduleName === undefined;
     }
 
-    // Add-on purchases are company entitlements. Admin/CEO should see purchased add-on modules
-    // even if the saved role template was created before the add-on existed.
-    if (
-      item.moduleName &&
-      (isAdmin || isCeo) &&
-      hasSubscriptionAddonModule(subscription, item.moduleName)
-    ) {
-      return true;
-    }
-
     // Submodule-aware visibility: prefer submodule RBAC check when available.
     const inferredSubmodule = inferSubmoduleFromPath(item);
-    if (
-      item.moduleName === "pulse_surveys" &&
-      (isAdmin || isCeo) &&
-      ["my_surveys", "feedback", "respond"].includes(
-        String(inferredSubmodule || ""),
-      )
-    ) {
-      return true;
-    }
-
     if (item.moduleName && inferredSubmodule) {
       const hasAccess = canPerformModuleAction(
         item.moduleName,
@@ -1302,7 +1291,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       hasItemAccess(subItem as NavItem),
     );
 
-    if (item.label === "Employee Surveys" && isEmployeeUser) {
+    if (
+      item.label === "Employee Surveys" &&
+      isEmployeeUser &&
+      !isInternalCompany
+    ) {
       visibleSubmenu = visibleSubmenu.filter(
         (subitem) =>
           subitem.path === "/pulse-surveys/my-surveys" ||

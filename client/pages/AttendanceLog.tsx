@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { Layout } from "@/components/Layout";
@@ -126,6 +126,7 @@ export interface AttendanceLogRecord {
   leaveStatus?: string;
   leaveSource?: "application" | "override" | "permission";
   permissionStatus?: string;
+  withLsk?: boolean;
 }
 
 type CalendarLeaveEntry = {
@@ -555,6 +556,9 @@ const normalizeLeaveTypeName = (name: string | undefined | null): string => {
   return normalized;
 };
 
+const getLocalDateKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
 export default function AttendanceLog() {
   const { user } = useAuth();
   const { hasModuleAccess, canPerformModuleAction } = useRole();
@@ -567,10 +571,30 @@ export default function AttendanceLog() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isOverrideOpen, setIsOverrideOpen] = useState(false);
   const [isSubmittingOverride, setIsSubmittingOverride] = useState(false);
+  const overrideEmployeeIdInputRef = useRef<HTMLInputElement>(null);
+  const overrideDateInputRef = useRef<HTMLInputElement>(null);
+  const overrideReasonInputRef = useRef<HTMLTextAreaElement>(null);
   const [logs, setLogs] = useState<AttendanceLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
+  const moveSelectedDate = (dayOffset: number) => {
+    if (!selectedDate) return;
+    const date = new Date(`${selectedDate}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return;
+    date.setDate(date.getDate() + dayOffset);
+
+    const nextDate = getLocalDateKey(date);
+    if (nextDate > getLocalDateKey(new Date())) return;
+
+    setSelectedDate(nextDate);
+    if (
+      date.getFullYear() !== currentMonth.getFullYear() ||
+      date.getMonth() !== currentMonth.getMonth()
+    ) {
+      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    }
+  };
   // AttendanceLog component top-ல (other states கூட)
   const [overrideDraft, setOverrideDraft] = useState<{
     attendanceId?: string;
@@ -750,24 +774,6 @@ export default function AttendanceLog() {
     );
   };
 
-  const buildOverrideReason = () => {
-    if (!overrideDraft) return "";
-
-    const trimmedReason = overrideDraft.reason.trim();
-    const leaveLabel =
-      overrideDraft.leaveMode === "paid"
-        ? "Paid Leave"
-        : overrideDraft.leaveMode === "half"
-          ? "Half Day Leave"
-          : "";
-
-    if (!leaveLabel || !overrideDraft.leaveTypeName) {
-      return trimmedReason;
-    }
-
-    return `[${leaveLabel} - ${overrideDraft.leaveTypeName}] ${trimmedReason}`;
-  };
-
   const handleOverride = (recordId: string) => {
     const record = filteredData.find((r) => r.id === recordId);
     if (record) {
@@ -784,29 +790,36 @@ export default function AttendanceLog() {
   const handleSubmitOverride = async () => {
     if (!overrideDraft) return;
 
+    // Browser autofill can update a visible field without firing React's change event.
+    const employeeId = (overrideEmployeeIdInputRef.current?.value ?? overrideDraft.employeeId).trim();
+    const date = (overrideDateInputRef.current?.value ?? overrideDraft.date).trim();
+    const reason = (overrideReasonInputRef.current?.value ?? overrideDraft.reason).trim();
+
     const requiresTimeFields =
       overrideDraft.leaveMode === "none" &&
       (overrideDraft.overriddenStatus === "present" ||
         overrideDraft.overriddenStatus === "half");
 
-    if (
-      !overrideDraft.employeeId.trim() ||
-      !overrideDraft.date ||
-      !overrideDraft.reason.trim()
-    ) {
-      toast.error("Employee ID, date and reason are required");
+    const missingFields = [
+      !employeeId && "Employee ID",
+      !date && "attendance date",
+      !reason && "reason",
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      toast.error(`${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`);
       return;
     }
 
-    if (
-      requiresTimeFields &&
-      (!overrideDraft.requestedCheckIn || !overrideDraft.requestedCheckOut)
-    ) {
-      toast.error(
-        "Requested check-in and check-out are required for present or half day override",
-      );
-      return;
-    }
+    // if (
+    //   requiresTimeFields &&
+    //   (!overrideDraft.requestedCheckIn || !overrideDraft.requestedCheckOut)
+    // ) {
+    //   toast.error(
+    //     "Requested check-in and check-out are required for present or half day override",
+    //   );
+    //   return;
+    // }
 
     if (overrideDraft.leaveMode !== "none" && !overrideDraft.leaveTypeName) {
       toast.error("Select a leave type");
@@ -816,11 +829,14 @@ export default function AttendanceLog() {
     setIsSubmittingOverride(true);
     const result = await attendanceApi.createOverride({
       attendanceId: overrideDraft.attendanceId,
-      employeeId: overrideDraft.employeeId,
-      date: overrideDraft.date,
+      employeeId,
+      date,
       originalStatus: overrideDraft.originalStatus,
       overriddenStatus: overrideDraft.overriddenStatus,
-      reason: buildOverrideReason(),
+      reason:
+        overrideDraft.leaveMode !== "none" && overrideDraft.leaveTypeName
+          ? `[${overrideDraft.leaveMode === "paid" ? "Paid Leave" : "Half Day Leave"} - ${overrideDraft.leaveTypeName}] ${reason}`
+          : reason,
       requestedCheckIn: requiresTimeFields
         ? overrideDraft.requestedCheckIn || undefined
         : undefined,
@@ -1142,6 +1158,10 @@ export default function AttendanceLog() {
           const normalizedBackendStatus = String(
             item.status || "",
           ).toLowerCase();
+          const isLskAttendance =
+            item.with_lsk === true ||
+            item.with_lsk === 1 ||
+            String(item.with_lsk || "").toLowerCase() === "true";
           let actualStatus: AttendanceLogRecord["status"] =
             normalizedBackendStatus === "half_day" ||
             normalizedBackendStatus === "half-day"
@@ -1163,7 +1183,7 @@ export default function AttendanceLog() {
           let calculatedLateBy = "";
 
           // If there's a check-in time, calculate lateBy and (optionally) upgrade present -> late
-          if (item.check_in && item.shift_id) {
+          if (item.check_in && item.shift_id && !isLskAttendance) {
             const attendanceDate =
               getDate(item.check_in, item.created_at) || "";
             const employeeKey = String(item.employee_id ?? "");
@@ -1262,6 +1282,7 @@ export default function AttendanceLog() {
             clientCode: item.client_code || null,
             // Also store the original employee_id for matching
             originalEmployeeId: item.employee_id,
+            withLsk: isLskAttendance,
           };
         });
       } else {
@@ -2717,14 +2738,46 @@ export default function AttendanceLog() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-4xl w-full mx-auto max-h-[90vh] overflow-hidden p-0">
           <DialogHeader className="border-b bg-background px-6 py-5 pr-12">
-            <DialogTitle className="text-xl sm:text-2xl font-bold pr-8">
-              Attendance - {selectedDate || "Selected Date"}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Showing {selectedDateRecords.length} employee record
-              {selectedDateRecords.length !== 1 ? "s" : ""} for{" "}
-              {selectedDate || "Selected Date"}
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => moveSelectedDate(-1)}
+                disabled={!selectedDate || loading}
+                aria-label="View previous date"
+                title="Previous date"
+                className="shrink-0"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-xl sm:text-2xl font-bold">
+                  Attendance - {selectedDate || "Selected Date"}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Showing {selectedDateRecords.length} employee record
+                  {selectedDateRecords.length !== 1 ? "s" : ""} for{" "}
+                  {selectedDate || "Selected Date"}
+                </DialogDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => moveSelectedDate(1)}
+                disabled={
+                  !selectedDate ||
+                  loading ||
+                  selectedDate >= getLocalDateKey(new Date())
+                }
+                aria-label="View next date"
+                title="Next date"
+                className="shrink-0"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-6 pb-6 pt-4 sm:pt-6">
@@ -3166,6 +3219,7 @@ export default function AttendanceLog() {
                     Employee ID <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    ref={overrideEmployeeIdInputRef}
                     id="employeeId"
                     placeholder="e.g., EMP003 / CMS001"
                     value={overrideDraft.employeeId}
@@ -3186,6 +3240,7 @@ export default function AttendanceLog() {
                     Attendance Date <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    ref={overrideDateInputRef}
                     id="overrideDate"
                     type="date"
                     value={overrideDraft.date}
@@ -3375,7 +3430,7 @@ export default function AttendanceLog() {
                         className="text-base font-semibold"
                       >
                         Requested Check-in{" "}
-                        <span className="text-red-500">*</span>
+                        {/* <span className="text-red-500">*</span> */}
                       </Label>
                       <Input
                         id="requestedCheckIn"
@@ -3397,7 +3452,7 @@ export default function AttendanceLog() {
                         className="text-base font-semibold"
                       >
                         Requested Check-out{" "}
-                        <span className="text-red-500">*</span>
+                        {/* <span className="text-red-500">*</span> */}
                       </Label>
                       <Input
                         id="requestedCheckOut"
@@ -3421,6 +3476,7 @@ export default function AttendanceLog() {
                   Reason for Override <span className="text-red-500">*</span>
                 </Label>
                 <Textarea
+                  ref={overrideReasonInputRef}
                   id="reason"
                   placeholder="Provide detailed reason for this override"
                   className="min-h-32"

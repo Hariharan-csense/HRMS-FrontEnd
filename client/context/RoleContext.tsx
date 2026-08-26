@@ -9,14 +9,16 @@ import { useAuth } from "./AuthContext";
 import { BASE_URL } from "../lib/endpoint";
 import { ENDPOINTS } from "../lib/endpoint";
 
+type PermissionValue = number | boolean | string | null | undefined;
+
 interface ModulePermission {
-  view: number;
-  create: number;
-  update: number;
-  delete: number;
-  approve: number;
-  reject: number;
-  edit?: number;
+  view: PermissionValue;
+  create: PermissionValue;
+  update: PermissionValue;
+  delete: PermissionValue;
+  approve: PermissionValue;
+  reject: PermissionValue;
+  edit?: PermissionValue;
 }
 
 interface ModulePermissionNode {
@@ -71,11 +73,17 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
       .toLowerCase()
       .replace(/[\s_-]+/g, "");
 
+  // Role data has historically been stored as MySQL 0/1 values, JSON
+  // booleans, and occasionally string values. Treat all enabled forms alike.
+  const isPermissionEnabled = (value: PermissionValue): boolean =>
+    value === true || value === 1 || value === "1" || String(value).toLowerCase() === "true";
+
   const hasAnyUserRole = (...wantedRoles: string[]) => {
     const wanted = new Set(wantedRoles.map((r) => normalizeRoleIdentifier(r)));
     const roles = Array.isArray(user?.roles) ? user.roles : [];
     const primaryRole = user?.role ? [user.role] : [];
-    const allRoles = [...roles, ...primaryRole].map((r) =>
+    const userType = user?.type ? [user.type] : [];
+    const allRoles = [...roles, ...primaryRole, ...userType].map((r) =>
       normalizeRoleIdentifier(r),
     );
     return allRoles.some((r) => wanted.has(r));
@@ -94,6 +102,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
         : [
             ...(Array.isArray(user?.roles) ? user.roles : []),
             user?.role,
+            user?.type,
           ];
 
     sourceRoles.forEach((roleName) => {
@@ -105,36 +114,26 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     const roles = [...roleSet];
     const customRoles = roles.filter((role) => !systemRoles.has(role));
     if (customRoles.length > 0) {
-      return roles.filter((role) => role !== "employee");
+      // An assigned custom role is authoritative. Do not retain a system-role
+      // identity (employee/admin/CEO) alongside it, otherwise UI permission
+      // checks can accidentally inherit unrestricted system-role access.
+      return customRoles;
     }
 
     return roles;
   };
 
-  const isTopAuthority = () =>
-    hasAnyUserRole("superadmin", "ceo") ||
-    user?.type?.toLowerCase() === "superadmin";
+  const isTopAuthority = () => {
+    const roles = getNormalizedUserRoleNames();
+    return roles.includes("superadmin");
+  };
 
   const hasDefaultAdminModuleAccess = (
     module: string,
     subModule?: string,
   ): boolean => {
-    if (!getNormalizedUserRoleNames().includes("admin")) return false;
-
-    const normalizedModule = String(module || "").toLowerCase();
-    const normalizedSubModule = String(subModule || "").toLowerCase();
-
-    if (normalizedModule === "payroll") return true;
-    if (normalizedModule === "employees" && normalizedSubModule === "profile") {
-      return true;
-    }
-    if (
-      normalizedModule === "expenses" &&
-      (!normalizedSubModule || normalizedSubModule === "claims")
-    ) {
-      return true;
-    }
-
+    // Saved role permissions are authoritative for company users, including
+    // Admin and CEO. Only the platform Superadmin bypasses company RBAC.
     return false;
   };
 
@@ -302,14 +301,6 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     if (userRoles.length === 0) return false;
 
     const normalizedUserRoleNames = getNormalizedUserRoleNames();
-    const isAdmin = normalizedUserRoleNames.includes("admin");
-    if (
-      isAdmin &&
-      (module.toLowerCase() === "payroll" ||
-        module.toLowerCase() === "expenses")
-    ) {
-      return true;
-    }
 
     // Debug logging
     if (shouldShowRoleAccessDebug) {
@@ -334,7 +325,9 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
       const modulePermission = resolveModulePermission(role.modules, module);
 
-      const hasAccess = modulePermission && modulePermission.view === 1;
+      const hasAccess = Boolean(
+        modulePermission && isPermissionEnabled(modulePermission.view),
+      );
 
       // Debug logging
       if (shouldShowRoleAccessDebug) {
@@ -367,19 +360,8 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     if (userRoles.length === 0) return false;
 
     const normalizedUserRoleNames = getNormalizedUserRoleNames();
-    const isAdmin = normalizedUserRoleNames.includes("admin");
     const normalizedModule = String(module || "").toLowerCase();
     const normalizedSubModule = String(subModule || "").toLowerCase();
-    if (
-      isAdmin &&
-      (normalizedModule === "payroll" ||
-        (normalizedModule === "employees" &&
-          normalizedSubModule === "profile") ||
-        (normalizedModule === "expenses" &&
-          (!normalizedSubModule || normalizedSubModule === "claims")))
-    ) {
-      return true;
-    }
 
     // Debug logging for ESSL Setup
     if (
@@ -432,17 +414,20 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
       switch (normalizeAction(action)) {
         case "view":
-          return modulePermission.view === 1;
+          return isPermissionEnabled(modulePermission.view);
         case "create":
-          return modulePermission.create === 1;
+          return isPermissionEnabled(modulePermission.create);
         case "update":
-          return modulePermission.update === 1 || modulePermission.edit === 1;
+          return (
+            isPermissionEnabled(modulePermission.update) ||
+            isPermissionEnabled(modulePermission.edit)
+          );
         case "delete":
-          return modulePermission.delete === 1;
+          return isPermissionEnabled(modulePermission.delete);
         case "approve":
-          return modulePermission.approve === 1;
+          return isPermissionEnabled(modulePermission.approve);
         case "reject":
-          return modulePermission.reject === 1;
+          return isPermissionEnabled(modulePermission.reject);
         default:
           return false;
       }

@@ -38,6 +38,7 @@ import ENDPOINTS from "../lib/endpoint";
 import { showToast } from "@/utils/toast";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { isCordovaIOS } from "@/lib/platform";
+import { formatTrialTimeRemaining } from "@/utils/subscriptionModules";
 
 declare global {
   interface Window {
@@ -78,6 +79,9 @@ interface CompanySubscription {
   days_remaining: number;
   is_trial_active: boolean;
   trial_days_remaining: number;
+  trial_hours_remaining?: number;
+  trial_minutes_remaining?: number;
+  is_internal_company?: boolean;
   storage_usage_percentage?: number;
   addons?: Array<{
     id: number;
@@ -202,6 +206,8 @@ const getPricingSummary = (
     billingCycle === "yearly" ? yearlyPerUserMonthly : monthlyPerUser;
   const totalPrice =
     effectivePerUser * usersCount * (billingCycle === "yearly" ? 12 : 1);
+  const gstAmount = Number((totalPrice * 0.18).toFixed(2));
+  const totalWithGst = Number((totalPrice + gstAmount).toFixed(2));
 
   return {
     monthlyPerUser,
@@ -209,6 +215,8 @@ const getPricingSummary = (
     effectivePerUser,
     savingsPerUser: Number((monthlyPerUser - yearlyPerUserMonthly).toFixed(2)),
     totalPrice,
+    gstAmount,
+    totalWithGst,
   };
 };
 
@@ -438,7 +446,7 @@ const SubscriptionManagement: React.FC = () => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: "HRMS",
-        description: `Upgrade to ${selectedPlan.name}`,
+        description: `Upgrade to ${selectedPlan.name} (includes 18% GST)`,
         order_id: orderData.order_id,
         handler: async (response: any) => {
           try {
@@ -845,7 +853,10 @@ const SubscriptionManagement: React.FC = () => {
                   <p className="text-sm text-gray-600">Duration</p>
                   <p className="font-semibold flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    {currentSubscription.days_remaining} days remaining
+                    {currentSubscription.status === "trial" &&
+                    currentSubscription.is_trial_active
+                      ? `${formatTrialTimeRemaining(currentSubscription)} remaining`
+                      : `${currentSubscription.days_remaining} days remaining`}
                   </p>
                 </div>
               </div>
@@ -977,10 +988,7 @@ const SubscriptionManagement: React.FC = () => {
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-800">
                     <Clock className="inline w-4 h-4 mr-1" />
-                    Trial ends in {
-                      currentSubscription.trial_days_remaining
-                    }{" "}
-                    days
+                    Trial ends in {formatTrialTimeRemaining(currentSubscription)}
                   </p>
                 </div>
               )}
@@ -1801,6 +1809,33 @@ const SubscriptionManagement: React.FC = () => {
                     {getStorageForPlan(selectedPlan)} storage
                   </p>
                 </div>
+
+                {(() => {
+                  const pricing = getPricingSummary(
+                    selectedPlan,
+                    selectedUsers,
+                    selectedBillingCycle,
+                  );
+                  return (
+                    <div className="space-y-2 rounded-lg border p-3">
+                      <div className="flex justify-between text-sm">
+                        <span>Subscription amount</span>
+                        <span>{formatCurrency(pricing.totalPrice)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>GST (18%)</span>
+                        <span>+ {formatCurrency(pricing.gstAmount)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2 font-semibold">
+                        <span>Total payable</span>
+                        <span>{formatCurrency(pricing.totalWithGst)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {formatCurrency(pricing.totalPrice)} + 18% GST
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 <div className="flex gap-2">
                   <Button
