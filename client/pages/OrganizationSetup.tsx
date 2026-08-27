@@ -1646,7 +1646,7 @@ export default function OrganizationSetup() {
                     <Label>Accrual logic</Label>
                     <Select
                       value={companyPolicy.leave.casualLeaveAccrual}
-                      onValueChange={(value: "monthly_start" | "after_full_month") =>
+                      onValueChange={(value: "monthly_start" | "after_full_month" | "after_attendance_days") =>
                         updateCompanyPolicySection("leave", {
                           casualLeaveAccrual: value,
                         })
@@ -1662,9 +1662,30 @@ export default function OrganizationSetup() {
                         <SelectItem value="after_full_month">
                           Credit after full month worked
                         </SelectItem>
+                        <SelectItem value="after_attendance_days">
+                          Credit after attendance days completed
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {companyPolicy.leave.casualLeaveAccrual === "after_attendance_days" && (
+                    <div className={policyFieldClass}>
+                      <Label>Minimum attendance days</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={companyPolicy.leave.casualLeaveMinimumAttendanceDays}
+                        onChange={(event) =>
+                          updateCompanyPolicySection("leave", {
+                            casualLeaveMinimumAttendanceDays:
+                              Math.max(1, Number(event.target.value) || 1),
+                          })
+                        }
+                        className={policyInputClass}
+                      />
+                    </div>
+                  )}
                   <div className={`${policyToggleClass} lg:col-span-2`}>
                     <Label htmlFor="includePendingLeave">
                       Count pending leave while checking balance

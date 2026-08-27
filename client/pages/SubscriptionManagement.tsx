@@ -1675,7 +1675,7 @@ const SubscriptionManagement: React.FC = () => {
             <CardContent>
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left p-2">Date</th>

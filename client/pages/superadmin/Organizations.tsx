@@ -379,7 +379,7 @@ export const Organizations: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/20">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted/20 p-1 sm:grid-cols-4">
                   <TabsTrigger value="all" className="py-2">
                     All{" "}
                     <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">

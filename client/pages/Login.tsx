@@ -11,10 +11,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader, ArrowRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole } from "lucide-react";
+import {
+  Loader,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  UnlockKeyhole,
+} from "lucide-react";
 import { showToast } from "@/utils/toast";
 import logo from "../assets/logo.png";
-import { profileManager } from "@/lib/profileManager";
+import { profileManager, SavedAccount } from "@/lib/profileManager";
 import { isValidLoginIdentifier, normalizeEmail } from "@/lib/validation";
 import { isCordovaIOS } from "@/lib/platform";
 import { hasRefreshCredential, isAutoLoginPaused } from "@/lib/endpoint";
@@ -104,9 +111,11 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegisterClicked, setIsRegisterClicked] = useState(false);
   const [savedProfile, setSavedProfile] = useState<any>(null);
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
   const [attemptedSessionRestore, setAttemptedSessionRestore] = useState(false);
+  const [accountChooserReady, setAccountChooserReady] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const holdAuthRedirectRef = useRef(false);
   const { login, autoLogin, isAuthenticated, isLoading } = useAuth();
@@ -116,18 +125,27 @@ export default function Login() {
   useEffect(() => {
     const savedCredentials = profileManager.getSavedCredentials();
     const savedProfileData = profileManager.getSavedProfile();
+    let accounts = profileManager.getSavedAccounts();
+    if (!accounts.length && savedProfileData) {
+      accounts = profileManager.saveAccountSession(
+        savedProfileData,
+        localStorage.getItem("refreshToken") || undefined,
+      );
+    }
+    setSavedAccounts(accounts);
 
     if (savedCredentials) {
       setEmail(savedCredentials.email);
       setRememberMe(savedCredentials.rememberMe);
     }
 
-    if (savedProfileData) {
-      setSavedProfile(savedProfileData);
+    if (accounts.length) {
+      setSavedProfile(accounts[0]);
       setShowLoginForm(false);
     } else {
       setShowLoginForm(true);
     }
+    setAccountChooserReady(true);
 
     const authToast = sessionStorage.getItem("authToast");
     if (authToast) {
@@ -157,7 +175,7 @@ export default function Login() {
     const loggedInUser = JSON.parse(localStorage.getItem("user") || "null");
     const isSuperAdmin =
       loggedInUser?.roles?.some(
-        (role: string) => role?.toLowerCase() === "superadmin"
+        (role: string) => role?.toLowerCase() === "superadmin",
       ) || loggedInUser?.role?.toLowerCase() === "superadmin";
 
     navigate(isSuperAdmin ? "/superadmin-dashboard" : "/dashboard", {
@@ -177,6 +195,7 @@ export default function Login() {
   };
 
   useEffect(() => {
+    if (!accountChooserReady) return;
     if (isLoading) return;
 
     if (isAuthenticated) {
@@ -186,6 +205,9 @@ export default function Login() {
     }
 
     if (attemptedSessionRestore) return;
+
+    // Remembered accounts must be selected explicitly, like Gmail's chooser.
+    if (savedAccounts.length) return;
 
     const hasRememberedSession = hasRefreshCredential() && !isAutoLoginPaused();
 
@@ -215,7 +237,20 @@ export default function Login() {
     };
 
     restoreSession();
-  }, [isAuthenticated, isLoading, attemptedSessionRestore]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    attemptedSessionRestore,
+    accountChooserReady,
+    savedAccounts.length,
+  ]);
+
+  const handleSignIntoAnotherAccount = () => {
+    setEmail("");
+    setPassword("");
+    setRememberMe(true);
+    setShowLoginForm(true);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,6 +270,14 @@ export default function Login() {
       if (result.success) {
         if (rememberMe) {
           profileManager.saveCredentials(normalizedIdentifier, true);
+          const loggedInUser = JSON.parse(
+            localStorage.getItem("user") || "null",
+          );
+          const accounts = profileManager.saveAccountSession(
+            loggedInUser,
+            localStorage.getItem("refreshToken") || undefined,
+          );
+          setSavedAccounts(accounts);
         } else {
           profileManager.clearSavedCredentials();
           profileManager.clearSavedProfile();
@@ -260,25 +303,48 @@ export default function Login() {
   };
 
   const handleClearSavedProfile = () => {
-    profileManager.clearAll();
+    if (!savedProfile?.email) return;
+    const accounts = profileManager.removeSavedAccount(savedProfile.email);
     localStorage.removeItem("auth:session");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     sessionStorage.removeItem("refreshToken");
-    setSavedProfile(null);
+    setAttemptedSessionRestore(true);
+    setSavedAccounts(accounts);
+    setSavedProfile(accounts[0] || null);
     setEmail("");
     setPassword("");
     setRememberMe(false);
-    setShowLoginForm(true);
-    showToast.success("Saved profile cleared successfully.");
+    setShowLoginForm(accounts.length === 0);
+    showToast.success("Saved account removed.");
   };
 
-  const handleYesThisIsMe = async () => {
-    if (!savedProfile?.email) return;
+  const handleYesThisIsMe = async (selectedAccount?: SavedAccount) => {
+    const account = selectedAccount || savedProfile;
+    if (!account?.email) return;
+    setSavedProfile(account);
+
+    if (account.refreshToken) {
+      localStorage.setItem("refreshToken", account.refreshToken);
+      localStorage.setItem("rememberMe", "true");
+      localStorage.setItem("user", JSON.stringify(account.user || account));
+      localStorage.setItem(
+        "auth:session",
+        JSON.stringify({
+          refreshToken: account.refreshToken,
+          user: account.user || account,
+          rememberMe: true,
+        }),
+      );
+    } else {
+      localStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("refreshToken");
+      localStorage.removeItem("auth:session");
+    }
 
     if (!hasRefreshCredential()) {
       showToast.info("Please enter your password to continue.");
-      setEmail(savedProfile.email);
+      setEmail(account.email);
       setRememberMe(true);
       setShowLoginForm(true);
       return;
@@ -297,15 +363,17 @@ export default function Login() {
         holdAuthRedirectRef.current = false;
         sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
         showToast.info("Please enter your password to continue.");
-        setEmail(savedProfile.email);
+        setEmail(account.email);
         setRememberMe(true);
         setShowLoginForm(true);
       }
     } catch (error) {
       holdAuthRedirectRef.current = false;
       sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
-      showToast.error("Auto-login failed. Please enter your credentials manually.");
-      setEmail(savedProfile.email);
+      showToast.error(
+        "Auto-login failed. Please enter your credentials manually.",
+      );
+      setEmail(account.email);
       setRememberMe(true);
       setShowLoginForm(true);
     } finally {
@@ -334,7 +402,9 @@ export default function Login() {
               </div>
               <div className="unlock-text text-center">
                 <p className="text-2xl font-bold text-white">Access Unlocked</p>
-                <p className="text-sm text-[#d8fff3]">Entering HRMS workspace...</p>
+                <p className="text-sm text-[#d8fff3]">
+                  Entering HRMS workspace...
+                </p>
               </div>
             </div>
           </div>
@@ -366,36 +436,49 @@ export default function Login() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        {savedProfile.avatar ? (
-                          <img
-                            src={savedProfile.avatar}
-                            alt={savedProfile.name || "User"}
-                            className="w-14 h-14 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-blue-600 font-semibold text-xl">
-                            {(savedProfile.name || savedProfile.email || "U")
-                              .charAt(0)
-                              .toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-800 text-lg truncate">
-                          {savedProfile.name || "User"}
-                        </p>
-                        <p className="text-sm text-slate-500 truncate">
-                          {savedProfile.email}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="space-y-2 mb-6 max-h-72 overflow-y-auto pr-1">
+                    {savedAccounts.map((account) => (
+                      <button
+                        type="button"
+                        key={account.email}
+                        onClick={() => handleYesThisIsMe(account)}
+                        className={`w-full text-left border rounded-xl p-4 transition-colors ${
+                          savedProfile?.email === account.email
+                            ? "bg-blue-50 border-blue-400"
+                            : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            {account.avatar ? (
+                              <img
+                                src={account.avatar}
+                                alt={account.name || "User"}
+                                className="w-14 h-14 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-blue-600 font-semibold text-xl">
+                                {(account.name || account.email || "U")
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-slate-800 text-lg truncate">
+                              {account.name || "User"}
+                            </p>
+                            <p className="text-sm text-slate-500 truncate">
+                              {account.email}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
 
                   <Button
-                    onClick={handleYesThisIsMe}
+                    onClick={() => handleYesThisIsMe()}
                     className="w-full button-press bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-all duration-300 mb-4"
                     disabled={isLoading || isAutoLoggingIn}
                   >
@@ -415,7 +498,7 @@ export default function Login() {
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="outline"
-                      onClick={() => setShowLoginForm(true)}
+                      onClick={handleSignIntoAnotherAccount}
                       className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
                     >
                       Sign into another account
@@ -425,7 +508,7 @@ export default function Login() {
                       onClick={handleClearSavedProfile}
                       className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
                     >
-                      Clear
+                      Remove
                     </Button>
                   </div>
                 </CardContent>
@@ -539,8 +622,9 @@ export default function Login() {
 
                     {!hideRegistration && (
                       <div
-                        className={`text-center pt-4 animate-fade-in-up ${isRegisterClicked ? "register-button-spin" : ""
-                          }`}
+                        className={`text-center pt-4 animate-fade-in-up ${
+                          isRegisterClicked ? "register-button-spin" : ""
+                        }`}
                         style={{ animationDelay: "0.4s" }}
                       >
                         <p className="text-sm text-slate-600">
@@ -553,7 +637,9 @@ export default function Login() {
                           >
                             Register here
                             {isRegisterClicked && (
-                              <span className="inline-block animate-spin">*</span>
+                              <span className="inline-block animate-spin">
+                                *
+                              </span>
                             )}
                           </button>
                         </p>

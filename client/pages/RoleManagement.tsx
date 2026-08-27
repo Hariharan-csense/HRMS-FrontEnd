@@ -444,12 +444,12 @@ const RoleManagement: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto max-w-7xl">
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Role Management</h1>
             <p className="text-gray-600 mt-1">Manage roles and permissions</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 sm:justify-end">
             <Dialog
               open={isCreateDialogOpen}
               onOpenChange={(open) => {
@@ -458,7 +458,7 @@ const RoleManagement: React.FC = () => {
               }}
             >
               <DialogTrigger asChild>
-                <Button onClick={resetForm} className="gap-2" disabled={!canCreateRole}>
+                <Button onClick={resetForm} className="w-full gap-2 sm:w-auto" disabled={!canCreateRole}>
                   <Plus className="h-4 w-4" />
                   Create Role
                 </Button>
@@ -482,7 +482,7 @@ const RoleManagement: React.FC = () => {
                   </div>
                   <div>
                     <Label>Module Permissions</Label>
-                    <div className="flex items-center justify-between rounded-md border p-3 my-3">
+                    <div className="my-3 flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-medium">Overall Permissions</p>
                         <p className="text-xs text-muted-foreground">
@@ -501,7 +501,7 @@ const RoleManagement: React.FC = () => {
                       {availableModules.map(module => (
                         <div key={module} className="mb-4 pb-4 border-b last:border-b-0">
                           <h4 className="font-medium mb-2 capitalize">{module.replace('_', ' ')}</h4>
-                          <div className="grid grid-cols-5 gap-2">
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                             {moduleActions.map(action => (
                               <div key={action} className="flex items-center space-x-2">
                                 <Switch
@@ -617,7 +617,7 @@ const RoleManagement: React.FC = () => {
               </div>
               <div>
                 <Label>Module Permissions</Label>
-                <div className="flex items-center justify-between rounded-md border p-3 my-3">
+                <div className="my-3 flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-medium">Overall Permissions</p>
                     <p className="text-xs text-muted-foreground">
@@ -636,7 +636,7 @@ const RoleManagement: React.FC = () => {
                   {availableModules.map(module => (
                     <div key={module} className="mb-4 pb-4 border-b last:border-b-0">
                       <h4 className="font-medium mb-2 capitalize">{module.replace('_', ' ')}</h4>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                         {moduleActions.map(action => (
                           <div key={action} className="flex items-center space-x-2">
                             <Switch

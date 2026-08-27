@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   Select,
   SelectContent,
@@ -817,7 +818,7 @@ export default function ReportsAnalytics() {
 
   // Export to PDF
   // Update the exportToPDF function to export raw data
-  const exportToCSV = (format: "csv" | "xlsx" | "pdf" = "csv") => {
+  const exportToCSV = async (format: "csv" | "xlsx" | "pdf" = "csv") => {
     try {
       setLoading(true);
 
@@ -876,13 +877,16 @@ export default function ReportsAnalytics() {
 
       if (reportType === "finance") {
         const financeRows = buildFinanceExpenseModelRows(dataToExport);
-        exportRows(
-          financeRows,
-          "Finance Expense Report",
-          "finance-expense-claim-model",
-          format,
-        );
-        return;
+        if (format !== "xlsx") {
+          exportRows(
+            financeRows,
+            "Finance Expense Report",
+            "finance-expense-claim-model",
+            format,
+          );
+          return;
+        }
+        dataToExport = financeRows;
       }
 
       if (reportType === "attendance") {
@@ -1180,27 +1184,6 @@ export default function ReportsAnalytics() {
           return;
         }
 
-        const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
-        XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
-        const workbook = XLSX.utils.book_new();
-        const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
-
-        if (attendanceReportType === "summary") {
-          XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-          XLSX.utils.book_append_sheet(
-            workbook,
-            worksheet,
-            "Detail Attendance",
-          );
-        } else {
-          XLSX.utils.book_append_sheet(
-            workbook,
-            worksheet,
-            "Detail Attendance",
-          );
-          XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-        }
-
         const getAux = (item: any, ...keys: string[]) => {
           for (const k of keys) {
             if (item?.[k] !== undefined && item?.[k] !== null) return item[k];
@@ -1305,20 +1288,118 @@ export default function ReportsAnalytics() {
             Remarks: getAux(item, "permissionRemarks", "remarks"),
           }));
 
-        const leavesSheet = XLSX.utils.json_to_sheet(
-          leaveExportRows.length ? leaveExportRows : [{ "No leave data": "" }],
-        );
-        XLSX.utils.book_append_sheet(workbook, leavesSheet, "Leaves");
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = "HRMS Reports";
+        workbook.created = new Date();
 
-        const permissionsSheet = XLSX.utils.json_to_sheet(
-          permissionExportRows.length
-            ? permissionExportRows
-            : [{ "No permission data": "" }],
-        );
-        XLSX.utils.book_append_sheet(workbook, permissionsSheet, "Permissions");
+        const addStyledSheet = (
+          name: string,
+          sheetRows: Record<string, any>[],
+          preferredHeaders?: string[],
+        ) => {
+          const safeRows = sheetRows.length ? sheetRows : [{ Message: "No data available" }];
+          const sheetHeaders = preferredHeaders?.length
+            ? preferredHeaders
+            : Object.keys(safeRows[0]);
+          const sheet = workbook.addWorksheet(name, {
+            views: [{ state: "frozen", ySplit: 1 }],
+          });
+          sheet.addRow(sheetHeaders);
+          safeRows.forEach((item) =>
+            sheet.addRow(sheetHeaders.map((header) => item?.[header] ?? "")),
+          );
+
+          const headerRow = sheet.getRow(1);
+          headerRow.height = 34;
+          headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F9F7A" } };
+            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+            cell.border = {
+              top: { style: "thin", color: { argb: "FFB7C9C4" } },
+              left: { style: "thin", color: { argb: "FFB7C9C4" } },
+              bottom: { style: "thin", color: { argb: "FFB7C9C4" } },
+              right: { style: "thin", color: { argb: "FFB7C9C4" } },
+            };
+          });
+
+          const statusColumn = sheetHeaders.findIndex((header) =>
+            ["status", "attendance status"].includes(header.toLowerCase()),
+          ) + 1;
+          const statusColors: Record<string, string> = {
+            present: "FFC6EFCE", grace: "FFC6EFCE", permission: "FFDDEBF7",
+            late: "FFFFEB9C", leave: "FFD9EAD3", approved: "FFC6EFCE",
+            absent: "FFFFC7CE", rejected: "FFFFC7CE", half_day: "FFFFE0B2",
+            "half-day": "FFFFE0B2", pending: "FFFFEB9C", holiday: "FFFFF2CC",
+            weekend: "FFE2E8F0", week_off: "FFE2E8F0",
+          };
+
+          sheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            row.height = 23;
+            row.eachCell({ includeEmpty: true }, (cell) => {
+              cell.alignment = { vertical: "middle", wrapText: true };
+              cell.border = {
+                top: { style: "thin", color: { argb: "FFD7E3E0" } },
+                left: { style: "thin", color: { argb: "FFD7E3E0" } },
+                bottom: { style: "thin", color: { argb: "FFD7E3E0" } },
+                right: { style: "thin", color: { argb: "FFD7E3E0" } },
+              };
+              if (rowNumber % 2 === 0) {
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1FBF8" } };
+              }
+            });
+            if (statusColumn > 0) {
+              const statusCell = row.getCell(statusColumn);
+              const status = String(statusCell.value || "").trim().toLowerCase().replace(/\s+/g, "_");
+              const statusKey = Object.keys(statusColors).find(
+                (key) => status === key || status.includes(key),
+              );
+              const color = statusKey ? statusColors[statusKey] : undefined;
+              if (color) {
+                statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+                statusCell.font = { bold: true, color: { argb: "FF334155" } };
+                statusCell.alignment = { horizontal: "center", vertical: "middle" };
+              }
+            }
+          });
+
+          sheetHeaders.forEach((header, index) => {
+            const longest = safeRows.reduce(
+              (max, item) => Math.max(max, String(item?.[header] ?? "").length),
+              header.length,
+            );
+            sheet.getColumn(index + 1).width = Math.min(Math.max(longest + 2, 12), 34);
+          });
+          sheet.autoFilter = {
+            from: { row: 1, column: 1 },
+            to: { row: sheet.rowCount, column: sheetHeaders.length },
+          };
+        };
+
+        if (attendanceReportType === "summary") {
+          addStyledSheet("Summary", summaryRows);
+          addStyledSheet("Detail Attendance", rows, headers);
+        } else {
+          addStyledSheet("Detail Attendance", rows, headers);
+          addStyledSheet("Summary", summaryRows);
+        }
+        addStyledSheet("Leaves", leaveExportRows);
+        addStyledSheet("Permissions", permissionExportRows);
 
         const fileName = `attendance-${attendanceReportType}-report-${new Date().toISOString().split("T")[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer as unknown as BlobPart], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       } else {
         const headers = Object.keys(dataToExport[0] || {});
         if (headers.length === 0) {
@@ -1354,27 +1435,131 @@ export default function ReportsAnalytics() {
         });
 
         if (format === "xlsx") {
-          const workbook = XLSX.utils.book_new();
-          const worksheet = XLSX.utils.json_to_sheet(normalizedRows);
-          worksheet["!cols"] = formattedHeaders.map((header) => {
-            if (["From Date", "To Date", "Override Date"].includes(header)) {
-              return { wch: 16 };
-            }
-            const maxValueLength = normalizedRows.reduce((max, row: any) => {
-              const value = String(row?.[header] ?? "");
-              return Math.max(max, value.length);
-            }, String(header).length);
-            return { wch: Math.min(Math.max(maxValueLength + 2, 12), 42) };
-          });
-          XLSX.utils.book_append_sheet(
-            workbook,
-            worksheet,
+          const workbook = new ExcelJS.Workbook();
+          workbook.creator = "HRMS Reports";
+          workbook.created = new Date();
+          const worksheet = workbook.addWorksheet(
             reportTitles[reportType].slice(0, 31),
+            { views: [{ state: "frozen", ySplit: 1 }] },
           );
-          XLSX.writeFile(
-            workbook,
-            `${reportTitles[reportType].toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.xlsx`,
+          worksheet.addRow(formattedHeaders);
+          normalizedRows.forEach((row: any) =>
+            worksheet.addRow(
+              formattedHeaders.map((header) => row?.[header] ?? ""),
+            ),
           );
+
+          const headerRow = worksheet.getRow(1);
+          headerRow.height = 34;
+          headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FF0F9F7A" },
+            };
+            cell.alignment = {
+              horizontal: "center",
+              vertical: "middle",
+              wrapText: true,
+            };
+          });
+
+          const statusColumn = formattedHeaders.findIndex((header) =>
+            header.toLowerCase().includes("status"),
+          ) + 1;
+          const amountColumnPattern =
+            /amount|salary|gross|net|deduction|expense|total|tax|paid|balance/i;
+          const statusColors: Record<string, string> = {
+            approved: "FFC6EFCE",
+            paid: "FFC6EFCE",
+            processed: "FFC6EFCE",
+            active: "FFC6EFCE",
+            pending: "FFFFEB9C",
+            draft: "FFDDEBF7",
+            rejected: "FFFFC7CE",
+            cancelled: "FFFFC7CE",
+            failed: "FFFFC7CE",
+            closed: "FFE2E8F0",
+          };
+
+          worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            row.height = 23;
+            row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+              cell.alignment = { vertical: "middle", wrapText: true };
+              cell.border = {
+                top: { style: "thin", color: { argb: "FFD7E3E0" } },
+                left: { style: "thin", color: { argb: "FFD7E3E0" } },
+                bottom: { style: "thin", color: { argb: "FFD7E3E0" } },
+                right: { style: "thin", color: { argb: "FFD7E3E0" } },
+              };
+              if (rowNumber % 2 === 0) {
+                cell.fill = {
+                  type: "pattern",
+                  pattern: "solid",
+                  fgColor: { argb: "FFF1FBF8" },
+                };
+              }
+              if (
+                amountColumnPattern.test(formattedHeaders[columnNumber - 1]) &&
+                typeof cell.value === "number"
+              ) {
+                cell.numFmt = '#,##0.00';
+                cell.alignment = { horizontal: "right", vertical: "middle" };
+              }
+            });
+
+            if (statusColumn > 0) {
+              const statusCell = row.getCell(statusColumn);
+              const status = String(statusCell.value || "").trim().toLowerCase();
+              const statusKey = Object.keys(statusColors).find(
+                (key) => status === key || status.includes(key),
+              );
+              if (statusKey) {
+                statusCell.fill = {
+                  type: "pattern",
+                  pattern: "solid",
+                  fgColor: { argb: statusColors[statusKey] },
+                };
+                statusCell.font = { bold: true, color: { argb: "FF334155" } };
+                statusCell.alignment = {
+                  horizontal: "center",
+                  vertical: "middle",
+                };
+              }
+            }
+          });
+
+          formattedHeaders.forEach((header, index) => {
+            const longest = normalizedRows.reduce(
+              (max, row: any) =>
+                Math.max(max, String(row?.[header] ?? "").length),
+              header.length,
+            );
+            worksheet.getColumn(index + 1).width = Math.min(
+              Math.max(longest + 2, 12),
+              36,
+            );
+          });
+          worksheet.autoFilter = {
+            from: { row: 1, column: 1 },
+            to: { row: worksheet.rowCount, column: formattedHeaders.length },
+          };
+
+          const fileName = `${reportTitles[reportType].toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.xlsx`;
+          const buffer = await workbook.xlsx.writeBuffer();
+          const blob = new Blob([buffer as unknown as BlobPart], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
           return;
         }
 
@@ -1788,7 +1973,7 @@ export default function ReportsAnalytics() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
                   {columns.map((column: any) => (

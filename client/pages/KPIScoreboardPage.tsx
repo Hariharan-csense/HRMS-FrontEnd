@@ -13,6 +13,13 @@ import { api, resolveFileUrl } from "@/lib/endpoint";
 import { employeeApi } from "@/components/helper/employee/employee";
 import { Check, ChevronDown, Edit3, Eye, FilePlus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ScorecardUser = {
   id: string;
@@ -2373,8 +2380,8 @@ const KPIScoreboardPage: React.FC = () => {
       ) : null}
 
       {leadIndicatorModal ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 p-3 sm:p-4">
+          <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -2394,7 +2401,7 @@ const KPIScoreboardPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto px-5 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
               <div className="grid gap-3">
                 {leadIndicatorDraft.map((indicator, index) => (
                   <div
@@ -2418,44 +2425,61 @@ const KPIScoreboardPage: React.FC = () => {
                       <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                         Indicator Type
                       </span>
-                      <select
+                      <Select
                         value={indicator.type}
-                        onChange={(event) =>
+                        onValueChange={(value) =>
                           updateLeadIndicatorDraft(
                             index,
                             "type",
-                            event.target.value as LeadIndicatorType,
+                            value as LeadIndicatorType,
                           )
                         }
-                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500"
                       >
-                        <option value="number">Numbers</option>
-                        <option value="yesno">Yes/No</option>
-                      </select>
+                        <SelectTrigger className="h-11 w-full min-w-0 border-slate-200 bg-white text-slate-900 focus:ring-teal-500">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent
+                          align="start"
+                          collisionPadding={16}
+                          className="z-[80] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]"
+                        >
+                          <SelectItem value="number">Numbers</SelectItem>
+                          <SelectItem value="yesno">Yes/No</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </label>
 
                     <label className="block">
                       <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                         Assign To
                       </span>
-                      <select
-                        value={indicator.assignedEmployeeId}
-                        onChange={(event) =>
+                      <Select
+                        value={indicator.assignedEmployeeId || "__unassigned"}
+                        onValueChange={(value) =>
                           updateLeadIndicatorDraft(
                             index,
                             "assignedEmployeeId",
-                            event.target.value,
+                            value === "__unassigned" ? "" : value,
                           )
                         }
-                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500"
                       >
-                        <option value="">Not assigned</option>
-                        {users.map((scorecardUser) => (
-                          <option key={scorecardUser.id} value={scorecardUser.id}>
-                            {scorecardUser.label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-11 w-full min-w-0 border-slate-200 bg-white text-slate-900 focus:ring-teal-500">
+                          <SelectValue placeholder="Not assigned" />
+                        </SelectTrigger>
+                        <SelectContent
+                          align="start"
+                          collisionPadding={16}
+                          className="z-[80] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]"
+                          viewportClassName="max-h-64"
+                        >
+                          <SelectItem value="__unassigned">Not assigned</SelectItem>
+                          {users.map((scorecardUser) => (
+                            <SelectItem key={scorecardUser.id} value={scorecardUser.id}>
+                              <span className="block max-w-full truncate">{scorecardUser.label}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
 
                     <label className="block">
@@ -2515,7 +2539,7 @@ const KPIScoreboardPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end">
+            <div className="shrink-0 flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-5 sm:py-4">
               <button
                 type="button"
                 onClick={closeLeadIndicatorModal}
@@ -2712,27 +2736,59 @@ function SelectField({
   placeholder?: string;
   children: React.ReactNode;
 }) {
+  const options = React.Children.toArray(children).filter(
+    (child): child is React.ReactElement<{
+      value?: string | number;
+      disabled?: boolean;
+      children?: React.ReactNode;
+    }> => React.isValidElement(child),
+  );
+  const emptyValue = placeholder ? "__placeholder__" : "__empty__";
+
   return (
-    <label className="block">
+    <div className="block min-w-0">
       <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
         {label}
       </span>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="h-[52px] w-full appearance-none rounded-xl border border-slate-200 bg-white px-5 pr-11 text-sm text-slate-900 outline-none transition focus:border-teal-400"
+      <Select
+        value={value || emptyValue}
+        onValueChange={(nextValue) =>
+          onChange(
+            nextValue === "__empty__" || nextValue === "__placeholder__"
+              ? ""
+              : nextValue,
+          )
+        }
+      >
+        <SelectTrigger className="h-[52px] w-full min-w-0 rounded-xl border-slate-200 bg-white px-5 text-sm text-slate-900 focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent
+          align="start"
+          collisionPadding={16}
+          className="z-[80] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]"
+          viewportClassName="max-h-64"
         >
           {placeholder ? (
-            <option value="" disabled>
+            <SelectItem value="__placeholder__" disabled>
               {placeholder}
-            </option>
+            </SelectItem>
           ) : null}
-          {children}
-        </select>
-        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-      </div>
-    </label>
+          {options.map((option, index) => {
+            const optionValue = String(option.props.value ?? "");
+            return (
+              <SelectItem
+                key={`${optionValue || "empty"}-${index}`}
+                value={optionValue || "__empty__"}
+                disabled={option.props.disabled}
+              >
+                {option.props.children}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

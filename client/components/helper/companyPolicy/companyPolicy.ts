@@ -5,7 +5,8 @@ export interface CompanyPolicy {
     casualLeaveEnabled: boolean;
     casualLeaveNames: string[];
     casualLeavePerMonth: number;
-    casualLeaveAccrual: "monthly_start" | "after_full_month";
+    casualLeaveAccrual: "monthly_start" | "after_full_month" | "after_attendance_days";
+    casualLeaveMinimumAttendanceDays: number;
     includePendingLeaveInUsage: boolean;
   };
   permission: {
@@ -49,6 +50,7 @@ export const defaultCompanyPolicy: CompanyPolicy = {
     casualLeaveNames: ["casual leave", "cl", "casual"],
     casualLeavePerMonth: 1,
     casualLeaveAccrual: "monthly_start",
+    casualLeaveMinimumAttendanceDays: 30,
     includePendingLeaveInUsage: true,
   },
   permission: {

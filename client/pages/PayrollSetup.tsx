@@ -2240,30 +2240,24 @@ export default function PayrollSetup() {
         if (day === 0 || day === 6) holidayDateSet.add(date);
       });
 
-      const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("en-GB", {
-        month: "short",
-        year: "2-digit",
-      }).replace(" ", "-");
       const summaryHeaders = [
-        "Present Full",
-        "Present Half",
+        "Presentfull",
         "Leave",
         "Late LOP",
         "Casual Leave",
         "Holidays",
         "Total Days in Month",
         "Total Working Days",
-        "Net Salary",
-        "Payable Salary",
-        "TDS Deduction",
+        "Salary",
+        "Leave",
+        "Arrear",
+        "Incentive",
+        "Other Deduction 5%",
         "Deduction",
         "Professional Tax",
         "Salary in Hand",
         "Uniform (3 months)",
         "TOTAL",
-        `${monthLabel} Salary`,
-        "FF",
-        "Remarks",
       ];
       const headers = [
         "S. No",
@@ -2293,7 +2287,6 @@ export default function PayrollSetup() {
           return statusByEmployeeDate.get(key) || (holidayDateSet.has(date) ? "H" : "-");
         });
         const presentFull = codes.filter((code) => code === "P").length;
-        const presentHalf = codes.filter((code) => code === "HL").length;
         const casualLeave = codes.filter((code) => code === "CL").length;
         const leave = codes.filter((code) => ["L", "CL", "HL"].includes(code)).length;
         const holidayCount = codes.filter((code) => code === "H").length;
@@ -2307,6 +2300,9 @@ export default function PayrollSetup() {
           (process.otherDeductions || 0);
         const uniformDeduction = 0;
         const total = Math.max(0, (process.net || 0) - uniformDeduction);
+        const leaveDeduction = process.lopAmount || 0;
+        const arrear = 0;
+        const incentive = 0;
 
         sheet.addRow([
           index + 1,
@@ -2316,7 +2312,6 @@ export default function PayrollSetup() {
           process.designation || "",
           ...codes,
           presentFull,
-          presentHalf,
           leave,
           process.lateCount || 0,
           casualLeave,
@@ -2324,16 +2319,15 @@ export default function PayrollSetup() {
           daysInMonth,
           workingDays,
           configuredSalary,
-          process.gross || 0,
+          leaveDeduction,
+          arrear,
+          incentive,
           tds,
           otherDeduction,
           professionalTax,
           process.net || 0,
           uniformDeduction,
           total,
-          total,
-          "",
-          process.status.charAt(0).toUpperCase() + process.status.slice(1),
         ]);
       });
 
@@ -2352,7 +2346,7 @@ export default function PayrollSetup() {
         cell.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: columnNumber <= identityColumnCount || columnNumber > dayEndColumn ? "FFFF6D00" : "FFFCE0CD" },
+          fgColor: { argb: columnNumber > dayEndColumn ? "FFFF6D00" : "FFFCE0CD" },
         };
         cell.border = {
           top: { style: "thin" }, left: { style: "thin" },
@@ -2378,15 +2372,21 @@ export default function PayrollSetup() {
           }
         });
         row.getCell(4).numFmt = "dd-mm-yyyy";
+        if (rowNumber > 1) {
+          // Salary through TOTAL columns use a consistent numeric format.
+          for (let column = dayEndColumn + 8; column <= headers.length; column += 1) {
+            row.getCell(column).numFmt = '#,##0.00';
+          }
+        }
       });
       [1, 2, 3, 4, 5].forEach((column, index) => {
         sheet.getColumn(column).width = [8, 16, 25, 14, 22][index];
       });
       for (let column = dayStartColumn; column <= dayEndColumn; column += 1) {
-        sheet.getColumn(column).width = 10;
+        sheet.getColumn(column).width = 8;
       }
       for (let column = dayEndColumn + 1; column <= headers.length; column += 1) {
-        sheet.getColumn(column).width = 14;
+        sheet.getColumn(column).width = 9;
       }
       sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: sheet.rowCount, column: headers.length } };
 
@@ -2602,7 +2602,7 @@ export default function PayrollSetup() {
 
                   {/* Desktop Table View */}
                   <div className="hidden md:block w-full overflow-x-auto border rounded-lg">
-                    <table className="w-full text-sm border-collapse">
+                    <table className="w-full min-w-[840px] text-sm border-collapse">
                       <thead>
                         <tr className="border-b-2 border-slate-300 bg-slate-100">
                           <th className="text-left px-6 py-4 font-bold text-slate-900">

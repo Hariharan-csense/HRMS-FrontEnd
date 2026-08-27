@@ -1054,7 +1054,7 @@ export default function ExpenseApprovals() {
 
                 {/* Desktop Table View */}
                 <div className="hidden md:block">
-                  <table className="w-full table-fixed text-sm">
+                  <table className="w-full min-w-[760px] table-fixed text-sm">
                     <colgroup>
                       <col className="w-[4%]" />
                       <col className="w-[17%]" />

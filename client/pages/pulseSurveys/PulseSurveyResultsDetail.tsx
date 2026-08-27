@@ -254,21 +254,21 @@ const PulseSurveyResultsDetail: React.FC = () => {
   return (
     <Layout>
       <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-        <div className="max-w-7xl mx-auto p-6 space-y-8">
+        <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Header Section */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-emerald-100">
+          <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-xl sm:p-6 lg:p-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                <div className="mb-4 flex min-w-0 items-center gap-3">
+                  <div className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 p-3 shadow-lg">
                     <MessageSquare className="h-6 w-6 text-white" />
                   </div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent truncate">
+                  <h1 className="min-w-0 truncate bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
                     {survey.title}
                   </h1>
                 </div>
-                <p className="text-gray-600 text-lg mb-4 leading-relaxed">{survey.message}</p>
-                <div className="flex flex-wrap items-center gap-4 text-sm">
+                <p className="mb-4 break-words text-base leading-relaxed text-gray-600 sm:text-lg">{survey.message}</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                   <div className="flex items-center gap-1 text-gray-500">
                     <Calendar className="h-4 w-4" />
                     <span>{new Date(survey.createdAt).toLocaleDateString()}</span>
@@ -293,24 +293,24 @@ const PulseSurveyResultsDetail: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="grid w-full min-w-0 grid-cols-2 gap-3 lg:flex lg:w-auto lg:items-center lg:gap-4">
                 <Button 
                   variant="outline" 
                   onClick={() => navigate("/pulse-surveys/results")}
-                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                  className="w-full border-emerald-200 text-emerald-600 hover:bg-emerald-50 lg:w-auto"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
                 <Button
                   onClick={exportSurveyExcel}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700"
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 lg:w-auto"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Excel Report
                 </Button>
-                <div className="text-center bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="col-span-2 min-w-0 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 text-center sm:p-6 lg:col-auto">
+                  <div className="mb-2 flex items-center justify-center gap-2">
                     <Star className="h-5 w-5 text-emerald-600" />
                     <span className="text-sm text-gray-500 font-medium">Average Score</span>
                   </div>
@@ -324,8 +324,8 @@ const PulseSurveyResultsDetail: React.FC = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4">
+            <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-100 rounded-lg">
                   <Users className="h-5 w-5 text-emerald-600" />
@@ -336,7 +336,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+            <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-100 rounded-lg">
                   <UserCheck className="h-5 w-5 text-teal-600" />
@@ -347,7 +347,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+            <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-rose-100 rounded-lg">
                   <UserX className="h-5 w-5 text-rose-600" />
@@ -358,7 +358,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow">
+            <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-cyan-100 rounded-lg">
                   <TrendingUp className="h-5 w-5 text-cyan-600" />
@@ -572,7 +572,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
                                   <User className="h-5 w-5 text-emerald-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-bold text-lg text-gray-900 truncate">
+                                  <h3 className="break-words text-base font-bold text-gray-900 sm:text-lg">
                                     <span className="mr-2 align-middle text-2xl">
                                       {getPulseMood(r).emoji}
                                     </span>
@@ -580,7 +580,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
                                       ? "👤 Anonymous Employee"
                                       : r.employee?.name || anonymizeUser(r.employeeId)}
                                   </h3>
-                                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500">
                                     <Calendar className="h-4 w-4" />
                                     <span>Responded {new Date(r.respondedAt).toLocaleString()}</span>
                                     {r.updatedAt && (
@@ -626,7 +626,7 @@ const PulseSurveyResultsDetail: React.FC = () => {
                               )}
                             </div>
 
-                            <div className="flex flex-col items-end gap-3 min-w-fit">
+                            <div className="flex min-w-0 flex-col items-start gap-3 sm:items-end lg:min-w-fit">
                               <div className="text-center bg-white rounded-xl p-4 shadow-sm border border-emerald-200">
                                 <div className="mb-2 text-5xl leading-none">
                                   {getPulseMood(r).emoji}

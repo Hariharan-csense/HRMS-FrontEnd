@@ -95,10 +95,8 @@ export default function UserProfile() {
 
   // Update avatarPreview when user context changes
   useEffect(() => {
-    if (user?.avatar) {
-      setAvatarPreview(user.avatar);
-    }
-  }, [user?.avatar]);
+    setAvatarPreview(user?.avatar || "");
+  }, [user?.id, user?.email, user?.avatar]);
 
   // Load profile data on component mount
   useEffect(() => {
@@ -131,10 +129,9 @@ export default function UserProfile() {
               : "",
         });
 
-        const profileImageUrl =
-          resolveProfilePhotoUrl(profileData.profile_photo) ||
-          user?.avatar ||
-          "";
+        const profileImageUrl = resolveProfilePhotoUrl(
+          profileData.profile_photo,
+        );
         setAvatarPreview(profileImageUrl);
 
         // Always update user context with profile data from API

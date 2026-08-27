@@ -81,30 +81,30 @@ const HRHelpdesk: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <HelpCircle className="w-8 h-8 text-primary" />
+            <h1 className="flex items-center gap-2 text-2xl font-bold sm:text-3xl">
+              <HelpCircle className="h-7 w-7 shrink-0 text-primary sm:h-8 sm:w-8" />
               HR Helpdesk
             </h1>
             <p className="text-muted-foreground mt-2">
               Raise PF, salary, asset, leave balance, and policy queries with SLA tracking.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={loadData} disabled={loading}>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Button className="w-full sm:w-auto" variant="outline" onClick={loadData} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button onClick={() => setOpen(true)}>
+            <Button className="w-full sm:w-auto" onClick={() => setOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Raise Query
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {[
             ["Total", stats.total || 0],
             ["Open", stats.open || 0],
@@ -114,7 +114,7 @@ const HRHelpdesk: React.FC = () => {
             ["Overdue", stats.overdue || 0],
           ].map(([label, value]) => (
             <Card key={label}>
-              <CardContent className="pt-5">
+              <CardContent className="p-4 sm:pt-5">
                 <div className="text-xs text-muted-foreground">{label}</div>
                 <div className="text-2xl font-bold">{value}</div>
               </CardContent>
@@ -122,23 +122,107 @@ const HRHelpdesk: React.FC = () => {
           ))}
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle>HR Queries</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="space-y-3 sm:hidden">
+              {tickets.length === 0 ? (
+                <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+                  No HR helpdesk tickets found
+                </div>
+              ) : (
+                tickets.map((ticket) => (
+                  <div key={ticket.id} className="space-y-4 rounded-lg border p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold break-words">{ticket.ticketNumber}</div>
+                        <div className="mt-1 text-sm text-muted-foreground break-words">{ticket.subject}</div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
+                        {String(ticket.status || "open").replace(/_/g, " ")}
+                      </span>
+                    </div>
+
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                      <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">Employee</dt>
+                        <dd className="mt-1 break-words">{ticket.employeeName || "-"}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">Category</dt>
+                        <dd className="mt-1 break-words">{ticket.categoryLabel || ticket.category}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Priority</dt>
+                        <dd className="mt-1 capitalize">{ticket.priority}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">SLA Due</dt>
+                        <dd className="mt-1">{ticket.dueAt ? new Date(ticket.dueAt).toLocaleString() : "-"}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="grid gap-3">
+                      <label className="grid gap-1.5 text-xs text-muted-foreground">
+                        Assigned HR
+                        <select
+                          className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm text-foreground"
+                          value={ticket.assignedHrId || ""}
+                          onChange={(event) => {
+                            const user = assignees.find(
+                              (assignee) => String(assignee.id) === event.target.value,
+                            );
+                            updateTicket(String(ticket.id), {
+                              assignedHrId: event.target.value,
+                              assignedHrName: user?.name || user?.email || "",
+                              status: ticket.status === "open" ? "assigned" : ticket.status,
+                            });
+                          }}
+                        >
+                          <option value="">Unassigned</option>
+                          {assignees.map((assignee) => (
+                            <option key={assignee.id} value={assignee.id}>
+                              {assignee.name || assignee.email}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-1.5 text-xs text-muted-foreground">
+                        Status
+                        <select
+                          className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm text-foreground"
+                          value={ticket.status}
+                          onChange={(event) =>
+                            updateTicket(String(ticket.id), { status: event.target.value })
+                          }
+                        >
+                          <option value="open">Open</option>
+                          <option value="assigned">Assigned</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-md border sm:block">
+              <table className="min-w-[1040px] w-full text-sm">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="p-3 text-left">Ticket</th>
-                    <th className="p-3 text-left">Employee</th>
-                    <th className="p-3 text-left">Category</th>
-                    <th className="p-3 text-left">Priority</th>
-                    <th className="p-3 text-left">Assigned HR</th>
-                    <th className="p-3 text-left">SLA Due</th>
-                    <th className="p-3 text-left">Status</th>
-                    <th className="p-3 text-left">Action</th>
+                    <th className="whitespace-nowrap p-3 text-left">Ticket</th>
+                    <th className="whitespace-nowrap p-3 text-left">Employee</th>
+                    <th className="whitespace-nowrap p-3 text-left">Category</th>
+                    <th className="whitespace-nowrap p-3 text-left">Priority</th>
+                    <th className="whitespace-nowrap p-3 text-left">Assigned HR</th>
+                    <th className="whitespace-nowrap p-3 text-left">SLA Due</th>
+                    <th className="whitespace-nowrap p-3 text-left">Status</th>
+                    <th className="whitespace-nowrap p-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,7 +295,7 @@ const HRHelpdesk: React.FC = () => {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Raise HR Query</DialogTitle>
           </DialogHeader>

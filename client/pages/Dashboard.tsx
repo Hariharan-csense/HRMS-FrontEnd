@@ -1908,6 +1908,16 @@ const EmployeeDashboard = ({
     return <div className="text-red-500">Error: {error}</div>;
   }
 
+  const todayStatus = String(dashboardData?.todayStatus?.status || "Not Marked");
+  const normalizedTodayStatus = todayStatus.toLowerCase();
+  const todayStatusPresentation = normalizedTodayStatus === "late"
+    ? { colorClass: "gradient-bg-orange", icon: <Clock className="w-7 h-7" /> }
+    : normalizedTodayStatus === "leave"
+      ? { colorClass: "gradient-bg-blue", icon: <Calendar className="w-7 h-7" /> }
+      : normalizedTodayStatus === "absent" || normalizedTodayStatus === "not marked"
+        ? { colorClass: "gradient-bg-red", icon: <AlertCircle className="w-7 h-7" /> }
+        : { colorClass: "gradient-bg-green", icon: <CheckCircle className="w-7 h-7" /> };
+
   return (
     <div className="space-y-8">
       {/* Dashboard Header */}
@@ -1921,12 +1931,12 @@ const EmployeeDashboard = ({
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatCard
           title="Today's Status"
-          value={dashboardData?.todayStatus?.status || "Not Marked"}
-          icon={<CheckCircle className="w-7 h-7" />}
+          value={todayStatus}
+          icon={todayStatusPresentation.icon}
           description={
             dashboardData?.todayStatus?.description || "Attendance not marked"
           }
-          colorClass="gradient-bg-green"
+          colorClass={todayStatusPresentation.colorClass}
         />
         <StatCard
           title="Leave Balance"

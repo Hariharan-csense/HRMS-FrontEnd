@@ -190,7 +190,7 @@ export const Topbar: React.FC = () => {
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 sm:w-96">
+          <DropdownMenuContent align="end" className="w-[calc(100vw-1.5rem)] max-w-96">
             <DropdownMenuLabel className="flex justify-between items-center">
               <span className="text-sm font-medium">Notifications</span>
               <div className="flex items-center gap-2">

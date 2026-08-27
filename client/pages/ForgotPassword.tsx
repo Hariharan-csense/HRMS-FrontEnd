@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Loader, ArrowLeft, Mail, CheckCircle, Lock } from "lucide-react";
 import { showToast } from "@/utils/toast";
 import ENDPOINTS from "@/lib/endpoint";
@@ -200,7 +206,7 @@ export default function ForgotPassword() {
     try {
       const response = await ENDPOINTS.forgotPassword(normalizedEmail);
       setEmail(normalizedEmail);
-      
+
       if (response.data.success) {
         showToast.success("OTP sent to your email!");
         setCurrentStep("otp");
@@ -231,7 +237,7 @@ export default function ForgotPassword() {
     setIsLoading(true);
     try {
       const response = await ENDPOINTS.verifyOTP(email, otp);
-      
+
       if (response.data.success) {
         showToast.success("OTP verified!");
         setCurrentStep("password");
@@ -265,8 +271,12 @@ export default function ForgotPassword() {
 
     setIsLoading(true);
     try {
-      const response = await ENDPOINTS.resetPasswordForgot(email, newPassword, confirmPassword);
-      
+      const response = await ENDPOINTS.resetPasswordForgot(
+        email,
+        newPassword,
+        confirmPassword,
+      );
+
       if (response.data.success) {
         showToast.success("Password reset successfully!");
         setCurrentStep("success");
@@ -277,7 +287,9 @@ export default function ForgotPassword() {
         showToast.error(response.data.message || "Failed to reset password");
       }
     } catch (error: any) {
-      showToast.error(error.response?.data?.message || "Failed to reset password");
+      showToast.error(
+        error.response?.data?.message || "Failed to reset password",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -287,7 +299,13 @@ export default function ForgotPassword() {
     navigate("/login");
   };
 
-  const StepIndicator = ({ total, current }: { total: number; current: number }) => (
+  const StepIndicator = ({
+    total,
+    current,
+  }: {
+    total: number;
+    current: number;
+  }) => (
     <div className="step-indicator">
       {[...Array(total)].map((_, i) => (
         <div
@@ -310,7 +328,10 @@ export default function ForgotPassword() {
       <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-teal-100 flex items-center justify-center p-4 relative overflow-hidden">
         {/* Animated Background Elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"></div>
-        <div className="absolute -bottom-8 right-10 w-72 h-72 bg-cyan-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float" style={{ animationDelay: "2s" }}></div>
+        <div
+          className="absolute -bottom-8 right-10 w-72 h-72 bg-cyan-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-float"
+          style={{ animationDelay: "2s" }}
+        ></div>
 
         <div className="w-full max-w-md relative z-10 page-container">
           {/* Back Button */}
@@ -343,10 +364,13 @@ export default function ForgotPassword() {
                 {currentStep === "success" && "Success"}
               </CardTitle>
               <CardDescription>
-                {currentStep === "email" && "Enter your email to receive an OTP"}
-                {currentStep === "otp" && "Enter the 6-digit OTP sent to your email"}
+                {currentStep === "email" &&
+                  "Enter your email to receive an OTP"}
+                {currentStep === "otp" &&
+                  "Enter the 6-digit OTP sent to your email"}
                 {currentStep === "password" && "Create your new password"}
-                {currentStep === "success" && "Your password has been reset successfully"}
+                {currentStep === "success" &&
+                  "Your password has been reset successfully"}
               </CardDescription>
             </CardHeader>
 
@@ -356,11 +380,7 @@ export default function ForgotPassword() {
                 <StepIndicator
                   total={3}
                   current={
-                    currentStep === "email"
-                      ? 1
-                      : currentStep === "otp"
-                        ? 2
-                        : 3
+                    currentStep === "email" ? 1 : currentStep === "otp" ? 2 : 3
                   }
                 />
               )}
@@ -369,7 +389,10 @@ export default function ForgotPassword() {
               {currentStep === "email" && (
                 <form onSubmit={handleSendOTP} className="space-y-4">
                   <div className="space-y-2 animate-slide-in">
-                    <Label htmlFor="email" className="text-slate-700 flex items-center gap-2">
+                    <Label
+                      htmlFor="email"
+                      className="text-slate-700 flex items-center gap-2"
+                    >
                       <Mail className="w-4 h-4" />
                       Email Address
                     </Label>
@@ -415,14 +438,17 @@ export default function ForgotPassword() {
                       inputMode="numeric"
                       placeholder="000000"
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(e) =>
+                        setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
                       maxLength={6}
                       required
                       disabled={isLoading}
                       className="otp-input input-focus border-slate-200 focus:border-primary focus:ring-primary/10 bg-white"
                     />
                     <p className="text-sm text-slate-600 text-center mt-2">
-                      OTP expires in <span className="timer">{formatTime(timer)}</span>
+                      OTP expires in{" "}
+                      <span className="timer">{formatTime(timer)}</span>
                     </p>
                   </div>
 
@@ -455,8 +481,14 @@ export default function ForgotPassword() {
               {/* Password Step */}
               {currentStep === "password" && (
                 <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div className="space-y-2 animate-slide-in" style={{ animationDelay: "0.1s" }}>
-                    <Label htmlFor="newPassword" className="text-slate-700 flex items-center gap-2">
+                  <div
+                    className="space-y-2 animate-slide-in"
+                    style={{ animationDelay: "0.1s" }}
+                  >
+                    <Label
+                      htmlFor="newPassword"
+                      className="text-slate-700 flex items-center gap-2"
+                    >
                       <Lock className="w-4 h-4" />
                       New Password
                     </Label>
@@ -472,8 +504,14 @@ export default function ForgotPassword() {
                     />
                   </div>
 
-                  <div className="space-y-2 animate-slide-in" style={{ animationDelay: "0.2s" }}>
-                    <Label htmlFor="confirmPassword" className="text-slate-700 flex items-center gap-2">
+                  <div
+                    className="space-y-2 animate-slide-in"
+                    style={{ animationDelay: "0.2s" }}
+                  >
+                    <Label
+                      htmlFor="confirmPassword"
+                      className="text-slate-700 flex items-center gap-2"
+                    >
                       <Lock className="w-4 h-4" />
                       Confirm Password
                     </Label>
@@ -530,7 +568,8 @@ export default function ForgotPassword() {
 
           {/* Footer */}
           <p className="text-center text-sm text-slate-600 mt-8 animate-fade-in-up">
-             © {new Date().getFullYear()} Procease HRMS System. All rights reserved.
+            © {new Date().getFullYear()} Procease HRMS System. All rights
+            reserved.
           </p>
         </div>
       </div>

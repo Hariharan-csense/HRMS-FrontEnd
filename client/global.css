@@ -353,6 +353,21 @@
   }
 }
 
+@layer base {
+  /* Prevent legacy native selects from widening mobile forms and grids. */
+  select {
+    max-width: 100%;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+
+  select option {
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* Utility Classes */
 @layer utilities {
   .flex-center {

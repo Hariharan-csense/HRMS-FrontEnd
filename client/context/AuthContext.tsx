@@ -175,7 +175,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             resolvedUser.employee_id,
           avatar: profileData.profile_photo
             ? resolveFileUrl(profileData.profile_photo)
-            : resolvedUser.avatar,
+            : profileEmail
+              ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profileEmail)}`
+              : undefined,
           department:
             profileData.department_name || resolvedUser.department || null,
         };
@@ -230,6 +232,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const savedProfile = profileManager.getSavedProfile();
       const storedUser = localStorage.getItem("user");
       const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
+      const authenticatedEmail = String(
+        decoded?.email || parsedStoredUser?.email || "",
+      ).toLowerCase().trim();
+      const savedProfileEmail = String(savedProfile?.email || "")
+        .toLowerCase()
+        .trim();
+      const matchingSavedProfile =
+        authenticatedEmail && savedProfileEmail === authenticatedEmail
+          ? savedProfile
+          : null;
 
       const normalizedRole = String(
         decoded?.role || parsedStoredUser?.role || "employee",
@@ -240,33 +252,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const bootUser: User = {
         id: String(decoded?.id || parsedStoredUser?.id || ""),
-        name: savedProfile?.name || parsedStoredUser?.name || "User",
+        name: parsedStoredUser?.name || matchingSavedProfile?.name || "User",
         email:
           decoded?.email ||
-          savedProfile?.email ||
+          matchingSavedProfile?.email ||
           parsedStoredUser?.email ||
           "",
         employee_id:
           parsedStoredUser?.employee_id ||
           parsedStoredUser?.employeeId ||
-          savedProfile?.employee_id ||
-          savedProfile?.employeeId,
+          matchingSavedProfile?.employee_id ||
+          matchingSavedProfile?.employeeId,
         employeeId:
           parsedStoredUser?.employee_id ||
           parsedStoredUser?.employeeId ||
-          savedProfile?.employee_id ||
-          savedProfile?.employeeId,
+          matchingSavedProfile?.employee_id ||
+          matchingSavedProfile?.employeeId,
         role: normalizedRole,
         roles: normalizedRoles.length ? normalizedRoles : [normalizedRole],
         companyName:
           parsedStoredUser?.companyName ||
-          savedProfile?.companyName ||
+          matchingSavedProfile?.companyName ||
           "Company",
+        company_id: Number(
+          decoded?.company_id ||
+            parsedStoredUser?.company_id ||
+            parsedStoredUser?.companyId,
+        ) || undefined,
+        companyId: Number(
+          decoded?.company_id ||
+            parsedStoredUser?.company_id ||
+            parsedStoredUser?.companyId,
+        ) || undefined,
         department: parsedStoredUser?.department || null,
         type: decoded?.type || parsedStoredUser?.type,
         avatar:
-          savedProfile?.avatar ||
           parsedStoredUser?.avatar ||
+          matchingSavedProfile?.avatar ||
           (decoded?.email
             ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${decoded.email}`
             : undefined),
@@ -510,6 +532,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           responseData.user?.companyName ||
           responseData.company_name ||
           "Company",
+        company_id: Number(
+          responseData.user?.company_id ||
+            responseData.company_id ||
+            decodeJwtPayload(accessToken)?.company_id,
+        ) || undefined,
+        companyId: Number(
+          responseData.user?.company_id ||
+            responseData.company_id ||
+            decodeJwtPayload(accessToken)?.company_id,
+        ) || undefined,
         department:
           responseData.user?.department || responseData.department || null,
         type: responseData.user?.type || responseData.type || undefined,

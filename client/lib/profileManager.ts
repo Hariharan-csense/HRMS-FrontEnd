@@ -1,4 +1,4 @@
-interface SavedProfile {
+export interface SavedProfile {
   email: string;
   name?: string;
   avatar?: string;
@@ -9,9 +9,73 @@ interface SavedProfile {
   rememberMe: boolean;
 }
 
+export interface SavedAccount extends SavedProfile {
+  refreshToken?: string;
+  user?: any;
+}
+
 class ProfileManager {
   private readonly PROFILE_KEY = "savedProfile";
   private readonly CREDENTIALS_KEY = "savedCredentials";
+  private readonly ACCOUNTS_KEY = "auth:savedAccounts";
+
+  private normalizeEmail(email: string): string {
+    return String(email || "").trim().toLowerCase();
+  }
+
+  getSavedAccounts(): SavedAccount[] {
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.ACCOUNTS_KEY) || "[]");
+      if (!Array.isArray(raw)) return [];
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const accounts = raw.filter(
+        (account) =>
+          account?.email && new Date(account.lastLogin || 0).getTime() > cutoff,
+      );
+      if (accounts.length !== raw.length) {
+        localStorage.setItem(this.ACCOUNTS_KEY, JSON.stringify(accounts));
+      }
+      return accounts;
+    } catch {
+      localStorage.removeItem(this.ACCOUNTS_KEY);
+      return [];
+    }
+  }
+
+  saveAccountSession(user: any, refreshToken?: string): SavedAccount[] {
+    if (!user?.email) return this.getSavedAccounts();
+    const email = this.normalizeEmail(user.email);
+    const existing = this.getSavedAccounts();
+    const previous = existing.find(
+      (account) => this.normalizeEmail(account.email) === email,
+    );
+    const account: SavedAccount = {
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      companyName: user.companyName,
+      employee_id: user.employee_id || user.employeeId,
+      employeeId: user.employee_id || user.employeeId,
+      lastLogin: new Date().toISOString(),
+      rememberMe: true,
+      refreshToken: refreshToken || previous?.refreshToken,
+      user,
+    };
+    const accounts = [account, ...existing.filter(
+      (item) => this.normalizeEmail(item.email) !== email,
+    )];
+    localStorage.setItem(this.ACCOUNTS_KEY, JSON.stringify(accounts));
+    return accounts;
+  }
+
+  removeSavedAccount(email: string): SavedAccount[] {
+    const normalized = this.normalizeEmail(email);
+    const accounts = this.getSavedAccounts().filter(
+      (account) => this.normalizeEmail(account.email) !== normalized,
+    );
+    localStorage.setItem(this.ACCOUNTS_KEY, JSON.stringify(accounts));
+    return accounts;
+  }
 
   // Save user profile when remember me is checked
   saveProfile(user: any, rememberMe: boolean): void {
@@ -28,6 +92,7 @@ class ProfileManager {
       };
 
       localStorage.setItem(this.PROFILE_KEY, JSON.stringify(profile));
+      this.saveAccountSession(user);
       // console.log('Profile saved for remember me:', profile);
     } else if (!rememberMe) {
       // Clear saved profile if remember me is unchecked
@@ -143,6 +208,7 @@ class ProfileManager {
     this.clearSavedProfile();
     this.clearSavedCredentials();
     this.clearSavedPassword();
+    localStorage.removeItem(this.ACCOUNTS_KEY);
   }
 
   // Check if user has saved profile

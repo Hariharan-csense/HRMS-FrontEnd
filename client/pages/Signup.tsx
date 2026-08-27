@@ -6,9 +6,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader, ChevronLeft, Eye, Phone, EyeOff, Check, X, Shield, Users, Building, Mail, Lock, User } from "lucide-react";
+import {
+  AlertCircle,
+  Loader,
+  ChevronLeft,
+  Eye,
+  Phone,
+  EyeOff,
+  Check,
+  X,
+  Shield,
+  Users,
+  Building,
+  Mail,
+  Lock,
+  User,
+} from "lucide-react";
 import { registerUser } from "@/components/helper/register";
-import { isOptionalPhoneValid, isValidEmail, normalizeEmail } from "@/lib/validation";
+import {
+  isOptionalPhoneValid,
+  isValidEmail,
+  normalizeEmail,
+} from "@/lib/validation";
 import logo from "../assets/logo.png";
 
 const signupStyles = `
@@ -144,7 +163,13 @@ function scorePasswordStrength(password: string) {
   const clamped = Math.min(score, 5);
   const percent = (clamped / 5) * 100;
   const label =
-    clamped <= 1 ? "Weak" : clamped <= 3 ? "Okay" : clamped === 4 ? "Good" : "Strong";
+    clamped <= 1
+      ? "Weak"
+      : clamped <= 3
+        ? "Okay"
+        : clamped === 4
+          ? "Good"
+          : "Strong";
   const color =
     clamped <= 1
       ? "rgb(239 68 68)" // red-500
@@ -204,7 +229,7 @@ export default function Signup() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
@@ -214,13 +239,13 @@ export default function Signup() {
       [name]: type === "checkbox" ? checked : value,
       ...(name === "role"
         ? {
-          department:
-            value === "admin"
-              ? "Management"
-              : prev.department === "Management"
-                ? "Engineering"
-                : prev.department,
-        }
+            department:
+              value === "admin"
+                ? "Management"
+                : prev.department === "Management"
+                  ? "Engineering"
+                  : prev.department,
+          }
         : null),
     }));
     setError("");
@@ -229,7 +254,9 @@ export default function Signup() {
     if (name === "phone") {
       const phoneValue = value.trim();
       if (phoneValue && !isOptionalPhoneValid(phoneValue)) {
-        setFieldErrors({ phone: "Phone number must be 10 digits starting with 6, 7, 8, or 9" });
+        setFieldErrors({
+          phone: "Phone number must be 10 digits starting with 6, 7, 8, or 9",
+        });
       } else {
         setFieldErrors({});
       }
@@ -238,12 +265,12 @@ export default function Signup() {
 
   const passwordStrength = useMemo(
     () => scorePasswordStrength(formData.password),
-    [formData.password]
+    [formData.password],
   );
 
   const passwordRequirements = useMemo(
     () => getPasswordRequirements(formData.password),
-    [formData.password]
+    [formData.password],
   );
 
   const isSubmitDisabled =
@@ -316,7 +343,10 @@ export default function Signup() {
         companyName: formData.companyName,
         role: formData.role,
         phone: formData.phone.trim(),
-        department: formData.department === "Management" ? "Management" : formData.department,
+        department:
+          formData.department === "Management"
+            ? "Management"
+            : formData.department,
         // Add any other required fields here
       };
 
@@ -333,7 +363,9 @@ export default function Signup() {
           // Normalize email (trim + lowercase) to match backend storage
           const normalizedEmail = normalizeEmail(formData.email);
           await login(normalizedEmail, formData.password, true);
-          setSuccess("Admin account created! Redirecting to Role & Module Access...");
+          setSuccess(
+            "Admin account created! Redirecting to Role & Module Access...",
+          );
           setTimeout(() => {
             navigate("/debug/roles");
           }, 1500);
@@ -368,7 +400,8 @@ export default function Signup() {
       setShowPassword(false);
       setShowConfirmPassword(false);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create account";
+      const message =
+        err instanceof Error ? err.message : "Failed to create account";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -378,9 +411,13 @@ export default function Signup() {
   return (
     <>
       <style>{signupStyles}</style>
-      <div className={`min-h-screen bg-gradient-to-br from-teal-50 to-teal-100 flex ${isBackClicked ? "signup-back-spin" : ""}`}>
+      <div
+        className={`min-h-screen bg-gradient-to-br from-teal-50 to-teal-100 flex ${isBackClicked ? "signup-back-spin" : ""}`}
+      >
         {/* Left Side - Logo and Branding */}
-        <div className={`hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 to-teal-800 items-center justify-center p-8 ${pageEntered ? "signup-page-enter" : ""}`}>
+        <div
+          className={`hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-600 to-teal-800 items-center justify-center p-8 ${pageEntered ? "signup-page-enter" : ""}`}
+        >
           <div className="text-center text-white">
             <img
               src={logo}
@@ -391,7 +428,9 @@ export default function Signup() {
               }}
             />
             <h1 className="text-4xl font-bold mb-4">Welcome to HRMS</h1>
-            <p className="text-xl text-teal-100 mb-8">Transform your workforce management</p>
+            <p className="text-xl text-teal-100 mb-8">
+              Transform your workforce management
+            </p>
 
             <div className="space-y-6 text-left max-w-md mx-auto">
               <div className="flex items-center gap-4">
@@ -400,7 +439,9 @@ export default function Signup() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Team Management</h3>
-                  <p className="text-teal-200 text-sm">Streamline employee onboarding and management</p>
+                  <p className="text-teal-200 text-sm">
+                    Streamline employee onboarding and management
+                  </p>
                 </div>
               </div>
 
@@ -410,7 +451,9 @@ export default function Signup() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Attendance Tracking</h3>
-                  <p className="text-teal-200 text-sm">Monitor attendance and productivity seamlessly</p>
+                  <p className="text-teal-200 text-sm">
+                    Monitor attendance and productivity seamlessly
+                  </p>
                 </div>
               </div>
 
@@ -420,7 +463,9 @@ export default function Signup() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Secure Platform</h3>
-                  <p className="text-teal-200 text-sm">Enterprise-grade security for your data</p>
+                  <p className="text-teal-200 text-sm">
+                    Enterprise-grade security for your data
+                  </p>
                 </div>
               </div>
             </div>
@@ -429,7 +474,9 @@ export default function Signup() {
 
         {/* Right Side - Form */}
         <div className="flex-1 lg:max-w-1/2 flex items-center justify-center p-4">
-          <div className={`w-full max-w-md ${pageEntered ? "signup-page-enter" : ""}`}>
+          <div
+            className={`w-full max-w-md ${pageEntered ? "signup-page-enter" : ""}`}
+          >
             {/* Mobile Header */}
             <div className="lg:hidden mb-8 flex items-center gap-3">
               <button
@@ -482,14 +529,21 @@ export default function Signup() {
             <Card className="border-0 shadow-lg signup-card">
               <CardContent className="pt-6">
                 {error && (
-                  <Alert variant="destructive" className="mb-6" aria-live="polite">
+                  <Alert
+                    variant="destructive"
+                    className="mb-6"
+                    aria-live="polite"
+                  >
                     <AlertCircle className="w-4 h-4" />
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
 
                 {success && (
-                  <Alert className="mb-6 bg-green-50 border-green-200" aria-live="polite">
+                  <Alert
+                    className="mb-6 bg-green-50 border-green-200"
+                    aria-live="polite"
+                  >
                     <AlertCircle className="w-4 h-4 text-green-600" />
                     <AlertDescription className="text-green-800">
                       {success}
@@ -501,8 +555,14 @@ export default function Signup() {
                   {/* First Row: Name and Company Name */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Full Name */}
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.3s" }}>
-                      <Label htmlFor="name" className="text-slate-900 font-medium">
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.3s" }}
+                    >
+                      <Label
+                        htmlFor="name"
+                        className="text-slate-900 font-medium"
+                      >
                         Full Name
                       </Label>
                       <div className="relative">
@@ -522,8 +582,14 @@ export default function Signup() {
                     </div>
 
                     {/* Company Name */}
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.35s" }}>
-                      <Label htmlFor="companyName" className="text-slate-900 font-medium">
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.35s" }}
+                    >
+                      <Label
+                        htmlFor="companyName"
+                        className="text-slate-900 font-medium"
+                      >
                         Company Name
                       </Label>
                       <div className="relative">
@@ -546,8 +612,14 @@ export default function Signup() {
                   {/* Second Row: Email and Role */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Email */}
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.4s" }}>
-                      <Label htmlFor="email" className="text-slate-900 font-medium">
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.4s" }}
+                    >
+                      <Label
+                        htmlFor="email"
+                        className="text-slate-900 font-medium"
+                      >
                         Email Address
                       </Label>
                       <div className="relative">
@@ -567,8 +639,14 @@ export default function Signup() {
                     </div>
 
                     {/* Phone Number */}
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.5s" }}>
-                      <Label htmlFor="phone" className="text-slate-900 font-medium">
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.5s" }}
+                    >
+                      <Label
+                        htmlFor="phone"
+                        className="text-slate-900 font-medium"
+                      >
                         Phone Number
                       </Label>
                       <div className="relative">
@@ -583,7 +661,7 @@ export default function Signup() {
                           value={formData.phone}
                           onChange={handleInputChange}
                           disabled={isLoading}
-                          className={`bg-slate-50 input-with-icon ${fieldErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-slate-200'}`}
+                          className={`bg-slate-50 input-with-icon ${fieldErrors.phone ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-slate-200"}`}
                           autoComplete="phone"
                         />
                       </div>
@@ -596,13 +674,17 @@ export default function Signup() {
                     </div>
                   </div>
 
-
-
                   {/* Password Fields Row */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Password */}
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.6s" }}>
-                      <Label htmlFor="password" className="text-slate-900 font-medium">
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.6s" }}
+                    >
+                      <Label
+                        htmlFor="password"
+                        className="text-slate-900 font-medium"
+                      >
                         Password
                       </Label>
                       <div className="relative">
@@ -622,7 +704,9 @@ export default function Signup() {
                           type="button"
                           onClick={() => setShowPassword((v) => !v)}
                           className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-colors"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
                           disabled={isLoading}
                         >
                           {showPassword ? (
@@ -635,8 +719,14 @@ export default function Signup() {
                     </div>
 
                     {/* Confirm Password */}
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.7s" }}>
-                      <Label htmlFor="confirmPassword" className="text-slate-900 font-medium">
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.7s" }}
+                    >
+                      <Label
+                        htmlFor="confirmPassword"
+                        className="text-slate-900 font-medium"
+                      >
                         Confirm Password
                       </Label>
                       <div className="relative">
@@ -675,15 +765,23 @@ export default function Signup() {
 
                   {/* Password Requirements - Full Width */}
                   {formData.password && (
-                    <div className="space-y-2 form-field-enter" style={{ animationDelay: "0.65s" }}>
+                    <div
+                      className="space-y-2 form-field-enter"
+                      style={{ animationDelay: "0.65s" }}
+                    >
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-500">Password Strength</span>
+                          <span className="text-xs text-slate-500">
+                            Password Strength
+                          </span>
                           <span className="text-xs font-medium text-slate-700">
                             {passwordStrength.label}
                           </span>
                         </div>
-                        <div className="password-strength-bar" aria-hidden="true">
+                        <div
+                          className="password-strength-bar"
+                          aria-hidden="true"
+                        >
                           <div
                             className="password-strength-fill"
                             style={{
@@ -699,17 +797,31 @@ export default function Signup() {
                             ) : (
                               <X className="w-3 h-3 requirement-not-met" />
                             )}
-                            <span className={passwordRequirements.length ? "requirement-met" : "requirement-not-met"}>
+                            <span
+                              className={
+                                passwordRequirements.length
+                                  ? "requirement-met"
+                                  : "requirement-not-met"
+                              }
+                            >
                               8+ characters
                             </span>
                           </div>
                           <div className="requirement-item">
-                            {passwordRequirements.uppercase && passwordRequirements.lowercase ? (
+                            {passwordRequirements.uppercase &&
+                            passwordRequirements.lowercase ? (
                               <Check className="w-3 h-3 requirement-met" />
                             ) : (
                               <X className="w-3 h-3 requirement-not-met" />
                             )}
-                            <span className={passwordRequirements.uppercase && passwordRequirements.lowercase ? "requirement-met" : "requirement-not-met"}>
+                            <span
+                              className={
+                                passwordRequirements.uppercase &&
+                                passwordRequirements.lowercase
+                                  ? "requirement-met"
+                                  : "requirement-not-met"
+                              }
+                            >
                               Upper & lowercase
                             </span>
                           </div>
@@ -719,7 +831,13 @@ export default function Signup() {
                             ) : (
                               <X className="w-3 h-3 requirement-not-met" />
                             )}
-                            <span className={passwordRequirements.number ? "requirement-met" : "requirement-not-met"}>
+                            <span
+                              className={
+                                passwordRequirements.number
+                                  ? "requirement-met"
+                                  : "requirement-not-met"
+                              }
+                            >
                               At least one number
                             </span>
                           </div>
@@ -729,7 +847,13 @@ export default function Signup() {
                             ) : (
                               <X className="w-3 h-3 requirement-not-met" />
                             )}
-                            <span className={passwordRequirements.special ? "requirement-met" : "requirement-not-met"}>
+                            <span
+                              className={
+                                passwordRequirements.special
+                                  ? "requirement-met"
+                                  : "requirement-not-met"
+                              }
+                            >
                               Special character
                             </span>
                           </div>
@@ -739,12 +863,16 @@ export default function Signup() {
                             {formData.password === formData.confirmPassword ? (
                               <>
                                 <Check className="w-3 h-3 requirement-met" />
-                                <span className="requirement-met">Passwords match</span>
+                                <span className="requirement-met">
+                                  Passwords match
+                                </span>
                               </>
                             ) : (
                               <>
                                 <X className="w-3 h-3 requirement-not-met" />
-                                <span className="requirement-not-met">Passwords do not match</span>
+                                <span className="requirement-not-met">
+                                  Passwords do not match
+                                </span>
                               </>
                             )}
                           </div>
@@ -754,7 +882,10 @@ export default function Signup() {
                   )}
 
                   {/* Terms Agreement */}
-                  <div className="flex items-start gap-3 pt-2 form-field-enter" style={{ animationDelay: "0.8s" }}>
+                  <div
+                    className="flex items-start gap-3 pt-2 form-field-enter"
+                    style={{ animationDelay: "0.8s" }}
+                  >
                     <input
                       id="terms"
                       name="termsAccepted"
@@ -764,9 +895,15 @@ export default function Signup() {
                       disabled={isLoading}
                       className="mt-1 w-5 h-5 border-2 border-slate-300 rounded cursor-pointer accent-teal-600"
                     />
-                    <label htmlFor="terms" className="text-sm text-slate-600 cursor-pointer">
+                    <label
+                      htmlFor="terms"
+                      className="text-sm text-slate-600 cursor-pointer"
+                    >
                       I agree to the{" "}
-                      <a href="/terms-conditions" className="font-medium text-teal-600 hover:underline">
+                      <a
+                        href="/terms-conditions"
+                        className="font-medium text-teal-600 hover:underline"
+                      >
                         Terms and Conditions
                       </a>
                     </label>
@@ -775,7 +912,7 @@ export default function Signup() {
                   {/* Submit Button */}
                   <Button
                     type="submit"
-                    className={`w-full mt-6 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 text-base form-field-enter transition-all duration-200 shadow-lg hover:shadow-xl ${isLoading ? 'loading-pulse' : ''}`}
+                    className={`w-full mt-6 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 text-base form-field-enter transition-all duration-200 shadow-lg hover:shadow-xl ${isLoading ? "loading-pulse" : ""}`}
                     style={{ animationDelay: "0.9s" }}
                     disabled={isSubmitDisabled}
                   >
@@ -793,7 +930,10 @@ export default function Signup() {
                   </Button>
 
                   {/* Login Link */}
-                  <div className="text-center pt-4 form-field-enter" style={{ animationDelay: "1.0s" }}>
+                  <div
+                    className="text-center pt-4 form-field-enter"
+                    style={{ animationDelay: "1.0s" }}
+                  >
                     <p className="text-sm text-slate-600">
                       Already have an account?{" "}
                       <button
@@ -812,16 +952,31 @@ export default function Signup() {
             {/* Footer */}
             <div className="text-center mt-8 space-y-2">
               <p className="text-xs text-slate-600">
-                © {new Date().getFullYear()} Procease HRMS System. All rights reserved.
+                © {new Date().getFullYear()} Procease HRMS System. All rights
+                reserved.
               </p>
               <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
-                <a href="/privacy-policy" className="hover:text-teal-600 transition-colors">Privacy Policy</a>
+                <a
+                  href="/privacy-policy"
+                  className="hover:text-teal-600 transition-colors"
+                >
+                  Privacy Policy
+                </a>
                 <span>•</span>
-                <a href="/terms-conditions" className="hover:text-teal-600 transition-colors">Terms and Conditions
+                <a
+                  href="/terms-conditions"
+                  className="hover:text-teal-600 transition-colors"
+                >
+                  Terms and Conditions
                 </a>
 
                 <span>•</span>
-                <a href="/contact" className="hover:text-teal-600 transition-colors">Support</a>
+                <a
+                  href="/contact"
+                  className="hover:text-teal-600 transition-colors"
+                >
+                  Support
+                </a>
               </div>
             </div>
           </div>

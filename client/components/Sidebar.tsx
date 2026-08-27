@@ -137,9 +137,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import {
-  getAllowedModulesFromSubscription,
-} from "@/utils/subscriptionModules";
+import { getAllowedModulesFromSubscription } from "@/utils/subscriptionModules";
 import { Button } from "@/components/ui/button";
 
 type NavItem = {
@@ -1026,8 +1024,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ]
           .map((role) => String(role || "").toLowerCase())
           .filter(Boolean);
-  const primaryUserRole = String(user.role || "").trim().toLowerCase();
-  const accountType = String(user.type || "").trim().toLowerCase();
+  const primaryUserRole = String(user.role || "")
+    .trim()
+    .toLowerCase();
+  const accountType = String(user.type || "")
+    .trim()
+    .toLowerCase();
   const effectiveSidebarRoles =
     primaryUserRole &&
     !["employee", "admin", "ceo", "superadmin"].includes(primaryUserRole)
@@ -1039,8 +1041,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isSuperAdmin =
     primaryUserRole === "superadmin" || accountType === "superadmin";
   const isCeo = primaryUserRole === "ceo";
-  const isAdmin =
-    primaryUserRole === "admin" || accountType === "admin";
+  const isAdmin = primaryUserRole === "admin" || accountType === "admin";
   const isEmployeeUser = effectiveSidebarRoles.includes("employee");
   const isInternalCompany = Boolean(subscription?.is_internal_company);
 
@@ -1102,7 +1103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         if (path.includes("/attendance/facial-recognition"))
           return "facial_recognition";
         if (path.includes("/attendance/log")) return "log";
-        if (path.includes("/attendance/monthly-report")) return "monthly_report";
+        if (path.includes("/attendance/monthly-report"))
+          return "monthly_report";
         if (path.includes("/attendance/override")) return "override";
         if (path.includes("/attendance/shift")) return "shift";
         if (path.includes("/attendance/roster")) return "roster";
@@ -1178,9 +1180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const isPlatformSuperAdminItem = item.roles.some(
         (role) => String(role).toLowerCase() === "superadmin",
       );
-      const roleSet = new Set(
-        effectiveSidebarRoles,
-      );
+      const roleSet = new Set(effectiveSidebarRoles);
       const allowed = item.roles.some((requiredRole) =>
         roleSet.has(requiredRole.toLowerCase()),
       );
@@ -1198,7 +1198,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // never appear in the sidebar even if a child would otherwise pass a fallback.
     if (!isSuperAdmin) {
       if (allowedModulesForPlan) {
-        if (item.moduleName === undefined && !item.submenu?.length) return false;
+        if (item.moduleName === undefined && !item.submenu?.length)
+          return false;
         if (item.moduleName && !allowedModulesForPlan.has(item.moduleName)) {
           return false;
         }

@@ -536,7 +536,7 @@ export default function AssetList() {
                   </div>
 
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full border-collapse text-sm">
+                    <table className="w-full min-w-[760px] border-collapse text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                           <th className="w-24 px-4 py-3 text-left font-semibold">ID</th>

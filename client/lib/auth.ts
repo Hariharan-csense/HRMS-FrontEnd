@@ -6,6 +6,8 @@ export type User = {
   name: string;
   email: string;
   companyName: string;
+  company_id?: number;
+  companyId?: number;
   employee_id?: string;
   employeeId?: string;
   roles: string[]; // Changed from UserRole[] to string[] for dynamic roles

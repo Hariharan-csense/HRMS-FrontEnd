@@ -433,7 +433,7 @@ const KPICorrectiveActionPage: React.FC = () => {
             emptyMessage="No corrective actions found."
           />
           <div className="hidden overflow-x-auto md:block">
-            <table className="min-w-full divide-y divide-[#d6f7eb] text-sm">
+            <table className="w-max min-w-full divide-y divide-[#d6f7eb] text-sm [&_th]:whitespace-nowrap">
               <thead className="bg-white text-left text-xs font-semibold text-[#0f8f70]">
                 <tr>
                   <th className="px-6 py-4">#</th>

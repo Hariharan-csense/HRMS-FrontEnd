@@ -289,7 +289,7 @@ export default function LeaveConfiguration() {
             <Card>
               <CardContent className="pt-6">
                 <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[720px] text-sm">
                     <thead>
                       <tr className="border-b border-border bg-slate-50">
                         <th className="text-left px-4 py-3 font-semibold text-slate-700">Holiday Name</th>

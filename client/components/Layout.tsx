@@ -215,8 +215,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Page Content - responsive padding */}
-        <main className="flex-1 overflow-y-auto pt-16 bg-background">
-          <div className="p-4 sm:p-6 lg:p-6 w-full min-h-full">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto pt-16 bg-background sm:pt-20">
+          <div className="min-h-full w-full min-w-0 p-3 sm:p-5 lg:p-6">
             {children}
           </div>
         </main>

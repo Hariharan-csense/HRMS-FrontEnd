@@ -489,7 +489,7 @@ export default function ExitOffboarding() {
 
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[840px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-semibold">
@@ -865,7 +865,8 @@ export default function ExitOffboarding() {
                       <p className="text-sm text-muted-foreground mb-2">
                         Clearance Status
                       </p>
-                      <table className="w-full text-sm border-collapse">
+                      <div className="max-w-full overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-sm border-collapse">
                         <thead>
                           <tr className="border-b">
                             <th className="text-left py-2">Department</th>
@@ -951,6 +952,7 @@ export default function ExitOffboarding() {
                           </tr>
                         </tbody>
                       </table>
+                      </div>
                     </div>
 
                     <div className="border-t pt-4 mt-4">

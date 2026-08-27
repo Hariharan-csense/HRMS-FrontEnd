@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ExcelJS from "exceljs";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,35 +57,59 @@ const formatScore = (value: number | null | undefined) => {
   return Math.max(0, Math.min(10, n)).toFixed(1);
 };
 
-const downloadCsv = (rows: DailyLogRow[]) => {
-  const escapeCell = (value: string | number) =>
-    `"${String(value ?? "").replace(/"/g, '""')}"`;
-  const header = [
-    "Date",
-    "Employee",
-    "Email",
-    "Score",
-    "Label",
-    "Comment",
-    "Responded At",
-  ];
-  const body = rows.map((row) => [
-    row.dateKey,
-    row.employeeName,
-    row.employeeEmail,
-    formatScore(row.score),
-    row.label,
-    row.comment,
-    row.respondedAt ? new Date(row.respondedAt).toLocaleString() : "",
-  ]);
-  const csv = [header, ...body]
-    .map((cells) => cells.map(escapeCell).join(","))
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+const downloadExcel = async (rows: DailyLogRow[]) => {
+  const headers = ["S.No", "Date", "Survey", "Employee ID", "Employee", "Email", "Score", "Mood", "Comment", "Submitted At"];
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "HRMS Employee Survey";
+  const sheet = workbook.addWorksheet("Daily Log Report", {
+    views: [{ state: "frozen", ySplit: 1, xSplit: 2 }],
+  });
+  sheet.addRow(headers);
+  rows.forEach((row, index) => sheet.addRow([
+    index + 1, row.dateKey ? new Date(`${row.dateKey}T00:00:00`) : "", row.surveyTitle, row.employeeId, row.employeeName,
+    row.employeeEmail, Number(row.score || 0), row.label || "-", row.comment || "-",
+    row.respondedAt ? new Date(row.respondedAt) : "",
+  ]));
+
+  const headerRow = sheet.getRow(1);
+  headerRow.height = 38;
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F9F7A" } };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  });
+  sheet.eachRow((excelRow, rowNumber) => {
+    if (rowNumber === 1) return;
+    excelRow.height = 28;
+    excelRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFD7E3E0" } },
+        left: { style: "thin", color: { argb: "FFD7E3E0" } },
+        bottom: { style: "thin", color: { argb: "FFD7E3E0" } },
+        right: { style: "thin", color: { argb: "FFD7E3E0" } },
+      };
+      cell.alignment = { vertical: "middle", wrapText: true };
+      if (rowNumber % 2 === 0) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1FBF8" } };
+    });
+    const scoreCell = excelRow.getCell(7);
+    const score = Number(scoreCell.value || 0);
+    const scoreColor = score >= 8 ? "FFC6EFCE" : score >= 6 ? "FFFFF2CC" : score >= 4 ? "FFFFE0B2" : "FFFFC7CE";
+    scoreCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: scoreColor } };
+    scoreCell.font = { bold: true };
+    scoreCell.numFmt = '0.0"/10"';
+    excelRow.getCell(8).fill = { type: "pattern", pattern: "solid", fgColor: { argb: scoreColor } };
+  });
+  [8, 14, 24, 14, 24, 30, 12, 20, 48, 22].forEach((width, index) => {
+    sheet.getColumn(index + 1).width = width;
+  });
+  sheet.getColumn(2).numFmt = "dd-mm-yyyy";
+  sheet.getColumn(10).numFmt = "dd-mm-yyyy hh:mm AM/PM";
+  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: sheet.rowCount, column: headers.length } };
+  const buffer = await workbook.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buffer as unknown as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = "daily-log-report.csv";
+  link.download = `Daily_Log_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
   link.click();
   URL.revokeObjectURL(url);
 };
@@ -225,11 +250,11 @@ const DailyLogAnalytics: React.FC = () => {
             <Button
               type="button"
               disabled={!filteredRows.length}
-              onClick={() => downloadCsv(filteredRows)}
+              onClick={() => void downloadExcel(filteredRows)}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               <Download className="h-4 w-4 mr-2" />
-              Export
+              Export Excel
             </Button>
           </div>
 
@@ -346,25 +371,25 @@ const DailyLogAnalytics: React.FC = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] text-sm">
+                  <table className="w-max min-w-full text-sm">
                     <thead className="bg-emerald-50 text-gray-700">
                       <tr>
-                        <th className="px-5 py-3 text-left font-semibold">
+                        <th className="min-w-[130px] whitespace-nowrap px-5 py-3 text-left font-semibold">
                           Date
                         </th>
-                        <th className="px-5 py-3 text-left font-semibold">
+                        <th className="min-w-[240px] whitespace-nowrap px-5 py-3 text-left font-semibold">
                           Employee
                         </th>
-                        <th className="px-5 py-3 text-left font-semibold">
+                        <th className="min-w-[100px] whitespace-nowrap px-5 py-3 text-left font-semibold">
                           Score
                         </th>
-                        <th className="px-5 py-3 text-left font-semibold">
+                        <th className="min-w-[150px] whitespace-nowrap px-5 py-3 text-left font-semibold">
                           Mood
                         </th>
-                        <th className="px-5 py-3 text-left font-semibold">
+                        <th className="min-w-[320px] whitespace-nowrap px-5 py-3 text-left font-semibold">
                           Comment
                         </th>
-                        <th className="px-5 py-3 text-left font-semibold">
+                        <th className="min-w-[210px] whitespace-nowrap px-5 py-3 text-left font-semibold">
                           Submitted
                         </th>
                       </tr>

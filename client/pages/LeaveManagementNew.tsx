@@ -272,6 +272,7 @@ export default function LeaveManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("types");
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [probationRestricted, setProbationRestricted] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
@@ -645,6 +646,7 @@ export default function LeaveManagement() {
 
         if (result && result.data && Array.isArray(result.data)) {
           leaveTypesData = result.data;
+          setProbationRestricted(Boolean(result.probationRestricted));
         } else if (Array.isArray(result)) {
           leaveTypesData = result;
         } else {
@@ -1262,7 +1264,7 @@ export default function LeaveManagement() {
           employeeId,
           employeeName: user?.name || "",
           leaveDuration: "full_day",
-          halfDaySession: "first_half",
+          halfDaySession: probationRestricted ? null : "first_half",
         });
       } else {
         setFormData(
@@ -2761,11 +2763,18 @@ export default function LeaveManagement() {
                         <SelectItem value="full_day" className="text-base py-3">
                           Full Day
                         </SelectItem>
-                        <SelectItem value="half_day" className="text-base py-3">
-                          Half Day
-                        </SelectItem>
+                        {!probationRestricted && (
+                          <SelectItem value="half_day" className="text-base py-3">
+                            Half Day
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {probationRestricted && (
+                      <p className="text-xs text-amber-700">
+                        During probation, only full-day Unpaid Leave is available.
+                      </p>
+                    )}
                   </div>
 
                   {formData.leaveDuration === "half_day" && (

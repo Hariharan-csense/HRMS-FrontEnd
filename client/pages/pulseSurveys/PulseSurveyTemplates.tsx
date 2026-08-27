@@ -185,25 +185,25 @@ const PulseSurveyTemplates: React.FC = () => {
   return (
     <Layout>
       <div className="pulse-theme min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-        <div className="max-w-7xl mx-auto p-6 space-y-8">
+        <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Header Section */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
-                <FileText className="h-8 w-8 text-white" />
+          <div className="space-y-3 text-center sm:space-y-4">
+            <div className="mb-3 flex items-center justify-center gap-3 sm:mb-4">
+              <div className="shrink-0 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-2.5 shadow-lg sm:p-3">
+                <FileText className="h-7 w-7 text-white sm:h-8 sm:w-8" />
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              <h1 className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-2xl font-bold leading-tight text-transparent sm:text-4xl">
                 Survey Templates Manager
               </h1>
             </div>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="mx-auto max-w-2xl text-sm text-gray-600 sm:text-lg">
               Create and manage reusable survey templates for quick pulse surveys deployment
             </p>
           </div>
 
           {/* Create/Edit Template Form */}
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-t-xl">
+            <CardHeader className="rounded-t-xl bg-gradient-to-r from-emerald-500 to-teal-600 p-4 text-white sm:p-6">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Settings className="h-5 w-5" />
                 {editingId ? "Edit Template" : "Create New Template"}
@@ -212,8 +212,8 @@ const PulseSurveyTemplates: React.FC = () => {
                 Templates are stored per organization and can be reused for multiple surveys
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-gray-700">Template Name</Label>
                   <Input 
@@ -250,31 +250,31 @@ const PulseSurveyTemplates: React.FC = () => {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder={"Hi {{employee_name}}, please answer {{survey_title}}: {{question}}"}
-                  className="min-h-[140px] border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                  className="min-h-[140px] break-words border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
 
-              <div className="flex items-center justify-between bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-col gap-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   <Switch 
                     checked={isActive} 
                     onCheckedChange={setIsActive}
-                    className="data-[state=checked]:bg-emerald-500"
+                    className="mt-0.5 shrink-0 data-[state=checked]:bg-emerald-500 sm:mt-0"
                   />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">Template Status</span>
-                    <p className="text-xs text-gray-500">
+                  <div className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-900">Template Status</span>
+                    <p className="mt-0.5 break-words text-xs leading-relaxed text-gray-500">
                       {isActive ? "Template is active and available for use" : "Template is disabled"}
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-3">
+                <div className={`grid w-full gap-3 sm:flex sm:w-auto ${editingId ? "grid-cols-2" : "grid-cols-1"}`}>
                   {editingId ? (
                     <Button 
                       variant="outline" 
                       onClick={resetForm} 
                       disabled={saving}
-                      className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                      className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 sm:w-auto"
                     >
                       Cancel
                     </Button>
@@ -282,7 +282,7 @@ const PulseSurveyTemplates: React.FC = () => {
                   <Button 
                     onClick={onSave} 
                     disabled={saving}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white border-0 shadow-md hover:shadow-lg transition-all"
+                    className="w-full border-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md transition-all hover:from-emerald-600 hover:to-teal-700 hover:shadow-lg sm:w-auto"
                   >
                     {saving ? (
                       <>
@@ -312,7 +312,7 @@ const PulseSurveyTemplates: React.FC = () => {
 
           {/* Templates List */}
           <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-t-xl">
+            <CardHeader className="rounded-t-xl bg-gradient-to-r from-teal-500 to-cyan-600 p-4 text-white sm:p-6">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <FileText className="h-5 w-5" />
                 Existing Templates
@@ -321,7 +321,7 @@ const PulseSurveyTemplates: React.FC = () => {
                 {loading ? "Loading templates..." : `Managing ${rows.length} template${rows.length === 1 ? "" : "s"}`}
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
@@ -348,7 +348,7 @@ const PulseSurveyTemplates: React.FC = () => {
                           : 'bg-gradient-to-r from-teal-50 to-cyan-50'
                       }`}
                     >
-                      <CardContent className="p-6">
+                      <CardContent className="p-4 sm:p-6">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                           {/* Template Info */}
                           <div className="flex-1 min-w-0">
@@ -357,7 +357,7 @@ const PulseSurveyTemplates: React.FC = () => {
                                 <FileText className="h-5 w-5 text-emerald-600" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-lg text-gray-900 truncate">{t.name}</h3>
+                                <h3 className="break-words text-base font-bold text-gray-900 sm:text-lg">{t.name}</h3>
                                 <div className="flex flex-wrap items-center gap-2 mt-2">
                                   <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-0">
                                     <Tag className="h-3 w-3 mr-1" />
@@ -380,7 +380,7 @@ const PulseSurveyTemplates: React.FC = () => {
 
                             <div className="bg-white rounded-lg p-4 shadow-sm border border-emerald-100 mb-4">
                               <p className="text-sm font-medium text-gray-700 mb-1">Survey Title:</p>
-                              <p className="text-gray-900">{t.title}</p>
+                              <p className="break-words text-gray-900">{t.title}</p>
                             </div>
 
                             {t.message ? (
@@ -399,7 +399,7 @@ const PulseSurveyTemplates: React.FC = () => {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex flex-col gap-3 min-w-fit">
+                          <div className="grid w-full grid-cols-2 gap-3 lg:flex lg:w-auto lg:min-w-fit lg:flex-col">
                             <Button
                               variant="outline"
                               onClick={() => onEdit(t)}

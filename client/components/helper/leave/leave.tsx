@@ -55,7 +55,11 @@ export interface LeaveType {
 export const leaveTypeApi = {
   // Get all leave types
   // ✅ Get all leave types
-  getLeaveTypes: async (): Promise<{ data?: LeaveType[]; error?: string }> => {
+  getLeaveTypes: async (): Promise<{
+    data?: LeaveType[];
+    probationRestricted?: boolean;
+    error?: string;
+  }> => {
     try {
       const response = await ENDPOINTS.getLeave(); // /leave/types
 
@@ -120,7 +124,10 @@ export const leaveTypeApi = {
         };
       });
 
-      return { data: mapped };
+      return {
+        data: mapped,
+        probationRestricted: Boolean(response.data?.probationRestricted),
+      };
     } catch (error: any) {
       console.error("Error fetching leave types:", error);
       return {

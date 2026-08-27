@@ -150,7 +150,7 @@ export default function EmployeeAnalytics() {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 gap-2 bg-muted p-1">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 sm:grid-cols-4 sm:gap-2">
             <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
             <TabsTrigger value="attendance" className="text-xs md:text-sm">Attendance</TabsTrigger>
             <TabsTrigger value="performance" className="text-xs md:text-sm">Performance</TabsTrigger>

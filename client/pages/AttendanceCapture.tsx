@@ -84,7 +84,22 @@ interface AssignedClient {
 
 const SELFIE_OUTPUT_SIZE = 1080;
 const LIVE_TRACKING_SESSION_KEY = "attendanceLiveTrackingActive";
+const LSK_COMPANY_DATABASE_ID = 51;
 const LSK_COMPANY_NAME = "csense management solutions pvt ltd";
+
+const getAuthenticatedCompanyId = () => {
+  try {
+    const token = localStorage.getItem("accessToken");
+    const payload = token?.split(".")[1];
+    if (!payload) return null;
+    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(atob(normalizedPayload));
+    const companyId = Number(decoded?.company_id);
+    return Number.isFinite(companyId) ? companyId : null;
+  } catch {
+    return null;
+  }
+};
 
 const dailyPulseOptions = [
   { label: "Very Unhappy", score: 1, emoji: "😞" },
@@ -131,11 +146,17 @@ export default function AttendanceCapture() {
   const [dailyPulseScore, setDailyPulseScore] = useState<number | null>(null);
   const [dailyPulseComment, setDailyPulseComment] = useState("");
   const [isSubmittingDailyPulse, setIsSubmittingDailyPulse] = useState(false);
+  // Older authenticated sessions may not yet have company_id in their cached
+  // user object. The name fallback keeps the control visible for those users;
+  // the API still authoritatively validates companies.id === 51 on submit.
+  const normalizedCompanyName = String(user?.companyName || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
   const canUseLsk =
-    String(user?.companyName || "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLowerCase() === LSK_COMPANY_NAME;
+    Number(user?.company_id ?? user?.companyId ?? getAuthenticatedCompanyId()) ===
+      LSK_COMPANY_DATABASE_ID ||
+    normalizedCompanyName === LSK_COMPANY_NAME;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -1403,7 +1424,7 @@ export default function AttendanceCapture() {
                   <label htmlFor="with-lsk" className="cursor-pointer text-sm text-slate-700">
                     <span className="block font-semibold text-slate-900">With LSK</span>
                     <span className="block text-xs text-slate-600">
-                      Check-ins from 9:30 AM through 10:00 AM will be marked Present instead of Late.
+                      Allows check-in up to 30 minutes after your shift starts. Later check-ins are marked Late.
                     </span>
                   </label>
                 </div>
