@@ -220,6 +220,24 @@ const getPricingSummary = (
   };
 };
 
+const getMixedPricingSummary = (
+  plan: { price?: number; yearly_price?: number },
+  monthlyUsers: number,
+  yearlyUsers: number,
+) => {
+  const monthlyAmount = Number(plan.price || 0) * monthlyUsers;
+  const yearlyAmount = Number(plan.yearly_price || 0) * yearlyUsers * 12;
+  const totalPrice = monthlyAmount + yearlyAmount;
+  const gstAmount = Number((totalPrice * 0.18).toFixed(2));
+  return {
+    monthlyAmount,
+    yearlyAmount,
+    totalPrice,
+    gstAmount,
+    totalWithGst: Number((totalPrice + gstAmount).toFixed(2)),
+  };
+};
+
 const getAddonPricingSummary = (
   addon: SubscriptionAddon,
   usersCount: number,
@@ -286,6 +304,8 @@ const SubscriptionManagement: React.FC = () => {
   const [isAddonPaying, setIsAddonPaying] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState(25);
   const [selectedUsersInput, setSelectedUsersInput] = useState("25");
+  const [monthlyUsersInput, setMonthlyUsersInput] = useState("0");
+  const [yearlyUsersInput, setYearlyUsersInput] = useState("25");
   const [selectedAddonUsers, setSelectedAddonUsers] = useState(8);
   const [selectedAddonUsersInput, setSelectedAddonUsersInput] = useState("8");
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<
@@ -418,6 +438,13 @@ const SubscriptionManagement: React.FC = () => {
   const handleUpgrade = async () => {
     if (!selectedPlan) return;
 
+    const monthlyUsers = Math.max(0, Number.parseInt(monthlyUsersInput, 10) || 0);
+    const yearlyUsers = Math.max(0, Number.parseInt(yearlyUsersInput, 10) || 0);
+    if (monthlyUsers + yearlyUsers <= 0) {
+      showToast.error("Enter at least one monthly or yearly user");
+      return;
+    }
+
     setIsPaying(true);
     try {
       const scriptOk = await loadRazorpayScript();
@@ -430,8 +457,8 @@ const SubscriptionManagement: React.FC = () => {
 
       const orderRes = await ENDPOINTS.createSubscriptionUpgradeOrder({
         plan_id: selectedPlan.id,
-        users_count: selectedUsers,
-        billing_cycle: selectedBillingCycle,
+        monthly_users: monthlyUsers,
+        yearly_users: yearlyUsers,
       });
       const orderData = orderRes.data?.data;
 
@@ -452,8 +479,8 @@ const SubscriptionManagement: React.FC = () => {
           try {
             const verifyRes = await ENDPOINTS.verifySubscriptionUpgradePayment({
               plan_id: selectedPlan.id,
-              users_count: selectedUsers,
-              billing_cycle: selectedBillingCycle,
+              monthly_users: monthlyUsers,
+              yearly_users: yearlyUsers,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
@@ -1772,53 +1799,58 @@ const SubscriptionManagement: React.FC = () => {
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="monthlyUsersCount">Monthly Users</Label>
+                    <Input
+                      id="monthlyUsersCount"
+                      type="number"
+                      min="0"
+                      value={monthlyUsersInput}
+                      disabled={isPaying}
+                      onChange={(event) => setMonthlyUsersInput(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="yearlyUsersCount">Yearly Users</Label>
+                    <Input
+                      id="yearlyUsersCount"
+                      type="number"
+                      min="0"
+                      value={yearlyUsersInput}
+                      disabled={isPaying}
+                      onChange={(event) => setYearlyUsersInput(event.target.value)}
+                    />
+                  </div>
+                </div>
+
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-semibold">{selectedPlan.name}</p>
-                  <div className="flex items-baseline gap-2">
-                    {(() => {
-                      const pricing = getPricingSummary(
-                        selectedPlan,
-                        selectedUsers,
-                        selectedBillingCycle,
-                      );
-                      return (
-                        <>
-                          <span className="text-2xl font-bold">
-                            {formatCurrency(pricing.effectivePerUser)}
-                          </span>
-                          <span className="text-gray-600">/user/month</span>
-                          <span className="text-sm text-gray-500 ml-auto">
-                            Total {selectedBillingCycle}:{" "}
-                            {formatCurrency(pricing.totalPrice)}
-                          </span>
-                        </>
-                      );
-                    })()}
-                  </div>
                   <p className="text-sm text-gray-600">
-                    {selectedUsers} subscribed users. You can add up to{" "}
-                    {selectedUsers} employees after payment.
+                    {(Number(monthlyUsersInput) || 0) + (Number(yearlyUsersInput) || 0)} total users: {Number(monthlyUsersInput) || 0} monthly + {Number(yearlyUsersInput) || 0} yearly.
                   </p>
-                  {selectedBillingCycle === "yearly" && (
-                    <p className="text-sm text-emerald-600">
-                      Yearly price comes directly from the saved package
-                      configuration.
-                    </p>
-                  )}
                   <p className="text-sm text-gray-600">
                     {getStorageForPlan(selectedPlan)} storage
                   </p>
                 </div>
 
                 {(() => {
-                  const pricing = getPricingSummary(
+                  const pricing = getMixedPricingSummary(
                     selectedPlan,
-                    selectedUsers,
-                    selectedBillingCycle,
+                    Number(monthlyUsersInput) || 0,
+                    Number(yearlyUsersInput) || 0,
                   );
                   return (
                     <div className="space-y-2 rounded-lg border p-3">
                       <div className="flex justify-between text-sm">
+                        <span>Monthly users amount</span>
+                        <span>{formatCurrency(pricing.monthlyAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Yearly users amount</span>
+                        <span>{formatCurrency(pricing.yearlyAmount)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2 text-sm">
                         <span>Subscription amount</span>
                         <span>{formatCurrency(pricing.totalPrice)}</span>
                       </div>

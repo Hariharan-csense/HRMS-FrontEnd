@@ -104,6 +104,10 @@ import AdminFeedbackInbox from "./pages/pulseSurveys/AdminFeedbackInbox";
 import PulseSurveyTemplates from "./pages/pulseSurveys/PulseSurveyTemplates";
 import Loan from "./pages/loanRequestForm";
 import { isCordovaIOS } from "@/lib/platform";
+import {
+  getRecentProtectedRoute,
+  rememberProtectedRoute,
+} from "@/lib/routeSession";
 
 import { Hash } from "lucide-react";
 const queryClient = new QueryClient();
@@ -146,14 +150,19 @@ const RootRoute = () => {
   }
 
   if (isAuthenticated) {
-    // Redirect superadmin users directly to SuperAdminDashboard
-    if (
+    const isSuperAdmin =
       user?.roles?.some((role) => role?.toLowerCase() === "superadmin") ||
-      user?.role?.toLowerCase() === "superadmin"
-    ) {
-      return <Navigate to="/superadmin-dashboard" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
+      user?.role?.toLowerCase() === "superadmin";
+    const defaultDashboard = isSuperAdmin
+      ? "/superadmin-dashboard"
+      : "/dashboard";
+
+    return (
+      <Navigate
+        to={getRecentProtectedRoute() || defaultDashboard}
+        replace
+      />
+    );
   }
 
   return <Navigate to="/login" replace />;
@@ -260,6 +269,33 @@ const BlockDashboardBackNavigation = () => {
 };
 
 function AppRoutes() {
+  const location = useLocation();
+  const currentRoute = `${location.pathname}${location.search}${location.hash}`;
+
+  useEffect(() => {
+    rememberProtectedRoute(currentRoute);
+
+    const saveRouteBeforeBackground = () => rememberProtectedRoute(currentRoute);
+    const saveRouteWhenHidden = () => {
+      if (document.visibilityState === "hidden") {
+        saveRouteBeforeBackground();
+      }
+    };
+
+    // Cordova emits `pause`; browsers/WebViews may emit either pagehide or
+    // visibilitychange. Cover all three so Android process reclamation cannot
+    // lose the page the employee was using.
+    document.addEventListener("pause", saveRouteBeforeBackground, false);
+    document.addEventListener("visibilitychange", saveRouteWhenHidden);
+    window.addEventListener("pagehide", saveRouteBeforeBackground);
+
+    return () => {
+      document.removeEventListener("pause", saveRouteBeforeBackground, false);
+      document.removeEventListener("visibilitychange", saveRouteWhenHidden);
+      window.removeEventListener("pagehide", saveRouteBeforeBackground);
+    };
+  }, [currentRoute]);
+
   return (
     <AutoLoginHandler>
       <ScrollToTop />

@@ -112,6 +112,7 @@ type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
   monthlySalary?: number;
   hourlyRate?: number;
   overtimeHourlyRate?: number;
+  subscriptionBillingCycle: "monthly" | "yearly";
 };
 
 const initialFormData: FormData = {
@@ -144,6 +145,7 @@ const initialFormData: FormData = {
   monthlySalary: 0,
   hourlyRate: 0,
   overtimeHourlyRate: 0,
+  subscriptionBillingCycle: "monthly",
   aadhaar: "",
   pan: "",
   uan: "",
@@ -561,7 +563,6 @@ const isNumericLike = (value: unknown) => /^\d+$/.test(String(value || "").trim(
 
 export default function EmployeeList() {
   const { canPerformModuleAction } = useRole();
-  //const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDept, setFilterDept] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<EmployeeStatus | "all">(
@@ -605,6 +606,8 @@ export default function EmployeeList() {
     checking: boolean;
     error: string | null;
   }>({ checking: false, error: null });
+  const [showNoLoginWarningDialog, setShowNoLoginWarningDialog] =
+    useState(false);
 
   // Add-on dialog states
   const [isAddOnDialogOpen, setIsAddOnDialogOpen] = useState(false);
@@ -627,7 +630,7 @@ export default function EmployeeList() {
       return;
     }
 
-    const email = formData.email.trim();
+    const email = (formData.email || "").trim();
     if (!email || !isValidEmail(email)) {
       setEmailDuplicateCheck({ checking: false, error: null });
       return;
@@ -973,6 +976,10 @@ export default function EmployeeList() {
         monthlySalary: Number((employee as any).monthly_salary ?? employee.salary) || 0,
         hourlyRate: Number((employee as any).hourly_rate) || 0,
         overtimeHourlyRate: Number((employee as any).overtime_hourly_rate) || 0,
+        subscriptionBillingCycle:
+          (employee as any).subscription_billing_cycle === "yearly"
+            ? "yearly"
+            : "monthly",
         aadhaar: employee.aadhaar || "",
         pan: employee.pan || "",
         uan: employee.uan || "",
@@ -1328,27 +1335,77 @@ export default function EmployeeList() {
   //   } catch (err) {
   //     console.error("Save error:", err);
   //     alert("An unexpected error occurred");
+
+  //       // Optional fields
+  //       if (formData.phone) formDataToSend.append("mobile", formData.phone);
+  //       if (formData.dateOfBirth) formDataToSend.append("dob", formData.dateOfBirth);
+  //       if (formData.gender) formDataToSend.append("gender", formData.gender);
+  //       if (formData.bloodGroup) formDataToSend.append("blood_group", formData.bloodGroup); // ← fixed
+  //       if (formData.maritalStatus) formDataToSend.append("marital_status", formData.maritalStatus);
+  //       if (formData.emergencyContact) formDataToSend.append("emergency_contact_name", formData.emergencyContact);
+  //       if (formData.emergencyPhone) formDataToSend.append("emergency_contact_phone", formData.emergencyPhone);
+  //       formDataToSend.append("employment_type", formData.employmentType);
+  //       if (formData.departmentId) formDataToSend.append("department_id", formData.departmentId);
+  //       if (formData.designationId) formDataToSend.append("designation_id", formData.designationId);
+  //       if (formData.location) formDataToSend.append("location_office", formData.location);
+  //       formDataToSend.append("status", formData.status);
+  //       if (formData.role) formDataToSend.append("role", formData.role);
+  //       if (formData.aadhaar) formDataToSend.append("aadhaar", formData.aadhaar);
+  //       if (formData.pan) formDataToSend.append("pan", formData.pan);
+  //       if (formData.uan) formDataToSend.append("uan", formData.uan);
+  //       if (formData.esic) formDataToSend.append("esic", formData.esic);
+
+  //       // Bank details
+  //       if (formData.bankAccountHolder) formDataToSend.append("account_holder_name", formData.bankAccountHolder);
+  //       if (formData.bankName) formDataToSend.append("bank_name", formData.bankName);
+  //       if (formData.accountNumber) formDataToSend.append("account_number", formData.accountNumber);
+  //       if (formData.ifscCode) formDataToSend.append("ifsc_code", formData.ifscCode);
+
+  //       // Files - actual File objects
+  //       Object.keys(uploadedFileObjects).forEach((field) => {
+  //         const file = uploadedFileObjects[field];
+  //         if (file instanceof File) {
+  //           formDataToSend.append(field, file);
+  //         }
+  //       });
+
+  //       const result = await employeeApi.createEmployee(formDataToSend);
+
+  //       if (result.data) {
+  //         await refreshEmployees();
+  //         alert("New employee created successfully!");
+  //       } else {
+  //         alert(result.error || "Failed to create employee");
+  //       }
+  //     }
+
+  //     handleCloseDialog();
+  //   } catch (err) {
+  //     console.error("Save error:", err);
+  //     alert("An unexpected error occurred");
   //   } finally {
   //     setSaving(false);
   //   }
   // };
 
-  const handleSave = async () => {
-    if (!formData.firstName || !formData.email) {
-      showToast.error("First Name and Email are required!");
+  const handleSave = async (bypassLoginWarning = false) => {
+    if (!formData.firstName?.trim()) {
+      showToast.error("First Name is required!");
       return;
     }
-    if (!isValidEmail(formData.email)) {
-      showToast.error("Please enter a valid personal email address");
-      return;
-    }
-    if (emailDuplicateCheck.checking) {
-      showToast.error("Please wait until email verification finishes");
-      return;
-    }
-    if (emailDuplicateCheck.error) {
-      showToast.error(emailDuplicateCheck.error);
-      return;
+    if (formData.email?.trim()) {
+      if (!isValidEmail(formData.email)) {
+        showToast.error("Please enter a valid personal email address");
+        return;
+      }
+      if (emailDuplicateCheck.checking) {
+        showToast.error("Please wait until email verification finishes");
+        return;
+      }
+      if (emailDuplicateCheck.error) {
+        showToast.error(emailDuplicateCheck.error);
+        return;
+      }
     }
     if (formData.officeEmail && !isValidEmail(formData.officeEmail)) {
       showToast.error("Please enter a valid office email address");
@@ -1378,14 +1435,15 @@ export default function EmployeeList() {
       return;
     }
 
-    // if (!formData.shift) {
-    //   showToast.error("Shift is required!");
-    //   return;
-    // }
-
     const statutoryBankError = validateStatutoryAndBank();
     if (statutoryBankError) {
       showToast.error(statutoryBankError);
+      return;
+    }
+
+    // If creating a new employee and email is not provided, show confirmation warning modal
+    if (!editingId && !formData.email?.trim() && !bypassLoginWarning) {
+      setShowNoLoginWarningDialog(true);
       return;
     }
 
@@ -1409,9 +1467,12 @@ export default function EmployeeList() {
       }
 
       // Basic fields
-      formDataToSend.append("first_name", formData.firstName);
-      formDataToSend.append("last_name", formData.lastName || "");
-      formDataToSend.append("email", normalizeEmail(formData.email));
+      formDataToSend.append("first_name", formData.firstName.trim());
+      formDataToSend.append("last_name", (formData.lastName || "").trim());
+      formDataToSend.append(
+        "email",
+        formData.email?.trim() ? normalizeEmail(formData.email) : "",
+      );
 
       // Ensure dates are sent in YYYY-MM-DD format
       const dojToSend = formData.dateOfJoining
@@ -1423,6 +1484,10 @@ export default function EmployeeList() {
       // console.log("Sending DOJ:", dojToSend); // Debug
 
       formDataToSend.append("employment_type", formData.employmentType);
+      formDataToSend.append(
+        "subscription_billing_cycle",
+        formData.subscriptionBillingCycle,
+      );
       formDataToSend.append("status", formData.status);
 
       // Optional fields
@@ -1561,21 +1626,19 @@ export default function EmployeeList() {
         showToast.error("Last Name is required!");
         return false;
       }
-      if (!formData.email?.trim()) {
-        showToast.error("Email is required!");
-        return false;
-      }
-      if (!isValidEmail(formData.email)) {
-        showToast.error("Please enter a valid personal email address");
-        return false;
-      }
-      if (emailDuplicateCheck.checking) {
-        showToast.error("Please wait until email verification finishes");
-        return false;
-      }
-      if (emailDuplicateCheck.error) {
-        showToast.error(emailDuplicateCheck.error);
-        return false;
+      if (formData.email?.trim()) {
+        if (!isValidEmail(formData.email)) {
+          showToast.error("Please enter a valid personal email address");
+          return false;
+        }
+        if (emailDuplicateCheck.checking) {
+          showToast.error("Please wait until email verification finishes");
+          return false;
+        }
+        if (emailDuplicateCheck.error) {
+          showToast.error(emailDuplicateCheck.error);
+          return false;
+        }
       }
       if (!isOptionalTenDigitPhoneValid(formData.phone)) {
         showToast.error(
@@ -1623,6 +1686,146 @@ export default function EmployeeList() {
     return true;
   };
 
+  /* Duplicate incomplete helpers retained by an earlier merge.
+  const handleTabChange = (nextTab: string) => {
+    const currentIdx = tabOrder.indexOf(activeTab);
+    const nextIdx = tabOrder.indexOf(nextTab);
+
+    if (nextIdx <= currentIdx) {
+      setActiveTab(nextTab);
+      return;
+    }
+
+    if (validateCurrentTabBeforeNext()) {
+      setActiveTab(nextTab);
+    }
+  };
+
+  const buildImportedEmployeeFormData = (row: Record<string, unknown>) => {
+    const normalizedRow = Object.entries(row).reduce<Record<string, unknown>>(
+      (acc, [key, value]) => {
+        acc[normalizeExcelHeader(key)] = value;
+        return acc;
+      },
+      {},
+    );
+
+    const get = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = normalizedRow[normalizeExcelHeader(key)];
+        if (
+          value !== undefined &&
+          value !== null &&
+          String(value).trim() !== ""
+        ) {
+          return value;
+        }
+      }
+      return "";
+    };
+
+    const departmentName = String(
+      get("department", "department_name", "dept", "departmentname"),
+    ).trim();
+    const designationName = String(
+      get("designation", "designation_name", "designationname"),
+    ).trim();
+    const shiftName = String(get("shift", "shift_name", "shiftname")).trim();
+
+    const matchedDepartment = departments.find(
+      (dept) => dept.name.trim().toLowerCase() === departmentName.toLowerCase(),
+    );
+    const matchedDesignation = designations.find(
+      (designation) =>
+        designation.name.trim().toLowerCase() === designationName.toLowerCase(),
+    );
+    const matchedShift = shifts.find(
+      (shift) =>
+        String(shift.name || "")
+          .trim()
+          .toLowerCase() === shiftName.toLowerCase(),
+    );
+
+    return {
+      employeeId: String(
+        get("employee_id", "employeeid", "employee_code", "emp_id"),
+      )
+        .trim()
+        .toUpperCase(),
+      firstName: String(get("first_name", "firstname", "first name")).trim(),
+      lastName: String(get("last_name", "lastname", "last name")).trim(),
+      email: normalizeEmail(String(get("email", "personal_email")).trim()),
+      phone: sanitizePhoneInput(
+        String(
+          get("mobile", "phone", "mobile_number", "personal_phone"),
+        ).trim(),
+      ).slice(0, 10),
+      officePhone: sanitizePhoneInput(
+        String(get("office_phone", "officephone")).trim(),
+      ).slice(0, 10),
+      officeEmail: String(get("office_email", "officeemail")).trim(),
+      dateOfBirth: excelDateToISO(get("dob", "date_of_birth", "birth_date")),
+      gender: String(get("gender")).trim(),
+      bloodGroup: String(get("blood_group", "bloodgroup")).trim(),
+      maritalStatus: String(get("marital_status", "maritalstatus")).trim(),
+      emergencyContact: String(
+        get(
+          "emergency_contact_name",
+          "emergency_contact",
+          "emergency_contact_person",
+        ),
+      ).trim(),
+      emergencyPhone: sanitizePhoneInput(
+        String(get("emergency_contact_phone", "emergency_phone")).trim(),
+      ).slice(0, 10),
+      departmentId: matchedDepartment?.id || "",
+      departmentName,
+      designationId: matchedDesignation?.id || "",
+      designationName,
+      shiftId: matchedShift?.id?.toString() || "",
+      shiftName,
+      dateOfJoining: excelDateToISO(
+        get("doj", "date_of_joining", "joining_date"),
+      ),
+      employmentType: normalizeImportedEmploymentType(
+        get("employment_type", "employmenttype"),
+      ),
+      status: normalizeImportedStatus(get("status")),
+      role: String(get("role")).trim().toLowerCase(),
+      location: String(
+        get("location", "location_office", "office_location"),
+      ).trim(),
+      salary: String(get("salary")).trim(),
+      aadhaar: String(get("aadhaar")).replace(/\D/g, "").slice(0, 12),
+      pan: String(get("pan")).trim().toUpperCase(),
+      uan: String(get("uan")).replace(/\D/g, "").slice(0, 12),
+      esic: String(get("esic")).replace(/\D/g, "").slice(0, 10),
+      bankAccountHolder: String(
+      // }
+      if (formData.officeEmail && !isValidEmail(formData.officeEmail)) {
+        showToast.error("Please enter a valid office email address");
+        return false;
+      }
+      if (!isOptionalTenDigitPhoneValid(formData.officePhone)) {
+        showToast.error(
+          "Office phone must be 10 digits and start with 6, 7, 8, or 9",
+        );
+        return false;
+      }
+    }
+
+    if (activeTab === "statutory" || activeTab === "bank") {
+      const statutoryBankError = validateStatutoryAndBank();
+      if (statutoryBankError) {
+        showToast.error(statutoryBankError);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  */
   const handleTabChange = (nextTab: string) => {
     const currentIdx = tabOrder.indexOf(activeTab);
     const nextIdx = tabOrder.indexOf(nextTab);
@@ -1758,7 +1961,7 @@ export default function EmployeeList() {
     payload.append("employee_id", employee.employeeId);
     payload.append("first_name", employee.firstName);
     payload.append("last_name", employee.lastName);
-    payload.append("email", employee.email);
+    payload.append("email", employee.email ? normalizeEmail(employee.email) : "");
     if (employee.dateOfJoining) payload.append("doj", employee.dateOfJoining);
     payload.append("employment_type", employee.employmentType);
     payload.append("status", employee.status);
@@ -1821,60 +2024,21 @@ export default function EmployeeList() {
         const rowNumber = index + 2;
         const employee = buildImportedEmployeeFormData(row);
 
-        if (
-          !employee.employeeId ||
-          !employee.firstName ||
-          !employee.lastName ||
-          !employee.email
-        ) {
+        if (!employee.employeeId || !employee.firstName) {
           failures.push(
-            `Row ${rowNumber}: employee_id, first_name, last_name, email required`,
+            `Row ${rowNumber}: Employee ID and first name are required`,
           );
           return;
         }
 
-        if (!isValidEmail(employee.email)) {
-          failures.push(`Row ${rowNumber}: invalid email`);
+        if (employee.email && !isValidEmail(employee.email)) {
+          failures.push(`Row ${rowNumber}: Invalid email address`);
           return;
         }
 
-        if (employee.phone && !isOptionalTenDigitPhoneValid(employee.phone)) {
-          failures.push(`Row ${rowNumber}: invalid mobile number`);
+        if (!isOptionalTenDigitPhoneValid(employee.phone)) {
+          failures.push(`Row ${rowNumber}: Invalid mobile number`);
           return;
-        }
-
-        if (
-          employee.officePhone &&
-          !isOptionalTenDigitPhoneValid(employee.officePhone)
-        ) {
-          failures.push(`Row ${rowNumber}: invalid office phone`);
-          return;
-        }
-
-        if (
-          employee.emergencyPhone &&
-          !isOptionalTenDigitPhoneValid(employee.emergencyPhone)
-        ) {
-          failures.push(`Row ${rowNumber}: invalid emergency phone`);
-          return;
-        }
-
-        if (!employee.departmentId && employee.departmentName) {
-          console.warn(
-            `Row ${rowNumber}: department "${employee.departmentName}" not found. Importing without department.`,
-          );
-        }
-
-        if (!employee.designationId && employee.designationName) {
-          console.warn(
-            `Row ${rowNumber}: designation "${employee.designationName}" not found. Importing without designation.`,
-          );
-        }
-
-        if (!employee.shiftId && employee.shiftName) {
-          console.warn(
-            `Row ${rowNumber}: shift "${employee.shiftName}" not found. Importing without shift.`,
-          );
         }
 
         importPayloads.push({
@@ -1884,18 +2048,16 @@ export default function EmployeeList() {
       });
 
       let successCount = 0;
-      for (const item of importPayloads) {
-        const result = await employeeApi.createEmployee(item.payload);
+      for (const { rowNumber, payload } of importPayloads) {
+        const result = await employeeApi.createEmployee(payload);
         if (result.data) {
           successCount += 1;
         } else {
           failures.push(
-            `Row ${item.rowNumber}: ${result.error || "failed to create employee"}`,
+            `Row ${rowNumber}: ${result.error || "Failed to create employee"}`,
           );
         }
       }
-
-      setExcelFileName(fileName);
 
       if (successCount > 0) {
         await refreshEmployees();
@@ -3240,10 +3402,11 @@ export default function EmployeeList() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email (Optional)</Label>
                   <Input
                     id="email"
                     type="email"
+                    placeholder="Enter email to enable employee login"
                     value={formData.email}
                     onChange={(e) => handleFormChange("email", e.target.value)}
                     aria-invalid={Boolean(emailDuplicateCheck.error)}
@@ -3261,7 +3424,7 @@ export default function EmployeeList() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="phone">Mobile Number</Label>
+                  <Label htmlFor="phone">Mobile Number (Optional)</Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -3345,6 +3508,32 @@ export default function EmployeeList() {
                       <SelectItem value="probation">Probation</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label htmlFor="subscriptionBillingCycle">
+                    Subscription Billing Cycle *
+                  </Label>
+                  <Select
+                    value={formData.subscriptionBillingCycle}
+                    onValueChange={(value: "monthly" | "yearly") =>
+                      handleFormChange("subscriptionBillingCycle", value)
+                    }
+                  >
+                    <SelectTrigger
+                      id="subscriptionBillingCycle"
+                      className="mt-2"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly Subscription</SelectItem>
+                      <SelectItem value="yearly">Yearly Subscription</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    This employee will use one seat from the selected billing
+                    cycle.
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="shift">Shift</Label>
@@ -3889,7 +4078,7 @@ export default function EmployeeList() {
               </Button>
             ) : (
               <Button
-                onClick={handleSave}
+                onClick={() => void handleSave()}
                 disabled={
                   saving ||
                   emailDuplicateCheck.checking ||
@@ -3912,6 +4101,36 @@ export default function EmployeeList() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* No-login employee confirmation */}
+      <AlertDialog
+        open={showNoLoginWarningDialog}
+        onOpenChange={setShowNoLoginWarningDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create employee without login?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Email and mobile number are optional. Since an email address was
+              not provided, this employee will not receive login credentials
+              and cannot log in to the HRMS. You can still create the employee
+              record now.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-3 justify-end">
+            <AlertDialogCancel disabled={saving}>Go Back</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saving}
+              onClick={() => {
+                setShowNoLoginWarningDialog(false);
+                void handleSave(true);
+              }}
+            >
+              Create Without Login
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation */}
       <AlertDialog

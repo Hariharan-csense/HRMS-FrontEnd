@@ -20,6 +20,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SOFT_LOGOUT_PROMPT_KEY = "auth:showWelcomeBack";
 const AUTH_SESSION_KEY = "auth:session";
+const BROWSER_SESSION_KEY = "auth:browserSessionActive";
+const BROWSER_SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000;
 
 type RememberedAuthSession = {
   accessToken?: string;
@@ -327,6 +329,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        const previousBrowserActivity = Number(
+          sessionStorage.getItem(BROWSER_SESSION_KEY) || 0,
+        );
+        const isNewBrowserSession =
+          !previousBrowserActivity ||
+          Date.now() - previousBrowserActivity > BROWSER_SESSION_IDLE_LIMIT_MS;
+        sessionStorage.setItem(BROWSER_SESSION_KEY, String(Date.now()));
+
+        // A persisted refresh token is useful after a restart, but automatically
+        // opening the last employee's workspace can expose the wrong account on
+        // a shared office computer. Start a fresh browser session at the account
+        // chooser while keeping the saved accounts available for one-click login.
+        if (isNewBrowserSession && profileManager.getSavedAccounts().length > 0) {
+          localStorage.removeItem("user");
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("userRole");
+          sessionStorage.removeItem("refreshToken");
+          sessionStorage.setItem(SOFT_LOGOUT_PROMPT_KEY, "true");
+          setUser(null);
+          return;
+        }
+
         const storedUser = localStorage.getItem("user");
         const accessToken = localStorage.getItem("accessToken");
         const rememberedSession = getRememberedAuthSession();
@@ -376,6 +400,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    const recordBrowserActivity = () =>
+      sessionStorage.setItem(BROWSER_SESSION_KEY, String(Date.now()));
+    const activityInterval = window.setInterval(recordBrowserActivity, 60_000);
+
+    return () => window.clearInterval(activityInterval);
   }, []);
 
   useEffect(() => {

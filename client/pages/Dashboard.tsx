@@ -1206,7 +1206,7 @@ const AdminDashboard = () => {
                 Leave Utilization
               </CardTitle>
               <CardDescription>
-                Leave balance across all employees
+                Current leave-cycle utilization rate
               </CardDescription>
             </CardHeader>
             <CardContent className="p-5">
@@ -1221,6 +1221,7 @@ const AdminDashboard = () => {
                     </span>
                     <span className="rounded-lg bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700">
                       {Number(entry.value || 0)}
+                      {entry.unit || ""}
                     </span>
                   </div>
                 ))}

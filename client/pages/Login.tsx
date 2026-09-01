@@ -25,6 +25,7 @@ import { profileManager, SavedAccount } from "@/lib/profileManager";
 import { isValidLoginIdentifier, normalizeEmail } from "@/lib/validation";
 import { isCordovaIOS } from "@/lib/platform";
 import { hasRefreshCredential, isAutoLoginPaused } from "@/lib/endpoint";
+import { getRecentProtectedRoute } from "@/lib/routeSession";
 
 const LOGIN_UNLOCK_KEY = "auth:loginUnlocking";
 
@@ -178,7 +179,11 @@ export default function Login() {
         (role: string) => role?.toLowerCase() === "superadmin",
       ) || loggedInUser?.role?.toLowerCase() === "superadmin";
 
-    navigate(isSuperAdmin ? "/superadmin-dashboard" : "/dashboard", {
+    const recentRoute = getRecentProtectedRoute();
+    const destination =
+      recentRoute || (isSuperAdmin ? "/superadmin-dashboard" : "/dashboard");
+
+    navigate(destination, {
       replace: true,
     });
   };

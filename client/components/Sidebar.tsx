@@ -883,12 +883,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               location.pathname.startsWith(subitem.path!),
           ),
       )
-      .map((item) => item.label),
+      .map((item) => item.label)
+      .slice(0, 1),
   );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
 
-  // Auto-expand menu items based on current route - only add new items, never remove to prevent flicker
+  // Keep the sidebar accordion aligned with the active route. Only one module
+  // should be expanded at a time.
   useEffect(() => {
     const activeItems: string[] = [];
 
@@ -904,11 +906,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     });
 
-    // Only update state if there are new items to add (prevents unnecessary re-renders)
     setExpandedItems((prev) => {
-      const newItems = activeItems.filter((item) => !prev.includes(item));
-      if (newItems.length === 0) return prev; // No change needed
-      return [...prev, ...newItems];
+      if (activeItems.length === 0) return prev;
+      const activeItem = activeItems[0];
+      return prev.length === 1 && prev[0] === activeItem
+        ? prev
+        : [activeItem];
     });
 
     // Restore page scroll position after navigation
@@ -987,9 +990,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const toggleExpand = (label: string) => {
     const scrollTop = navRef.current?.scrollTop ?? 0;
-    setExpandedItems((prev) =>
-      prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label],
-    );
+    setExpandedItems((prev) => (prev.includes(label) ? [] : [label]));
     window.setTimeout(() => {
       if (navRef.current) {
         navRef.current.scrollTop = scrollTop;
@@ -1373,9 +1374,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => {
               if (isCollapsed) {
                 onToggleCollapse?.();
-                setExpandedItems((prev) =>
-                  prev.includes(item.label) ? prev : [...prev, item.label],
-                );
+                setExpandedItems([item.label]);
                 return;
               }
               toggleExpand(item.label);
