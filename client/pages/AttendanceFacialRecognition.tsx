@@ -14,6 +14,7 @@ import { Camera, Loader2, RefreshCw, ScanFace } from "lucide-react";
 import { toast } from "sonner";
 import * as faceapi from "face-api.js";
 import ENDPOINTS from "@/lib/endpoint";
+import { reverseGeocode } from "@/lib/locationUtils";
 
 type PunchAction = "check-in" | "check-out";
 
@@ -37,7 +38,8 @@ type FacialResponse = {
   };
 };
 
-const SCAN_INTERVAL_MS = 2800;
+const SCAN_INTERVAL_MS = 1800;
+const NEXT_EMPLOYEE_DELAY_MS = 3000;
 const NO_FACE_TOAST_COOLDOWN_MS = 6000;
 const FACE_MODEL_URL = "/models";
 
@@ -47,9 +49,11 @@ export default function AttendanceFacialRecognition() {
   const attendanceRequestRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(false);
   const scanTimerRef = useRef<number | null>(null);
+  const nextEmployeeTimerRef = useRef<number | null>(null);
   const processingRef = useRef(false);
   const lastNoFaceToastAtRef = useRef(0);
   const scannerPausedRef = useRef(false);
+  const addressCacheRef = useRef(new Map<string, string>());
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [areFaceModelsReady, setAreFaceModelsReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -89,6 +93,9 @@ export default function AttendanceFacialRecognition() {
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
       attendanceRequestRef.current?.abort();
+      if (nextEmployeeTimerRef.current) {
+        window.clearTimeout(nextEmployeeTimerRef.current);
+      }
       stopCamera();
     };
   }, []);
@@ -118,6 +125,10 @@ export default function AttendanceFacialRecognition() {
       window.clearInterval(scanTimerRef.current);
       scanTimerRef.current = null;
     }
+    if (nextEmployeeTimerRef.current) {
+      window.clearTimeout(nextEmployeeTimerRef.current);
+      nextEmployeeTimerRef.current = null;
+    }
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) {
@@ -136,8 +147,8 @@ export default function AttendanceFacialRecognition() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "user" },
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
+          width: { ideal: 720 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
@@ -218,17 +229,82 @@ export default function AttendanceFacialRecognition() {
     toast.error(message);
   };
 
+  const captureAttendanceImage = async () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      throw new Error("Camera frame is not ready");
+    }
+
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 640;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Unable to capture attendance photo");
+    context.drawImage(
+      video,
+      (video.videoWidth - size) / 2,
+      (video.videoHeight - size) / 2,
+      size,
+      size,
+      0,
+      0,
+      640,
+      640,
+    );
+
+    return new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error("Unable to create attendance photo")),
+        "image/jpeg",
+        0.82,
+      );
+    });
+  };
+
+  const resumeForNextEmployee = () => {
+    if (!mountedRef.current || document.hidden) return;
+    scannerPausedRef.current = false;
+    setLastResult(null);
+    setScannerStatus("Ready for next employee");
+    submitFacialAttendance();
+    if (!scanTimerRef.current) {
+      scanTimerRef.current = window.setInterval(
+        submitFacialAttendance,
+        SCAN_INTERVAL_MS,
+      );
+    }
+  };
+
   const getOptionalLocation = async () => {
     if (!navigator.geolocation) return null;
 
-    return new Promise<Record<string, number> | null>((resolve) => {
+    return new Promise<Record<string, number | string> | null>((resolve) => {
       navigator.geolocation.getCurrentPosition(
-        (position) =>
+        async (position) => {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+          const cacheKey = `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+          let address = addressCacheRef.current.get(cacheKey) || "";
+
+          if (!address) {
+            address =
+              (await Promise.race([
+                reverseGeocode(latitude, longitude),
+                new Promise<null>((result) =>
+                  window.setTimeout(() => result(null), 2500),
+                ),
+              ])) || "";
+            if (address) addressCacheRef.current.set(cacheKey, address);
+          }
+
           resolve({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
-          }),
+            address: address || `${latitude},${longitude}`,
+          });
+        },
         () => resolve(null),
         { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 },
       );
@@ -251,9 +327,10 @@ export default function AttendanceFacialRecognition() {
         return;
       }
 
-      const [descriptor, location] = await Promise.all([
+      const [descriptor, location, image] = await Promise.all([
         detectFaceDescriptorFromVideo(),
         getOptionalLocation(),
+        captureAttendanceImage(),
       ]);
 
       if (!descriptor) {
@@ -266,11 +343,15 @@ export default function AttendanceFacialRecognition() {
       attendanceRequestRef.current?.abort();
       const requestController = new AbortController();
       attendanceRequestRef.current = requestController;
-      const response = await ENDPOINTS.facialRecognitionDescriptorAttendance({
-        action: "auto",
-        descriptor,
-        location,
-      }, { signal: requestController.signal });
+      const formData = new FormData();
+      formData.append("action", "auto");
+      formData.append("descriptor", JSON.stringify(descriptor));
+      if (location) formData.append("location", JSON.stringify(location));
+      formData.append("image", image, `facial-attendance-${Date.now()}.jpg`);
+      const response = await ENDPOINTS.facialRecognitionDescriptorAttendance(
+        formData,
+        { signal: requestController.signal },
+      );
       if (!mountedRef.current) return;
       const result = response.data as FacialResponse;
       setLastResult(result);
@@ -281,6 +362,10 @@ export default function AttendanceFacialRecognition() {
       }
       setScannerStatus("Attendance marked - ready for next employee");
       toast.success(result.message || "Attendance marked successfully");
+      nextEmployeeTimerRef.current = window.setTimeout(
+        resumeForNextEmployee,
+        NEXT_EMPLOYEE_DELAY_MS,
+      );
     } catch (error: any) {
       if (error?.code === "ERR_CANCELED" || !mountedRef.current) return;
       console.error("Facial attendance error:", error);

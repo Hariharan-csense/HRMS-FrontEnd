@@ -8,7 +8,10 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleGauge,
+  Minus,
   Search,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import {
   Cell,
@@ -80,6 +83,25 @@ type LeadIndicatorSignals = {
   items: LeadIndicatorSignalItem[];
 };
 
+type MonthlyReviewSummary = {
+  month: string;
+  monthLabel: string;
+  reviewCount: number;
+  averageScore: number;
+  lowKpiCount: number;
+  topPerformerCount: number;
+};
+
+type MonthlyReviewComparison = {
+  current: MonthlyReviewSummary;
+  previous: MonthlyReviewSummary;
+  changes: {
+    reviewCount: number;
+    averageScore: number;
+    lowKpiCount: number;
+  };
+};
+
 type DashboardWidgets = {
   totalEmployees: number;
   averageKpiScore: number;
@@ -98,6 +120,7 @@ type DashboardWidgets = {
   correctiveActionTotal: number;
   kpiPerformanceTrend: KpiPerformanceTrendPoint[];
   departmentKpiPerformance: DepartmentKpiPerformancePoint[];
+  monthlyReviewComparison: MonthlyReviewComparison | null;
   leadIndicatorSignals: LeadIndicatorSignals;
 };
 
@@ -119,6 +142,7 @@ const emptyWidgets: DashboardWidgets = {
   correctiveActionTotal: 0,
   kpiPerformanceTrend: [],
   departmentKpiPerformance: [],
+  monthlyReviewComparison: null,
   leadIndicatorSignals: {
     green: 0,
     yellow: 0,
@@ -297,6 +321,32 @@ function ScoreGauge({ value, loading }: { value: number; loading: boolean }) {
   );
 }
 
+function ComparisonChange({
+  value,
+  suffix = "",
+  inverse = false,
+}: {
+  value: number;
+  suffix?: string;
+  inverse?: boolean;
+}) {
+  const Icon = value > 0 ? TrendingUp : value < 0 ? TrendingDown : Minus;
+  const isPositive = inverse ? value < 0 : value > 0;
+  const tone =
+    value === 0
+      ? "bg-slate-100 text-slate-600"
+      : isPositive
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-rose-100 text-rose-700";
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${tone}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {value > 0 ? "+" : ""}{value}{suffix}
+    </span>
+  );
+}
+
 function normalizeRole(value: unknown) {
   return String(value ?? "")
     .replace(/[\s_]/g, "")
@@ -326,6 +376,10 @@ const normalizeWidgets = (payload: any): DashboardWidgets => ({
     payload?.data?.departmentKpiPerformance ||
     payload?.departmentKpiPerformance ||
     [],
+  monthlyReviewComparison:
+    payload?.data?.monthlyReviewComparison ||
+    payload?.monthlyReviewComparison ||
+    null,
   leadIndicatorSignals: {
     ...emptyWidgets.leadIndicatorSignals,
     ...(payload?.data?.leadIndicatorSignals || payload?.leadIndicatorSignals || {}),
@@ -745,6 +799,84 @@ const KPIDashboard: React.FC = () => {
             </motion.div>
           ))}
         </motion.div>
+
+        <motion.section
+          variants={dashboardFade}
+          initial="hidden"
+          animate="show"
+          transition={{ duration: 0.32, ease: "easeOut", delay: 0.06 }}
+          className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+        >
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Monthly Review Comparison
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Current month KPI reviews compared with the previous month.
+              </p>
+            </div>
+            {widgets.monthlyReviewComparison ? (
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {widgets.monthlyReviewComparison.previous.monthLabel} vs {widgets.monthlyReviewComparison.current.monthLabel}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {[
+              { key: "previous", label: "Last Month", data: widgets.monthlyReviewComparison?.previous },
+              { key: "current", label: "Current Month", data: widgets.monthlyReviewComparison?.current },
+            ].map((period) => {
+              const reviewed = Number(period.data?.topPerformerCount || 0);
+              const low = Number(period.data?.lowKpiCount || 0);
+              const hasReviews = reviewed + low > 0;
+              const pieData = hasReviews
+                ? [
+                    { name: "On Track", value: reviewed, color: "#10b981" },
+                    { name: "Low KPI", value: low, color: "#f43f5e" },
+                  ].filter((item) => item.value > 0)
+                : [{ name: "No Reviews", value: 1, color: "#e2e8f0" }];
+
+              return (
+                <div key={period.key} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                  <div className="text-center">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{period.label}</p>
+                    <p className="mt-1 text-base font-semibold text-slate-900">{period.data?.monthLabel || "—"}</p>
+                  </div>
+                  <div className="relative mx-auto mt-2 h-56 max-w-sm">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={62} outerRadius={90} paddingAngle={hasReviews ? 3 : 0} strokeWidth={0}>
+                          {pieData.map((item) => <Cell key={item.name} fill={item.color} />)}
+                        </Pie>
+                        <Tooltip formatter={(value: number, name: string) => hasReviews ? [value, name] : [0, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-slate-950">{loading ? "..." : period.data?.reviewCount ?? 0}</span>
+                      <span className="text-xs font-semibold uppercase text-slate-500">Reviews</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
+                    <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />On Track {reviewed}</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-rose-500" />Low KPI {low}</span>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between rounded-lg bg-white px-4 py-3">
+                    <span className="text-sm font-medium text-slate-500">Average KPI Score</span>
+                    <span className="text-lg font-bold text-slate-950">{loading ? "..." : `${period.data?.averageScore ?? 0}%`}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3"><span className="text-sm font-semibold text-slate-600">Reviews Change</span>{loading ? "..." : <ComparisonChange value={widgets.monthlyReviewComparison?.changes.reviewCount ?? 0} />}</div>
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3"><span className="text-sm font-semibold text-slate-600">Score Change</span>{loading ? "..." : <ComparisonChange value={widgets.monthlyReviewComparison?.changes.averageScore ?? 0} suffix="%" />}</div>
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3"><span className="text-sm font-semibold text-slate-600">Low KPI Change</span>{loading ? "..." : <ComparisonChange value={widgets.monthlyReviewComparison?.changes.lowKpiCount ?? 0} inverse />}</div>
+          </div>
+        </motion.section>
 
         <motion.section
           variants={dashboardFade}

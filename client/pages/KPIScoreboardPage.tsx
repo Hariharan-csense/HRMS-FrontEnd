@@ -78,6 +78,7 @@ type LeadIndicatorType = "number" | "yesno";
 type LeadIndicatorDefinition = {
   label: string;
   type: LeadIndicatorType;
+  frequency: "daily" | "weekly";
   targetValue: string;
   minimumValue: string;
   assignedEmployeeId: string;
@@ -294,6 +295,7 @@ const parseLeadIndicatorDefinitions = (
           .map((item): LeadIndicatorDefinition => ({
             label: String(item?.label || "").trim(),
             type: item?.type === "yesno" ? "yesno" : "number",
+            frequency: item?.frequency === "weekly" ? "weekly" : "daily",
             targetValue: String(item?.targetValue ?? item?.target ?? "").trim(),
             minimumValue: String(item?.minimumValue ?? item?.minimum ?? "").trim(),
             assignedEmployeeId: String(
@@ -310,6 +312,7 @@ const parseLeadIndicatorDefinitions = (
   return leadIndicatorLines(raw).map((label) => ({
     label,
     type: "number",
+    frequency: "daily",
     targetValue: "",
     minimumValue: "",
     assignedEmployeeId: "",
@@ -321,6 +324,7 @@ const serializeLeadIndicatorDefinitions = (items: LeadIndicatorDefinition[]) => 
     .map((item) => ({
       label: item.label.trim(),
       type: item.type,
+      frequency: item.frequency,
       targetValue: item.type === "number" ? item.targetValue.trim() : "",
       minimumValue: item.type === "number" ? item.minimumValue.trim() : "",
       assignedEmployeeId: item.assignedEmployeeId.trim(),
@@ -347,6 +351,17 @@ const getPeriodDays = (date: Date) => {
     key: String(index + 1),
     label: String(index + 1).padStart(2, "0"),
   }));
+};
+
+const getPeriodWeeks = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const days = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: Math.ceil(days / 7) }, (_, index) => {
+    const start = index * 7 + 1;
+    const end = Math.min(start + 6, days);
+    return { key: `week-${index + 1}`, label: `Week ${index + 1}`, range: `${start}-${end}` };
+  });
 };
 
 const parseAchievementValue = (value: string) => {
@@ -516,6 +531,7 @@ const KPIScoreboardPage: React.FC = () => {
 
   const [users, setUsers] = useState<ScorecardUser[]>([fallbackUser]);
   const [scorecards, setScorecards] = useState<Scorecard[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedUserId, setSelectedUserId] = useState(fallbackUser.id);
   const [formUserId, setFormUserId] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -686,6 +702,36 @@ const KPIScoreboardPage: React.FC = () => {
     return Array.from(years).sort((a, b) => b - a);
   }, [currentYear, scorecards]);
 
+  const departmentOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          users
+            .map((item) => item.department.trim())
+            .filter((department) => department && department !== "Not assigned"),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [users],
+  );
+
+  const departmentUsers = useMemo(
+    () =>
+      selectedDepartment
+        ? users.filter((item) => item.department === selectedDepartment)
+        : users,
+    [selectedDepartment, users],
+  );
+
+  useEffect(() => {
+    if (!departmentUsers.length) {
+      setSelectedUserId("");
+      return;
+    }
+    if (!departmentUsers.some((item) => item.id === selectedUserId)) {
+      setSelectedUserId(departmentUsers[0].id);
+    }
+  }, [departmentUsers, selectedUserId]);
+
   const filteredScorecards = scorecards;
 
   const updateRows = (nextRows: KpiRow[]) => {
@@ -789,6 +835,16 @@ const KPIScoreboardPage: React.FC = () => {
     () => parseLeadIndicatorDefinitions(activeDailyRow?.leadIndicators),
     [activeDailyRow],
   );
+  const leadIndicatorFrequency = dailyLeadIndicators[0]?.frequency || "daily";
+  const leadIndicatorPeriods = useMemo(
+    () =>
+      dailyAchievementModal
+        ? leadIndicatorFrequency === "weekly"
+          ? getPeriodWeeks(dailyAchievementModal.periodDate)
+          : getPeriodDays(dailyAchievementModal.periodDate)
+        : [],
+    [dailyAchievementModal, leadIndicatorFrequency],
+  );
 
   const dailyDraftRows = useMemo(() => {
     if (!dailyAchievementModal || !activeDailyRow) return [];
@@ -858,6 +914,34 @@ const KPIScoreboardPage: React.FC = () => {
     }
   };
 
+  const changeLeadIndicatorFrequency = (value: "daily" | "weekly") => {
+    if (!dailyAchievementModal || !activeDailyRow) return;
+    const definitions = parseLeadIndicatorDefinitions(
+      activeDailyRow.leadIndicators,
+    ).map((indicator) => ({ ...indicator, frequency: value }));
+    const serialized = serializeLeadIndicatorDefinitions(definitions);
+    const update = (row: KpiRow) =>
+      row.id === dailyAchievementModal.rowId
+        ? { ...row, leadIndicators: serialized }
+        : row;
+
+    if (dailyAchievementModal.mode === "edit" && editingParameter) {
+      setEditingParameter({
+        ...editingParameter,
+        draft: update(editingParameter.draft),
+      });
+    } else if (dailyAchievementModal.mode === "edit") {
+      setScorecards((current) =>
+        current.map((scorecard) => ({
+          ...scorecard,
+          rows: scorecard.rows.map(update),
+        })),
+      );
+    } else {
+      setRows((current) => current.map(update));
+    }
+  };
+
   const startEditParameter = (
     scorecard: Scorecard,
     row: KpiRow,
@@ -910,6 +994,7 @@ const KPIScoreboardPage: React.FC = () => {
             {
               label: "",
               type: "number",
+              frequency: "daily",
               targetValue: "",
               minimumValue: "",
               assignedEmployeeId: "",
@@ -929,6 +1014,7 @@ const KPIScoreboardPage: React.FC = () => {
       {
         label: "",
         type: "number",
+        frequency: "daily",
         targetValue: "",
         minimumValue: "",
         assignedEmployeeId: "",
@@ -963,6 +1049,7 @@ const KPIScoreboardPage: React.FC = () => {
             {
               label: "",
               type: "number",
+              frequency: "daily",
               targetValue: "",
               minimumValue: "",
               assignedEmployeeId: "",
@@ -1385,13 +1472,25 @@ const KPIScoreboardPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(280px,525px)_200px_225px] lg:gap-5">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(210px,300px)_minmax(280px,1fr)_180px_200px] lg:gap-5">
+          <SelectField
+            label="Department"
+            value={selectedDepartment}
+            onChange={setSelectedDepartment}
+          >
+            <option value="">All departments</option>
+            {departmentOptions.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </SelectField>
           <SelectField
             label="Scorecard User"
             value={selectedUserId}
             onChange={setSelectedUserId}
           >
-            {users.map((scorecardUser) => (
+            {departmentUsers.map((scorecardUser) => (
               <option key={scorecardUser.id} value={scorecardUser.id}>
                 {scorecardUser.label}
               </option>
@@ -2166,7 +2265,7 @@ const KPIScoreboardPage: React.FC = () => {
                   className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  4-Daily Indicators
+                  {leadIndicatorFrequency === "weekly" ? "Weekly" : "Daily"} Indicators
                 </button>
               </div>
 
@@ -2239,19 +2338,36 @@ const KPIScoreboardPage: React.FC = () => {
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">
-                        4-Daily Indicators Checklist
+                        {leadIndicatorFrequency === "weekly" ? "Weekly" : "Daily"} Indicators Checklist
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
                         Checklist values are saved separately and do not change the KPI total.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowDailyLeadIndicators(false)}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                    >
-                      Hide
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-500">Frequency</span>
+                        <select
+                          value={leadIndicatorFrequency}
+                          onChange={(event) =>
+                            changeLeadIndicatorFrequency(
+                              event.target.value === "weekly" ? "weekly" : "daily",
+                            )
+                          }
+                          className="h-9 rounded-lg border border-teal-200 bg-white px-3 text-xs font-semibold text-teal-700 outline-none focus:border-teal-500"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowDailyLeadIndicators(false)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        Hide
+                      </button>
+                    </div>
                   </div>
                   <div className="max-w-full overflow-x-auto rounded-lg border border-slate-200">
                     <table className="min-w-[2460px] table-fixed border-collapse text-sm">
@@ -2266,12 +2382,12 @@ const KPIScoreboardPage: React.FC = () => {
                           <th className="w-24 whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-xs font-semibold">
                             Type
                           </th>
-                          {getPeriodDays(dailyAchievementModal.periodDate).map((day) => (
+                          {leadIndicatorPeriods.map((day) => (
                             <th
                               key={`li-head-${day.key}`}
                               className="w-[70px] whitespace-nowrap border border-slate-200 px-2 py-2 text-center text-[11px] font-semibold"
                             >
-                              {day.label}
+                              {day.label}{"range" in day ? <span className="block text-[9px] font-normal text-slate-400">{day.range}</span> : null}
                             </th>
                           ))}
                         </tr>
@@ -2279,9 +2395,7 @@ const KPIScoreboardPage: React.FC = () => {
                       <tbody>
                         {dailyLeadIndicators.map((indicator, indicatorIndex) => {
                           const rowKey = `li-${indicatorIndex}`;
-                          const periodDays = getPeriodDays(
-                            dailyAchievementModal.periodDate,
-                          );
+                          const periodDays = leadIndicatorPeriods;
                           const alertClasses = getDailyIndicatorAlertClasses(
                             indicator,
                             dailyAchievementDraft[rowKey],
@@ -2381,7 +2495,7 @@ const KPIScoreboardPage: React.FC = () => {
 
       {leadIndicatorModal ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 p-3 sm:p-4">
-          <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+          <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -2406,7 +2520,7 @@ const KPIScoreboardPage: React.FC = () => {
                 {leadIndicatorDraft.map((indicator, index) => (
                   <div
                     key={`${index}-${indicator.type}`}
-                    className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_150px_150px_120px_120px_40px] sm:items-end"
+                    className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_125px_125px_150px_110px_110px_40px] sm:items-end"
                   >
                     <label className="block">
                       <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
@@ -2419,6 +2533,31 @@ const KPIScoreboardPage: React.FC = () => {
                         }
                         className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-teal-500"
                       />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        Entry Frequency
+                      </span>
+                      <Select
+                        value={indicator.frequency}
+                        onValueChange={(value) =>
+                          setLeadIndicatorDraft((current) =>
+                            current.map((item) => ({
+                              ...item,
+                              frequency: value === "weekly" ? "weekly" : "daily",
+                            })),
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-slate-900 focus:ring-teal-500">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="z-[80]">
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </label>
 
                     <label className="block">

@@ -82,7 +82,10 @@ interface CompanySubscription {
   trial_hours_remaining?: number;
   trial_minutes_remaining?: number;
   is_internal_company?: boolean;
+  is_free_plan?: boolean;
   storage_usage_percentage?: number;
+  seat_pools?: SubscriptionSeatPool[];
+  seat_pool_status?: SubscriptionSeatPool[];
   addons?: Array<{
     id: number;
     addon_id?: number;
@@ -92,6 +95,17 @@ interface CompanySubscription {
     total_price?: number;
     assigned_employee_ids?: number[];
   }>;
+}
+
+interface SubscriptionSeatPool {
+  id: number;
+  plan_id?: number;
+  billing_cycle: "monthly" | "yearly";
+  max_users: number;
+  assigned_users: number;
+  end_date?: string;
+  status: string;
+  is_active?: boolean;
 }
 
 interface SubscriptionAddon {
@@ -306,6 +320,7 @@ const SubscriptionManagement: React.FC = () => {
   const [selectedUsersInput, setSelectedUsersInput] = useState("25");
   const [monthlyUsersInput, setMonthlyUsersInput] = useState("0");
   const [yearlyUsersInput, setYearlyUsersInput] = useState("25");
+  const [renewalCycle, setRenewalCycle] = useState<"monthly" | "yearly" | null>(null);
   const [selectedAddonUsers, setSelectedAddonUsers] = useState(8);
   const [selectedAddonUsersInput, setSelectedAddonUsersInput] = useState("8");
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<
@@ -410,12 +425,36 @@ const SubscriptionManagement: React.FC = () => {
     }
   };
 
-  const handleStartTrial = async (planId: number) => {
+  const expiredSeatPools = (currentSubscription?.seat_pool_status || []).filter(
+    (pool) => !pool.is_active && pool.status === "expired" && pool.max_users > 0,
+  );
+
+  const openSeatPoolRenewal = (pool: SubscriptionSeatPool) => {
+    const renewalPlan =
+      plans.find((plan) => Number(plan.id) === Number(pool.plan_id)) ||
+      plans.find((plan) => Number(plan.id) === Number(currentSubscription?.plan_id)) ||
+      plans[0];
+    if (!renewalPlan) {
+      showToast.error("Subscription plan is not available for renewal");
+      return;
+    }
+
+    setSelectedPlan(renewalPlan);
+    setRenewalCycle(pool.billing_cycle);
+    setMonthlyUsersInput(pool.billing_cycle === "monthly" ? String(pool.max_users) : "0");
+    setYearlyUsersInput(pool.billing_cycle === "yearly" ? String(pool.max_users) : "0");
+    setShowPaymentModal(true);
+  };
+
+  const handleStartTrial = async (
+    planId: number,
+    billingCycle: "monthly" | "yearly" = selectedBillingCycle,
+  ) => {
     try {
       const response = await ENDPOINTS.startSubscriptionTrial({
         plan_id: planId,
         users_count: selectedUsers,
-        billing_cycle: selectedBillingCycle,
+        billing_cycle: billingCycle,
       });
       showToast.success(response.data.message);
       await Promise.all([fetchSubscriptionData(), checkSubscriptionStatus()]);
@@ -488,6 +527,7 @@ const SubscriptionManagement: React.FC = () => {
 
             showToast.success(verifyRes.data?.message || "Payment successful");
             setShowPaymentModal(false);
+            setRenewalCycle(null);
             setSelectedPlan(null);
             await Promise.all([
               fetchSubscriptionData(),
@@ -818,6 +858,29 @@ const SubscriptionManagement: React.FC = () => {
                 </div>
               )}
 
+              {expiredSeatPools.map((pool) => (
+                <div
+                  key={`expired-seat-pool-${pool.billing_cycle}`}
+                  className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold text-amber-900">
+                      {pool.billing_cycle === "monthly" ? "Monthly" : "Yearly"} user subscription expired
+                    </p>
+                    <p className="mt-1 text-sm text-amber-800">
+                      Renew {pool.max_users} {pool.billing_cycle} user seat{pool.max_users === 1 ? "" : "s"}. Other active seat pools will not be charged or changed.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => openSeatPoolRenewal(pool)}
+                    className="shrink-0 bg-amber-600 text-white hover:bg-amber-700"
+                  >
+                    Renew {pool.billing_cycle === "monthly" ? "Monthly" : "Yearly"}
+                  </Button>
+                </div>
+              ))}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Plan</p>
@@ -880,7 +943,9 @@ const SubscriptionManagement: React.FC = () => {
                   <p className="text-sm text-gray-600">Duration</p>
                   <p className="font-semibold flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    {currentSubscription.status === "trial" &&
+                    {currentSubscription.is_free_plan
+                      ? "No expiry"
+                      : currentSubscription.status === "trial" &&
                     currentSubscription.is_trial_active
                       ? `${formatTrialTimeRemaining(currentSubscription)} remaining`
                       : `${currentSubscription.days_remaining} days remaining`}
@@ -1179,6 +1244,9 @@ const SubscriptionManagement: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {plans.map((plan) => {
                 const isMostPopular = plan.name.toLowerCase() === "standard";
+                const isFreePlan =
+                  Number(plan.price || 0) === 0 &&
+                  Number(plan.yearly_price || 0) === 0;
                 const isCurrentPlan =
                   !!currentSubscription &&
                   (currentSubscription.plan_id === plan.id ||
@@ -1186,12 +1254,17 @@ const SubscriptionManagement: React.FC = () => {
                       plan.name.toLowerCase());
                 const isLockedCurrentPlan =
                   hasPaidSubscription && isCurrentPlan;
+                const isLowerPlan =
+                  hasPaidSubscription &&
+                  !isCurrentPlan &&
+                  Number(plan.price || 0) <
+                    Number(currentSubscription?.plan_price || 0);
 
                 return (
                   <div
                     key={plan.id}
                     className={`relative bg-gradient-to-br ${getPlanGradient(plan.name)} rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
-                      isLockedCurrentPlan
+                      isLockedCurrentPlan || isLowerPlan
                         ? "opacity-80 hover:shadow-lg"
                         : "hover:shadow-xl hover:scale-105"
                     } ${
@@ -1301,6 +1374,25 @@ const SubscriptionManagement: React.FC = () => {
                           >
                             <span className="flex items-center justify-center">
                               Current Plan
+                            </span>
+                          </Button>
+                        ) : isLowerPlan ? (
+                          <Button
+                            className="w-full cursor-not-allowed border-2 border-gray-200 bg-gray-100 px-4 py-3 text-center text-sm font-semibold text-gray-500 sm:text-base"
+                            disabled
+                          >
+                            <span className="flex items-center justify-center">
+                              Lower Plan
+                            </span>
+                          </Button>
+                        ) : isFreePlan && (!currentSubscription || isTrialExpired) ? (
+                          <Button
+                            className="w-full border-2 border-emerald-500 bg-emerald-500 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600 sm:text-base"
+                            onClick={() => handleStartTrial(plan.id, "monthly")}
+                          >
+                            <span className="flex items-center justify-center">
+                              Use Free Plan
+                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
                             </span>
                           </Button>
                         ) : !currentSubscription ? (
@@ -1793,14 +1885,18 @@ const SubscriptionManagement: React.FC = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Complete Payment</CardTitle>
+                <CardTitle>
+                  {renewalCycle
+                    ? `Renew ${renewalCycle === "monthly" ? "Monthly" : "Yearly"} Subscription`
+                    : "Complete Payment"}
+                </CardTitle>
                 <p className="text-sm text-gray-600">
-                  Upgrade to {selectedPlan.name} plan
+                  {renewalCycle ? "Renew" : "Upgrade to"} {selectedPlan.name} plan
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
-                  <div className="space-y-2">
+                <div className={`grid gap-3 rounded-lg border p-3 ${renewalCycle ? "grid-cols-1" : "grid-cols-2"}`}>
+                  {renewalCycle !== "yearly" && <div className="space-y-2">
                     <Label htmlFor="monthlyUsersCount">Monthly Users</Label>
                     <Input
                       id="monthlyUsersCount"
@@ -1810,8 +1906,8 @@ const SubscriptionManagement: React.FC = () => {
                       disabled={isPaying}
                       onChange={(event) => setMonthlyUsersInput(event.target.value)}
                     />
-                  </div>
-                  <div className="space-y-2">
+                  </div>}
+                  {renewalCycle !== "monthly" && <div className="space-y-2">
                     <Label htmlFor="yearlyUsersCount">Yearly Users</Label>
                     <Input
                       id="yearlyUsersCount"
@@ -1821,13 +1917,15 @@ const SubscriptionManagement: React.FC = () => {
                       disabled={isPaying}
                       onChange={(event) => setYearlyUsersInput(event.target.value)}
                     />
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-semibold">{selectedPlan.name}</p>
                   <p className="text-sm text-gray-600">
-                    {(Number(monthlyUsersInput) || 0) + (Number(yearlyUsersInput) || 0)} total users: {Number(monthlyUsersInput) || 0} monthly + {Number(yearlyUsersInput) || 0} yearly.
+                    {renewalCycle
+                      ? `${renewalCycle === "monthly" ? Number(monthlyUsersInput) || 0 : Number(yearlyUsersInput) || 0} ${renewalCycle} users.`
+                      : `${(Number(monthlyUsersInput) || 0) + (Number(yearlyUsersInput) || 0)} total users: ${Number(monthlyUsersInput) || 0} monthly + ${Number(yearlyUsersInput) || 0} yearly.`}
                   </p>
                   <p className="text-sm text-gray-600">
                     {getStorageForPlan(selectedPlan)} storage
@@ -1842,14 +1940,14 @@ const SubscriptionManagement: React.FC = () => {
                   );
                   return (
                     <div className="space-y-2 rounded-lg border p-3">
-                      <div className="flex justify-between text-sm">
+                      {renewalCycle !== "yearly" && <div className="flex justify-between text-sm">
                         <span>Monthly users amount</span>
                         <span>{formatCurrency(pricing.monthlyAmount)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
+                      </div>}
+                      {renewalCycle !== "monthly" && <div className="flex justify-between text-sm">
                         <span>Yearly users amount</span>
                         <span>{formatCurrency(pricing.yearlyAmount)}</span>
-                      </div>
+                      </div>}
                       <div className="flex justify-between border-t pt-2 text-sm">
                         <span>Subscription amount</span>
                         <span>{formatCurrency(pricing.totalPrice)}</span>
@@ -1881,6 +1979,7 @@ const SubscriptionManagement: React.FC = () => {
                     variant="outline"
                     onClick={() => {
                       setShowPaymentModal(false);
+                      setRenewalCycle(null);
                       setSelectedPlan(null);
                     }}
                     disabled={isPaying}

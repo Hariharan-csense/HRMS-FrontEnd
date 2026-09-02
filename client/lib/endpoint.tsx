@@ -5,8 +5,8 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.16:3000/backend";
-export const BASE_URL="https://hrms.procease.co/backend";
+export const BASE_URL = "http://192.168.1.21:3000/backend";
+// export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -715,12 +715,14 @@ const ENDPOINTS = {
       },
     }),
 
-  facialRecognitionDescriptorAttendance: (data: {
-    action?: "auto" | "check-in" | "check-out";
-    descriptor: number[];
-    location?: any;
-  }, config?: { signal?: AbortSignal }) =>
-    api.post("/attendance/facial-recognition/descriptor", data, config),
+  facialRecognitionDescriptorAttendance: (
+    data: FormData,
+    config?: { signal?: AbortSignal },
+  ) =>
+    api.post("/attendance/facial-recognition/descriptor", data, {
+      ...config,
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 
   getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
   getAttendanceMonthlyReport: (month: string) => api.get("/attendance/monthly-report", { params: { month } }),
