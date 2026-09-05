@@ -810,8 +810,6 @@ const SubscriptionManagement: React.FC = () => {
     !currentSubscription.is_trial_active;
   // Only lock/blur the current plan once the company is on a paid active subscription.
   // During an active trial, keep plans selectable so the user can compare/upgrade freely.
-  const hasPaidSubscription =
-    !!currentSubscription && currentSubscription.status === "active";
   return (
     <Layout>
       <div className="p-6 space-y-6 bg-gradient-to-br from-[#e6fbf4] via-white to-white rounded-3xl">
@@ -1252,13 +1250,10 @@ const SubscriptionManagement: React.FC = () => {
                   (currentSubscription.plan_id === plan.id ||
                     currentSubscription.plan_name?.toLowerCase() ===
                       plan.name.toLowerCase());
-                const isLockedCurrentPlan =
-                  hasPaidSubscription && isCurrentPlan;
-                const isLowerPlan =
-                  hasPaidSubscription &&
-                  !isCurrentPlan &&
-                  Number(plan.price || 0) <
-                    Number(currentSubscription?.plan_price || 0);
+                // A company may own seats from multiple packages, and may add
+                // more seats to a package it already owns.
+                const isLockedCurrentPlan = false;
+                const isLowerPlan = false;
 
                 return (
                   <div
@@ -1458,7 +1453,7 @@ const SubscriptionManagement: React.FC = () => {
                             }}
                           >
                             <span className="flex items-center justify-center">
-                              Upgrade to {plan.name}
+                              {isCurrentPlan ? `Add ${plan.name} Seats` : `Buy ${plan.name}`}
                               <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
                             </span>
                           </Button>

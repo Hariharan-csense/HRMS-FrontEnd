@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { employeeApi } from "@/components/helper/employee/employee";
+import ENDPOINTS from "@/lib/endpoint";
 import { roleApi } from "@/components/helper/roles/roles";
 import shiftApi, { Shift } from "@/components/helper/shifts/shifts";
 import {
@@ -98,6 +99,17 @@ interface EmployeeListItem extends Employee {
   monthly_salary?: number;
   hourly_rate?: number;
   overtime_hourly_rate?: number;
+  subscription_plan_id?: number;
+}
+
+interface SubscriptionSeatPool {
+  id: number;
+  plan_id: number;
+  plan_name: string;
+  billing_cycle: "monthly" | "yearly";
+  max_users: number;
+  assigned_users: number;
+  available_users: number;
 }
 
 type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
@@ -113,6 +125,7 @@ type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
   hourlyRate?: number;
   overtimeHourlyRate?: number;
   subscriptionBillingCycle: "monthly" | "yearly";
+  subscriptionPlanId: string;
 };
 
 const initialFormData: FormData = {
@@ -146,6 +159,7 @@ const initialFormData: FormData = {
   hourlyRate: 0,
   overtimeHourlyRate: 0,
   subscriptionBillingCycle: "monthly",
+  subscriptionPlanId: "",
   aadhaar: "",
   pan: "",
   uan: "",
@@ -608,6 +622,9 @@ export default function EmployeeList() {
   }>({ checking: false, error: null });
   const [showNoLoginWarningDialog, setShowNoLoginWarningDialog] =
     useState(false);
+  const [subscriptionSeatPools, setSubscriptionSeatPools] = useState<
+    SubscriptionSeatPool[]
+  >([]);
 
   // Add-on dialog states
   const [isAddOnDialogOpen, setIsAddOnDialogOpen] = useState(false);
@@ -697,6 +714,15 @@ export default function EmployeeList() {
 
   // Load departments, designations, and roles on component mount
   useEffect(() => {
+    const loadSubscriptionSeatPools = async () => {
+      try {
+        const response = await ENDPOINTS.getCurrentSubscription();
+        setSubscriptionSeatPools(response.data?.data?.seat_pools || []);
+      } catch (error) {
+        console.error("Error loading subscription packages:", error);
+        setSubscriptionSeatPools([]);
+      }
+    };
     const loadDepartments = async () => {
       try {
         const result = await departmentApi.getdepartment();
@@ -746,6 +772,7 @@ export default function EmployeeList() {
     loadBranches();
     loadRoles();
     loadShifts();
+    loadSubscriptionSeatPools();
   }, []);
 
   // Add-on dialog handlers
@@ -938,6 +965,21 @@ export default function EmployeeList() {
     }
 
     if (employee) {
+      const employeePlanId = String((employee as any).subscription_plan_id || "");
+      const employeeBillingCycle =
+        (employee as any).subscription_billing_cycle === "yearly"
+          ? "yearly"
+          : "monthly";
+      const currentPool = subscriptionSeatPools.find(
+        (pool) =>
+          String(pool.plan_id) === employeePlanId &&
+          pool.billing_cycle === employeeBillingCycle,
+      );
+      const fallbackPool =
+        currentPool ||
+        subscriptionSeatPools.find((pool) => pool.available_users > 0) ||
+        subscriptionSeatPools[0];
+
       // console.log("Opening dialog with employee:", employee);
       // console.log("Employee shift_id:", (employee as any).shift_id);
       // console.log("Employee shift:", employee.shift);
@@ -977,9 +1019,10 @@ export default function EmployeeList() {
         hourlyRate: Number((employee as any).hourly_rate) || 0,
         overtimeHourlyRate: Number((employee as any).overtime_hourly_rate) || 0,
         subscriptionBillingCycle:
-          (employee as any).subscription_billing_cycle === "yearly"
-            ? "yearly"
-            : "monthly",
+          fallbackPool?.billing_cycle || employeeBillingCycle,
+        subscriptionPlanId: fallbackPool
+          ? String(fallbackPool.plan_id)
+          : employeePlanId,
         aadhaar: employee.aadhaar || "",
         pan: employee.pan || "",
         uan: employee.uan || "",
@@ -1025,7 +1068,17 @@ export default function EmployeeList() {
       setEditingId(null);
       setActiveTab("personal");
       setNewEmployeeId(`EMP${String(employees.length + 1).padStart(3, "0")}`);
-      setFormData(initialFormData);
+      const firstAvailablePool = subscriptionSeatPools.find(
+        (pool) => pool.available_users > 0,
+      );
+      setFormData({
+        ...initialFormData,
+        subscriptionPlanId: firstAvailablePool
+          ? String(firstAvailablePool.plan_id)
+          : "",
+        subscriptionBillingCycle:
+          firstAvailablePool?.billing_cycle || "monthly",
+      });
       setUploadedFiles({});
       setUploadedFileObjects({});
     }
@@ -1389,6 +1442,10 @@ export default function EmployeeList() {
   // };
 
   const handleSave = async (bypassLoginWarning = false) => {
+    if (!formData.subscriptionPlanId) {
+      showToast.error("Please select a purchased package for this employee");
+      return;
+    }
     if (!formData.firstName?.trim()) {
       showToast.error("First Name is required!");
       return;
@@ -1488,6 +1545,7 @@ export default function EmployeeList() {
         "subscription_billing_cycle",
         formData.subscriptionBillingCycle,
       );
+      formDataToSend.append("subscription_plan_id", formData.subscriptionPlanId);
       formDataToSend.append("status", formData.status);
 
       // Optional fields
@@ -2326,6 +2384,7 @@ export default function EmployeeList() {
             monthly_salary: Number(emp.monthly_salary ?? emp.salary) || 0,
             hourly_rate: Number(emp.hourly_rate) || 0,
             overtime_hourly_rate: Number(emp.overtime_hourly_rate) || 0,
+            subscription_plan_id: Number(emp.subscription_plan_id) || undefined,
             aadhaar: emp.aadhaar || "",
             pan: emp.pan || "",
             uan: emp.uan || "",
@@ -3510,14 +3569,63 @@ export default function EmployeeList() {
                   </Select>
                 </div>
                 <div>
+                  <Label htmlFor="subscriptionPlanId">
+                    Employee Package *
+                  </Label>
+                  <Select
+                    value={formData.subscriptionPlanId}
+                    onValueChange={(value) =>
+                      handleFormChange("subscriptionPlanId", value)
+                    }
+                  >
+                    <SelectTrigger id="subscriptionPlanId" className="mt-2">
+                      <SelectValue placeholder="Select purchased package" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subscriptionSeatPools
+                        .filter(
+                          (pool) =>
+                            pool.billing_cycle ===
+                            formData.subscriptionBillingCycle,
+                        )
+                        .map((pool) => (
+                          <SelectItem
+                            key={`${pool.plan_id}-${pool.billing_cycle}`}
+                            value={String(pool.plan_id)}
+                            disabled={
+                              pool.available_users <= 0 &&
+                              String(pool.plan_id) !== formData.subscriptionPlanId
+                            }
+                          >
+                            {pool.plan_name} ({pool.assigned_users}/{pool.max_users} seats)
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Features and one seat come from this package.
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="subscriptionBillingCycle">
                     Subscription Billing Cycle *
                   </Label>
                   <Select
                     value={formData.subscriptionBillingCycle}
-                    onValueChange={(value: "monthly" | "yearly") =>
-                      handleFormChange("subscriptionBillingCycle", value)
-                    }
+                    onValueChange={(value: "monthly" | "yearly") => {
+                      const matchingPool = subscriptionSeatPools.find(
+                        (pool) =>
+                          pool.billing_cycle === value &&
+                          pool.available_users > 0,
+                      );
+                      setFormData((previous) => ({
+                        ...previous,
+                        subscriptionBillingCycle: value,
+                        subscriptionPlanId: matchingPool
+                          ? String(matchingPool.plan_id)
+                          : "",
+                      }));
+                    }}
                   >
                     <SelectTrigger
                       id="subscriptionBillingCycle"

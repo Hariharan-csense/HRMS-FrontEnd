@@ -559,6 +559,42 @@ const normalizeLeaveTypeName = (name: string | undefined | null): string => {
 const getLocalDateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+const getAttendanceDateKey = (value: string | null | undefined) => {
+  if (!value) return "";
+  const text = String(value).trim();
+  const plainDateMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (plainDateMatch && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(text)) {
+    return plainDateMatch[1];
+  }
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
+const formatAttendanceTime = (value: string | null | undefined) => {
+  if (!value) return null;
+  const text = String(value).trim();
+  const plainTimeMatch = text.match(/(?:^|\s|T)(\d{2}):(\d{2})(?::\d{2})?$/);
+  if (plainTimeMatch && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(text)) {
+    return `${plainTimeMatch[1]}:${plainTimeMatch[2]}`;
+  }
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+};
+
 export default function AttendanceLog() {
   const { user } = useAuth();
   const { hasModuleAccess, canPerformModuleAction } = useRole();
@@ -1036,9 +1072,9 @@ export default function AttendanceLog() {
         const firstCheckInByEmployeeDay = new Map<string, string>();
         for (const item of attendanceData) {
           if (!item?.check_in) continue;
-          const dayKey = new Date(item.check_in).toISOString().slice(0, 10);
+          const dayKey = getAttendanceDateKey(item.check_in);
           const employeeKey = String(item.employee_id ?? "");
-          if (!employeeKey) continue;
+          if (!employeeKey || !dayKey) continue;
           const mapKey = `${employeeKey}|${dayKey}`;
           const prev = firstCheckInByEmployeeDay.get(mapKey);
           const currTs = new Date(item.check_in).getTime();
@@ -1087,54 +1123,15 @@ export default function AttendanceLog() {
           // Backward compatibility: use check-in as the primary location.
           const location = checkInLocation;
 
-          // Format time from ISO string
-          const formatTime = (isoString: string | null) => {
-            if (!isoString) return null;
-            const d = new Date(isoString);
-            if (Number.isNaN(d.getTime())) return null;
-            return d.toLocaleTimeString("en-GB", {
-              timeZone: "Asia/Kolkata",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            });
-          };
-
           // Extract date from check_in, fallback to created_at
           const getDate = (
             isoString: string | null,
             fallbackString?: string | null,
           ) => {
-            if (isoString) {
-              // If already in YYYY-MM-DD format, return as-is
-              if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
-                return isoString.split("T")[0].split(" ")[0]; // Extract YYYY-MM-DD part
-              }
-              const d = new Date(isoString);
-              if (!Number.isNaN(d.getTime())) {
-                return new Intl.DateTimeFormat("en-CA", {
-                  timeZone: "Asia/Kolkata",
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                }).format(d);
-              }
-            }
-            if (fallbackString) {
-              // If already in YYYY-MM-DD format, return as-is
-              if (/^\d{4}-\d{2}-\d{2}$/.test(fallbackString)) {
-                return fallbackString.split("T")[0].split(" ")[0]; // Extract YYYY-MM-DD part
-              }
-              const d = new Date(fallbackString);
-              if (!Number.isNaN(d.getTime())) {
-                return new Intl.DateTimeFormat("en-CA", {
-                  timeZone: "Asia/Kolkata",
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                }).format(d);
-              }
-            }
+            const dateKey = getAttendanceDateKey(isoString);
+            if (dateKey) return dateKey;
+            const fallbackDateKey = getAttendanceDateKey(fallbackString);
+            if (fallbackDateKey) return fallbackDateKey;
             return null;
           };
 
@@ -1259,8 +1256,8 @@ export default function AttendanceLog() {
               item.attendance_date ||
               getDate(item.check_in, item.created_at) ||
               "",
-            inTime: formatTime(item.check_in),
-            outTime: formatTime(item.check_out),
+            inTime: formatAttendanceTime(item.check_in),
+            outTime: formatAttendanceTime(item.check_out),
             status: actualStatus,
             hoursWorked: parseFloat(item.hours_worked || "0"),
             overtimeHours: parseFloat(item.overtime_hours || "0"),

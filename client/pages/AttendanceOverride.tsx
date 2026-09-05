@@ -97,6 +97,43 @@ const formatDateOnly = (value?: string | null) => {
   return `${Number(day)}/${Number(month)}/${year}`;
 };
 
+const formatDateTimeIst = (value?: string | number | Date | null) => {
+  if (!value) return "-";
+  const text = String(value).trim();
+  const plainMatch = text.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?/,
+  );
+
+  if (plainMatch && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(text)) {
+    const [, year, month, day, hour, minute] = plainMatch;
+    const date = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+    );
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const ATTENDANCE_STATUS_OPTIONS: AttendanceStatusOption[] = [
   {
     value: "absent",
@@ -562,7 +599,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {new Date(override.created_at).toLocaleString("en-IN")}
+                        {formatDateTimeIst(override.created_at)}
                       </span>
                     </div>
                   </div>
@@ -590,7 +627,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {new Date(override.updated_at).toLocaleString("en-IN")}
+                          {formatDateTimeIst(override.updated_at)}
                         </span>
                       </div>
                     </div>
@@ -1094,15 +1131,7 @@ const handleProcessOverride = async (overrideId: string, status: "approved" | "r
 
         {/* Submitted */}
         <TableCell className="text-sm">
-          {override.created_at 
-            ? new Date(override.created_at).toLocaleString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "-"}
+          {formatDateTimeIst(override.created_at)}
         </TableCell>
 
         {/* Actions - Process + Audit Trail */}
