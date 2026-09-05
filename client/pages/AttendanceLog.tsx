@@ -1091,7 +1091,13 @@ export default function AttendanceLog() {
           const formatTime = (isoString: string | null) => {
             if (!isoString) return null;
             const d = new Date(isoString);
-            return d.toTimeString().slice(0, 5); // HH:MM
+            if (Number.isNaN(d.getTime())) return null;
+            return d.toLocaleTimeString("en-GB", {
+              timeZone: "Asia/Kolkata",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            });
           };
 
           // Extract date from check_in, fallback to created_at
@@ -1101,27 +1107,33 @@ export default function AttendanceLog() {
           ) => {
             if (isoString) {
               // If already in YYYY-MM-DD format, return as-is
-              if (/^\d{4}-\d{2}-\d{2}/.test(isoString)) {
+              if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
                 return isoString.split("T")[0].split(" ")[0]; // Extract YYYY-MM-DD part
               }
-              // Otherwise format the date without timezone conversion
               const d = new Date(isoString);
-              const year = d.getFullYear();
-              const month = String(d.getMonth() + 1).padStart(2, "0");
-              const day = String(d.getDate()).padStart(2, "0");
-              return `${year}-${month}-${day}`;
+              if (!Number.isNaN(d.getTime())) {
+                return new Intl.DateTimeFormat("en-CA", {
+                  timeZone: "Asia/Kolkata",
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                }).format(d);
+              }
             }
             if (fallbackString) {
               // If already in YYYY-MM-DD format, return as-is
-              if (/^\d{4}-\d{2}-\d{2}/.test(fallbackString)) {
+              if (/^\d{4}-\d{2}-\d{2}$/.test(fallbackString)) {
                 return fallbackString.split("T")[0].split(" ")[0]; // Extract YYYY-MM-DD part
               }
-              // Otherwise format the date without timezone conversion
               const d = new Date(fallbackString);
-              const year = d.getFullYear();
-              const month = String(d.getMonth() + 1).padStart(2, "0");
-              const day = String(d.getDate()).padStart(2, "0");
-              return `${year}-${month}-${day}`;
+              if (!Number.isNaN(d.getTime())) {
+                return new Intl.DateTimeFormat("en-CA", {
+                  timeZone: "Asia/Kolkata",
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                }).format(d);
+              }
             }
             return null;
           };

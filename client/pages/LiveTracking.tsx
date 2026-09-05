@@ -71,7 +71,7 @@ const formatDateTime = (value?: string | null) => {
   if (!value) return "";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleString("en-IN");
+  return parsed.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
 };
 
 const escapeCsvValue = (value: unknown) => {
@@ -723,6 +723,7 @@ export default function LiveTracking() {
 
       // Compact time format (HH:MM) for better spreadsheet compatibility
       const timeStr = date.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
@@ -988,7 +989,9 @@ export default function LiveTracking() {
           trackingState,
           minutesSinceUpdate: normalizedMinutesSinceUpdate,
           lastCheckTime: latestAttendance?.check_in
-            ? new Date(latestAttendance.check_in).toLocaleTimeString("en-IN")
+            ? new Date(latestAttendance.check_in).toLocaleTimeString("en-IN", {
+                timeZone: "Asia/Kolkata",
+              })
             : undefined,
           employmentType: (emp as any).employmentType || ("full-time" as const),
           vehicleInfo: (emp as any).vehicle_info,
@@ -2428,7 +2431,9 @@ export default function LiveTracking() {
                 Last refresh
               </div>
               <div className="mt-1 text-base font-bold text-slate-950">
-                {new Date().toLocaleTimeString("en-IN")}
+                {new Date().toLocaleTimeString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                })}
               </div>
             </div>
           </div>
@@ -3535,6 +3540,7 @@ export default function LiveTracking() {
                                           const time = new Date(
                                             event.time,
                                           ).toLocaleTimeString("en-IN", {
+                                            timeZone: "Asia/Kolkata",
                                             hour: "2-digit",
                                             minute: "2-digit",
                                           });
@@ -4158,7 +4164,9 @@ export default function LiveTracking() {
                         <span className="text-gray-600">
                           {new Date(
                             emp.currentLocation.timestamp,
-                          ).toLocaleTimeString("en-IN")}
+                          ).toLocaleTimeString("en-IN", {
+                            timeZone: "Asia/Kolkata",
+                          })}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

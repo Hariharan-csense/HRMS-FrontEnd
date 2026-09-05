@@ -1075,6 +1075,7 @@ export default function AttendanceCapture() {
                                 {new Date(record.timestamp).toLocaleTimeString(
                                   "en-IN",
                                   {
+                                    timeZone: "Asia/Kolkata",
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   },
@@ -1165,6 +1166,7 @@ export default function AttendanceCapture() {
                                   {new Date(
                                     location.location_timestamp,
                                   ).toLocaleTimeString("en-IN", {
+                                    timeZone: "Asia/Kolkata",
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })}
@@ -1234,7 +1236,9 @@ export default function AttendanceCapture() {
                         ? new Date(
                             todayRecords.find((r) => r.type === "check-in")!
                               .timestamp,
-                          ).toLocaleTimeString("en-IN")
+                          ).toLocaleTimeString("en-IN", {
+                            timeZone: "Asia/Kolkata",
+                          })
                         : "Not yet"}
                     </p>
                   </div>
@@ -1246,7 +1250,9 @@ export default function AttendanceCapture() {
                         ? new Date(
                             todayRecords.find((r) => r.type === "check-out")!
                               .timestamp,
-                          ).toLocaleTimeString("en-IN")
+                          ).toLocaleTimeString("en-IN", {
+                            timeZone: "Asia/Kolkata",
+                          })
                         : "Not yet"}
                     </p>
                   </div>

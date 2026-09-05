@@ -151,6 +151,7 @@ export default function ClientAttendanceAdmin() {
 
   const formatTime = (timeString: string) => {
     return new Date(timeString).toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
       hour: '2-digit',
       minute: '2-digit'
     });

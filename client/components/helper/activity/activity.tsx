@@ -101,16 +101,17 @@ export const activityHelper = {
     );
 
     if (activityDate.getTime() === today.getTime()) {
-      return `Today at ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`;
+      return `Today at ${date.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true })}`;
     }
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     if (activityDate.getTime() === yesterday.getTime()) {
-      return `Yesterday at ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`;
+      return `Yesterday at ${date.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true })}`;
     }
 
     return date.toLocaleDateString("en-US", {
+      timeZone: "Asia/Kolkata",
       month: "short",
       day: "numeric",
       year: "numeric",
