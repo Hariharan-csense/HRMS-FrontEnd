@@ -4,12 +4,15 @@ declare global {
   }
 }
 
+export const isCordovaApp = (): boolean =>
+  typeof window !== "undefined" && Boolean(window.cordova);
+
 export const isCordovaIOS = (): boolean => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
   }
 
-  const hasCordovaRuntime = Boolean(window.cordova);
+  const hasCordovaRuntime = isCordovaApp();
   const userAgent = navigator.userAgent || "";
   const platform = navigator.platform || "";
   const isIOS =
@@ -19,4 +22,3 @@ export const isCordovaIOS = (): boolean => {
 
   return hasCordovaRuntime && isIOS;
 };
-

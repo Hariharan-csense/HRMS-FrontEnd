@@ -306,7 +306,7 @@ function AppRoutes() {
         path="/login"
         element={<PublicRoute element={<LandingPage />} />}
       /> */}
-        <Route path="/" element={<PublicRoute element={<LandingPage />} />} />
+        <Route path="/" element={<PublicRoute element={<Login />} />} />
         <Route
           path="/features"
           element={<PublicRoute element={<FeaturesPage />} />}
@@ -1114,7 +1114,7 @@ function AppRoutes() {
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <HashRouter>
         <AuthProvider>
           {" "}
           {/* ✅ Auth FIRST */}
@@ -1132,7 +1132,7 @@ const App = () => {
             </SubscriptionProvider>
           </RoleProvider>
         </AuthProvider>
-      </BrowserRouter>
+      </HashRouter>
     </QueryClientProvider>
   );
 };

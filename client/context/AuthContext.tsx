@@ -11,6 +11,7 @@ import ENDPOINTS, {
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidLoginIdentifier, normalizeEmail } from "@/lib/validation";
+import { isCordovaApp } from "@/lib/platform";
 import {
   registerWebPushNotifications,
   unregisterStoredWebPushToken,
@@ -341,7 +342,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // opening the last employee's workspace can expose the wrong account on
         // a shared office computer. Start a fresh browser session at the account
         // chooser while keeping the saved accounts available for one-click login.
-        if (isNewBrowserSession && profileManager.getSavedAccounts().length > 0) {
+        if (
+          !isCordovaApp() &&
+          isNewBrowserSession &&
+          profileManager.getSavedAccounts().length > 0
+        ) {
           localStorage.removeItem("user");
           localStorage.removeItem("accessToken");
           localStorage.removeItem("userRole");
