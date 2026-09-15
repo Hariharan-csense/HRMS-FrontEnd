@@ -1,6 +1,43 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Facebook, Instagram, Linkedin, Mail, Youtube } from "lucide-react";
 import logo from "../assets/logo.png";
+
+// Add the official URLs here when they are available.
+const socialLinks = [
+  {
+    label: "LinkedIn",
+    icon: Linkedin,
+    href: "https://www.linkedin.com/company/procease-technologies/?viewAsMember=true",
+    className: "bg-[#0A66C2] hover:bg-[#004182]",
+  },
+  {
+    label: "Email",
+    icon: Mail,
+    href: "mailto:support@procease.co",
+    className: "bg-emerald-600 hover:bg-emerald-700",
+  },
+  {
+    label: "Instagram",
+    icon: Instagram,
+    href: "https://www.instagram.com/procease.tech/",
+    className:
+      "bg-gradient-to-br from-[#F9CE34] via-[#EE2A7B] to-[#6228D7] hover:brightness-90",
+  },
+  {
+    label: "Facebook",
+    icon: Facebook,
+    href: "https://www.facebook.com/people/Procease/61576716486425/",
+    className: "bg-[#1877F2] hover:bg-[#0d65d9]",
+  },
+  {
+    label: "YouTube",
+    icon: Youtube,
+    href: "https://www.youtube.com/@Procease",
+    className: "bg-[#FF0000] hover:bg-[#cc0000]",
+  },
+];
+
 const Footer = () => {
   return (
     <footer className="bg-gray-200 text-gray-800 py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
@@ -208,6 +245,21 @@ const Footer = () => {
           </div>
         </div>
         <div className="border-t border-gray-400 mt-8 pt-8 text-center text-gray-500 footer-bottom">
+          <div className="mb-5 flex flex-wrap items-center justify-center gap-3">
+            {socialLinks.map(({ label, icon: Icon, href, className }) => (
+              <a
+                key={label}
+                href={href}
+                target={href.startsWith("http") ? "_blank" : undefined}
+                rel={href.startsWith("http") ? "noreferrer" : undefined}
+                aria-label={label}
+                title={label}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${className}`}
+              >
+                <Icon className="h-5 w-5" />
+              </a>
+            ))}
+          </div>
           <p className="animate-pulse-hover">
             &copy; {new Date().getFullYear()} Procease HRMS. All rights
             reserved.

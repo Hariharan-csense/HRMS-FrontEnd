@@ -120,6 +120,7 @@ export const FREEPLAN_MODULES = [
   "role_access",
   "employees",
   "pulse_surveys",
+  "kpi",
 ];
 
 const FREE_FOREVER_MODULES = [...FREEPLAN_MODULES];
@@ -147,7 +148,6 @@ const STANDARD_MODULES = [
   "hr_helpdesk",
   "ai_assistant",
   "role_access",
-  "kpi",
 ];
 
 // Your "Advanced" plan definition: Standard + these modules.

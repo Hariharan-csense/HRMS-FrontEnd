@@ -868,6 +868,7 @@ const AdminDashboard = () => {
             icon={<Users className="w-7 h-7" />}
             description="Active employees"
             colorClass="gradient-bg-blue"
+            onClick={() => navigate("/employees")}
           />
           <StatCard
             title="Present Today"
@@ -1766,14 +1767,9 @@ const EmployeeDashboard = ({
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [
-          dashboardResult,
-          leaveBalanceResult,
-          assignedLeadIndicatorResult,
-        ] = await Promise.all([
+        const [dashboardResult, leaveBalanceResult] = await Promise.all([
           getEmployeeDashboardData(),
           leaveTypeApi.getLeaveBalances(),
-          api.get("/kpi/scorecards/assigned-lead-indicators").catch(() => null),
         ]);
 
         if (dashboardResult.error) {
@@ -1786,11 +1782,7 @@ const EmployeeDashboard = ({
 
           setDashboardData({
             ...dashboardResult.data,
-            assignedLeadIndicators: Array.isArray(
-              assignedLeadIndicatorResult?.data,
-            )
-              ? assignedLeadIndicatorResult.data
-              : [],
+            assignedLeadIndicators: [],
             leaveBalance: {
               totalDays:
                 leaveBalanceResult.error || totalLeaveBalance === undefined
@@ -1801,28 +1793,6 @@ const EmployeeDashboard = ({
                 "Days remaining this year",
             },
           });
-          const nextLeadValues: Record<string, string> = {};
-          if (Array.isArray(assignedLeadIndicatorResult?.data)) {
-            assignedLeadIndicatorResult.data.forEach((item: any) => {
-              Object.entries(item.values || {}).forEach(([dayKey, value]) => {
-                nextLeadValues[
-                  `${item.parameterId}-${item.indicatorIndex}-${dayKey}`
-                ] = String(value || "");
-              });
-              if (item.todayKey) {
-                nextLeadValues[
-                  `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
-                ] = String(
-                  item.todayValue ||
-                    nextLeadValues[
-                      `${item.parameterId}-${item.indicatorIndex}-${item.todayKey}`
-                    ] ||
-                    "",
-                );
-              }
-            });
-          }
-          setLeadIndicatorValues(nextLeadValues);
         }
       } catch (err) {
         setError("Failed to fetch dashboard data");

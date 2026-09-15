@@ -46,7 +46,7 @@ type Organization = {
   email: string;
   owner: string;
   status: "active" | "inactive" | "suspended" | "trial" | "expired";
-  plan: "Starter" | "Professional" | "Enterprise" | "Trial";
+  plan: string;
   users: number;
   storage: string;
   totalStorage: string;
@@ -54,6 +54,9 @@ type Organization = {
   revenue: string;
   createdAt: string;
   updatedAt: string;
+  contact?: string;
+  trialStartDate?: string | null;
+  trialEndDate?: string | null;
   lastLogin?: string;
 };
 
@@ -88,6 +91,8 @@ export const Organizations: React.FC = () => {
 
         if (response.error) {
           console.error("Error fetching organizations:", response.error);
+          setOrganizations([]);
+          return;
           // Fallback to mock data if API fails
           const mockData: Organization[] = [
             {
@@ -178,22 +183,26 @@ export const Organizations: React.FC = () => {
             id: org.id?.toString() || "",
             name: org.name || "",
             email: org.email || "",
+            contact: org.contact || org.mobile || org.email || "",
             owner: org.owner || org.admin_name || "",
             status: org.status || "active",
             plan: org.plan || org.subscription_type || "Starter",
             users: org.user_count || org.users || 0,
             storage: org.used_storage || org.storage || "0GB",
             totalStorage: org.total_storage || org.storage_limit || "2GB",
-            daysLeft: org.daysLeft || org.days_left || org.trial_days_left || 0, // Use daysLeft from backend
+            daysLeft: Number(org.daysLeft ?? org.days_left ?? org.trial_days_left ?? 0),
             revenue: org.revenue || "₹0.00",
-            createdAt: org.created_at || "",
-            updatedAt: org.updated_at || "",
+            createdAt: org.createdAt || org.created_at || "",
+            updatedAt: org.updatedAt || org.updated_at || "",
+            trialStartDate: org.trialStartDate || org.subscriptionStartDate || null,
+            trialEndDate: org.trialEndDate || org.subscriptionEndDate || null,
             lastLogin: org.last_login,
           }));
           setOrganizations(transformedData);
         }
       } catch (error) {
         console.error("Error fetching organizations:", error);
+        setOrganizations([]);
       } finally {
         setLoading(false);
       }
@@ -307,6 +316,7 @@ export const Organizations: React.FC = () => {
                 id: org.id?.toString() || "",
                 name: org.name || "",
                 email: org.email || "",
+                contact: org.contact || org.mobile || org.email || "",
                 owner: org.owner || org.admin_name || "",
                 status: org.status || "active",
                 plan: org.plan || org.subscription_type || "Starter",
@@ -315,8 +325,10 @@ export const Organizations: React.FC = () => {
                 totalStorage: org.total_storage || org.storage_limit || "2GB",
                 daysLeft: org.days_left || org.trial_days_left || 0,
                 revenue: org.revenue || "₹0.00",
-                createdAt: org.created_at || "",
-                updatedAt: org.updated_at || "",
+                createdAt: org.createdAt || org.created_at || "",
+                updatedAt: org.updatedAt || org.updated_at || "",
+                trialStartDate: org.trialStartDate || org.subscriptionStartDate || null,
+                trialEndDate: org.trialEndDate || org.subscriptionEndDate || null,
                 lastLogin: org.last_login,
               }));
               setOrganizations(transformedData);
@@ -494,6 +506,28 @@ export const Organizations: React.FC = () => {
                               <p className="font-medium">{org.owner}</p>
                             </div>
                             <div>
+                              <span className="text-xs text-muted-foreground">Registration Date</span>
+                              <p className="font-medium">
+                                {org.trialStartDate
+                                  ? formatDate(org.trialStartDate)
+                                  : org.createdAt
+                                    ? formatDate(org.createdAt)
+                                    : "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground">Trial Start</span>
+                              <p className="font-medium">{org.trialStartDate ? formatDate(org.trialStartDate) : "N/A"}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground">Trial End</span>
+                              <p className="font-medium">{org.trialEndDate ? formatDate(org.trialEndDate) : "N/A"}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground">Contact</span>
+                              <p className="font-medium break-all">{org.contact || org.email || "N/A"}</p>
+                            </div>
+                            <div>
                               <span className="text-xs text-muted-foreground">
                                 Status
                               </span>
@@ -633,22 +667,16 @@ export const Organizations: React.FC = () => {
                 <Table className="w-full">
                   <TableHeader className="bg-muted/50">
                     <TableRow>
-                      <TableHead className="min-w-[220px]">
+                      <TableHead className="min-w-[200px]">
                         Organization
                       </TableHead>
                       <TableHead className="min-w-[180px]">Owner</TableHead>
+                      <TableHead className="min-w-[120px]">Registration Date</TableHead>
+                      <TableHead className="min-w-[120px]">Trial Start</TableHead>
+                      <TableHead className="min-w-[120px]">Trial End</TableHead>
+                      <TableHead className="min-w-[180px]">Contact</TableHead>
                       <TableHead className="min-w-[100px]">Status</TableHead>
-                      <TableHead className="min-w-[100px]">Plan</TableHead>
-                      <TableHead className="min-w-[80px] text-right">
-                        Users
-                      </TableHead>
-                      <TableHead className="min-w-[150px]">Storage</TableHead>
-                      <TableHead className="min-w-[100px] text-right">
-                        Days Left
-                      </TableHead>
-                      <TableHead className="min-w-[120px] text-right">
-                        Revenue
-                      </TableHead>
+                      <TableHead className="min-w-[120px]">Plan</TableHead>
                       <TableHead className="min-w-[100px] text-center">
                         Actions
                       </TableHead>
@@ -663,11 +691,6 @@ export const Organizations: React.FC = () => {
                       </TableRow>
                     ) : paginatedOrganizations.length > 0 ? (
                       paginatedOrganizations.map((org) => {
-                        const storagePercentage = getStoragePercentage(
-                          org.storage.replace("GB", ""),
-                          org.totalStorage.replace("GB", ""),
-                        );
-
                         return (
                           <TableRow key={org.id} className="hover:bg-muted/30">
                             <TableCell>
@@ -678,6 +701,23 @@ export const Organizations: React.FC = () => {
                             </TableCell>
                             <TableCell className="font-medium">
                               {org.owner}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {org.trialStartDate
+                                ? formatDate(org.trialStartDate)
+                                : org.createdAt
+                                  ? formatDate(org.createdAt)
+                                  : "N/A"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {org.trialStartDate ? formatDate(org.trialStartDate) : "N/A"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {org.trialEndDate ? formatDate(org.trialEndDate) : "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">{org.email || "N/A"}</div>
+                              <div className="text-xs text-muted-foreground">{org.contact || "N/A"}</div>
                             </TableCell>
                             <TableCell>
                               <Badge
@@ -717,37 +757,6 @@ export const Organizations: React.FC = () => {
                               >
                                 {org.plan}
                               </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {org.users}
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-sm">
-                                  <span>
-                                    {org.storage} / {org.totalStorage}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {storagePercentage}%
-                                  </span>
-                                </div>
-                                <Progress
-                                  value={storagePercentage}
-                                  className="h-1.5"
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <span
-                                className={
-                                  org.daysLeft < 0 ? "text-destructive" : ""
-                                }
-                              >
-                                {formatDaysLeft(org.daysLeft)}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {org.revenue}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center justify-center space-x-1">

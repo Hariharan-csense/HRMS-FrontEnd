@@ -1332,7 +1332,7 @@ export default function ExpenseApprovals() {
 
       {/* Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent closeOnEscape className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
           <DialogHeader>
             <div className="border-b border-slate-100 bg-gradient-to-r from-[#17c491]/10 via-white to-white px-6 py-5">
               <DialogTitle className="text-xl font-bold text-slate-950">
@@ -1509,7 +1509,7 @@ export default function ExpenseApprovals() {
           }
         }}
       >
-        <DialogContent className="w-[98vw] max-w-[98vw] h-[95vh] max-h-[95vh] flex flex-col p-3 sm:p-4">
+        <DialogContent closeOnEscape className="w-[98vw] max-w-[98vw] h-[95vh] max-h-[95vh] flex flex-col p-3 sm:p-4">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
               Bill Preview

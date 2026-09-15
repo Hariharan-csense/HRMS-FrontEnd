@@ -55,7 +55,6 @@ const moduleOptions = [
   { value: 'payroll_audit', label: 'Payroll Audit Trail' },
   { value: 'hr_management', label: 'RMS & Recruitment' },
   { value: 'exit', label: 'Exit & Offboarding' },
-  { value: 'kpi', label: 'KPI Management' },
 ];
 
 export type PlanCategory = 'freeplan' | 'basic' | 'standard' | 'advanced' | 'custom';
@@ -69,12 +68,13 @@ const PLAN_CATEGORIES: Array<{
   {
     id: 'freeplan',
     label: 'Free Plan',
-    description: 'Organization setup, roles, employees, and surveys only',
+    description: 'Organization setup, roles, employees, surveys, and KPI management',
     defaultModules: [
       'Organization Setup',
       'Role & Permissions',
       'Employee Management',
       'Employee Surveys',
+      'KPI Management',
     ],
   },
   {
@@ -301,12 +301,19 @@ const SubscriptionPlansManagement: React.FC = () => {
   const fetchAddons = async () => {
     try {
       const response = await ENDPOINTS.getSubscriptionAddons();
-      setAddons((response.data?.data || []).map((addon: any) => ({
-        ...addon,
-        price_upto5: Number(addon.price_upto5 ?? addon.price_upto25 ?? 0),
-        price_upto10: Number(addon.price_upto10 ?? addon.price_upto50 ?? 0),
-        price_upto15: Number(addon.price_upto15 ?? addon.price_above15 ?? addon.price_above50 ?? 0),
-      })));
+      setAddons(
+        (response.data?.data || [])
+          .filter(
+            (addon: any) =>
+              String(addon.module_key || "").toLowerCase() !== "kpi",
+          )
+          .map((addon: any) => ({
+            ...addon,
+            price_upto5: Number(addon.price_upto5 ?? addon.price_upto25 ?? 0),
+            price_upto10: Number(addon.price_upto10 ?? addon.price_upto50 ?? 0),
+            price_upto15: Number(addon.price_upto15 ?? addon.price_above15 ?? addon.price_above50 ?? 0),
+          })),
+      );
     } catch (fetchError: any) {
       console.error('Error fetching add-ons:', fetchError);
       showToast.error(fetchError.response?.data?.message || 'Failed to fetch add-ons');

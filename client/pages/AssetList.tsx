@@ -301,64 +301,98 @@ export default function AssetList() {
     }
   };
 
-  const escapeCsvValue = (value: string | number | null | undefined) => {
-    const normalizedValue = String(value ?? "");
-    if (/[",\n]/.test(normalizedValue)) {
-      return `"${normalizedValue.replace(/"/g, '""')}"`;
-    }
-    return normalizedValue;
-  };
+  const [exporting, setExporting] = useState(false);
 
-  const handleExportCsv = () => {
+  const handleExportExcel = async () => {
+    if (exporting) return;
     if (filteredAssets.length === 0) {
       showToast.error("No assets available to export");
       return;
     }
 
-    const headers = [
-      "Asset ID",
-      "Asset Name",
-      "Type",
-      "Serial Number",
-      "Assigned To",
-      "Status",
-      "Location",
-      "Issue Date",
-      "Value",
-      "Description",
-    ];
+    setExporting(true);
+    try {
+      const { default: ExcelJS } = await import("exceljs");
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Assets", {
+        views: [{ state: "frozen", ySplit: 1 }],
+      });
+      const headers = [
+        "Asset ID",
+        "Asset Name",
+        "Type",
+        "Serial Number",
+        "Assigned To",
+        "Status",
+        "Location",
+        "Issue Date",
+        "Value",
+        "Description",
+      ];
 
-    const rows = filteredAssets.map((asset) => [
-      assetIdOf(asset),
-      asset.name || "-",
-      getAssetTypeLabel(asset.type),
-      asset.serial || "-",
-      getAssignedEmployeeLabel(asset),
-      getStatusLabel(asset.status),
-      asset.location || "-",
-      asset.issueDate || "-",
-      asset.value > 0 ? asset.value : "",
-      asset.description || "",
-    ]);
+      const rows = filteredAssets.map((asset) => [
+        assetIdOf(asset),
+        asset.name || "-",
+        getAssetTypeLabel(asset.type),
+        asset.serial || "-",
+        getAssignedEmployeeLabel(asset),
+        getStatusLabel(asset.status),
+        asset.location || "-",
+        asset.issueDate && /^\d{4}-\d{2}-\d{2}/.test(asset.issueDate)
+          ? new Date(`${asset.issueDate.slice(0, 10)}T00:00:00Z`)
+          : asset.issueDate || "-",
+        asset.value ?? "",
+        asset.description || "",
+      ]);
 
-    const csvContent = [
-      headers.map(escapeCsvValue).join(","),
-      ...rows.map((row) => row.map(escapeCsvValue).join(",")),
-    ].join("\n");
+      sheet.addRow(headers);
+      sheet.addRows(rows);
+      const widths = [16, 28, 18, 25, 30, 18, 26, 18, 18, 50];
+      sheet.columns.forEach((column, index) => { column.width = widths[index]; });
+      sheet.autoFilter = "A1:J1";
+      sheet.getColumn(8).numFmt = "dd-mm-yyyy";
+      sheet.getColumn(9).numFmt = "#,##0.00";
+      sheet.eachRow((row, rowNumber) => {
+        row.height = rowNumber === 1 ? 30 : 36;
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          cell.font = { name: "Calibri", size: 11, bold: rowNumber === 1,
+            color: { argb: rowNumber === 1 ? "FFFFFFFF" : "FF1E293B" } };
+          cell.fill = { type: "pattern", pattern: "solid",
+            fgColor: { argb: rowNumber === 1 ? "FF11966F" : rowNumber % 2 === 0 ? "FFE9FBF5" : "FFFFFFFF" } };
+          cell.alignment = { vertical: "middle", wrapText: true };
+          cell.border = { bottom: { style: "thin", color: { argb: "FFE2E8F0" } } };
+        });
+        if (rowNumber > 1) {
+          const status = filteredAssets[rowNumber - 2].status;
+          const colors = status === "active" ? ["FFD1FAE5", "FF047857"]
+            : status === "maintenance" ? ["FFFEF3C7", "FF92400E"]
+            : status === "damaged" || status === "disposed" ? ["FFFEE2E2", "FFB91C1C"]
+            : ["FFF1F5F9", "FF475569"];
+          const cell = row.getCell(6);
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors[0] } };
+          cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: colors[1] } };
+        }
+      });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStamp = new Date().toISOString().slice(0, 10);
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const dateStamp = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.setAttribute("download", `assets-${dateStamp}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-    link.href = url;
-    link.setAttribute("download", `assets-${dateStamp}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    showToast.success("Assets exported as CSV");
+      showToast.success("Assets exported as Excel");
+    } catch (error) {
+      console.error("Asset export failed", error);
+      showToast.error("Unable to export assets. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -466,9 +500,9 @@ export default function AssetList() {
                 </div>
 
                 <div className="flex items-end">
-                  <Button type="button" variant="outline" onClick={handleExportCsv} className={`w-full gap-2 ${assetOutlineButtonClass}`}>
+                  <Button type="button" variant="outline" onClick={handleExportExcel} disabled={exporting} className={`w-full gap-2 ${assetOutlineButtonClass}`}>
                     <Download className="h-4 w-4" />
-                    Export CSV
+                    {exporting ? "Exporting..." : "Export Excel"}
                   </Button>
                 </div>
               </div>

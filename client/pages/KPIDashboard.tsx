@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
+import AssignedLeadIndicators from "@/components/kpi/AssignedLeadIndicators";
 import { api } from "@/lib/endpoint";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
@@ -777,6 +778,8 @@ const KPIDashboard: React.FC = () => {
             {error}
           </div>
         ) : null}
+
+        <AssignedLeadIndicators />
 
         <motion.div
           variants={dashboardStagger}

@@ -119,6 +119,7 @@ const LoanRequestForm = () => {
 
   const loanAmount = Number(formData.loanAmount || 0);
   const tenureMonths = Number(formData.tenureMonths || 0);
+  const isLoanRequest = formData.requestType === "loan";
   const emiAmount = useMemo(() => {
     if (!loanAmount || !tenureMonths) return 0;
     return Math.ceil(loanAmount / tenureMonths);
@@ -162,10 +163,12 @@ const LoanRequestForm = () => {
       return;
     }
     if (!loanAmount || loanAmount <= 0) {
-      showToast.error("Enter a valid amount");
+      showToast.error(
+        `Enter a valid ${isLoanRequest ? "loan" : "advance"} amount`,
+      );
       return;
     }
-    if (!tenureMonths || tenureMonths <= 0) {
+    if (isLoanRequest && (!tenureMonths || tenureMonths <= 0)) {
       showToast.error("Enter a valid tenure");
       return;
     }
@@ -176,9 +179,13 @@ const LoanRequestForm = () => {
         request_type: formData.requestType,
         employee_code: formData.employeeId,
         amount: loanAmount,
-        tenure_months: tenureMonths,
-        recovery_start_month: formData.recoveryStartMonth,
         purpose: formData.purpose,
+        ...(isLoanRequest
+          ? {
+              tenure_months: tenureMonths,
+              recovery_start_month: formData.recoveryStartMonth,
+            }
+          : {}),
       });
       const savedLoan = response.data?.loan;
 
@@ -298,7 +305,9 @@ const LoanRequestForm = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="loanAmount">Loan Amount</Label>
+                      <Label htmlFor="loanAmount">
+                        {isLoanRequest ? "Loan Amount" : "Advance Amount"}
+                      </Label>
                       <div className="relative">
                         <IndianRupee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <Input
@@ -315,48 +324,58 @@ const LoanRequestForm = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="tenureMonths">Tenure</Label>
-                      <div className="relative">
-                        <CalendarClock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                          id="tenureMonths"
-                          type="number"
-                          min="1"
-                          max="60"
-                          value={formData.tenureMonths}
-                          onChange={(event) =>
-                            updateField("tenureMonths", event.target.value)
-                          }
-                          className="pl-9"
-                          placeholder="12"
-                        />
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Enter tenure in months.
-                      </p>
-                    </div>
+                    {isLoanRequest && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="tenureMonths">Tenure</Label>
+                          <div className="relative">
+                            <CalendarClock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <Input
+                              id="tenureMonths"
+                              type="number"
+                              min="1"
+                              max="60"
+                              value={formData.tenureMonths}
+                              onChange={(event) =>
+                                updateField(
+                                  "tenureMonths",
+                                  event.target.value,
+                                )
+                              }
+                              className="pl-9"
+                              placeholder="12"
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Enter tenure in months.
+                          </p>
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="recoveryStartMonth">
-                        Recovery Start Month
-                      </Label>
-                      <Input
-                        id="recoveryStartMonth"
-                        type="month"
-                        value={formData.recoveryStartMonth}
-                        onChange={(event) =>
-                          updateField("recoveryStartMonth", event.target.value)
-                        }
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="recoveryStartMonth">
+                            Recovery Start Month
+                          </Label>
+                          <Input
+                            id="recoveryStartMonth"
+                            type="month"
+                            value={formData.recoveryStartMonth}
+                            onChange={(event) =>
+                              updateField(
+                                "recoveryStartMonth",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label>Calculated EMI</Label>
-                      <div className="flex h-10 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800">
-                        {formatCurrency(emiAmount)} / month
-                      </div>
-                    </div>
+                        <div className="space-y-2">
+                          <Label>Calculated EMI</Label>
+                          <div className="flex h-10 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800">
+                            {formatCurrency(emiAmount)} / month
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -401,52 +420,54 @@ const LoanRequestForm = () => {
             </Card>
 
             <div className="space-y-6">
-              <Card className="rounded-lg border-slate-200 shadow-sm">
-                <CardHeader className="border-b bg-white">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Calculator className="h-5 w-5 text-emerald-700" />
-                    EMI Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-5">
-                  <div className="rounded-lg border border-slate-200 p-4">
-                    <p className="text-xs font-medium uppercase text-slate-500">
-                      Request Amount
-                    </p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-950">
-                      {formatCurrency(loanAmount)}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+              {isLoanRequest && (
+                <Card className="rounded-lg border-slate-200 shadow-sm">
+                  <CardHeader className="border-b bg-white">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Calculator className="h-5 w-5 text-emerald-700" />
+                      EMI Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-5">
                     <div className="rounded-lg border border-slate-200 p-4">
                       <p className="text-xs font-medium uppercase text-slate-500">
-                        Tenure
+                        Request Amount
                       </p>
-                      <p className="mt-1 text-lg font-semibold text-slate-950">
-                        {tenureMonths || 0} Months
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-xs font-medium uppercase text-emerald-700">
-                        EMI
-                      </p>
-                      <p className="mt-1 text-lg font-semibold text-emerald-800">
-                        {formatCurrency(emiAmount)}
+                      <p className="mt-1 text-2xl font-semibold text-slate-950">
+                        {formatCurrency(loanAmount)}
                       </p>
                     </div>
-                  </div>
-                  <div className="rounded-lg bg-slate-900 p-4 text-white">
-                    <p className="text-xs font-medium uppercase text-slate-300">
-                      Repayment Preview
-                    </p>
-                    <p className="mt-2 text-sm">
-                      {loanAmount && tenureMonths
-                        ? `${formatCurrency(emiAmount)} will be deducted every month for ${tenureMonths} month(s).`
-                        : "Enter amount and tenure to preview monthly deduction."}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-xs font-medium uppercase text-slate-500">
+                          Tenure
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-slate-950">
+                          {tenureMonths || 0} Months
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                        <p className="text-xs font-medium uppercase text-emerald-700">
+                          EMI
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-emerald-800">
+                          {formatCurrency(emiAmount)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900 p-4 text-white">
+                      <p className="text-xs font-medium uppercase text-slate-300">
+                        Repayment Preview
+                      </p>
+                      <p className="mt-2 text-sm">
+                        {loanAmount && tenureMonths
+                          ? `${formatCurrency(emiAmount)} will be deducted every month for ${tenureMonths} month(s).`
+                          : "Enter amount and tenure to preview monthly deduction."}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="rounded-lg border-slate-200 shadow-sm">
                 <CardHeader className="border-b bg-white">
@@ -529,10 +550,14 @@ const LoanRequestForm = () => {
                             {formatCurrency(request.totalAmount)}
                           </td>
                           <td className="px-5 py-4">
-                            {request.tenureMonths} months
+                            {request.requestType === "loan"
+                              ? `${request.tenureMonths} months`
+                              : "-"}
                           </td>
                           <td className="px-5 py-4 font-medium text-emerald-700">
-                            {formatCurrency(request.emiAmount)}
+                            {request.requestType === "loan"
+                              ? formatCurrency(request.emiAmount)
+                              : "-"}
                           </td>
                           <td className="px-5 py-4">
                             <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">

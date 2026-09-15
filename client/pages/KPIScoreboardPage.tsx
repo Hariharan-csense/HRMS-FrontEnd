@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { api, resolveFileUrl } from "@/lib/endpoint";
 import { employeeApi } from "@/components/helper/employee/employee";
+import branchApi, { Branch } from "@/components/helper/branch/branch";
 import { Check, ChevronDown, Edit3, Eye, FilePlus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,6 +29,7 @@ type ScorecardUser = {
   role: string;
   department: string;
   designation: string;
+  branchId: string;
 };
 
 type KpiDailyAchievements =
@@ -57,6 +59,8 @@ type Scorecard = {
   id: string;
   userId: string;
   userName: string;
+  branchId: string;
+  branchName: string;
   year: number;
   month: number;
   frequency: string;
@@ -153,6 +157,16 @@ const hasAchievementInput = (row: KpiRow) => {
   if (!raw) return false;
   if (hasDailyAchievementData(row)) return true;
   return Number(raw) !== 0;
+};
+
+const achievementTone = (row: KpiRow) => {
+  if (!hasAchievementInput(row)) return "";
+  const achievement = parseNumber(row.achievement);
+  const commitment = parseNumber(row.commitment);
+  if (achievement === undefined || commitment === undefined) return "";
+  return achievement < commitment
+    ? "!bg-rose-50 !text-rose-700"
+    : "!bg-emerald-50 !text-emerald-700";
 };
 
 const calculateKpiScore = (row: KpiRow) => {
@@ -487,6 +501,7 @@ const mapEmployeeToUser = (emp: Record<string, unknown>): ScorecardUser => {
     role,
     department,
     designation,
+    branchId: String(emp.branch_id || emp.branchId || "").trim(),
   };
 };
 
@@ -517,6 +532,7 @@ const KPIScoreboardPage: React.FC = () => {
       role: user?.role || "Not assigned",
       department: currentUser?.department || "Not assigned",
       designation: currentUser?.designation || "Not assigned",
+      branchId: String((user as any)?.branch_id || (user as any)?.branchId || ""),
     }),
     [
       currentUserName,
@@ -530,7 +546,10 @@ const KPIScoreboardPage: React.FC = () => {
   );
 
   const [users, setUsers] = useState<ScorecardUser[]>([fallbackUser]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [scorecards, setScorecards] = useState<Scorecard[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
+  const [formBranchId, setFormBranchId] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedUserId, setSelectedUserId] = useState(fallbackUser.id);
   const [formUserId, setFormUserId] = useState("");
@@ -639,6 +658,16 @@ const KPIScoreboardPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    void branchApi.getBranches().then((result) => {
+      if (!cancelled && result.data) setBranches(result.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
 
     const loadScorecards = async () => {
       setLoadingScorecards(true);
@@ -647,6 +676,7 @@ const KPIScoreboardPage: React.FC = () => {
         const res = await api.get("/kpi/scorecards", {
           params: {
             userId: selectedUserId || undefined,
+            branchId: selectedBranchId || undefined,
             year: selectedYear || undefined,
             month: selectedMonth || undefined,
           },
@@ -674,7 +704,7 @@ const KPIScoreboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedMonth, selectedUserId, selectedYear]);
+  }, [selectedBranchId, selectedMonth, selectedUserId, selectedYear]);
 
   useEffect(() => {
     if (!pendingAchievementFocusRowId || dailyAchievementModal) return;
@@ -716,10 +746,17 @@ const KPIScoreboardPage: React.FC = () => {
 
   const departmentUsers = useMemo(
     () =>
-      selectedDepartment
-        ? users.filter((item) => item.department === selectedDepartment)
-        : users,
-    [selectedDepartment, users],
+      users.filter(
+        (item) =>
+          (!selectedDepartment || item.department === selectedDepartment) &&
+          (!selectedBranchId || item.branchId === selectedBranchId),
+      ),
+    [selectedBranchId, selectedDepartment, users],
+  );
+
+  const formBranchUsers = useMemo(
+    () => users.filter((item) => item.branchId === formBranchId),
+    [formBranchId, users],
   );
 
   useEffect(() => {
@@ -1133,6 +1170,7 @@ const KPIScoreboardPage: React.FC = () => {
 
   const resetForm = () => {
     setFormUserId("");
+    setFormBranchId("");
     setFrequency("MONTHLY");
     setTotalWeight("100");
     setRows([emptyRow()]);
@@ -1178,6 +1216,7 @@ const KPIScoreboardPage: React.FC = () => {
     try {
       const res = await api.post("/kpi/scorecards", {
         userId: Number(formUser.id),
+        branchId: Number(formBranchId),
         frequency,
         totalWeight,
         year: currentYear,
@@ -1472,7 +1511,19 @@ const KPIScoreboardPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(210px,300px)_minmax(280px,1fr)_180px_200px] lg:gap-5">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(180px,240px)_minmax(210px,300px)_minmax(250px,1fr)_180px_200px] lg:gap-5">
+          <SelectField
+            label="Branch"
+            value={selectedBranchId}
+            onChange={setSelectedBranchId}
+          >
+            <option value="">All branches</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </SelectField>
           <SelectField
             label="Department"
             value={selectedDepartment}
@@ -1536,6 +1587,11 @@ const KPIScoreboardPage: React.FC = () => {
                       <p className="font-semibold text-slate-950">
                         {scorecard.userName}
                       </p>
+                      {scorecard.branchName ? (
+                        <p className="mt-1 text-sm font-medium text-teal-700">
+                          {scorecard.branchName}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-sm text-slate-500">
                         {
                           MONTH_OPTIONS.find(
@@ -1695,7 +1751,7 @@ const KPIScoreboardPage: React.FC = () => {
                                       )
                                     }
                                   />
-                                  <TableCell className="bg-slate-50 text-center font-medium text-slate-700">
+                                  <TableCell className={`text-center font-semibold ${achievementTone(displayRow)}`}>
                                     {formatNumber(calculateKpiScore(displayRow))}
                                   </TableCell>
                                   {listOptionalColumns.definition ? (
@@ -1750,7 +1806,7 @@ const KPIScoreboardPage: React.FC = () => {
                                       ? formatDisplayValue(row.achievement)
                                       : "-"}
                                   </TableCell>
-                                  <TableCell className="text-center font-medium">
+                                  <TableCell className={`text-center font-semibold ${achievementTone(row)}`}>
                                     {formatNumber(calculateKpiScore(row))}
                                   </TableCell>
                                   {listOptionalColumns.definition ? (
@@ -1878,14 +1934,29 @@ const KPIScoreboardPage: React.FC = () => {
                   Create Scorecard
                 </h2>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_220px_220px_220px] xl:gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_220px_220px_220px] xl:gap-5">
+                  <SelectField
+                    label="Branch"
+                    value={formBranchId}
+                    onChange={(value) => {
+                      setFormBranchId(value);
+                      setFormUserId("");
+                    }}
+                    placeholder="Select Branch"
+                  >
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </SelectField>
                   <SelectField
                     label="Person Name"
                     value={formUserId}
                     onChange={setFormUserId}
-                    placeholder="Select User"
+                    placeholder={formBranchId ? "Select User" : "Select branch first"}
                   >
-                    {users.map((scorecardUser) => (
+                    {formBranchUsers.map((scorecardUser) => (
                       <option key={scorecardUser.id} value={scorecardUser.id}>
                         {scorecardUser.label}
                       </option>
@@ -2071,7 +2142,7 @@ const KPIScoreboardPage: React.FC = () => {
                                 )
                               }
                             />
-                            <TableCell className="bg-slate-50 text-center font-medium text-slate-700">
+                            <TableCell className={`text-center font-semibold ${achievementTone(row)}`}>
                               {formatNumber(calculateKpiScore(row))}
                             </TableCell>
                             {optionalColumns.definition ? (
@@ -2166,7 +2237,7 @@ const KPIScoreboardPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={!formUser || savingScorecard}
+                    disabled={!formUser || !formBranchId || savingScorecard}
                     className="w-full rounded-xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
                     {savingScorecard ? "Creating..." : "Create Scorecard"}

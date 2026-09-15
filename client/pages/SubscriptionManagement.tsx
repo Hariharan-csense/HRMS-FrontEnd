@@ -354,7 +354,12 @@ const SubscriptionManagement: React.FC = () => {
       // });
 
       setPlans(plansRes.data?.data || []);
-      setAddons(addonsRes.data?.data || []);
+      setAddons(
+        (addonsRes.data?.data || []).filter(
+          (addon: SubscriptionAddon) =>
+            String(addon.module_key || "").toLowerCase() !== "kpi",
+        ),
+      );
       if (!selectedPlan && (plansRes.data?.data || []).length > 0) {
         setSelectedPlan((plansRes.data?.data || [])[0]);
       }

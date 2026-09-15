@@ -3363,7 +3363,7 @@ export default function ExpenseClaims() {
           if (!open) closePreview();
         }}
       >
-        <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent closeOnEscape className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">Preview</DialogTitle>
             <DialogDescription className="text-xs sm:text-sm truncate">
@@ -3413,7 +3413,7 @@ export default function ExpenseClaims() {
           }
         }}
       >
-        <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent closeOnEscape className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
               Draft Attachments
