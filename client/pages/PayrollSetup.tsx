@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 ﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -1773,6 +1774,31 @@ export default function PayrollSetup() {
     };
   };
 
+  const saveInlineSalary = async (structure: SalaryStructure, field: string, value: number) => {
+    const state = recalculatePfEsiFromState({ ...structure, [field]: value });
+    const payload = {
+      ...state,
+      gross: calculateGross(state.gross || 0, state.basic || 0, state.hra || 0, state.lta || 0, state.allowances || 0, state.incentives || 0),
+      employee_id: state.employeeId,
+      other_deductions: state.otherDeductions,
+      tds_percentage: toNumber(state.tds),
+      pf_enabled: Boolean(state.pfEnabled),
+      esi_enabled: Boolean(state.esiEnabled),
+      pf_percentage: toNumber(state.pfPercentage),
+      esi_percentage: toNumber(state.esiPercentage),
+    };
+    await saveInline(
+      /^\d+$/.test(String(structure.id))
+        ? payrollApi.updateSalaryStructure(structure.id, payload)
+        : payrollApi.createSalaryStructure(payload),
+      async () => {
+        const result = await payrollApi.getSalaryStructures();
+        if (result.error) throw new Error(result.error);
+        if (result.data) setSalaryStructures(result.data);
+      },
+    );
+  };
+
   const handleSave = async () => {
     // console.log("handleSave called");
     // console.log("formData:", formData);
@@ -2547,13 +2573,13 @@ export default function PayrollSetup() {
                             <div className="flex justify-between">
                               <span className="text-slate-600">Basic:</span>
                               <span className="font-semibold text-slate-900">
-                                ₹{struct.basic.toLocaleString()}
+                                ₹<InlineEdit value={struct.basic} label="basic" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "basic", Number(value))} />
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-600">HRA:</span>
                               <span className="font-semibold text-slate-900">
-                                ₹{struct.hra.toLocaleString()}
+                                ₹<InlineEdit value={struct.hra} label="hra" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "hra", Number(value))} />
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -2561,7 +2587,7 @@ export default function PayrollSetup() {
                                 Allowances:
                               </span>
                               <span className="font-semibold text-slate-900">
-                                ₹{struct.allowances.toLocaleString()}
+                                ₹<InlineEdit value={struct.allowances} label="allowances" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "allowances", Number(value))} />
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -2569,7 +2595,7 @@ export default function PayrollSetup() {
                                 Incentives:
                               </span>
                               <span className="font-semibold text-slate-900">
-                                ₹{struct.incentives.toLocaleString()}
+                                ₹<InlineEdit value={struct.incentives} label="incentives" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "incentives", Number(value))} />
                               </span>
                             </div>
                             <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between bg-blue-50 -mx-4 px-4 py-2">
@@ -2577,7 +2603,7 @@ export default function PayrollSetup() {
                                 Gross:
                               </span>
                               <span className="font-bold text-slate-900">
-                                ₹{struct.gross.toLocaleString()}
+                                ₹<InlineEdit value={struct.gross} label="gross" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "gross", Number(value))} />
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -2655,19 +2681,19 @@ export default function PayrollSetup() {
                                 {struct.employeeName}
                               </td>
                               <td className="px-4 py-4 text-slate-700 text-right">
-                                ₹{struct.basic.toLocaleString()}
+                                ₹<InlineEdit value={struct.basic} label="basic" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "basic", Number(value))} />
                               </td>
                               <td className="px-4 py-4 text-slate-700 text-right">
-                                ₹{struct.hra.toLocaleString()}
+                                ₹<InlineEdit value={struct.hra} label="hra" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "hra", Number(value))} />
                               </td>
                               <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">
-                                ₹{struct.allowances.toLocaleString()}
+                                ₹<InlineEdit value={struct.allowances} label="allowances" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "allowances", Number(value))} />
                               </td>
                               <td className="hidden lg:table-cell px-4 py-4 text-slate-700 text-right">
-                                ₹{struct.incentives.toLocaleString()}
+                                ₹<InlineEdit value={struct.incentives} label="incentives" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "incentives", Number(value))} />
                               </td>
                               <td className="px-4 py-4 text-slate-900 text-right font-bold bg-blue-100">
-                                ₹{struct.gross.toLocaleString()}
+                                ₹<InlineEdit value={struct.gross} label="gross" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "gross", Number(value))} />
                               </td>
                               <td className="px-4 py-4 text-slate-700 text-right">
                                 ₹{tdsAmount.toLocaleString()}

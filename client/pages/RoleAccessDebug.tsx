@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -689,7 +690,7 @@ export default function RoleAccessDebug() {
                       <Crown className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div>
-                      <div className="font-black text-lg sm:text-xl text-slate-900 truncate max-w-[200px] sm:max-w-none">{role.name}</div>
+                      <div className="font-black text-lg sm:text-xl text-slate-900 truncate max-w-[200px] sm:max-w-none"><InlineEdit value={role.name} label="name" module="role_access"  type="text" required   onSave={(value) => saveInline(roleApi.updateRole(role.id || role.role_id || "", { name: String(value).trim(), modules: serializeModulesForSave(normalizeRoleModules(role.modules, catalog)) } as any), bootstrap)} /></div>
                       {role.role_id && <Badge className="bg-slate-100 text-slate-700 border border-slate-300 font-medium mt-1 text-xs sm:text-sm">{role.role_id}</Badge>}
                     </div>
                   </div>

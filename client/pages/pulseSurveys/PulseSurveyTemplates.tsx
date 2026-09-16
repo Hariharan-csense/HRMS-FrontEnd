@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -357,7 +358,7 @@ const PulseSurveyTemplates: React.FC = () => {
                                 <FileText className="h-5 w-5 text-emerald-600" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h3 className="break-words text-base font-bold text-gray-900 sm:text-lg">{t.name}</h3>
+                                <h3 className="break-words text-base font-bold text-gray-900 sm:text-lg"><InlineEdit value={t.name} label="name" module="pulse_surveys" submodule="templates" type="text" required  disabled={!isAdmin} onSave={(value) => saveInline(ENDPOINTS.updatePulseSurveyTemplate(t.id, { ...t, name: String(value) }), fetchRows)} /></h3>
                                 <div className="flex flex-wrap items-center gap-2 mt-2">
                                   <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-0">
                                     <Tag className="h-3 w-3 mr-1" />
@@ -380,14 +381,14 @@ const PulseSurveyTemplates: React.FC = () => {
 
                             <div className="bg-white rounded-lg p-4 shadow-sm border border-emerald-100 mb-4">
                               <p className="text-sm font-medium text-gray-700 mb-1">Survey Title:</p>
-                              <p className="break-words text-gray-900">{t.title}</p>
+                              <p className="break-words text-gray-900"><InlineEdit value={t.title} label="title" module="pulse_surveys" submodule="templates" type="text" required  disabled={!isAdmin} onSave={(value) => saveInline(ENDPOINTS.updatePulseSurveyTemplate(t.id, { ...t, title: String(value) }), fetchRows)} /></p>
                             </div>
 
                             {t.message ? (
                               <div className="bg-white rounded-lg p-4 shadow-sm border border-emerald-100 mb-4">
                                 <p className="text-sm font-medium text-gray-700 mb-2">Message Template:</p>
                                 <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap line-clamp-3">
-                                  {t.message}
+                                  <InlineEdit value={t.message} label="message" module="pulse_surveys" submodule="templates" type="text"   disabled={!isAdmin} onSave={(value) => saveInline(ENDPOINTS.updatePulseSurveyTemplate(t.id, { ...t, message: String(value) }), fetchRows)} />
                                 </p>
                               </div>
                             ) : null}

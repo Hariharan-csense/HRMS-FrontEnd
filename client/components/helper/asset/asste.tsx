@@ -50,6 +50,7 @@ export interface CreateAssetData {
 }
 
 export interface UpdateAssetData {
+  serial_number?: string;
   name?: string;
   type?: string;
   serial?: string;

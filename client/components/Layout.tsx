@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import ENDPOINTS from "@/lib/endpoint";
 import attendanceApi from "@/components/helper/attendance/attendance";
-import { cn } from "@/lib/utils";
 import AIAssistantChat from "@/components/AIAssistantChat";
 
 interface LayoutProps {
@@ -22,10 +21,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const liveWatchIdRef = useRef<number | null>(null);
   const lastSentAtRef = useRef<number>(0);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("hrms.sidebar.collapsed") === "true";
-  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -179,28 +174,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return null;
   }
 
-  const toggleSidebarCollapsed = () => {
-    setIsSidebarCollapsed((current) => {
-      const next = !current;
-      window.localStorage.setItem("hrms.sidebar.collapsed", String(next));
-      return next;
-    });
-  };
-
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Sidebar - part of flex layout */}
-      <div
-        className={cn(
-          "hidden lg:block lg:flex-shrink-0 transition-[width] duration-300 ease-in-out",
-          isSidebarCollapsed ? "lg:w-20" : "lg:w-64",
-        )}
-      >
-        <Sidebar
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={toggleSidebarCollapsed}
-        />
-      </div>
+    <div className="flex h-dvh bg-background overflow-hidden">
       
       {/* Mobile Sidebar - overlay */}
       <div className="lg:hidden fixed top-0 left-0 h-full z-30">
@@ -210,12 +185,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content - takes remaining space */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar - fixed at top */}
-        <div className="w-full z-20">
+        <div className="w-full z-20 shrink-0">
           <Topbar />
+          <div className="hidden lg:block">
+            <Sidebar horizontal />
+          </div>
         </div>
 
         {/* Page Content - responsive padding */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto pt-16 bg-background sm:pt-20">
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-background">
           <div className="min-h-full w-full min-w-0 p-3 sm:p-5 lg:p-6">
             {children}
           </div>

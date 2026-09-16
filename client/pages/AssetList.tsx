@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -530,8 +531,8 @@ export default function AssetList() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="font-mono text-xs text-slate-500">{assetIdOf(asset)}</p>
-                            <h3 className="mt-1 truncate text-base font-semibold text-slate-950">{asset.name}</h3>
-                            <p className="mt-1 font-mono text-xs text-slate-500">{asset.serial || "-"}</p>
+                            <h3 className="mt-1 truncate text-base font-semibold text-slate-950"><InlineEdit value={asset.name} label="name" module="assets" submodule="list" type="text" required   onSave={(value) => saveInline(assetApi.updateAsset(asset.id, { ...{ name: asset.name, type: asset.type.toUpperCase(), serial_number: asset.serial, status: asset.status.toUpperCase(), location: asset.location || null, value: asset.value || null, description: asset.description || null, issue_date: asset.issueDate || null, assigned_employee_id: asset.assignedEmployee || null }, name: String(value) }), async () => { const result = await assetApi.getAssets(); if (result.error) throw new Error(result.error); if (result.data) setAssets(result.data as unknown as Asset[]); })} /></h3>
+                            <p className="mt-1 font-mono text-xs text-slate-500"><InlineEdit value={asset.serial} label="serial" module="assets" submodule="list" type="text" required   onSave={(value) => saveInline(assetApi.updateAsset(asset.id, { ...{ name: asset.name, type: asset.type.toUpperCase(), serial_number: asset.serial, status: asset.status.toUpperCase(), location: asset.location || null, value: asset.value || null, description: asset.description || null, issue_date: asset.issueDate || null, assigned_employee_id: asset.assignedEmployee || null }, serial_number: String(value) }), async () => { const result = await assetApi.getAssets(); if (result.error) throw new Error(result.error); if (result.data) setAssets(result.data as unknown as Asset[]); })} /></p>
                           </div>
                           <div className="flex gap-1">
                             <button onClick={() => handleOpenDialog(asset)} className="rounded-lg p-2 text-[#11966f] hover:bg-[#e9fbf5]" title="Edit">
@@ -587,13 +588,13 @@ export default function AssetList() {
                         {filteredAssets.map((asset) => (
                           <tr key={asset.id} className="border-b border-slate-100 transition-colors hover:bg-[#e9fbf5]/60">
                             <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{assetIdOf(asset)}</td>
-                            <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-950">{asset.name}</td>
+                            <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-950"><InlineEdit value={asset.name} label="name" module="assets" submodule="list" type="text" required   onSave={(value) => saveInline(assetApi.updateAsset(asset.id, { ...{ name: asset.name, type: asset.type.toUpperCase(), serial_number: asset.serial, status: asset.status.toUpperCase(), location: asset.location || null, value: asset.value || null, description: asset.description || null, issue_date: asset.issueDate || null, assigned_employee_id: asset.assignedEmployee || null }, name: String(value) }), async () => { const result = await assetApi.getAssets(); if (result.error) throw new Error(result.error); if (result.data) setAssets(result.data as unknown as Asset[]); })} /></td>
                             <td className="whitespace-nowrap px-4 py-3">
                               <span className="inline-block rounded border border-[#17c491]/20 bg-[#e9fbf5] px-2 py-1 text-xs font-medium text-[#11966f]">
                                 {getAssetTypeLabel(asset.type)}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600">{asset.serial || "-"}</td>
+                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600"><InlineEdit value={asset.serial} label="serial" module="assets" submodule="list" type="text" required   onSave={(value) => saveInline(assetApi.updateAsset(asset.id, { ...{ name: asset.name, type: asset.type.toUpperCase(), serial_number: asset.serial, status: asset.status.toUpperCase(), location: asset.location || null, value: asset.value || null, description: asset.description || null, issue_date: asset.issueDate || null, assigned_employee_id: asset.assignedEmployee || null }, serial_number: String(value) }), async () => { const result = await assetApi.getAssets(); if (result.error) throw new Error(result.error); if (result.data) setAssets(result.data as unknown as Asset[]); })} /></td>
                             <td className="max-w-xs truncate px-4 py-3 text-slate-700">{getAssignedEmployeeLabel(asset)}</td>
                             <td className="whitespace-nowrap px-4 py-3 text-center">
                               <span className={`inline-block rounded border px-2 py-1 text-xs ${statusBadgeClass(asset.status)}`}>

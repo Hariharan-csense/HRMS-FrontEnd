@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from "@/components/Layout";
 import {
@@ -557,7 +558,7 @@ const RoleManagement: React.FC = () => {
                   {roles.map((role) => (
                     <TableRow key={role.id} className="hover:bg-gray-50">
                       <TableCell className="font-mono text-sm font-medium">{role.role_id}</TableCell>
-                      <TableCell className="font-medium">{role.name}</TableCell>
+                      <TableCell className="font-medium"><InlineEdit value={role.name} label="name" module="role_access"  type="text" required  disabled={!canEditRole} onSave={(value) => saveInline(roleApi.updateRole(role.id, { name: String(value).trim(), modules: role.modules }), fetchRoles)} /></TableCell>
                       <TableCell>
                         <div className="flex justify-center">
                           <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">

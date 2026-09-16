@@ -105,9 +105,9 @@ const TrialExpirationModal: React.FC<TrialExpirationModalProps> = ({
                 <AlertTriangle className="h-8 w-8" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">Your Free Trial Has Ended</h1>
+                <h1 className="text-2xl font-bold">Subscribe to Continue</h1>
                 <p className="text-red-100">
-                  {trialEndDate ? `Trial ended on ${new Date(trialEndDate).toLocaleDateString()}` : 'Trial period has expired'}
+                  An active subscription is required. Choose a plan to continue using HRMS.
                 </p>
               </div>
             </div>

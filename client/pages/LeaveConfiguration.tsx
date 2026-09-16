@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -302,8 +303,8 @@ export default function LeaveConfiguration() {
                     <tbody>
                       {filteredHolidays.map((holiday) => (
                         <tr key={holiday.id} className="border-b border-border last:border-0 hover:bg-slate-50/80">
-                          <td className="px-4 py-3 font-semibold text-slate-900">{holiday.name}</td>
-                          <td className="px-4 py-3 text-slate-700">{holiday.date}</td>
+                          <td className="px-4 py-3 font-semibold text-slate-900"><InlineEdit value={holiday.name} label="name" module="leave" submodule="config" type="text" required   onSave={(value) => saveInline(holidayApi.updateHoliday(holiday.id, { ...holiday, name: String(value) }), () => setHolidays((rows) => rows.map((row) => row.id === holiday.id ? { ...row, name: String(value) } : row)))} /></td>
+                          <td className="px-4 py-3 text-slate-700"><InlineEdit value={holiday.date} label="date" module="leave" submodule="config" type="date" required   onSave={(value) => saveInline(holidayApi.updateHoliday(holiday.id, { ...holiday, date: String(value) }), () => setHolidays((rows) => rows.map((row) => row.id === holiday.id ? { ...row, date: String(value) } : row)))} /></td>
                           <td className="px-4 py-3">
                             <span
                               className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
@@ -317,7 +318,7 @@ export default function LeaveConfiguration() {
                               {holiday.type.charAt(0).toUpperCase() + holiday.type.slice(1)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-700">{holiday.description || "-"}</td>
+                          <td className="px-4 py-3 text-slate-700"><InlineEdit value={holiday.description} label="description" module="leave" submodule="config" type="text"    onSave={(value) => saveInline(holidayApi.updateHoliday(holiday.id, { ...holiday, description: String(value) }), () => setHolidays((rows) => rows.map((row) => row.id === holiday.id ? { ...row, description: String(value) } : row)))} /></td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
@@ -409,8 +410,8 @@ export default function LeaveConfiguration() {
                     <div key={policy.id} className="border rounded-lg bg-white p-4 shadow-sm transition-colors hover:bg-slate-50/80">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <h3 className="font-semibold text-slate-900">{policy.name}</h3>
-                          <p className="text-sm text-muted-foreground">{policy.description}</p>
+                          <h3 className="font-semibold text-slate-900"><InlineEdit value={policy.name} label="name" module="leave" submodule="config" type="text" required   onSave={(value) => saveInline(leavePolicyApi.updateLeavePolicy(policy.id, { ...policy, name: String(value) }), () => setLeavePolicies((rows) => rows.map((row) => row.id === policy.id ? { ...row, name: String(value) } : row)))} /></h3>
+                          <p className="text-sm text-muted-foreground"><InlineEdit value={policy.description} label="description" module="leave" submodule="config" type="text"    onSave={(value) => saveInline(leavePolicyApi.updateLeavePolicy(policy.id, { ...policy, description: String(value) }), () => setLeavePolicies((rows) => rows.map((row) => row.id === policy.id ? { ...row, description: String(value) } : row)))} /></p>
                         </div>
                         <span
                           className={`text-xs px-2.5 py-1 rounded-full font-semibold ${

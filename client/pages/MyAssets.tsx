@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -404,13 +405,13 @@ export default function MyAssets() {
                         {filteredAssets.map((asset) => (
                           <tr key={asset.id} className="border-b border-slate-100 transition-colors hover:bg-[#e9fbf5]/60">
                             <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{asset.id}</td>
-                            <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-950">{asset.name}</td>
+                            <td className="max-w-xs truncate px-4 py-3 font-medium text-slate-950"><InlineEdit value={asset.name} label="name" module="assets" submodule="list" type="text" required   onSave={async (value) => { setAssets((rows) => rows.map((row) => row.id === asset.id ? { ...row, name: String(value) } : row)); }} /></td>
                             <td className="whitespace-nowrap px-4 py-3">
                               <span className="inline-block rounded border border-[#17c491]/20 bg-[#e9fbf5] px-2 py-1 text-xs font-medium text-[#11966f]">
                                 {getCategoryLabel(asset.category)}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600">{asset.serialNumber}</td>
+                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-600"><InlineEdit value={asset.serialNumber} label="serial Number" module="assets" submodule="list" type="text"    onSave={async (value) => { setAssets((rows) => rows.map((row) => row.id === asset.id ? { ...row, serialNumber: String(value) } : row)); }} /></td>
                             <td className="whitespace-nowrap px-4 py-3 text-slate-700">{asset.assignedTo}</td>
                             <td className="whitespace-nowrap px-4 py-3 text-center">
                               <span className={`inline-block rounded border px-2 py-1 text-xs ${getStatusBadgeClass(asset.status)}`}>
@@ -418,7 +419,7 @@ export default function MyAssets() {
                               </span>
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-950">
-                              Rs. {asset.value.toLocaleString()}
+                              Rs. <InlineEdit value={asset.value} label="value" module="assets" submodule="list" type="number"  min={0}  onSave={async (value) => { setAssets((rows) => rows.map((row) => row.id === asset.id ? { ...row, value: Number(value) } : row)); }} />
                             </td>
                             {isAdmin && (
                               <td className="px-4 py-3 text-center">
@@ -444,8 +445,8 @@ export default function MyAssets() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="font-mono text-xs text-slate-500">{asset.id}</p>
-                            <h3 className="mt-1 truncate text-base font-semibold text-slate-950">{asset.name}</h3>
-                            <p className="mt-1 font-mono text-xs text-slate-500">{asset.serialNumber}</p>
+                            <h3 className="mt-1 truncate text-base font-semibold text-slate-950"><InlineEdit value={asset.name} label="name" module="assets" submodule="list" type="text" required   onSave={async (value) => { setAssets((rows) => rows.map((row) => row.id === asset.id ? { ...row, name: String(value) } : row)); }} /></h3>
+                            <p className="mt-1 font-mono text-xs text-slate-500"><InlineEdit value={asset.serialNumber} label="serial Number" module="assets" submodule="list" type="text"    onSave={async (value) => { setAssets((rows) => rows.map((row) => row.id === asset.id ? { ...row, serialNumber: String(value) } : row)); }} /></p>
                           </div>
                           {isAdmin && (
                             <div className="flex gap-1">
@@ -476,7 +477,7 @@ export default function MyAssets() {
                           </div>
                           <div>
                             <p className="text-xs font-medium text-slate-500">Value</p>
-                            <p className="mt-1 font-semibold text-slate-950">Rs. {asset.value.toLocaleString()}</p>
+                            <p className="mt-1 font-semibold text-slate-950">Rs. <InlineEdit value={asset.value} label="value" module="assets" submodule="list" type="number"  min={0}  onSave={async (value) => { setAssets((rows) => rows.map((row) => row.id === asset.id ? { ...row, value: Number(value) } : row)); }} /></p>
                           </div>
                         </div>
                       </div>

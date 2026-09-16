@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import logo from "../assets/logo.png";
+import * as Dialog from "@radix-ui/react-dialog";
 
 const sidebarStyles = `
   .sidebar-nav-item {
@@ -133,7 +134,16 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Bot,
+  MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
@@ -151,6 +161,7 @@ type NavItem = {
 };
 
 interface SidebarProps {
+  horizontal?: boolean;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -858,6 +869,7 @@ const navigationItems: NavItem[] = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  horizontal = false,
   isCollapsed = false,
   onToggleCollapse,
 }) => {
@@ -887,7 +899,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       .slice(0, 1),
   );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setIsMobileOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+    setIsMoreOpen(
+      navigationItems.some(
+        (item) =>
+          ![
+            "dashboard",
+            "attendance",
+            "payroll",
+            "leave",
+            "role_access",
+            "expenses",
+          ].includes(item.moduleName || "") &&
+          [item.path, ...(item.submenu || []).map((child) => child.path)].some(
+            (path) =>
+              path &&
+              (location.pathname === path ||
+                location.pathname.startsWith(`${path}/`)),
+          ),
+      ),
+    );
+  }, [location.pathname]);
 
   // Keep the sidebar accordion aligned with the active route. Only one module
   // should be expanded at a time.
@@ -909,9 +954,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setExpandedItems((prev) => {
       if (activeItems.length === 0) return prev;
       const activeItem = activeItems[0];
-      return prev.length === 1 && prev[0] === activeItem
-        ? prev
-        : [activeItem];
+      return prev.length === 1 && prev[0] === activeItem ? prev : [activeItem];
     });
 
     // Restore page scroll position after navigation
@@ -956,7 +999,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
       }
     }, 100);
-  }, [location.pathname]);
+  }, [location.pathname, isMobileOpen]);
 
   // Debounced scroll persistence to prevent excessive updates
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -984,7 +1027,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, []);
+  }, [isMobileOpen]);
 
   if (!user) return null;
 
@@ -1337,6 +1380,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // });
   }
 
+  const primaryModules = [
+    "dashboard",
+    "attendance",
+    "payroll",
+    "leave",
+    "role_access",
+    "expenses",
+    "reports",
+  ];
+  const primaryItems = primaryModules.flatMap((moduleName) =>
+    filteredItems.filter((item) => item.moduleName === moduleName),
+  );
+  const moreItems = filteredItems.filter(
+    (item) => !primaryModules.includes(item.moduleName || ""),
+  );
+  const isNavigationActive = (item: NavItem): boolean =>
+    Boolean(
+      item.path &&
+      (location.pathname === item.path ||
+        location.pathname.startsWith(`${item.path}/`)),
+    ) || getVisibleSubmenu(item).some((child) => isNavigationActive(child));
+  const moreActive = moreItems.some(isNavigationActive);
+
   const NavItemComponent: React.FC<{ item: NavItem; level?: number }> = ({
     item,
     level = 0,
@@ -1410,7 +1476,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   to={subitem.path!}
                   onClick={persistScrollAndHandleNav}
                   className={cn(
-                    "sidebar-submenu-item flex items-center gap-3 px-3 py-2 text-xs rounded-md transition-all",
+                    "sidebar-submenu-item flex min-h-11 items-center gap-3 px-3 py-2 text-sm rounded-md transition-all",
                     isPathActive(subitem.path)
                       ? "active text-primary-foreground bg-primary/20 font-medium"
                       : "text-sidebar-foreground hover:text-primary",
@@ -1445,123 +1511,270 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   };
 
+  if (horizontal) {
+    const linkItem = (item: NavItem) => (
+      <DropdownMenuItem key={item.label} asChild>
+        <Link
+          to={item.path!}
+          aria-current={isNavigationActive(item) ? "page" : undefined}
+          className={cn(
+            "cursor-pointer gap-2",
+            isNavigationActive(item) &&
+              "bg-primary/10 text-primary font-medium",
+          )}
+        >
+          {item.label}
+        </Link>
+      </DropdownMenuItem>
+    );
+    const triggerClass = (active: boolean) =>
+      cn(
+        "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+          : "text-foreground",
+      );
+    return (
+      <nav
+        aria-label="Main navigation"
+        className="flex items-center gap-2 border-b bg-background px-4 py-2 xl:px-6"
+      >
+        <Link
+          to="/dashboard"
+          aria-label="HRMS dashboard"
+          className="mr-2 shrink-0"
+        >
+          <img src={logo} alt="HRMS" className="h-20 w-20 object-contain" />
+        </Link>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+          {primaryItems.map((item) =>
+            item.submenu?.length ? (
+              <DropdownMenu key={item.label}>
+                <DropdownMenuTrigger asChild>
+                  <button className={triggerClass(isNavigationActive(item))}>
+                    {item.icon}
+                    {item.moduleName === "attendance"
+                      ? "Attendance"
+                      : item.label}
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-60 max-h-[60vh] overflow-y-auto"
+                >
+                  {getVisibleSubmenu(item).map(linkItem)}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link
+                key={item.label}
+                to={item.path!}
+                aria-current={isNavigationActive(item) ? "page" : undefined}
+                className={triggerClass(isNavigationActive(item))}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            ),
+          )}
+          {moreItems.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className={triggerClass(moreActive)}>
+                  <MoreHorizontal className="h-5 w-5" />
+                  More
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-80 max-h-[65vh] overflow-y-auto"
+              >
+                {moreItems.map((item) =>
+                  item.submenu?.length ? (
+                    <DropdownMenuGroup
+                      key={item.label}
+                      className="border-b last:border-0 pb-1"
+                    >
+                      <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                        {item.icon}
+                        {item.label}
+                      </DropdownMenuLabel>
+                      {getVisibleSubmenu(item).map(linkItem)}
+                    </DropdownMenuGroup>
+                  ) : (
+                    linkItem(item)
+                  ),
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <>
       <style>{sidebarStyles}</style>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-40">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="sidebar-menu-toggle shadow-md bg-background/80 backdrop-blur-sm"
-        >
-          {isMobileOpen ? (
-            <X className="w-5 h-5" />
-          ) : (
-            <Menu className="w-5 h-5" />
-          )}
-        </Button>
-      </div>
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "h-screen bg-sidebar border-r border-sidebar-border flex flex-col shadow-lg",
-          "transition-[width,transform] duration-300 ease-in-out",
-          isCollapsed ? "w-20" : "w-64",
-          "lg:translate-x-0 lg:relative lg:z-0", // Desktop-ல எப்போதும் visible, relative positioning
-          "fixed top-0 left-0 z-30", // Mobile-ல fixed
-          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-        )}
-      >
-        {/* Logo */}
-        <div
-          className={cn(
-            "h-24 p-2 flex items-center justify-center border-b border-sidebar-border/50 transition-colors relative",
-            isCollapsed && "h-20",
-          )}
-        >
-          <Link
-            to="/dashboard"
-            className="flex items-center justify-center group"
-            title={isCollapsed ? "Dashboard" : undefined}
-          >
-            <div
-              className={cn(
-                "w-28 h-28 flex items-center justify-center overflow-hidden transition-all duration-300",
-                isCollapsed && "w-14 h-14",
-              )}
-            >
-              <img
-                src={logo}
-                alt="HRMS Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </Link>
-          {onToggleCollapse && (
+      <Dialog.Root open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+        {/* Mobile Menu Button */}
+        <div className="lg:hidden fixed top-3 sm:top-5 left-4 z-40">
+          <Dialog.Trigger asChild>
             <Button
-              type="button"
               variant="outline"
               size="icon"
-              onClick={onToggleCollapse}
-              className="hidden lg:flex absolute -right-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-background shadow-md"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label="Open navigation menu"
+              className="sidebar-menu-toggle h-11 w-11 shadow-md bg-background/80 backdrop-blur-sm"
             >
-              {isCollapsed ? (
-                <ChevronsRight className="w-4 h-4" />
+              {isMobileOpen ? (
+                <X className="w-5 h-5" />
               ) : (
-                <ChevronsLeft className="w-4 h-4" />
+                <Menu className="w-5 h-5" />
               )}
             </Button>
-          )}
+          </Dialog.Trigger>
         </div>
 
-        {/* Navigation Items */}
-        <nav
-          ref={navRef}
-          className={cn(
-            "flex-1 overflow-y-auto p-3 space-y-2",
-            isCollapsed && "px-2",
-          )}
-        >
-          {filteredItems.map((item) => (
-            <NavItemComponent key={item.label} item={item} />
-          ))}
-        </nav>
-
-        {/* User Section */}
-        <div
-          className={cn(
-            "sidebar-user-section p-4 border-t border-sidebar-border/50 space-y-2",
-            isCollapsed && "px-2",
-          )}
-        >
-          <button
-            onClick={async () => {
-              await logout();
-            }}
-            title={isCollapsed ? "Logout" : undefined}
+        {/* Sidebar */}
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" />
+          <Dialog.Content
+            aria-describedby={undefined}
             className={cn(
-              "sidebar-logout-btn w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive rounded-lg font-medium",
-              isCollapsed && "justify-center gap-0 px-0",
+              "h-dvh max-w-[calc(100vw-3rem)] bg-sidebar border-r border-sidebar-border flex flex-col shadow-lg outline-none",
+              "transition-[width,transform] duration-300 ease-in-out",
+              isCollapsed ? "w-20" : "w-64",
+              "lg:translate-x-0 lg:relative lg:z-0", // Desktop-ல எப்போதும் visible, relative positioning
+              "fixed top-0 left-0 z-[61]", // Mobile-ல fixed
+              isMobileOpen
+                ? "translate-x-0"
+                : "-translate-x-full lg:translate-x-0",
             )}
           >
-            <LogOut className="w-5 h-5" />
-            {!isCollapsed && <span>Logout</span>}
-          </button>
-        </div>
-      </aside>
+            <Dialog.Title className="sr-only">Navigation menu</Dialog.Title>
+            <Dialog.Close asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close navigation menu"
+                className="absolute right-2 top-2 z-10 h-11 w-11"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </Dialog.Close>
+            {/* Logo */}
+            <div
+              className={cn(
+                "h-24 shrink-0 p-2 flex items-center justify-center border-b border-sidebar-border/50 transition-colors relative",
+                isCollapsed && "h-20",
+              )}
+            >
+              <Link
+                to="/dashboard"
+                onClick={persistScrollAndHandleNav}
+                className="flex items-center justify-center group"
+                title={isCollapsed ? "Dashboard" : undefined}
+              >
+                <div
+                  className={cn(
+                    "w-28 h-28 flex items-center justify-center overflow-hidden transition-all duration-300",
+                    isCollapsed && "w-14 h-14",
+                  )}
+                >
+                  <img
+                    src={logo}
+                    alt="HRMS Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </Link>
+              {onToggleCollapse && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={onToggleCollapse}
+                  className="hidden lg:flex absolute -right-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-background shadow-md"
+                  title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  aria-label={
+                    isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                  }
+                >
+                  {isCollapsed ? (
+                    <ChevronsRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronsLeft className="w-4 h-4" />
+                  )}
+                </Button>
+              )}
+            </div>
 
-      {/* Mobile Overlay */}
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden backdrop-blur-sm"
-          onClick={() => setIsMobileOpen(false)}
-        />
-      )}
+            {/* Navigation Items */}
+            <nav
+              ref={navRef}
+              aria-label="Main navigation"
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 space-y-2",
+                isCollapsed && "px-2",
+              )}
+            >
+              {primaryItems.map((item) => (
+                <NavItemComponent key={item.label} item={item} />
+              ))}
+              {moreItems.length > 0 && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    aria-expanded={isMoreOpen}
+                    onClick={() => setIsMoreOpen((open) => !open)}
+                    className={cn(
+                      "sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium",
+                      moreActive && "active",
+                    )}
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                    <span className="flex-1 text-left">More</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform",
+                        isMoreOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  {isMoreOpen &&
+                    moreItems.map((item) => (
+                      <NavItemComponent key={item.label} item={item} />
+                    ))}
+                </div>
+              )}
+            </nav>
+
+            {/* User Section */}
+            <div
+              className={cn(
+                "sidebar-user-section shrink-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-sidebar-border/50 space-y-2",
+                isCollapsed && "px-2",
+              )}
+            >
+              <button
+                onClick={async () => {
+                  await logout();
+                }}
+                title={isCollapsed ? "Logout" : undefined}
+                className={cn(
+                  "sidebar-logout-btn w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive rounded-lg font-medium",
+                  isCollapsed && "justify-center gap-0 px-0",
+                )}
+              >
+                <LogOut className="w-5 h-5" />
+                {!isCollapsed && <span>Logout</span>}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 };

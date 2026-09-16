@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -979,7 +980,7 @@ export default function OrganizationSetup() {
                                     <Building2 className="w-4 h-4 text-[#17c491]" />
                                   </div>
                                   <h3 className="font-bold text-base text-gray-900">
-                                    {branch.name}
+                                    <InlineEdit value={branch.name} label="name" module="organization" submodule="branches" type="text" required   onSave={(value) => saveInline(branchApi.updateBranch(branch.id, { ...branch, name: String(value) }), fetchBranches)} />
                                   </h3>
                                 </div>
                               </div>
@@ -1004,7 +1005,7 @@ export default function OrganizationSetup() {
                                   Address
                                 </span>
                                 <span className="font-medium text-gray-900 text-right ml-2">
-                                  {branch.address}
+                                  <InlineEdit value={branch.address} label="address" module="organization" submodule="branches" type="text"    onSave={(value) => saveInline(branchApi.updateBranch(branch.id, { ...branch, address: String(value) }), fetchBranches)} />
                                 </span>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
@@ -1021,7 +1022,7 @@ export default function OrganizationSetup() {
                                     Radius
                                   </span>
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                                    {branch.radius} m
+                                    <InlineEdit value={branch.radius} label="radius" module="organization" submodule="branches" type="number"  min={0}  onSave={(value) => saveInline(branchApi.updateBranch(branch.id, { ...branch, radius: Number(value) }), fetchBranches)} /> m
                                   </span>
                                 </div>
                               </div>
@@ -1065,7 +1066,7 @@ export default function OrganizationSetup() {
                                         <Building2 className="w-4 h-4 text-[#17c491]" />
                                       </div>
                                       <span className="font-semibold text-gray-900">
-                                        {branch.name}
+                                        <InlineEdit value={branch.name} label="name" module="organization" submodule="branches" type="text" required   onSave={(value) => saveInline(branchApi.updateBranch(branch.id, { ...branch, name: String(value) }), fetchBranches)} />
                                       </span>
                                     </div>
                                   </td>
@@ -1073,7 +1074,7 @@ export default function OrganizationSetup() {
                                     className="px-6 py-4 text-gray-900 max-w-xs truncate"
                                     title={branch.address}
                                   >
-                                    {branch.address}
+                                    <InlineEdit value={branch.address} label="address" module="organization" submodule="branches" type="text"    onSave={(value) => saveInline(branchApi.updateBranch(branch.id, { ...branch, address: String(value) }), fetchBranches)} />
                                   </td>
                                   <td className="px-6 py-4">
                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#17c491]/10 text-[#17c491] font-mono">
@@ -1082,7 +1083,7 @@ export default function OrganizationSetup() {
                                   </td>
                                   <td className="px-6 py-4 text-center">
                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                                      {branch.radius} m
+                                      <InlineEdit value={branch.radius} label="radius" module="organization" submodule="branches" type="number"  min={0}  onSave={(value) => saveInline(branchApi.updateBranch(branch.id, { ...branch, radius: Number(value) }), fetchBranches)} /> m
                                     </span>
                                   </td>
                                   <td className="px-6 py-4">
@@ -1181,7 +1182,7 @@ export default function OrganizationSetup() {
                                     <Building2 className="w-4 h-4 text-[#17c491]" />
                                   </div>
                                   <h3 className="font-bold text-base text-gray-900">
-                                    {dept.name}
+                                    <InlineEdit value={dept.name} label="name" module="organization" submodule="departments" type="text" required   onSave={(value) => saveInline(departmentApi.updateDepartment(dept.id, { ...dept, name: String(value) }), fetchDepartments)} />
                                   </h3>
                                 </div>
                               </div>
@@ -1254,7 +1255,7 @@ export default function OrganizationSetup() {
                                         <Building2 className="w-4 h-4 text-[#17c491]" />
                                       </div>
                                       <span className="font-semibold text-gray-900">
-                                        {dept.name}
+                                        <InlineEdit value={dept.name} label="name" module="organization" submodule="departments" type="text" required   onSave={(value) => saveInline(departmentApi.updateDepartment(dept.id, { ...dept, name: String(value) }), fetchDepartments)} />
                                       </span>
                                     </div>
                                   </td>
@@ -1346,7 +1347,7 @@ export default function OrganizationSetup() {
                                 <Hash className="w-4 h-4 text-[#17c491]" />
                               </div>
                               <h3 className="font-bold text-base text-gray-900">
-                                {des.name}
+                                <InlineEdit value={des.name} label="name" module="organization" submodule="designations" type="text" required   onSave={(value) => saveInline(designationApi.updateDesignation(des.id, { name: String(value) }), fetchDesignations)} />
                               </h3>
                             </div>
                           </div>
@@ -1396,7 +1397,7 @@ export default function OrganizationSetup() {
                                     <Hash className="w-4 h-4 text-[#17c491]" />
                                   </div>
                                   <span className="font-semibold text-gray-900">
-                                    {des.name}
+                                    <InlineEdit value={des.name} label="name" module="organization" submodule="designations" type="text" required   onSave={(value) => saveInline(designationApi.updateDesignation(des.id, { name: String(value) }), fetchDesignations)} />
                                   </span>
                                 </div>
                               </td>

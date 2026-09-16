@@ -134,6 +134,7 @@ export default function AttendanceCapture() {
     address: string;
   } | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const attendanceRequestRef = useRef(0);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [pendingAttendance, setPendingAttendance] =
@@ -197,9 +198,11 @@ export default function AttendanceCapture() {
   // Fetch current attendance status
   const fetchAttendanceStatus = async () => {
     if (!user?.id) return;
+    const requestId = ++attendanceRequestRef.current;
 
     try {
       const statusResponse = await attendanceApi.getAttendanceStatus();
+      if (!mountedRef.current || requestId !== attendanceRequestRef.current) return;
       if (statusResponse.success) {
         const activeSessionFromRecords = Array.isArray(
           statusResponse.todayRecords,
@@ -344,6 +347,23 @@ export default function AttendanceCapture() {
       fetchAttendanceStatus();
     }
   }, [user?.id, user?.employee_id, user?.type]);
+
+  // Refresh when returning from another device/tab or an overnight session.
+  useEffect(() => {
+    if (!user?.id || isProcessing) return;
+    const refresh = () => {
+      if (!document.hidden) void fetchAttendanceStatus();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const timer = window.setInterval(refresh, 30000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      window.clearInterval(timer);
+      ++attendanceRequestRef.current;
+    };
+  }, [user?.id, user?.employee_id, isProcessing]);
 
   // Fetch live location history
   const fetchLiveLocations = async () => {
@@ -835,6 +855,7 @@ export default function AttendanceCapture() {
       };
 
       setTodayRecords((prev) => [record, ...prev]);
+      ++attendanceRequestRef.current;
       setIsCheckedIn(pendingAttendance.type === "check-in");
       if (pendingAttendance.type === "check-in") {
         setHasCheckedInToday(true);
@@ -869,7 +890,9 @@ export default function AttendanceCapture() {
         },
       );
 
-      if (
+      if (pendingAttendance.type === "check-in") {
+        navigate("/dashboard", { replace: true });
+      } else if (
         pendingAttendance.type === "check-out" &&
         apiResponse.data?.shouldPromptDailyPulse
       ) {

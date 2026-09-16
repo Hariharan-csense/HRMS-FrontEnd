@@ -2,6 +2,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
+
+/* Let cell editors remain visible inside compact table/card labels. */
+.truncate:has([data-inline-editing]),
+td:has([data-inline-editing]) {
+  overflow: visible;
+  white-space: normal;
+}
 @tailwind components;
 @tailwind utilities;
 

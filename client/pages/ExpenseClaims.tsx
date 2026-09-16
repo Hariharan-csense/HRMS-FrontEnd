@@ -87,6 +87,8 @@ interface ExpenseRow {
   } | null;
 }
 
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
+
 interface ExpenseClaim {
   id: string;
   employeeId: string;
@@ -1693,6 +1695,36 @@ export default function ExpenseClaims() {
     );
   };
 
+  const inlineClaimDetails = (expense: GroupedExpenseClaim) => {
+    if (expense.isDraft || !canEditClaim(expense)) return null;
+    return (
+      <details className="mt-2 text-xs font-normal">
+        <summary className="cursor-pointer py-2 text-primary">Claim details · double-tap a value to edit</summary>
+        <div className="space-y-3 py-2">
+          {expense.claims.map((claim) => {
+            const saveField = (field: string, value: string | number) => saveInline(
+              expenseApi.updateExpense(claim.id, {
+                ...claim,
+                expense_date: claim.date,
+                client_id: claim.clientId ? Number(claim.clientId) : null,
+                remove_receipt: false,
+                [field]: value,
+              }), refreshExpenses,
+            );
+            return (
+              <div key={claim.id} className="space-y-1 rounded border p-2">
+                <div className="font-medium">{claim.category}</div>
+                <InlineEdit label="Claim amount" value={claim.amount} type="number" min={0.01} required module="expenses" submodule="claims" disabled={["approved", "reimbursed"].includes(claim.status)} onSave={(value) => saveField("amount", Number(value))} />
+                <div><InlineEdit label="Claim description" value={claim.description} module="expenses" submodule="claims" disabled={["approved", "reimbursed"].includes(claim.status)} onSave={(value) => saveField("description", String(value))} /></div>
+                <div><InlineEdit label="Claim date" value={claim.date} type="date" required module="expenses" submodule="claims" disabled={["approved", "reimbursed"].includes(claim.status)} onSave={(value) => saveField("expense_date", String(value))} /></div>
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    );
+  };
+
   const canDeleteClaim = (expense: GroupedExpenseClaim) => {
     if (expense.isDraft) {
       return canClaimExpenses;
@@ -2268,9 +2300,9 @@ export default function ExpenseClaims() {
                             <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                               Amount
                             </span>
-                            <span className="mt-1 block font-bold text-slate-950">
-                              {formatClaimAmount(expense.totalAmount || 0)}
-                            </span>
+                            <div className="mt-1 block font-bold text-slate-950">
+                              {formatClaimAmount(expense.totalAmount || 0)}{inlineClaimDetails(expense)}
+                            </div>
                           </div>
                           <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
                             <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#0b6f53]">
@@ -2476,9 +2508,9 @@ export default function ExpenseClaims() {
                               </div>
                             </td>
                             <td className="px-5 py-4 text-right align-middle">
-                              <p className="whitespace-nowrap text-base font-bold text-slate-950">
-                                {formatClaimAmount(expense.totalAmount || 0)}
-                              </p>
+                              <div className="text-base font-bold text-slate-950">
+                                {formatClaimAmount(expense.totalAmount || 0)}{inlineClaimDetails(expense)}
+                              </div>
                             </td>
                             <td className="px-5 py-4 align-middle">
                               <span

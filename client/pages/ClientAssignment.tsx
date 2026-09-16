@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
@@ -480,7 +481,7 @@ export default function ClientAssignment() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <Building className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-lg">{client.client_name}</CardTitle>
+                    <CardTitle className="text-lg"><InlineEdit value={client.client_name} label="client name" module="client_attendance_admin"  type="text" required   onSave={(value) => saveInline(clientApi.updateClient(client.id, { ...client, client_name: String(value), assigned_employee_ids: client.assigned_employee_ids?.length ? client.assigned_employee_ids : client.assigned_to ? [client.assigned_to] : [] }), async () => { const result = await clientApi.getClients(); if (result.error) throw new Error(result.error); if (result.data) setClients(result.data); })} /></CardTitle>
                   </div>
                   <span
                     className={`text-xs px-2 py-1 rounded font-medium ${client.status === "active"
@@ -498,14 +499,14 @@ export default function ClientAssignment() {
                   {client.contact_person && (
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <span>{client.contact_person}</span>
+                      <span><InlineEdit value={client.contact_person} label="contact person" module="client_attendance_admin"  type="text"    onSave={(value) => saveInline(clientApi.updateClient(client.id, { ...client, contact_person: String(value), assigned_employee_ids: client.assigned_employee_ids?.length ? client.assigned_employee_ids : client.assigned_to ? [client.assigned_to] : [] }), async () => { const result = await clientApi.getClients(); if (result.error) throw new Error(result.error); if (result.data) setClients(result.data); })} /></span>
                     </div>
                   )}
 
                   {client.email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">{client.email}</span>
+                      <span className="text-muted-foreground"><InlineEdit value={client.email} label="email" module="client_attendance_admin"  type="email" required   onSave={(value) => saveInline(clientApi.updateClient(client.id, { ...client, email: String(value), assigned_employee_ids: client.assigned_employee_ids?.length ? client.assigned_employee_ids : client.assigned_to ? [client.assigned_to] : [] }), async () => { const result = await clientApi.getClients(); if (result.error) throw new Error(result.error); if (result.data) setClients(result.data); })} /></span>
                     </div>
                   )}
 

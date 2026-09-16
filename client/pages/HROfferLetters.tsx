@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -426,6 +427,23 @@ const HROfferLetters: React.FC = () => {
       default:
         return <FileText className="w-4 h-4" />;
     }
+  };
+
+  const saveOfferInline = async (offer: OfferLetter, field: string, value: string | number) => {
+    const next = { ...offer, [field]: value };
+    await saveInline(api.updateOfferLetter(offer.id, {
+      candidate_id: next.candidateId,
+      candidate_name: next.candidateName,
+      candidate_email: normalizeEmail(next.candidateEmail),
+      position: next.position,
+      department: next.department,
+      salary: next.salary,
+      start_date: next.startDate,
+      location: next.location,
+      employment_type: next.employmentType,
+      template: next.template,
+      custom_terms: next.customTerms,
+    }), () => setOfferLetters((rows) => rows.map((row) => row.id === offer.id ? next : row)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1033,16 +1051,16 @@ const HROfferLetters: React.FC = () => {
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1">
                             <h3 className="font-semibold text-gray-900 text-base">
-                              {offer.candidateName}
+                              <InlineEdit value={offer.candidateName} label="candidate Name" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "candidateName", value)} />
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {offer.candidateEmail}
+                              <InlineEdit value={offer.candidateEmail} label="candidate Email" module="hr_management" submodule="offer_letters" type="email"    onSave={(value) => saveOfferInline(offer, "candidateEmail", value)} />
                             </p>
                             <p className="text-sm text-gray-600 mt-1">
-                              {offer.position}
+                              <InlineEdit value={offer.position} label="position" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "position", value)} />
                             </p>
                             <p className="text-xs text-gray-500">
-                              {offer.department}
+                              <InlineEdit value={offer.department} label="department" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "department", value)} />
                             </p>
                           </div>
                           <Badge
@@ -1058,7 +1076,7 @@ const HROfferLetters: React.FC = () => {
                               Salary
                             </span>
                             <span className="text-sm text-gray-900 font-medium">
-                              {offer.salary}
+                              <InlineEdit value={offer.salary} label="salary" module="hr_management" submodule="offer_letters" type="number"  min={0}  onSave={(value) => saveOfferInline(offer, "salary", value)} />
                             </span>
                           </div>
 
@@ -1067,7 +1085,7 @@ const HROfferLetters: React.FC = () => {
                               Start Date
                             </span>
                             <span className="text-sm text-gray-900">
-                              {offer.startDate}
+                              <InlineEdit value={offer.startDate} label="start Date" module="hr_management" submodule="offer_letters" type="date"    onSave={(value) => saveOfferInline(offer, "startDate", value)} />
                             </span>
                           </div>
 
@@ -1164,29 +1182,29 @@ const HROfferLetters: React.FC = () => {
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                             <div>
                               <div className="font-semibold text-gray-900 text-sm">
-                                {offer.candidateName}
+                                <InlineEdit value={offer.candidateName} label="candidate Name" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "candidateName", value)} />
                               </div>
                               <div className="text-xs sm:text-sm text-gray-500 mt-1">
-                                {offer.candidateEmail}
+                                <InlineEdit value={offer.candidateEmail} label="candidate Email" module="hr_management" submodule="offer_letters" type="email"    onSave={(value) => saveOfferInline(offer, "candidateEmail", value)} />
                               </div>
                               <div className="text-xs text-gray-600 mt-1 sm:hidden">
-                                {offer.position}
+                                <InlineEdit value={offer.position} label="position" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "position", value)} />
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden sm:table-cell">
                             <div>
                               <div className="font-medium text-gray-900 text-sm">
-                                {offer.position}
+                                <InlineEdit value={offer.position} label="position" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "position", value)} />
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
-                                {offer.department}
+                                <InlineEdit value={offer.department} label="department" module="hr_management" submodule="offer_letters" type="text"    onSave={(value) => saveOfferInline(offer, "department", value)} />
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden md:table-cell">
                             <span className="text-sm text-gray-900 font-medium">
-                              {offer.salary}
+                              <InlineEdit value={offer.salary} label="salary" module="hr_management" submodule="offer_letters" type="number"  min={0}  onSave={(value) => saveOfferInline(offer, "salary", value)} />
                             </span>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden lg:table-cell">
@@ -1199,7 +1217,7 @@ const HROfferLetters: React.FC = () => {
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden lg:table-cell">
                             <span className="text-sm text-gray-600">
-                              {offer.startDate}
+                              <InlineEdit value={offer.startDate} label="start Date" module="hr_management" submodule="offer_letters" type="date"    onSave={(value) => saveOfferInline(offer, "startDate", value)} />
                             </span>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">

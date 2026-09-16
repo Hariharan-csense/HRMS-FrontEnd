@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -306,7 +307,7 @@ export default function ShiftManagement() {
               <Card key={shift.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{shift.name}</CardTitle>
+                    <CardTitle className="text-lg"><InlineEdit value={shift.name} label="name" module="attendance" submodule="shift" type="text" required   onSave={(value) => saveInline(shiftApi.updateShift(String(shift.id), { ...shift, name: String(value) }), () => setShifts((rows) => rows.map((row) => row.id === shift.id ? { ...row, name: String(value) } : row)))} /></CardTitle>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleOpenDialog(shift)}
@@ -337,7 +338,7 @@ export default function ShiftManagement() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <Label className="text-xs text-muted-foreground">Grace Period</Label>
-                      <div className="font-medium">{shift.gracePeriod ?? 0} mins</div>
+                      <div className="font-medium"><InlineEdit value={shift.gracePeriod} label="grace Period" module="attendance" submodule="shift" type="number"  min={0}  onSave={(value) => saveInline(shiftApi.updateShift(String(shift.id), { ...shift, gracePeriod: Number(value) }), () => setShifts((rows) => rows.map((row) => row.id === shift.id ? { ...row, gracePeriod: Number(value) } : row)))} /> mins</div>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Half Day Threshold</Label>

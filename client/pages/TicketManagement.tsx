@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import {
@@ -528,10 +529,10 @@ const TicketManagement: React.FC = () => {
                           </Badge>
                         </div>
                         <h3 className="font-semibold text-base sm:text-lg">
-                          {ticket.title}
+                          <InlineEdit value={ticket.title} label="title" module="tickets"  type="text" required   onSave={(value) => saveInline(ENDPOINTS.updateTicket(ticket.id, { title: ticket.title, description: ticket.description, category: ticket.category, status: ticket.status, assigned_to: ticket.assignedTo?.id || null, ...{ title: String(value) } }), fetchTickets)} />
                         </h3>
                         <p className="text-muted-foreground text-sm line-clamp-2">
-                          {ticket.description}
+                          <InlineEdit value={ticket.description} label="description" module="tickets"  type="text"    onSave={(value) => saveInline(ENDPOINTS.updateTicket(ticket.id, { title: ticket.title, description: ticket.description, category: ticket.category, status: ticket.status, assigned_to: ticket.assignedTo?.id || null, ...{ description: String(value) } }), fetchTickets)} />
                         </p>
                         {ticket.remarks && (
                           <div className="mt-2 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-md">
@@ -539,7 +540,7 @@ const TicketManagement: React.FC = () => {
                               Remarks:
                             </p>
                             <p className="text-xs sm:text-sm text-blue-700 line-clamp-2">
-                              {ticket.remarks}
+                              <InlineEdit value={ticket.remarks} label="remarks" module="tickets"  type="text"    onSave={(value) => saveInline(ENDPOINTS.updateTicket(ticket.id, { title: ticket.title, description: ticket.description, category: ticket.category, status: ticket.status, assigned_to: ticket.assignedTo?.id || null, ...{ remarks: String(value) } }), fetchTickets)} />
                             </p>
                           </div>
                         )}

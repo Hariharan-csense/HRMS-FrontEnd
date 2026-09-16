@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
@@ -2939,7 +2940,7 @@ export default function EmployeeList() {
                             className="px-3 py-3 text-xs truncate"
                             title={emp.email}
                           >
-                            {emp.email}
+                            <InlineEdit value={emp.email} label="email" module="employees" submodule="list" type="email" required  disabled={!canEditEmployee} onSave={(value) => { const data = new FormData(); data.append("email", String(value).trim().toLowerCase()); return saveInline(employeeApi.updateEmployee(String(emp.id), data), refreshEmployees); }} />
                           </td>
                           <td className="px-3 py-3 text-xs whitespace-nowrap">
                             {emp.department}
@@ -3034,7 +3035,7 @@ export default function EmployeeList() {
                                 {emp.firstName} {emp.lastName}
                               </h3>
                               <p className="text-xs text-muted-foreground truncate">
-                                {emp.email}
+                                <InlineEdit value={emp.email} label="email" module="employees" submodule="list" type="email" required  disabled={!canEditEmployee} onSave={(value) => { const data = new FormData(); data.append("email", String(value).trim().toLowerCase()); return saveInline(employeeApi.updateEmployee(String(emp.id), data), refreshEmployees); }} />
                               </p>
                             </div>
                           </div>

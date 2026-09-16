@@ -155,31 +155,31 @@ export const Topbar: React.FC = () => {
   };
 
   return (
-    <header className="h-16 sm:h-20 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 md:px-8 md:ml-64 fixed top-0 right-0 left-0 z-20">
+    <header className="h-16 sm:h-20 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 md:px-8 relative z-20">
       {/* Left Section - Dashboard Button */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 pl-12 lg:pl-0">
         <button
           onClick={() => navigate(dashboardPath)}
-          className={`flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg transition-colors ${
+          className={`flex min-w-0 min-h-11 items-center gap-2 px-2 sm:px-3 py-2 rounded-lg transition-colors ${
             location.pathname === dashboardPath
               ? "bg-teal-100 text-teal-700"
               : "hover:bg-muted text-muted-foreground hover:text-foreground"
           }`}
           title={location.pathname === dashboardPath ? "Overview" : "Go to Dashboard"}
         >
-          <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="hidden sm:inline text-sm font-medium">{currentPageTitle}</span>
+          <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+          <span className="hidden sm:inline truncate text-sm font-medium">{currentPageTitle}</span>
         </button>
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <ThemeToggle />
         {/* Notifications Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="relative p-2 hover:bg-muted rounded-lg transition-colors group"
+              className="relative min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-muted rounded-lg transition-colors group"
               title="Notifications"
             >
               <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -190,7 +190,7 @@ export const Topbar: React.FC = () => {
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[calc(100vw-1.5rem)] max-w-96">
+          <DropdownMenuContent align="end" className="w-[calc(100vw-1.5rem)] max-w-96 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
             <DropdownMenuLabel className="flex justify-between items-center">
               <span className="text-sm font-medium">Notifications</span>
               <div className="flex items-center gap-2">
@@ -240,7 +240,7 @@ export const Topbar: React.FC = () => {
                           {notification.timestamp}
                         </span>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         {!notification.read && (
                           <button
                             onClick={(e) => handleMarkAsRead(e, notification.id)}
@@ -274,14 +274,14 @@ export const Topbar: React.FC = () => {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 p-1 hover:bg-muted rounded-lg transition-colors">
+            <button aria-label="Open account menu" className="flex min-h-11 items-center gap-2 p-1 hover:bg-muted rounded-lg transition-colors">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
               </Avatar>
               <div className="hidden sm:flex flex-col items-start text-sm">
                 <span className="font-medium text-foreground truncate max-w-32">{user.name}</span>
-                <span className="text-xs text-muted-foreground capitalize">
+                <span className="max-w-32 truncate text-xs text-muted-foreground capitalize">
                   {user.roles?.[0] || "User"}
                 </span>
               </div>

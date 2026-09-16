@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -470,7 +471,7 @@ export default function ExitOffboarding() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Reason:</span>
                         <span className="text-xs text-right">
-                          {res.reason || "-"}
+                          <InlineEdit value={res.reason} label="reason" module="exit" submodule="resignations" type="text"    onSave={(value) => saveInline(resignationApi.updateResignation(res.id, { ...res, reason: String(value) }), () => setResignations((rows) => rows.map((row) => row.id === res.id ? { ...row, reason: String(value) } : row)))} />
                         </span>
                       </div>
                     </div>
@@ -536,7 +537,7 @@ export default function ExitOffboarding() {
                           {formatDate(res.lastWorkingDate)}
                         </td>
                         <td className="px-4 py-3 text-xs">
-                          {res.reason || "-"}
+                          <InlineEdit value={res.reason} label="reason" module="exit" submodule="resignations" type="text"    onSave={(value) => saveInline(resignationApi.updateResignation(res.id, { ...res, reason: String(value) }), () => setResignations((rows) => rows.map((row) => row.id === res.id ? { ...row, reason: String(value) } : row)))} />
                         </td>
                         <td className="px-4 py-3">
                           <span

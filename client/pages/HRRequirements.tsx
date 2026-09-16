@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 ﻿import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -459,8 +460,8 @@ const HRRequirements: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-base">{requirement.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{requirement.department}</p>
+                        <h3 className="font-semibold text-gray-900 text-base"><InlineEdit value={requirement.title} label="title" module="hr_management" submodule="requirements" type="text" required   onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, title: String(value) }), fetchJobRequirements)} /></h3>
+                        <p className="text-sm text-gray-600 mt-1"><InlineEdit value={requirement.department} label="department" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, department: String(value) }), fetchJobRequirements)} /></p>
                         <p className="text-xs text-gray-500 mt-1">{requirement.urgency}</p>
                       </div>
                       <Badge className={`${getStatusColor(requirement.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
@@ -471,17 +472,17 @@ const HRRequirements: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Location</span>
-                        <span className="text-sm text-gray-900">{requirement.location}</span>
+                        <span className="text-sm text-gray-900"><InlineEdit value={requirement.location} label="location" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, location: String(value) }), fetchJobRequirements)} /></span>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Experience</span>
-                        <span className="text-sm text-gray-900">{requirement.experience}</span>
+                        <span className="text-sm text-gray-900"><InlineEdit value={requirement.experience} label="experience" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, experience: String(value) }), fetchJobRequirements)} /></span>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Positions</span>
-                        <span className="text-sm text-gray-900">{requirement.filled_positions}/{requirement.positions}</span>
+                        <span className="text-sm text-gray-900">{requirement.filled_positions}/<InlineEdit value={requirement.positions} label="positions" module="hr_management" submodule="requirements" type="number" required min={1}  onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, positions: Number(value) }), fetchJobRequirements)} /></span>
                       </div>
                       
                       <div className="flex justify-between items-center">
@@ -531,25 +532,25 @@ const HRRequirements: React.FC = () => {
                     <TableRow key={requirement.id} className="hover:bg-gray-50 transition-colors">
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                         <div>
-                          <div className="font-semibold text-gray-900 text-sm">{requirement.title}</div>
+                          <div className="font-semibold text-gray-900 text-sm"><InlineEdit value={requirement.title} label="title" module="hr_management" submodule="requirements" type="text" required   onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, title: String(value) }), fetchJobRequirements)} /></div>
                           <div className="text-xs text-gray-500 mt-1">{requirement.urgency}</div>
-                          <div className="text-xs text-gray-600 mt-1 sm:hidden">{requirement.department}</div>
+                          <div className="text-xs text-gray-600 mt-1 sm:hidden"><InlineEdit value={requirement.department} label="department" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, department: String(value) }), fetchJobRequirements)} /></div>
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden sm:table-cell">
                         <div>
-                          <div className="font-medium text-gray-900 text-sm">{requirement.department}</div>
-                          <div className="text-sm text-gray-500 mt-1">{requirement.experience}</div>
+                          <div className="font-medium text-gray-900 text-sm"><InlineEdit value={requirement.department} label="department" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, department: String(value) }), fetchJobRequirements)} /></div>
+                          <div className="text-sm text-gray-500 mt-1"><InlineEdit value={requirement.experience} label="experience" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, experience: String(value) }), fetchJobRequirements)} /></div>
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden md:table-cell">
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-gray-500" />
-                          <span className="text-sm text-gray-600">{requirement.location}</span>
+                          <span className="text-sm text-gray-600"><InlineEdit value={requirement.location} label="location" module="hr_management" submodule="requirements" type="text"    onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, location: String(value) }), fetchJobRequirements)} /></span>
                         </div>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4 hidden lg:table-cell">
-                        <span className="text-sm text-gray-600">{requirement.filled_positions}/{requirement.positions}</span>
+                        <span className="text-sm text-gray-600">{requirement.filled_positions}/<InlineEdit value={requirement.positions} label="positions" module="hr_management" submodule="requirements" type="number" required min={1}  onSave={(value) => saveInline(ENDPOINTS.updateJobRequirement(requirement.id, { ...requirement, positions: Number(value) }), fetchJobRequirements)} /></span>
                       </TableCell>
                       <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                         <Badge className={`${getStatusColor(requirement.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>

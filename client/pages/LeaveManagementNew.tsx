@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -78,6 +79,7 @@ import {
 
 // Types
 interface LeaveType {
+  description?: string;
   id: string;
   name: string;
   isPaid: boolean;
@@ -662,7 +664,7 @@ export default function LeaveManagement() {
           // console.log("API Helper Item:", item);
           const mapped = {
             id: item.id,
-            name: item.name,
+            name: item.name, description: item.description || "",
             isPaid: item.isPaid,
             annualLimit: item.maxDays, // API helper uses maxDays from annual_limit
             carryForward: item.carryForwardLimit || 0, // API helper uses carryForwardLimit from carry_forward
@@ -1455,7 +1457,7 @@ export default function LeaveManagement() {
 
             const mappedTypes = leaveTypesData.map((item: any) => ({
               id: item.id,
-              name: item.name,
+              name: item.name, description: item.description || "",
               isPaid: item.isPaid,
               annualLimit: item.maxDays,
               carryForward: item.carryForwardLimit || 0,
@@ -1573,7 +1575,7 @@ export default function LeaveManagement() {
               // console.log("API Helper Item:", item);
               const mapped = {
                 id: item.id,
-                name: item.name,
+                name: item.name, description: item.description || "",
                 isPaid: item.isPaid,
                 annualLimit: item.maxDays, // API helper uses maxDays from annual_limit
                 carryForward: item.carryForwardLimit || 0, // API helper uses carryForwardLimit from carry_forward
@@ -1773,7 +1775,7 @@ export default function LeaveManagement() {
                       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-sm sm:text-base break-words">
-                            {lt.name}
+                            <InlineEdit value={lt.name} label="name" module="leave" submodule="leave_types" type="text" required   onSave={(value) => saveInline(leaveTypeApi.updateLeaveType(lt.id, { ...{ name: lt.name, is_paid: lt.isPaid ? 1 : 0, annual_limit: lt.annualLimit, carry_forward: lt.carryForward, encashable: lt.encashable ? 1 : 0, description: lt.description || "" }, name: String(value) }), () => setLeaveTypes((rows) => rows.map((row) => row.id === lt.id ? { ...row, name: String(value) } : row)))} />
                           </h3>
                           <span
                             className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${lt.isPaid ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
@@ -1802,7 +1804,7 @@ export default function LeaveManagement() {
                             Annual Limit
                           </span>
                           <span className="font-medium text-right">
-                            {lt.annualLimit} days
+                            <InlineEdit value={lt.annualLimit} label="annual Limit" module="leave" submodule="leave_types" type="number"  min={0}  onSave={(value) => saveInline(leaveTypeApi.updateLeaveType(lt.id, { ...{ name: lt.name, is_paid: lt.isPaid ? 1 : 0, annual_limit: lt.annualLimit, carry_forward: lt.carryForward, encashable: lt.encashable ? 1 : 0, description: lt.description || "" }, annual_limit: Number(value) }), () => setLeaveTypes((rows) => rows.map((row) => row.id === lt.id ? { ...row, annualLimit: Number(value) } : row)))} /> days
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
@@ -1810,7 +1812,7 @@ export default function LeaveManagement() {
                             Carry Fwd
                           </span>
                           <span className="font-medium text-right">
-                            {lt.carryForward} days
+                            <InlineEdit value={lt.carryForward} label="carry Forward" module="leave" submodule="leave_types" type="number"  min={0}  onSave={(value) => saveInline(leaveTypeApi.updateLeaveType(lt.id, { ...{ name: lt.name, is_paid: lt.isPaid ? 1 : 0, annual_limit: lt.annualLimit, carry_forward: lt.carryForward, encashable: lt.encashable ? 1 : 0, description: lt.description || "" }, carry_forward: Number(value) }), () => setLeaveTypes((rows) => rows.map((row) => row.id === lt.id ? { ...row, carryForward: Number(value) } : row)))} /> days
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
@@ -1858,7 +1860,7 @@ export default function LeaveManagement() {
                           className="border-b border-border last:border-0 hover:bg-slate-50/80"
                         >
                           <td className="px-4 py-3 font-semibold text-slate-900">
-                            {lt.name}
+                            <InlineEdit value={lt.name} label="name" module="leave" submodule="leave_types" type="text" required   onSave={(value) => saveInline(leaveTypeApi.updateLeaveType(lt.id, { ...{ name: lt.name, is_paid: lt.isPaid ? 1 : 0, annual_limit: lt.annualLimit, carry_forward: lt.carryForward, encashable: lt.encashable ? 1 : 0, description: lt.description || "" }, name: String(value) }), () => setLeaveTypes((rows) => rows.map((row) => row.id === lt.id ? { ...row, name: String(value) } : row)))} />
                           </td>
                           <td className="px-4 py-3">
                             <span
@@ -1868,10 +1870,10 @@ export default function LeaveManagement() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center font-medium">
-                            {lt.annualLimit} days
+                            <InlineEdit value={lt.annualLimit} label="annual Limit" module="leave" submodule="leave_types" type="number"  min={0}  onSave={(value) => saveInline(leaveTypeApi.updateLeaveType(lt.id, { ...{ name: lt.name, is_paid: lt.isPaid ? 1 : 0, annual_limit: lt.annualLimit, carry_forward: lt.carryForward, encashable: lt.encashable ? 1 : 0, description: lt.description || "" }, annual_limit: Number(value) }), () => setLeaveTypes((rows) => rows.map((row) => row.id === lt.id ? { ...row, annualLimit: Number(value) } : row)))} /> days
                           </td>
                           <td className="px-4 py-3 text-center font-medium">
-                            {lt.carryForward} days
+                            <InlineEdit value={lt.carryForward} label="carry Forward" module="leave" submodule="leave_types" type="number"  min={0}  onSave={(value) => saveInline(leaveTypeApi.updateLeaveType(lt.id, { ...{ name: lt.name, is_paid: lt.isPaid ? 1 : 0, annual_limit: lt.annualLimit, carry_forward: lt.carryForward, encashable: lt.encashable ? 1 : 0, description: lt.description || "" }, carry_forward: Number(value) }), () => setLeaveTypes((rows) => rows.map((row) => row.id === lt.id ? { ...row, carryForward: Number(value) } : row)))} /> days
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span

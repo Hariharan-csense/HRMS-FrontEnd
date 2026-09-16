@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { Layout } from "@/components/Layout";
+import KpiHierarchy from '@/components/kpi/KpiHierarchy';
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
 import { api, resolveFileUrl } from "@/lib/endpoint";
@@ -548,6 +549,7 @@ const KPIScoreboardPage: React.FC = () => {
   const [users, setUsers] = useState<ScorecardUser[]>([fallbackUser]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [scorecards, setScorecards] = useState<Scorecard[]>([]);
+  const [savedHierarchyCard, setSavedHierarchyCard] = useState<Scorecard | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [formBranchId, setFormBranchId] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
@@ -1152,6 +1154,7 @@ const KPIScoreboardPage: React.FC = () => {
       const updated =
         res.data && typeof res.data === "object" ? (res.data as Scorecard) : null;
       if (updated) {
+        setSavedHierarchyCard(updated);
         setScorecards((current) =>
           current.map((item) => (item.id === updated.id ? updated : item)),
         );
@@ -1239,6 +1242,7 @@ const KPIScoreboardPage: React.FC = () => {
       const created =
         res.data && typeof res.data === "object" ? (res.data as Scorecard) : null;
       if (created) {
+        setSavedHierarchyCard(created);
         const matchesCurrentFilter =
           created.userId === selectedUserId &&
           (!selectedYear || String(created.year) === selectedYear) &&
@@ -1571,6 +1575,8 @@ const KPIScoreboardPage: React.FC = () => {
             ))}
           </SelectField>
         </div>
+
+        <KpiHierarchy revision={scorecards} savedScorecard={savedHierarchyCard} />
 
         <div className="mt-8">
           {loadingScorecards ? (

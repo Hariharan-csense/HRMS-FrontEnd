@@ -1,3 +1,4 @@
+import { InlineEdit, saveInline } from "@/components/InlineEdit";
 ﻿import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { useCallback, useRef } from 'react';
@@ -995,10 +996,10 @@ const HRRecruitment: React.FC = () => {
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 text-base">{candidate.name}</h3>
-                            <p className="text-sm text-gray-500">{candidate.clientName}</p>
-                            <p className="text-sm text-gray-600 mt-1">{candidate.position}</p>
-                            <p className="text-xs text-gray-500">{candidate.email}</p>
+                            <h3 className="font-semibold text-gray-900 text-base"><InlineEdit value={candidate.name} label="name" module="hr_management" submodule="recruitment" type="text" required   onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, name: String(value) }), () => fetchCandidates({ force: true }))} /></h3>
+                            <p className="text-sm text-gray-500"><InlineEdit value={candidate.clientName} label="client Name" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, clientName: String(value) }), () => fetchCandidates({ force: true }))} /></p>
+                            <p className="text-sm text-gray-600 mt-1"><InlineEdit value={candidate.position} label="position" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, position: String(value) }), () => fetchCandidates({ force: true }))} /></p>
+                            <p className="text-xs text-gray-500"><InlineEdit value={candidate.email} label="email" module="hr_management" submodule="recruitment" type="email" required   onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, email: String(value) }), () => fetchCandidates({ force: true }))} /></p>
                           </div>
                           <Badge className={`${getStatusColor(candidate.status)} px-2 py-1 text-xs font-medium rounded-full capitalize`}>
                             {candidate.status}
@@ -1008,12 +1009,12 @@ const HRRecruitment: React.FC = () => {
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Job Location</span>
-                            <span className="text-sm text-gray-900">{candidate.jobLocation || '-'}</span>
+                            <span className="text-sm text-gray-900"><InlineEdit value={candidate.jobLocation} label="job Location" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, jobLocation: String(value) }), () => fetchCandidates({ force: true }))} /></span>
                           </div>
 
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Total Exp</span>
-                            <span className="text-sm text-gray-900">{candidate.experience}</span>
+                            <span className="text-sm text-gray-900"><InlineEdit value={candidate.experience} label="experience" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, experience: String(value) }), () => fetchCandidates({ force: true }))} /></span>
                           </div>
 
                           <div className="flex justify-between items-center">
@@ -1023,7 +1024,7 @@ const HRRecruitment: React.FC = () => {
 
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">ECTC</span>
-                            <span className="text-sm text-gray-900">{candidate.ectc || '-'}</span>
+                            <span className="text-sm text-gray-900"><InlineEdit value={candidate.ectc} label="ectc" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, ectc: String(value) }), () => fetchCandidates({ force: true }))} /></span>
                           </div>
 
                           <div className="flex justify-end space-x-2 pt-2 border-t">
@@ -1095,18 +1096,18 @@ const HRRecruitment: React.FC = () => {
                             <div className="text-sm text-gray-900">{candidate.appliedDate}</div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.clientName || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.clientName} label="client Name" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, clientName: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.position || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.position} label="position" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, position: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.jobLocation || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.jobLocation} label="job Location" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, jobLocation: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                             <div>
-                              <div className="font-semibold text-gray-900 text-sm">{candidate.name}</div>
-                              <div className="text-xs sm:text-sm text-gray-500 mt-1">{candidate.email}</div>
+                              <div className="font-semibold text-gray-900 text-sm"><InlineEdit value={candidate.name} label="name" module="hr_management" submodule="recruitment" type="text" required   onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, name: String(value) }), () => fetchCandidates({ force: true }))} /></div>
+                              <div className="text-xs sm:text-sm text-gray-500 mt-1"><InlineEdit value={candidate.email} label="email" module="hr_management" submodule="recruitment" type="email" required   onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, email: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1146,44 +1147,44 @@ const HRRecruitment: React.FC = () => {
                             <div className="text-sm text-gray-900">{candidate.gender || '-'}</div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.nativePlace || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.nativePlace} label="native Place" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, nativePlace: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                             <div className="text-sm text-gray-900">{candidate.phone || '-'}</div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.email || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.email} label="email" module="hr_management" submodule="recruitment" type="email" required   onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, email: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.highestQualification || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.highestQualification} label="highest Qualification" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, highestQualification: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.experience || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.experience} label="experience" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, experience: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.relevantExperience || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.relevantExperience} label="relevant Experience" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, relevantExperience: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.currentEmployer || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.currentEmployer} label="current Employer" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, currentEmployer: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.currentDesignation || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.currentDesignation} label="current Designation" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, currentDesignation: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.currentLocation || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.currentLocation} label="current Location" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, currentLocation: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.ctc || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.ctc} label="ctc" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, ctc: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.ectc || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.ectc} label="ectc" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, ectc: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
-                            <div className="text-sm text-gray-900">{candidate.noticePeriod || '-'}</div>
+                            <div className="text-sm text-gray-900"><InlineEdit value={candidate.noticePeriod} label="notice Period" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, noticePeriod: String(value) }), () => fetchCandidates({ force: true }))} /></div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">
                             <div className="max-w-[240px] truncate text-sm text-gray-900" title={candidate.notes || '-'}>
-                              {candidate.notes || '-'}
+                              <InlineEdit value={candidate.notes} label="notes" module="hr_management" submodule="recruitment" type="text"    onSave={(value) => saveInline(ENDPOINTS.editCandidate(candidate.id, { ...candidate, notes: String(value) }), () => fetchCandidates({ force: true }))} />
                             </div>
                           </TableCell>
                           <TableCell className="py-3 sm:py-4 px-2 sm:px-4">

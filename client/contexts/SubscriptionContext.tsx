@@ -176,6 +176,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
 
   useEffect(() => {
     if (!isAuthenticated) {
+      setShowTrialExpirationModal(false);
       setSubscription(null);
       setError(null);
       setCurrentEmployeeCount(0);

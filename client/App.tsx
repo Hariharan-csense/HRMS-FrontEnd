@@ -16,6 +16,7 @@ import {
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { RoleProvider, useRole } from "@/context/RoleContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import PostLoginRedirect from "@/components/PostLoginRedirect";
 import { RoleBasedRoute } from "@/components/RoleBasedRoute";
 import { AutoLoginHandler } from "@/components/AutoLoginHandler";
 import Login from "./pages/Login";
@@ -202,7 +203,7 @@ const PublicRoute = ({ element }: { element: React.ReactNode }) => {
 
     return (
       <Navigate
-        to={isSuperAdmin ? "/superadmin-dashboard" : "/dashboard"}
+        to={isSuperAdmin ? "/superadmin-dashboard" : "/after-login"}
         replace
       />
     );
@@ -343,6 +344,7 @@ function AppRoutes() {
         <Route path="/signup" element={<SignupRoute />} />
 
         {/* Protected Routes */}
+        <Route path="/after-login" element={<ProtectedRoute element={<PostLoginRedirect />} />} />
         <Route
           path="/dashboard"
           element={<ProtectedRoute element={<Dashboard />} />}

@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from "react";
 import { hasRole } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import AttendanceMap from "@/components/AttendanceMap";
 import { useOfficeLocation } from "@/hooks/useOfficeLocation";
@@ -2756,6 +2756,14 @@ const FinanceDashboard = () => {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { setShowTrialExpirationModal } = useSubscription();
+  useEffect(() => {
+    if (!location.state?.showSubscriptionPrompt) return;
+    setShowTrialExpirationModal(true);
+    const { showSubscriptionPrompt, ...rest } = location.state;
+    navigate(location.pathname, { replace: true, state: rest });
+  }, [location.state, location.pathname, navigate, setShowTrialExpirationModal]);
   const [pageLoaded, setPageLoaded] = useState(false);
 
   useEffect(() => {
