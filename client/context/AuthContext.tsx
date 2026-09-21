@@ -203,6 +203,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (shouldRememberSession) {
       profileManager.saveProfile(resolvedUser, true);
+      profileManager.saveAccountSession(
+        resolvedUser,
+        getStoredRefreshToken() || undefined,
+      );
       saveRememberedAuthSession({
         accessToken: localStorage.getItem("accessToken") || undefined,
         refreshToken: getStoredRefreshToken() || undefined,
@@ -622,10 +626,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = async (
     soft: boolean = false,
   ): Promise<{ success: boolean; message: string }> => {
-    const hasRememberedIdentity =
-      localStorage.getItem("rememberMe") === "true" ||
-      profileManager.hasSavedCredentials() ||
-      profileManager.hasSavedProfile();
     const preserveRefreshToken = localStorage.getItem("rememberMe") === "true";
     const rememberedRefreshToken = preserveRefreshToken
       ? getStoredRefreshToken() || undefined
@@ -668,9 +668,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.removeItem("rememberMe");
         sessionStorage.removeItem(SOFT_LOGOUT_PROMPT_KEY);
         clearRememberedAuthSession();
-        if (!hasRememberedIdentity) {
-          profileManager.clearAll();
-        }
+        // Logging out of an unremembered account must preserve other saved accounts.
       }
 
       Object.keys(localStorage).forEach((key) => {

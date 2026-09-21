@@ -92,6 +92,7 @@ import SalesOnlyRoute from "./components/SalesOnlyRoute";
 import HROnlyRoute from "./components/HROnlyRoute";
 import ClientAttendanceRoute from "./components/ClientAttendanceRoute";
 import Organizations from "./pages/superadmin/Organizations";
+import KpiOrganizations from "./pages/superadmin/KpiOrganizations";
 import { Users } from "./pages/superadmin/Users";
 import PulseSurveysOverview from "./pages/pulseSurveys/PulseSurveysOverview";
 import CreatePulseSurvey from "./pages/pulseSurveys/CreatePulseSurvey";
@@ -880,6 +881,14 @@ function AppRoutes() {
         />
 
         {/* Organizations Management - SuperAdmin only */}
+        <Route
+          path="/superadmin/kpi-organizations"
+          element={
+            <SuperAdminOnlyRoute>
+              <KpiOrganizations />
+            </SuperAdminOnlyRoute>
+          }
+        />
         <Route
           path="/organizations"
           element={

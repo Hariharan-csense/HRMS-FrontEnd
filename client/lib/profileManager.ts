@@ -27,10 +27,8 @@ class ProfileManager {
     try {
       const raw = JSON.parse(localStorage.getItem(this.ACCOUNTS_KEY) || "[]");
       if (!Array.isArray(raw)) return [];
-      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const accounts = raw.filter(
-        (account) =>
-          account?.email && new Date(account.lastLogin || 0).getTime() > cutoff,
+        (account) => account?.email && account.rememberMe === true,
       );
       if (accounts.length !== raw.length) {
         localStorage.setItem(this.ACCOUNTS_KEY, JSON.stringify(accounts));
@@ -40,6 +38,15 @@ class ProfileManager {
       localStorage.removeItem(this.ACCOUNTS_KEY);
       return [];
     }
+  }
+
+  updateSavedRefreshToken(previousToken: string, refreshToken: string): void {
+    const accounts = this.getSavedAccounts().map((account) =>
+      account.refreshToken === previousToken
+        ? { ...account, refreshToken }
+        : account,
+    );
+    localStorage.setItem(this.ACCOUNTS_KEY, JSON.stringify(accounts));
   }
 
   saveAccountSession(user: any, refreshToken?: string): SavedAccount[] {
@@ -70,6 +77,12 @@ class ProfileManager {
 
   removeSavedAccount(email: string): SavedAccount[] {
     const normalized = this.normalizeEmail(email);
+    if (this.normalizeEmail(this.getSavedProfile()?.email || "") === normalized) {
+      this.clearSavedProfile();
+    }
+    if (this.normalizeEmail(this.getSavedCredentials()?.email || "") === normalized) {
+      this.clearSavedCredentials();
+    }
     const accounts = this.getSavedAccounts().filter(
       (account) => this.normalizeEmail(account.email) !== normalized,
     );
@@ -131,12 +144,9 @@ class ProfileManager {
       const saved = localStorage.getItem(this.PROFILE_KEY);
       if (saved) {
         const profile = JSON.parse(saved);
-        // Check if profile is still valid (not older than 30 days)
-        const lastLogin = new Date(profile.lastLogin);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        if (lastLogin > thirtyDaysAgo) {
+        // Remember the identity until explicitly removed. The server still
+        // validates the refresh token before granting access.
+        if (profile?.email && profile.rememberMe === true) {
           return profile;
         } else {
           // Clear old profile

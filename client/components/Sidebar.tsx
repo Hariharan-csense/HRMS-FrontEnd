@@ -837,6 +837,13 @@ const navigationItems: NavItem[] = [
     path: "/organizations",
   },
   {
+    label: "KPI Organizations",
+    icon: <Building2 className="w-5 h-5" />,
+    roles: ["superadmin"],
+    moduleName: "organizations",
+    path: "/superadmin/kpi-organizations",
+  },
+  {
     label: "Users",
     icon: <Users className="w-5 h-5" />,
     roles: ["superadmin"],
@@ -1326,6 +1333,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     "/dashboard",
     "/subscription-plans",
     "/organizations",
+    "/superadmin/kpi-organizations",
     "/users",
   ]);
 
