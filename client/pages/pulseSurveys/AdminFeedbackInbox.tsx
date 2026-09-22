@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -170,7 +171,8 @@ const AdminFeedbackInbox: React.FC = () => {
   const onDelete = async (id: number) => {
     setUpdatingId(id);
     try {
-      await ENDPOINTS.deleteEmployeeFeedback(id);
+      const deletionResult = await ENDPOINTS.deleteEmployeeFeedback(id);
+      if (notifyDeletionPending(deletionResult)) return;
       await fetchRows();
       toast({ title: "Deleted", description: "Feedback removed." });
     } catch (e: any) {

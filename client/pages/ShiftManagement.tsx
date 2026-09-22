@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
@@ -227,7 +228,9 @@ export default function ShiftManagement() {
     // Optimistic UI update
     setShifts((prev) => prev.filter((s) => s.id !== id));
 
-    const { error } = await shiftApi.deleteShift(id);
+    const deletionResult = await shiftApi.deleteShift(id);
+    if (notifyDeletionPending(deletionResult)) return;
+      const { error } = deletionResult;
     if (error) {
       toast.error(error);
       // Revert on error
@@ -262,7 +265,9 @@ export default function ShiftManagement() {
   };
 
   const handleDeleteRoster = async (id: string) => {
-    const { error } = await shiftApi.deleteRoster(id);
+    const deletionResult = await shiftApi.deleteRoster(id);
+    if (notifyDeletionPending(deletionResult)) return;
+      const { error } = deletionResult;
     if (error) {
       toast.error(error);
       return;

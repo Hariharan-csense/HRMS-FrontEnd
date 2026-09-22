@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // src/api/employeeApi.ts
 import ENDPOINTS from "@/lib/endpoint";
 
@@ -166,6 +167,7 @@ export const employeeApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteEmployee(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       if (
         response.status === 200 ||
         response.status === 204 ||

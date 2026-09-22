@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // src/lib/leaveTypeApi.ts (or src/api/leaveTypeApi.ts)
 import ENDPOINTS from "@/lib/endpoint";
 
@@ -240,6 +241,7 @@ export const leaveTypeApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteLeave(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       // console.log("Delete Leave Type Response:", response);
 
@@ -800,6 +802,7 @@ export const holidayApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteHoliday(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (response.data?.message || response.data?.success) {
         return { success: true };
@@ -987,6 +990,7 @@ export const fiscalYearApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteFiscalYear(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (response.data?.message || response.data?.success) {
         return { success: true };
@@ -1148,6 +1152,7 @@ export const leavePolicyApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteLeavePolicy(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (response.data?.message || response.data?.success) {
         return { success: true };

@@ -11,7 +11,6 @@ import ENDPOINTS, {
 } from "../lib/endpoint";
 import { profileManager } from "@/lib/profileManager";
 import { isValidLoginIdentifier, normalizeEmail } from "@/lib/validation";
-import { isCordovaApp } from "@/lib/platform";
 import {
   registerWebPushNotifications,
   unregisterStoredWebPushToken,
@@ -21,8 +20,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SOFT_LOGOUT_PROMPT_KEY = "auth:showWelcomeBack";
 const AUTH_SESSION_KEY = "auth:session";
-const BROWSER_SESSION_KEY = "auth:browserSessionActive";
-const BROWSER_SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000;
 
 type RememberedAuthSession = {
   accessToken?: string;
@@ -241,7 +238,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
       const authenticatedEmail = String(
         decoded?.email || parsedStoredUser?.email || "",
-      ).toLowerCase().trim();
+      )
+        .toLowerCase()
+        .trim();
       const savedProfileEmail = String(savedProfile?.email || "")
         .toLowerCase()
         .trim();
@@ -281,16 +280,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           parsedStoredUser?.companyName ||
           matchingSavedProfile?.companyName ||
           "Company",
-        company_id: Number(
-          decoded?.company_id ||
-            parsedStoredUser?.company_id ||
-            parsedStoredUser?.companyId,
-        ) || undefined,
-        companyId: Number(
-          decoded?.company_id ||
-            parsedStoredUser?.company_id ||
-            parsedStoredUser?.companyId,
-        ) || undefined,
+        company_id:
+          Number(
+            decoded?.company_id ||
+              parsedStoredUser?.company_id ||
+              parsedStoredUser?.companyId,
+          ) || undefined,
+        companyId:
+          Number(
+            decoded?.company_id ||
+              parsedStoredUser?.company_id ||
+              parsedStoredUser?.companyId,
+          ) || undefined,
         department: parsedStoredUser?.department || null,
         type: decoded?.type || parsedStoredUser?.type,
         avatar:
@@ -334,32 +335,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const previousBrowserActivity = Number(
-          sessionStorage.getItem(BROWSER_SESSION_KEY) || 0,
-        );
-        const isNewBrowserSession =
-          !previousBrowserActivity ||
-          Date.now() - previousBrowserActivity > BROWSER_SESSION_IDLE_LIMIT_MS;
-        sessionStorage.setItem(BROWSER_SESSION_KEY, String(Date.now()));
-
-        // A persisted refresh token is useful after a restart, but automatically
-        // opening the last employee's workspace can expose the wrong account on
-        // a shared office computer. Start a fresh browser session at the account
-        // chooser while keeping the saved accounts available for one-click login.
-        if (
-          !isCordovaApp() &&
-          isNewBrowserSession &&
-          profileManager.getSavedAccounts().length > 0
-        ) {
-          localStorage.removeItem("user");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("userRole");
-          sessionStorage.removeItem("refreshToken");
-          sessionStorage.setItem(SOFT_LOGOUT_PROMPT_KEY, "true");
-          setUser(null);
-          return;
-        }
-
         const storedUser = localStorage.getItem("user");
         const accessToken = localStorage.getItem("accessToken");
         const rememberedSession = getRememberedAuthSession();
@@ -409,14 +384,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     initializeAuth();
-  }, []);
-
-  useEffect(() => {
-    const recordBrowserActivity = () =>
-      sessionStorage.setItem(BROWSER_SESSION_KEY, String(Date.now()));
-    const activityInterval = window.setInterval(recordBrowserActivity, 60_000);
-
-    return () => window.clearInterval(activityInterval);
   }, []);
 
   useEffect(() => {
@@ -496,14 +463,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const normalizedIdentifier = email.includes("@")
         ? normalizeEmail(email)
         : email.trim();
-      const response = await ENDPOINTS.login(normalizedIdentifier, password).catch(
-        (error) => {
-          console.error("API call failed:", error);
-          throw new Error(
-            error.response?.data?.message || "Failed to connect to the server",
-          );
-        },
-      );
+      const response = await ENDPOINTS.login(
+        normalizedIdentifier,
+        password,
+      ).catch((error) => {
+        console.error("API call failed:", error);
+        throw new Error(
+          error.response?.data?.message || "Failed to connect to the server",
+        );
+      });
 
       if (!response) {
         throw new Error("No response from server");
@@ -573,16 +541,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           responseData.user?.companyName ||
           responseData.company_name ||
           "Company",
-        company_id: Number(
-          responseData.user?.company_id ||
-            responseData.company_id ||
-            decodeJwtPayload(accessToken)?.company_id,
-        ) || undefined,
-        companyId: Number(
-          responseData.user?.company_id ||
-            responseData.company_id ||
-            decodeJwtPayload(accessToken)?.company_id,
-        ) || undefined,
+        company_id:
+          Number(
+            responseData.user?.company_id ||
+              responseData.company_id ||
+              decodeJwtPayload(accessToken)?.company_id,
+          ) || undefined,
+        companyId:
+          Number(
+            responseData.user?.company_id ||
+              responseData.company_id ||
+              decodeJwtPayload(accessToken)?.company_id,
+          ) || undefined,
         department:
           responseData.user?.department || responseData.department || null,
         type: responseData.user?.type || responseData.type || undefined,
@@ -613,7 +583,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Login error:", error);
       const status = error.response?.status;
       const errorMessage =
-        (status === 401 && "Invalid email/mobile number or password. Please try again.") ||
+        (status === 401 &&
+          "Invalid email/mobile number or password. Please try again.") ||
         error.response?.data?.message ||
         error.message ||
         "Login failed. Please check your credentials.";

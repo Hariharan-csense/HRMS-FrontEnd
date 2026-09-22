@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
@@ -682,6 +683,7 @@ const HROfferLetters: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this template?")) {
       try {
         const response = await api.deleteOfferTemplate(id);
+        if (notifyDeletionPending(response)) return;
         if (response.success) {
           setTemplates((prev) => prev.filter((template) => template.id !== id));
         } else {
@@ -767,6 +769,7 @@ const HROfferLetters: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this offer letter?")) {
       try {
         const response = await api.deleteOfferLetter(id);
+        if (notifyDeletionPending(response)) return;
         if (response.success) {
           setOfferLetters((prev) => prev.filter((offer) => offer.id !== id));
         } else {

@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 ﻿import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
@@ -598,6 +599,7 @@ const HRRecruitment: React.FC = () => {
       setDeletingCandidate(true);
       setError(null);
       const result = await ENDPOINTS.removeCandidate(candidateToDelete.id);
+      if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
       if (result.success) {
         await fetchCandidates({ force: true });
         if (selectedCandidate?.id === candidateToDelete.id) {
@@ -1790,8 +1792,8 @@ const HRRecruitment: React.FC = () => {
               <AlertDialogTitle>Delete Candidate</AlertDialogTitle>
               <AlertDialogDescription>
                 {candidateToDelete
-                  ? `Are you sure you want to delete candidate "${candidateToDelete.name}"? This action cannot be undone.`
-                  : 'Are you sure you want to delete this candidate? This action cannot be undone.'}
+                  ? `Are you sure you want to delete candidate "${candidateToDelete.name}"? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.`
+                  : 'Are you sure you want to delete this candidate? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex justify-end gap-3">

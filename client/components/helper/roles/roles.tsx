@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // components/helper/role/role.ts
 
 import ENDPOINTS from "@/lib/endpoint";
@@ -244,6 +245,7 @@ export const roleApi = {
   deleteRole: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteRole(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       
       if (response.data?.success) {
         return { success: true };
@@ -282,6 +284,7 @@ export const roleApi = {
   removeRoleFromEmployee: async (assignmentId: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.removeRoleFromEmployee(assignmentId);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       
       if (response.data?.success) {
         return { success: true };

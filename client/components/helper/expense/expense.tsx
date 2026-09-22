@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // src/api/expenseApi.ts
 
 import ENDPOINTS from "@/lib/endpoint"; // Adjust if you use a different axios instance or ENDPOINTS
@@ -338,6 +339,7 @@ const expenseApi = {
   ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteExpense(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       return { data: response.data };
     } catch (error: any) {
       console.error("Error deleting expense:", error);

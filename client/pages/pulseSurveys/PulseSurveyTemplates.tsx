@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
@@ -144,7 +145,8 @@ const PulseSurveyTemplates: React.FC = () => {
   const onDelete = async (id: number) => {
     setSaving(true);
     try {
-      await ENDPOINTS.deletePulseSurveyTemplate(id);
+      const deletionResult = await ENDPOINTS.deletePulseSurveyTemplate(id);
+      if (notifyDeletionPending(deletionResult)) return;
       await fetchRows();
       toast({ title: "Deleted", description: "Template deleted." });
       if (editingId === id) resetForm();

@@ -135,6 +135,7 @@ import {
   ChevronsRight,
   Bot,
   MoreHorizontal,
+  ArchiveRestore,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -167,6 +168,7 @@ interface SidebarProps {
 }
 
 const navigationItems: NavItem[] = [
+  { label: "Deletion Drafts", icon: <ArchiveRestore className="w-5 h-5" />, path: "/admin/deletion-drafts", roles: ["admin", "ceo", "superadmin"] },
   {
     label: "Dashboard",
     icon: <LayoutDashboard className="w-5 h-5" />,
@@ -1226,6 +1228,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Check if user has access to a navigation item based on module permissions
   const hasItemAccess = (item: NavItem): boolean => {
+    if (item.path === "/admin/deletion-drafts") {
+      return effectiveSidebarRoles.some((role) => ["admin", "ceo", "superadmin"].includes(role));
+    }
     // Enforce explicit role restrictions when provided.
     if (item.roles && item.roles.length > 0) {
       const isPlatformSuperAdminItem = item.roles.some(

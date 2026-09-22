@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 import ENDPOINTS from "@/lib/endpoint";
 
 /**
@@ -176,6 +177,7 @@ export const sequenceApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteSequence(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (
         response.status === 200 ||

@@ -20,6 +20,29 @@ export const showToast = {
    * Show an error toast (red)
    */
   error: (message: string, description?: string) => {
+    const normalizedMessage = message.toLowerCase();
+    const isExpectedNotice = [
+      /employee account is inactive/,
+      /already (?:checked in|exists|submitted|approved)/,
+      /outside .*geo.?fence/,
+      /cannot be (?:edited|deleted|modified)/,
+      /permission denied/,
+      /(?:don't|do not) have permission/,
+      /access denied/,
+      /only .* can /,
+      /please (?:enter|select|choose|provide|upload)/,
+      /\bis required\b|\brequired\b|\bmust be\b|\bcannot be empty\b/,
+      /invalid (?:email|mobile|phone|date|time|amount|selection)/,
+      /no (?:data|records?|payslips?|payroll|eligible|relevant)/,
+      /nothing (?:to|available)/,
+      /not eligible/,
+    ].some((pattern) => pattern.test(normalizedMessage));
+
+    if (isExpectedNotice) {
+      showToast.warning(message, description);
+      return;
+    }
+
     toast({
       title: "Error",
       description: description || message,

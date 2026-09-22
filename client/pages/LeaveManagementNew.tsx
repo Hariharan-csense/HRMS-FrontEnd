@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
@@ -1532,6 +1533,7 @@ export default function LeaveManagement() {
     if (activeTab === "types") {
       try {
         const result = await leaveTypeApi.deleteLeaveType(deleteId!);
+        if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
         if (result.error) {
           toast.error(result.error);
           return;
@@ -3118,7 +3120,7 @@ export default function LeaveManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg">Delete Item</AlertDialogTitle>
             <AlertDialogDescription className="text-xs sm:text-sm">
-              Are you sure? This action cannot be undone.
+              Are you sure? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">

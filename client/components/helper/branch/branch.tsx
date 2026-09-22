@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 import ENDPOINTS from "@/lib/endpoint";
 
   // companyId?: string;
@@ -192,6 +193,7 @@ updateBranch: async (
 deleteBranch: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteBranch(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       // Most backends return { success: true } or 204 No Content
       if (response.status === 200 || response.status === 204 || response.data?.success) {

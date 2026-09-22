@@ -178,9 +178,7 @@ export default function Login() {
         (role: string) => role?.toLowerCase() === "superadmin",
       ) || loggedInUser?.role?.toLowerCase() === "superadmin";
 
-    const destination = isSuperAdmin
-      ? "/superadmin-dashboard"
-      : "/after-login";
+    const destination = isSuperAdmin ? "/superadmin-dashboard" : "/after-login";
 
     navigate(destination, {
       replace: true,
@@ -292,7 +290,12 @@ export default function Login() {
       } else {
         holdAuthRedirectRef.current = false;
         sessionStorage.removeItem(LOGIN_UNLOCK_KEY);
-        showToast.error(result.message || "Login failed. Please try again.");
+        const message = result.message || "Login failed. Please try again.";
+        if (message.toLowerCase().includes("employee account is inactive")) {
+          showToast.warning(message);
+        } else {
+          showToast.error(message);
+        }
       }
     } catch (error) {
       holdAuthRedirectRef.current = false;

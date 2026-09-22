@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
@@ -188,6 +189,7 @@ export default function LeaveConfiguration() {
       
       if (activeTab === "holidays") {
         result = await holidayApi.deleteHoliday(deleteId!);
+        if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
         if (result.success) {
           await holidayApi.getHolidays().then(res => {
             if (res.data) setHolidays(res.data);
@@ -196,6 +198,7 @@ export default function LeaveConfiguration() {
         }
       } else if (activeTab === "policies") {
         result = await leavePolicyApi.deleteLeavePolicy(deleteId!);
+        if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
         if (result.success) {
           await leavePolicyApi.getLeavePolicies().then(res => {
             if (res.data) setLeavePolicies(res.data);
@@ -593,7 +596,7 @@ export default function LeaveConfiguration() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Item</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure? This action cannot be undone.
+              Are you sure? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

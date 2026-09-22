@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
@@ -267,6 +268,7 @@ const TicketManagement: React.FC = () => {
 
     try {
       const response = await ENDPOINTS.deleteTicket(selectedTicket.id);
+      if (notifyDeletionPending(response)) { setIsDeleteDialogOpen(false); return; }
 
       if (response.data) {
         setIsDeleteDialogOpen(false);
@@ -812,8 +814,8 @@ const TicketManagement: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              ticket "{selectedTicket?.title}" and all its associated data.
+              Request CEO approval to delete ticket "{selectedTicket?.title}" and its associated data.
+              The ticket stays active until approval. Admin can restore the archived record.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

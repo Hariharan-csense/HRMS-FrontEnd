@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import React, { useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -373,6 +374,7 @@ const SubscriptionPlansManagement: React.FC = () => {
     if (!confirm('Are you sure you want to delete this package?')) return;
     try {
       const response = await ENDPOINTS.deleteSubscriptionPlan(planId);
+      if (notifyDeletionPending(response)) return;
       showToast.success(response.data?.message || 'Package deleted');
       fetchPlans();
     } catch (deleteError: any) {
@@ -444,6 +446,7 @@ const SubscriptionPlansManagement: React.FC = () => {
     if (!confirm('Are you sure you want to delete this add-on package?')) return;
     try {
       const response = await ENDPOINTS.deleteSubscriptionAddon(addonId);
+      if (notifyDeletionPending(response)) return;
       showToast.success(response.data?.message || 'Add-on deleted');
       fetchAddons();
     } catch (deleteError: any) {

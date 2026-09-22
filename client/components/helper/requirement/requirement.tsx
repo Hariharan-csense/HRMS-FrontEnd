@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 import ENDPOINTS from "@/lib/endpoint";
 
 export interface JobRequirement {
@@ -176,6 +177,7 @@ export const updateJobRequirement = async (
 export const deleteJobRequirement = async (id: string) => {
   try {
     const response = await ENDPOINTS.deleteJobRequirement(id);
+    if (pendingDeletionData(response)) return pendingDeletionData(response);
     return response.data;
   } catch (error) {
     console.error("Error deleting job requirement:", error);

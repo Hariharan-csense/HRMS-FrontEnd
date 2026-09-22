@@ -1,7 +1,9 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 import ENDPOINTS, { BASE_URL, api } from "@/lib/endpoint";
 import NotificationTriggerService from "@/services/notificationTriggerService";
 
 export interface SalaryStructure {
+  effectiveMonth?: string;
   id: string;
   employeeId: string;
   employeeName: string;
@@ -35,6 +37,7 @@ export const payrollApi = {
         // Transform the API response to match the SalaryStructure interface
         const transformedData = response.data.map((item: any) => ({
           id: item.id.toString(),
+          effectiveMonth: item.effective_month || undefined,
           employeeId: item.employee_id.toString(),
           employeeName: item.employee_name || `Employee ${item.employee_id}`,
           basic: parseFloat(item.basic) || 0,
@@ -118,6 +121,7 @@ export const payrollApi = {
   ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteSalaryStructure(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       if (response.data?.success) {
         return { data: response.data };
       }
@@ -136,6 +140,7 @@ export const payrollApi = {
   ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deletePayslip(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       if (response.data?.success) {
         return { data: response.data };
       }
@@ -153,6 +158,7 @@ export const payrollApi = {
   ): Promise<{ data?: any; error?: string }> => {
     try {
       const response = await ENDPOINTS.deletePayrollProcessing(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       if (response.data?.success) {
         return { data: response.data };
       }

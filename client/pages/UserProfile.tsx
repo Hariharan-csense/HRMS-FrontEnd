@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Layout } from "@/components/Layout";
@@ -361,7 +362,8 @@ export default function UserProfile() {
 
     setIsDeletingAccount(true);
     try {
-      await profileHelper.deleteMyAccount("DELETE");
+      const deletionResult = await profileHelper.deleteMyAccount("DELETE");
+      if (notifyDeletionPending(deletionResult)) { setIsDeleteDialogOpen(false); return; }
       setIsDeleteDialogOpen(false);
       setDeleteConfirmation("");
       await logout();
@@ -414,8 +416,8 @@ export default function UserProfile() {
                       Delete Admin Account
                     </DialogTitle>
                     <DialogDescription>
-                      This will permanently delete your organization and all
-                      related data. This action cannot be undone.
+                      This requests CEO approval to delete your organization and related data.
+                      Your account stays active until approval. A platform Admin can restore the archived organization.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">

@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // Onboarding API endpoints and helper functions
 import { api } from './endpoint';
 
@@ -102,7 +103,8 @@ export const onboardingAPI = {
 
   // Delete onboarding employee
   deleteEmployee: async (id: string): Promise<void> => {
-    await api.delete(`/onboarding/${id}`);
+    const deletionResult = await api.delete(`/onboarding/${id}`);
+    if (pendingDeletionData(deletionResult)) return pendingDeletionData(deletionResult);
   },
 
   // Tasks

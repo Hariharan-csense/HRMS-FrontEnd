@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
@@ -187,6 +188,7 @@ export default function ClientAssignment() {
     setDeleting(true);
     try {
       const result = await clientApi.deleteClient(deleteId!);
+      if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
       if (result.success) {
         await clientApi.getClients().then(res => {
           if (res.data) setClients(res.data);
@@ -808,7 +810,7 @@ export default function ClientAssignment() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Client</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this client? This action cannot be undone.
+              Are you sure you want to delete this client? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

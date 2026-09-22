@@ -1,3 +1,4 @@
+import { notifyDeletionPending, pendingDeletionData } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 ﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
@@ -1687,6 +1688,7 @@ export default function PayrollSetup() {
 
       setFormData({
         ...item,
+        effective_month: new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0"),
         // Ensure employeeId is set for the select component
         employeeId: item.employeeId || "",
         // Set the employee name for display
@@ -1700,6 +1702,7 @@ export default function PayrollSetup() {
       setEditingId(null);
       // Initialize with empty values for new entry
       setFormData({
+        effective_month: new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0"),
         employeeId: "",
         employeeName: "",
         month: "",
@@ -1775,28 +1778,8 @@ export default function PayrollSetup() {
   };
 
   const saveInlineSalary = async (structure: SalaryStructure, field: string, value: number) => {
-    const state = recalculatePfEsiFromState({ ...structure, [field]: value });
-    const payload = {
-      ...state,
-      gross: calculateGross(state.gross || 0, state.basic || 0, state.hra || 0, state.lta || 0, state.allowances || 0, state.incentives || 0),
-      employee_id: state.employeeId,
-      other_deductions: state.otherDeductions,
-      tds_percentage: toNumber(state.tds),
-      pf_enabled: Boolean(state.pfEnabled),
-      esi_enabled: Boolean(state.esiEnabled),
-      pf_percentage: toNumber(state.pfPercentage),
-      esi_percentage: toNumber(state.esiPercentage),
-    };
-    await saveInline(
-      /^\d+$/.test(String(structure.id))
-        ? payrollApi.updateSalaryStructure(structure.id, payload)
-        : payrollApi.createSalaryStructure(payload),
-      async () => {
-        const result = await payrollApi.getSalaryStructures();
-        if (result.error) throw new Error(result.error);
-        if (result.data) setSalaryStructures(result.data);
-      },
-    );
+    // Salary changes need an explicit effective month before saving.
+    handleOpenDialog({ ...structure, [field]: value });
   };
 
   const handleSave = async () => {
@@ -1811,6 +1794,10 @@ export default function PayrollSetup() {
     }
 
     if (activeTab === "structure") {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(formData.effective_month || "")) {
+        toast.error("Please select the effective payroll month");
+        return;
+      }
       setIsSavingStructure(true);
       const recalculatedFormData = recalculatePfEsiFromState(formData);
       const gross = calculateGross(
@@ -1970,6 +1957,7 @@ export default function PayrollSetup() {
       try {
         if (deleteId) {
           const result = await payrollApi.deleteSalaryStructure(deleteId);
+          if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
           if (result.error) {
             toast.error(result.error);
             return;
@@ -1980,13 +1968,12 @@ export default function PayrollSetup() {
       } catch (error) {
         console.error("Error deleting salary structure:", error);
         toast.error("Failed to delete salary structure");
-        // Still remove from local state even if API fails
-        setSalaryStructures((prev) => prev.filter((s) => s.id !== deleteId));
       }
     } else if (activeTab === "processing") {
       try {
         if (deleteId) {
           const result = await payrollApi.deletePayrollProcessing(deleteId);
+          if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
           if (result.error) {
             toast.error(result.error);
             return;
@@ -2011,11 +1998,22 @@ export default function PayrollSetup() {
         }
 
         const failedIds: string[] = [];
+        let queuedCount = 0;
         for (const id of idsToDelete) {
           if (/^\d+$/.test(String(id))) {
             const result = await payrollApi.deletePayslip(id);
+            if (pendingDeletionData(result)) { queuedCount += 1; continue; }
             if (result.error) failedIds.push(id);
           }
+        }
+
+        if (queuedCount > 0) {
+          toast.success(`${queuedCount} payslip deletion request(s) sent for CEO approval`);
+          if (failedIds.length) toast.error(`${failedIds.length} request(s) failed`);
+          setSelectedPayslipIds([]);
+          setIsBulkPayslipDelete(false);
+          setIsDeleteDialogOpen(false);
+          return;
         }
 
         if (failedIds.length > 0) {
@@ -2547,6 +2545,7 @@ export default function PayrollSetup() {
                             <div>
                               <p className="font-bold text-base text-slate-900">
                                 {struct.employeeName}
+                                {struct.effectiveMonth && <span className="block text-xs font-normal text-slate-500">Effective from {struct.effectiveMonth}</span>}
                               </p>
                               <p className="text-xs text-slate-600 mt-1">
                                 ID: {struct.employeeId}
@@ -2679,6 +2678,7 @@ export default function PayrollSetup() {
                             >
                               <td className="px-6 py-4 font-semibold text-slate-900">
                                 {struct.employeeName}
+                                {struct.effectiveMonth && <span className="block text-xs font-normal text-slate-500">Effective from {struct.effectiveMonth}</span>}
                               </td>
                               <td className="px-4 py-4 text-slate-700 text-right">
                                 ₹<InlineEdit value={struct.basic} label="basic" module="payroll" submodule="salary_structure" type="number"  min={0}  onSave={(value) => saveInlineSalary(struct, "basic", Number(value))} />
@@ -3300,6 +3300,12 @@ export default function PayrollSetup() {
             {activeTab === "structure" && (
               <>
                 <div>
+                  <Label>Effective payroll month *</Label>
+                  <Input type="month" required value={formData.effective_month || ""}
+                    onChange={(e) => setFormData({ ...formData, effective_month: e.target.value })} />
+                  <p className="text-sm text-gray-500">Applies from this payroll month. Earlier months and processed payslips retain their salary.</p>
+                </div>
+                <div>
                   <Label>Employee *</Label>
                   {editingId ? (
                     // Show as read-only input when editing
@@ -3839,7 +3845,7 @@ export default function PayrollSetup() {
                   : isBulkPayslipDelete
                     ? `${selectedPayslipIds.length} selected payslip${selectedPayslipIds.length === 1 ? "" : "s"}`
                     : "this payslip"}
-              ? This action cannot be undone.
+              ? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

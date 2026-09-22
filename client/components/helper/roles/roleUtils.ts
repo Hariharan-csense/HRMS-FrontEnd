@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // Role CRUD utility functions
 import { roleApi, Role, ModulePermission } from "./roles";
 
@@ -67,6 +68,7 @@ export const updateExistingRole = async (
  */
 export const deleteRole = async (roleId: string): Promise<boolean> => {
   const result = await roleApi.deleteRole(roleId);
+  if (pendingDeletionData(result)) return pendingDeletionData(result);
   if (result.success) {
     // console.log("Role deleted successfully");
     return true;

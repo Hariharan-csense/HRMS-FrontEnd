@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
@@ -279,6 +280,7 @@ export default function AssetList() {
     setDeleting(true);
     try {
       const result = await assetApi.deleteAsset(assetToDelete);
+      if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
 
       if (result.success) {
         const fetchResult = await assetApi.getAssets();
@@ -784,7 +786,7 @@ export default function AssetList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Asset</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this asset? This action cannot be undone.
+              Are you sure you want to delete this asset? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex justify-end gap-3">

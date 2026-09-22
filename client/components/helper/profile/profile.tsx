@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 import { toast } from "sonner";
 import ENDPOINTS from "@/lib/endpoint";
 
@@ -174,6 +175,7 @@ export const profileHelper = {
   deleteMyAccount: async (confirmation: string) => {
     try {
       const response = await ENDPOINTS.deleteMyAccount(confirmation);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       if (response.data?.success) {
         toast.success(response.data?.message || "Account deleted successfully");
         return response.data;

@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 import ENDPOINTS from '../../../lib/endpoint';
 
 export interface Client {
@@ -71,6 +72,7 @@ export const clientApi = {
   deleteClient: async (id: number) => {
     try {
       const response = await ENDPOINTS.deleteClient(id.toString());
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
       return response.data;
     } catch (error) {
       console.error('Error deleting client:', error);

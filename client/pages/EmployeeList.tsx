@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
@@ -2462,6 +2463,7 @@ export default function EmployeeList() {
 
     if (empToDelete) {
       const result = await employeeApi.deleteEmployee(empToDelete);
+      if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
 
       if (result.success) {
         // Local state update
@@ -4250,7 +4252,7 @@ export default function EmployeeList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Employee</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure? This action cannot be undone.
+              Are you sure? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

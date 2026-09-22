@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
@@ -324,7 +325,8 @@ export default function RoleAccessDebug() {
     if (!deletingRoleId) return;
     setIsDeleting(true);
     try {
-      await roleApi.deleteRole(deletingRoleId);
+      const deletionResult = await roleApi.deleteRole(deletingRoleId);
+      if (notifyDeletionPending(deletionResult)) { setIsDeleteDialogOpen(false); return; }
       setIsDeleteDialogOpen(false);
       setDeletingRoleId(null);
       await bootstrap();
@@ -829,7 +831,7 @@ export default function RoleAccessDebug() {
             <DialogHeader>
               <DialogTitle>Delete Role</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete this role? This action cannot be undone.
+                Are you sure you want to delete this role? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

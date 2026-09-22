@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -300,11 +301,12 @@ export const Organizations: React.FC = () => {
 
     if (
       window.confirm(
-        "Are you sure you want to delete this organization? This action cannot be undone.",
+        "Are you sure you want to delete this organization? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.",
       )
     ) {
       try {
         const response = await ENDPOINTS.removeOrganization(orgId);
+        if (notifyDeletionPending(response)) return;
         if (response.error) {
           alert(`Error deleting organization: ${response.error}`);
         } else {

@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
     // components/helper/department/department.ts
 
 import ENDPOINTS from "@/lib/endpoint";
@@ -170,6 +171,7 @@ export const departmentApi = {
   deleteDepartment: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteDepartment(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       // Success if 200, 204, or backend returns { success: true }
       if (response.status === 200 || response.status === 204 || response.data?.success) {

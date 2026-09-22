@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRole } from "@/context/RoleContext";
@@ -242,9 +243,6 @@ export default function ExpenseClaims() {
   const [draftClearing, setDraftClearing] = useState(false);
   const [editReceipt, setEditReceipt] = useState<ExistingReceipt | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
-  const [receiptPickerMode, setReceiptPickerMode] = useState<
-    Record<number, "upload" | "scan">
-  >({});
 
   const makeEmptyRow = (): ExpenseRow => ({
     category: "",
@@ -1509,6 +1507,10 @@ export default function ExpenseClaims() {
           }
         } else {
           const result = await expenseApi.deleteExpense(deleteId);
+          if (notifyDeletionPending(result)) {
+            setIsDeleteDialogOpen(false);
+            return;
+          }
           if (result.error) {
             throw new Error(result.error);
           }
@@ -1699,24 +1701,58 @@ export default function ExpenseClaims() {
     if (expense.isDraft || !canEditClaim(expense)) return null;
     return (
       <details className="mt-2 text-xs font-normal">
-        <summary className="cursor-pointer py-2 text-primary">Claim details · double-tap a value to edit</summary>
+        <summary className="cursor-pointer py-2 text-primary">
+          Claim details · double-tap a value to edit
+        </summary>
         <div className="space-y-3 py-2">
           {expense.claims.map((claim) => {
-            const saveField = (field: string, value: string | number) => saveInline(
-              expenseApi.updateExpense(claim.id, {
-                ...claim,
-                expense_date: claim.date,
-                client_id: claim.clientId ? Number(claim.clientId) : null,
-                remove_receipt: false,
-                [field]: value,
-              }), refreshExpenses,
-            );
+            const saveField = (field: string, value: string | number) =>
+              saveInline(
+                expenseApi.updateExpense(claim.id, {
+                  ...claim,
+                  expense_date: claim.date,
+                  client_id: claim.clientId ? Number(claim.clientId) : null,
+                  remove_receipt: false,
+                  [field]: value,
+                }),
+                refreshExpenses,
+              );
             return (
               <div key={claim.id} className="space-y-1 rounded border p-2">
                 <div className="font-medium">{claim.category}</div>
-                <InlineEdit label="Claim amount" value={claim.amount} type="number" min={0.01} required module="expenses" submodule="claims" disabled={["approved", "reimbursed"].includes(claim.status)} onSave={(value) => saveField("amount", Number(value))} />
-                <div><InlineEdit label="Claim description" value={claim.description} module="expenses" submodule="claims" disabled={["approved", "reimbursed"].includes(claim.status)} onSave={(value) => saveField("description", String(value))} /></div>
-                <div><InlineEdit label="Claim date" value={claim.date} type="date" required module="expenses" submodule="claims" disabled={["approved", "reimbursed"].includes(claim.status)} onSave={(value) => saveField("expense_date", String(value))} /></div>
+                <InlineEdit
+                  label="Claim amount"
+                  value={claim.amount}
+                  type="number"
+                  min={0.01}
+                  required
+                  module="expenses"
+                  submodule="claims"
+                  disabled={["approved", "reimbursed"].includes(claim.status)}
+                  onSave={(value) => saveField("amount", Number(value))}
+                />
+                <div>
+                  <InlineEdit
+                    label="Claim description"
+                    value={claim.description}
+                    module="expenses"
+                    submodule="claims"
+                    disabled={["approved", "reimbursed"].includes(claim.status)}
+                    onSave={(value) => saveField("description", String(value))}
+                  />
+                </div>
+                <div>
+                  <InlineEdit
+                    label="Claim date"
+                    value={claim.date}
+                    type="date"
+                    required
+                    module="expenses"
+                    submodule="claims"
+                    disabled={["approved", "reimbursed"].includes(claim.status)}
+                    onSave={(value) => saveField("expense_date", String(value))}
+                  />
+                </div>
               </div>
             );
           })}
@@ -2301,7 +2337,8 @@ export default function ExpenseClaims() {
                               Amount
                             </span>
                             <div className="mt-1 block font-bold text-slate-950">
-                              {formatClaimAmount(expense.totalAmount || 0)}{inlineClaimDetails(expense)}
+                              {formatClaimAmount(expense.totalAmount || 0)}
+                              {inlineClaimDetails(expense)}
                             </div>
                           </div>
                           <div className="col-span-2 rounded-lg bg-[#17c491]/5 px-3 py-2">
@@ -2509,7 +2546,8 @@ export default function ExpenseClaims() {
                             </td>
                             <td className="px-5 py-4 text-right align-middle">
                               <div className="text-base font-bold text-slate-950">
-                                {formatClaimAmount(expense.totalAmount || 0)}{inlineClaimDetails(expense)}
+                                {formatClaimAmount(expense.totalAmount || 0)}
+                                {inlineClaimDetails(expense)}
                               </div>
                             </td>
                             <td className="px-5 py-4 align-middle">
@@ -3132,22 +3170,34 @@ export default function ExpenseClaims() {
                             <input
                               id={`receipt-${index}`}
                               type="file"
-                              accept=".png,.jpg,.jpeg,.webp,.svg,image/*"
+                              accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,image/*,application/pdf"
                               className="hidden"
                               onChange={async (e) => {
                                 const file = e.target.files?.[0] || null;
-                                const mode =
-                                  receiptPickerMode[index] || "upload";
                                 const success = await processRowReceiptFile(
                                   index,
                                   file,
-                                  mode,
+                                  "upload",
                                 );
-                                setReceiptPickerMode((prev) => {
-                                  const next = { ...prev };
-                                  delete next[index];
-                                  return next;
-                                });
+                                if (!success) {
+                                  e.target.value = "";
+                                }
+                                e.target.value = "";
+                              }}
+                            />
+                            <input
+                              id={`receipt-camera-${index}`}
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0] || null;
+                                const success = await processRowReceiptFile(
+                                  index,
+                                  file,
+                                  "scan",
+                                );
                                 if (!success) {
                                   e.target.value = "";
                                 }
@@ -3161,10 +3211,6 @@ export default function ExpenseClaims() {
                                 size="sm"
                                 className="h-10 px-3 text-xs sm:text-sm"
                                 onClick={() => {
-                                  setReceiptPickerMode((prev) => ({
-                                    ...prev,
-                                    [index]: "upload",
-                                  }));
                                   const input = document.getElementById(
                                     `receipt-${index}`,
                                   ) as HTMLInputElement | null;
@@ -3186,12 +3232,8 @@ export default function ExpenseClaims() {
                                     return;
                                   }
 
-                                  setReceiptPickerMode((prev) => ({
-                                    ...prev,
-                                    [index]: "scan",
-                                  }));
                                   const input = document.getElementById(
-                                    `receipt-${index}`,
+                                    `receipt-camera-${index}`,
                                   ) as HTMLInputElement | null;
                                   input?.click();
                                 }}
@@ -3395,7 +3437,10 @@ export default function ExpenseClaims() {
           if (!open) closePreview();
         }}
       >
-        <DialogContent closeOnEscape className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent
+          closeOnEscape
+          className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6"
+        >
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">Preview</DialogTitle>
             <DialogDescription className="text-xs sm:text-sm truncate">
@@ -3445,7 +3490,10 @@ export default function ExpenseClaims() {
           }
         }}
       >
-        <DialogContent closeOnEscape className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent
+          closeOnEscape
+          className="w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6"
+        >
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
               Draft Attachments
@@ -3612,7 +3660,7 @@ export default function ExpenseClaims() {
             <AlertDialogDescription className="text-xs sm:text-sm">
               {isDraftDeleteId(deleteId)
                 ? "Are you sure you want to remove this saved draft?"
-                : "Are you sure? This action cannot be undone."}
+                : "Are you sure? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">

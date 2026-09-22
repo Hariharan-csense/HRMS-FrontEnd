@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import React, {
   ChangeEvent,
   FormEvent,
@@ -1351,9 +1352,10 @@ const KPIScoreboardPage: React.FC = () => {
     if (!viewingAttachment || !canUpdateScorecard) return;
     setRemovingAttachmentId(viewingAttachment.parameterId);
     try {
-      await api.delete(
+      const deletionResult = await api.delete(
         `/kpi/scorecards/parameters/${viewingAttachment.parameterId}/attachment`,
       );
+      if (notifyDeletionPending(deletionResult)) return;
       clearAttachmentFromState(viewingAttachment.parameterId);
       setAttachmentPreviewOpen(false);
       setViewingAttachment(null);

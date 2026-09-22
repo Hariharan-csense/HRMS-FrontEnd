@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "./deletionDrafts";
 // src/components/utils/api.ts
 
 import axios from "axios";
@@ -6,8 +7,8 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-export const BASE_URL = "http://192.168.1.4:3000/backend";
-// export const BASE_URL="https://hrms.procease.co/backend";
+// export const BASE_URL = "http://192.168.1.4:3000/backend";
+export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
   if (!path) return undefined;
@@ -713,8 +714,12 @@ const ENDPOINTS = {
       },
     }),
 
-  facialRecognitionAttendance: (data: FormData) =>
+  facialRecognitionAttendance: (
+    data: FormData,
+    config?: { signal?: AbortSignal },
+  ) =>
     api.post("/attendance/facial-recognition", data, {
+      ...config,
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -730,7 +735,8 @@ const ENDPOINTS = {
     }),
 
   getAttendanceLogs: (params?: any) => api.get("/attendance/logs", { params }),
-  getAttendanceMonthlyReport: (month: string) => api.get("/attendance/monthly-report", { params: { month } }),
+  getAttendanceMonthlyReport: (month: string) =>
+    api.get("/attendance/monthly-report", { params: { month } }),
 
   createOverride: (data: any) => api.post("/attendance/overrides", data),
 
@@ -1214,6 +1220,7 @@ const ENDPOINTS = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteOrganization(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (response.data && response.data.success) {
         return { success: true };
@@ -1385,8 +1392,7 @@ const ENDPOINTS = {
 
   getTicketUsers: () => api.get("/tickets/users"),
 
-  getHrHelpdeskTickets: (params?: any) =>
-    api.get("/hr-helpdesk", { params }),
+  getHrHelpdeskTickets: (params?: any) => api.get("/hr-helpdesk", { params }),
 
   createHrHelpdeskTicket: (data: any) => api.post("/hr-helpdesk", data),
 
@@ -1850,6 +1856,7 @@ const ENDPOINTS = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteCandidate(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (response.data && response.data.success) {
         return { success: true };
@@ -1992,6 +1999,7 @@ const ENDPOINTS = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteUser(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (response.data && response.data.success) {
         return { success: true };

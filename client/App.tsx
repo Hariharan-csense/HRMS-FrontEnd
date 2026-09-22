@@ -1,3 +1,4 @@
+import DeletionDrafts from "@/pages/DeletionDrafts";
 import "./global.css";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -345,6 +346,7 @@ function AppRoutes() {
         <Route path="/signup" element={<SignupRoute />} />
 
         {/* Protected Routes */}
+        <Route path="/admin/deletion-drafts" element={<ProtectedRoute element={<DeletionDrafts />} />} />
         <Route path="/after-login" element={<ProtectedRoute element={<PostLoginRedirect />} />} />
         <Route
           path="/dashboard"

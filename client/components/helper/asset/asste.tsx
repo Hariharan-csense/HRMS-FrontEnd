@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // assetApi.ts
 
 import ENDPOINTS from "@/lib/endpoint"; // Adjust if your endpoints are imported differently
@@ -186,6 +187,7 @@ const assetApi = {
   ): Promise<{ success?: boolean; error?: string }> => {
     try {
       const response = await ENDPOINTS.deleteAsset(id);
+      if (pendingDeletionData(response)) return pendingDeletionData(response);
 
       if (
         response.data?.success ||

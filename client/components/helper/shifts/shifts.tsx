@@ -1,3 +1,4 @@
+import { pendingDeletionData } from "@/lib/deletionDrafts";
 // src/api/shiftApi.ts
 
 import ENDPOINTS from "@/lib/endpoint"; // Adjust the path if your ENDPOINTS file is elsewhere (e.g., "@/components/utils/api")
@@ -114,7 +115,8 @@ export const shiftApi = {
     error?: string;
   }> => {
     try {
-      await ENDPOINTS.deleteShift(id);
+      const deletionResult = await ENDPOINTS.deleteShift(id);
+      if (pendingDeletionData(deletionResult)) return pendingDeletionData(deletionResult);
       return { success: true };
     } catch (error: any) {
       return {
@@ -157,7 +159,8 @@ export const shiftApi = {
 
   deleteRoster: async (id: string): Promise<{ success?: boolean; error?: string }> => {
     try {
-      await ENDPOINTS.deleteShiftRoster(id);
+      const deletionResult = await ENDPOINTS.deleteShiftRoster(id);
+      if (pendingDeletionData(deletionResult)) return pendingDeletionData(deletionResult);
       return { success: true };
     } catch (error: any) {
       return {

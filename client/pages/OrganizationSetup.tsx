@@ -1,3 +1,4 @@
+import { notifyDeletionPending } from "@/lib/deletionDrafts";
 import { InlineEdit, saveInline } from "@/components/InlineEdit";
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
@@ -441,6 +442,7 @@ export default function OrganizationSetup() {
     try {
       if (activeTab === "branches") {
         const result = await branchApi.deleteBranch(deleteId);
+        if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
         if (result.success) {
           await fetchBranches();
         } else if (result.error) {
@@ -449,6 +451,7 @@ export default function OrganizationSetup() {
         }
       } else if (activeTab === "departments") {
         const result = await departmentApi.deleteDepartment(deleteId);
+        if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
         if (result.success) {
           await fetchDepartments();
         } else if (result.error) {
@@ -457,6 +460,7 @@ export default function OrganizationSetup() {
         }
       } else if (activeTab === "designations") {
         const result = await designationApi.deleteDesignation(deleteId);
+        if (notifyDeletionPending(result)) { setIsDeleteDialogOpen(false); return; }
         if (result.success) {
           await fetchDesignations();
         } else if (result.error) {
@@ -2404,7 +2408,7 @@ export default function OrganizationSetup() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Item</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure? This action cannot be undone.
+              Are you sure? This sends a deletion request to the CEO. The record stays active until approval and can be restored by Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">
