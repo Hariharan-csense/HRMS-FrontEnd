@@ -136,6 +136,7 @@ import {
   Bot,
   MoreHorizontal,
   ArchiveRestore,
+  Fingerprint,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -168,7 +169,12 @@ interface SidebarProps {
 }
 
 const navigationItems: NavItem[] = [
-  { label: "Deletion Drafts", icon: <ArchiveRestore className="w-5 h-5" />, path: "/admin/deletion-drafts", roles: ["admin", "ceo", "superadmin"] },
+  {
+    label: "Deletion Drafts",
+    icon: <ArchiveRestore className="w-5 h-5" />,
+    path: "/admin/deletion-drafts",
+    roles: ["admin", "ceo", "superadmin"],
+  },
   {
     label: "Dashboard",
     icon: <LayoutDashboard className="w-5 h-5" />,
@@ -431,15 +437,16 @@ const navigationItems: NavItem[] = [
         icon: <div />,
         moduleName: "live_tracking",
       },
-      {
-        label: "ESSL Setup",
-        path: "/attendance/setup",
-        roles: [],
-        icon: <div />,
-        moduleName: "attendance",
-        subModuleName: "setup",
-      },
     ],
+  },
+
+  {
+    label: "ESSL Setup",
+    path: "/attendance/setup",
+    roles: [],
+    icon: <Fingerprint className="w-5 h-5" />,
+    moduleName: "attendance",
+    subModuleName: "setup",
   },
 
   {
@@ -892,7 +899,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     userRoles,
     userRoleNames,
   } = useRole();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
   const [expandedItems, setExpandedItems] = useState<string[]>(() =>
     navigationItems
       .filter(
@@ -1108,15 +1115,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         currentEmployeeId:
           Number(user.employee_id || user.employeeId || user.id || 0) || null,
         addonAdminBypass: isAdmin || isCeo,
+        companyId: user.company_id,
+        kpiFreeUntil,
+       
       },
     );
   }, [
     isSuperAdmin,
     subscription,
     subscriptionLoading,
+    kpiFreeUntil,
     user.employee_id,
     user.employeeId,
     user.id,
+    user.company_id,
     isAdmin,
     isCeo,
   ]);
@@ -1212,7 +1224,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return "corrective_actions";
         if (normalizedPath.includes("/kpi/reports")) return "reports";
         return undefined;
+
+
       }
+
+      
+
       case "reports":
         if (path.includes("/reports/attendance")) return "attendance";
         if (path.includes("/reports/leave")) return "leave";
@@ -1256,7 +1273,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (allowedModulesForPlan) {
         if (item.moduleName === undefined && !item.submenu?.length)
           return false;
-        if (item.moduleName && !allowedModulesForPlan.has(item.moduleName)) {
+        const planModule =
+          item.path?.toLowerCase().startsWith("/attendance/setup")
+            ? "essl_setup"
+            : item.moduleName;
+        const canShowAttendanceParentForEssl =
+          Number(user.company_id) === 51 &&
+          item.label === "Attendance Management" &&
+          allowedModulesForPlan.has("essl_setup");
+        if (
+          planModule &&
+          !allowedModulesForPlan.has(planModule) &&
+          !canShowAttendanceParentForEssl
+        ) {
           return false;
         }
       } else {

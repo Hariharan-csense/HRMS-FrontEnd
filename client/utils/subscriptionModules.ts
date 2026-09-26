@@ -7,6 +7,7 @@ type SubscriptionLike = {
   trial_hours_remaining?: number;
   trial_minutes_remaining?: number;
   is_internal_company?: boolean;
+  kpi_free_until?: string | null;
   addons?: Array<{
     module_key?: string | null;
     name?: string | null;
@@ -16,10 +17,18 @@ type SubscriptionLike = {
   }>;
 };
 
-export const formatTrialTimeRemaining = (subscription: SubscriptionLike): string => {
+export const formatTrialTimeRemaining = (
+  subscription: SubscriptionLike,
+): string => {
   const days = Math.max(0, Number(subscription.trial_days_remaining || 0));
-  const totalHours = Math.max(0, Number(subscription.trial_hours_remaining ?? days * 24));
-  const totalMinutes = Math.max(0, Number(subscription.trial_minutes_remaining ?? totalHours * 60));
+  const totalHours = Math.max(
+    0,
+    Number(subscription.trial_hours_remaining ?? days * 24),
+  );
+  const totalMinutes = Math.max(
+    0,
+    Number(subscription.trial_minutes_remaining ?? totalHours * 60),
+  );
 
   if (days > 0) return `${days} ${days === 1 ? "day" : "days"}`;
   if (totalHours > 0) {
@@ -36,7 +45,11 @@ const normalizeLine = (line: string) => line.trim().toLowerCase();
 const normalizeModuleKey = (value: string) =>
   normalizeLine(value).replace(/[\s-]+/g, "_");
 
-export const getAddonModuleAliases = (moduleKey?: string | null, name?: string | null, description?: string | null) => {
+export const getAddonModuleAliases = (
+  moduleKey?: string | null,
+  name?: string | null,
+  description?: string | null,
+) => {
   const key = normalizeModuleKey(moduleKey || "");
   const text = `${name || ""} ${description || ""}`.toLowerCase();
   const modules = new Set<string>();
@@ -52,7 +65,11 @@ export const getAddonModuleAliases = (moduleKey?: string | null, name?: string |
     modules.add("live_tracking");
   }
 
-  if (key === "client_attendance" || text.includes("client attendance") || text.includes("field attendance")) {
+  if (
+    key === "client_attendance" ||
+    text.includes("client attendance") ||
+    text.includes("field attendance")
+  ) {
     modules.add("client_attendance");
     modules.add("client_attendance_admin");
     modules.add("my_clients");
@@ -60,7 +77,12 @@ export const getAddonModuleAliases = (moduleKey?: string | null, name?: string |
   }
 
   if (key === "expenses" || text.includes("expense")) modules.add("expenses");
-  if (key === "tickets" || key === "hr_helpdesk" || text.includes("ticket") || text.includes("helpdesk")) {
+  if (
+    key === "tickets" ||
+    key === "hr_helpdesk" ||
+    text.includes("ticket") ||
+    text.includes("helpdesk")
+  ) {
     modules.add("tickets");
     modules.add("hr_helpdesk");
   }
@@ -75,11 +97,20 @@ export const getAddonModuleAliases = (moduleKey?: string | null, name?: string |
   ) {
     modules.add("ai_assistant");
   }
-  if (key === "payroll" || key === "payroll_audit" || text.includes("payroll")) modules.add("payroll");
-  if (key === "shift_roster" || key === "roster" || text.includes("roster")) modules.add("attendance");
-  if (key === "hr_management" || text.includes("recruitment") || text.includes("rms")) modules.add("hr_management");
+  if (key === "payroll" || key === "payroll_audit" || text.includes("payroll"))
+    modules.add("payroll");
+  if (key === "shift_roster" || key === "roster" || text.includes("roster"))
+    modules.add("attendance");
+  if (
+    key === "hr_management" ||
+    text.includes("recruitment") ||
+    text.includes("rms")
+  )
+    modules.add("hr_management");
   if (key === "exit" || text.includes("offboarding")) modules.add("exit");
   if (key === "kpi" || text.includes("kpi")) modules.add("kpi");
+  if (key === "essl_setup" || text.includes("essl setup"))
+    modules.add("essl_setup");
 
   return modules;
 };
@@ -87,11 +118,17 @@ export const getAddonModuleAliases = (moduleKey?: string | null, name?: string |
 export const hasSubscriptionAddonModule = (
   subscription: SubscriptionLike | null | undefined,
   moduleName: string,
-  options?: { currentEmployeeId?: number | null; addonAdminBypass?: boolean }
+  options?: { currentEmployeeId?: number | null; addonAdminBypass?: boolean },
 ) => {
   const wanted = normalizeModuleKey(moduleName);
   return (subscription?.addons || []).some((addon) => {
-    if (!getAddonModuleAliases(addon.module_key, addon.name, addon.description).has(wanted)) {
+    if (
+      !getAddonModuleAliases(
+        addon.module_key,
+        addon.name,
+        addon.description,
+      ).has(wanted)
+    ) {
       return false;
     }
 
@@ -120,7 +157,6 @@ export const FREEPLAN_MODULES = [
   "role_access",
   "employees",
   "pulse_surveys",
-  "kpi",
 ];
 
 const FREE_FOREVER_MODULES = [...FREEPLAN_MODULES];
@@ -170,17 +206,22 @@ const inferTierFromPlanName = (planName?: string | null) => {
     return "freeplan";
   }
   if (name.includes("basic")) return "basic";
-  if (name.includes("standard") || name.includes("professional")) return "standard";
-  if (name.includes("advanced") || name.includes("advance") || name.includes("enterprise"))
+  if (name.includes("standard") || name.includes("professional"))
+    return "standard";
+  if (
+    name.includes("advanced") ||
+    name.includes("advance") ||
+    name.includes("enterprise")
+  )
     return "advanced";
   return null;
 };
 
-const applyDescriptionModuleLines = (modules: Set<string>, description: string) => {
-  const lines = description
-    .split(/\r?\n/)
-    .map(normalizeLine)
-    .filter(Boolean);
+const applyDescriptionModuleLines = (
+  modules: Set<string>,
+  description: string,
+) => {
+  const lines = description.split(/\r?\n/).map(normalizeLine).filter(Boolean);
 
   for (const line of lines) {
     if (line.includes("all in basic")) addAll(modules, BASIC_MODULES);
@@ -189,7 +230,9 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
     if (line.includes("organization")) modules.add("organization");
     if (
       line.includes("employee") &&
-      (line.includes("management") || line.includes("profile") || line.includes("list"))
+      (line.includes("management") ||
+        line.includes("profile") ||
+        line.includes("list"))
     ) {
       modules.add("employees");
     } else if (line.includes("employee")) {
@@ -200,7 +243,8 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
       modules.add("attendance");
       modules.add("shift management");
     }
-    if (line.includes("roster") || line.includes("shift planner")) modules.add("attendance");
+    if (line.includes("roster") || line.includes("shift planner"))
+      modules.add("attendance");
 
     if (line.includes("leave")) modules.add("leave");
     if (line.includes("payroll")) modules.add("payroll");
@@ -213,12 +257,14 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
     ) {
       modules.add("ai_assistant");
     }
-    if (line.includes("exit") || line.includes("offboarding")) modules.add("exit");
+    if (line.includes("exit") || line.includes("offboarding"))
+      modules.add("exit");
 
     if (line.includes("reports")) modules.add("reports");
     if (line.includes("kpi")) modules.add("kpi");
     if (
-      (line.includes("role") && (line.includes("permission") || line.includes("access"))) ||
+      (line.includes("role") &&
+        (line.includes("permission") || line.includes("access"))) ||
       (line.includes("role") && line.includes("module"))
     ) {
       modules.add("role_access");
@@ -234,7 +280,8 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
     }
     if (line.includes("live tracking")) modules.add("live_tracking");
 
-    if (line.includes("client attendance admin")) modules.add("client_attendance_admin");
+    if (line.includes("client attendance admin"))
+      modules.add("client_attendance_admin");
     if (line.includes("client attendance")) {
       modules.add("client_attendance");
       modules.add("client_attendance_admin");
@@ -246,20 +293,41 @@ const applyDescriptionModuleLines = (modules: Set<string>, description: string) 
       modules.add("tickets");
       modules.add("hr_helpdesk");
     }
-    if (line.includes("pulse") || line.includes("survey")) modules.add("pulse_surveys");
+    if (line.includes("pulse") || line.includes("survey"))
+      modules.add("pulse_surveys");
   }
 };
 
 export const getAllowedModulesFromSubscription = (
   subscription: SubscriptionLike | null | undefined,
   subscriptionLoading?: boolean,
-  options?: { trialEndingSoonDays?: number; currentEmployeeId?: number | null; addonAdminBypass?: boolean }
+  options?: {
+    trialEndingSoonDays?: number;
+    currentEmployeeId?: number | null;
+    addonAdminBypass?: boolean;
+    companyId?: number | string | null;
+    kpiFreeUntil?: string | null;
+  },
 ): Set<string> | null => {
+  const applyCompanyEntitlements = (modules: Set<string>) => {
+    if (Number(options?.companyId) === 51) modules.add("essl_setup");
+    return modules;
+  };
+  const kpiFreeUntil = options?.kpiFreeUntil || subscription?.kpi_free_until;
+  const hasKpiTrial = Boolean(
+    kpiFreeUntil &&
+      Number.isFinite(Date.parse(kpiFreeUntil)) &&
+      Date.now() < Date.parse(kpiFreeUntil),
+  );
   // While loading, be conservative to avoid showing modules incorrectly.
-  if (subscriptionLoading) return new Set<string>(FREE_FOREVER_MODULES);
+  if (subscriptionLoading) return applyCompanyEntitlements(new Set<string>(FREE_FOREVER_MODULES));
 
   // No subscription: keep free-forever modules available.
-  if (!subscription) return new Set<string>(FREE_FOREVER_MODULES);
+  if (!subscription) {
+    const freeModules = new Set<string>(FREE_FOREVER_MODULES);
+    if (hasKpiTrial) freeModules.add("kpi");
+    return applyCompanyEntitlements(freeModules);
+  }
 
   // The product owner's own company does not require a commercial subscription.
   if (subscription.is_internal_company) return null;
@@ -269,7 +337,31 @@ export const getAllowedModulesFromSubscription = (
   // Every active trial has full access through its exact expiry timestamp.
   // "Ending soon" is a display concern and must never reduce entitlements.
   if (status === "trial" && isTrialActive) {
-    return null;
+    if (hasKpiTrial) return null;
+    const trialModules = new Set<string>([
+      ...ADVANCED_MODULES,
+      "quick_actions",
+      "payroll_audit",
+      "reports",
+      "shift_roster",
+    ]);
+    for (const addon of subscription.addons || []) {
+      const assignedIds = Array.isArray(addon.assigned_employee_ids)
+        ? addon.assigned_employee_ids.map((id) => Number(id))
+        : [];
+      const shouldIncludeAddon =
+        options?.addonAdminBypass ||
+        (options?.currentEmployeeId
+          ? assignedIds.includes(Number(options.currentEmployeeId))
+          : false);
+      if (!shouldIncludeAddon) continue;
+      for (const moduleKey of getAddonModuleAliases(
+        addon.module_key,
+        addon.name,
+        addon.description,
+      )) trialModules.add(moduleKey);
+    }
+    return applyCompanyEntitlements(trialModules);
   }
 
   const isInactive =
@@ -277,38 +369,45 @@ export const getAllowedModulesFromSubscription = (
     status === "cancelled" ||
     (status === "trial" && !isTrialActive);
 
-  if (isInactive) return new Set<string>(FREE_FOREVER_MODULES);
+  if (isInactive) {
+    const freeModules = new Set<string>(FREE_FOREVER_MODULES);
+    if (hasKpiTrial) freeModules.add("kpi");
+    return applyCompanyEntitlements(freeModules);
+  }
 
   const tier = inferTierFromPlanName(subscription.plan_name);
   const description = subscription.plan_description || "";
 
   if (tier === "freeplan") {
     const freeModules = new Set<string>(FREEPLAN_MODULES);
+    if (hasKpiTrial) freeModules.add("kpi");
     for (const addon of subscription.addons || []) {
       const assignedIds = Array.isArray(addon.assigned_employee_ids)
         ? addon.assigned_employee_ids.map((id) => Number(id))
         : [];
       const shouldIncludeAddon =
         options?.addonAdminBypass ||
-        (options?.currentEmployeeId ? assignedIds.includes(Number(options.currentEmployeeId)) : false);
+        (options?.currentEmployeeId
+          ? assignedIds.includes(Number(options.currentEmployeeId))
+          : false);
 
       if (!shouldIncludeAddon) continue;
 
-      for (const moduleKey of getAddonModuleAliases(addon.module_key, addon.name, addon.description)) {
+      for (const moduleKey of getAddonModuleAliases(
+        addon.module_key,
+        addon.name,
+        addon.description,
+      )) {
         freeModules.add(moduleKey);
       }
     }
-    return freeModules;
+    return applyCompanyEntitlements(freeModules);
   }
 
   const modules = new Set<string>(FREE_FOREVER_MODULES);
 
-  // Plan inheritance: allow base modules for the current plan tier, even if the description uses legacy text
-  // like "All in Standard + ...". Description parsing below will still add any extra modules mentioned.
-  if (tier === "basic") addAll(modules, BASIC_MODULES);
-  if (tier === "standard") addAll(modules, STANDARD_MODULES);
-  if (tier === "advanced") addAll(modules, ADVANCED_MODULES);
-
+  // The purchased package description is the source of truth. A plan name
+  // alone must not grant modules that were not included in that package.
   applyDescriptionModuleLines(modules, description);
 
   for (const addon of subscription.addons || []) {
@@ -317,14 +416,20 @@ export const getAllowedModulesFromSubscription = (
       : [];
     const shouldIncludeAddon =
       options?.addonAdminBypass ||
-      (options?.currentEmployeeId ? assignedIds.includes(Number(options.currentEmployeeId)) : false);
+      (options?.currentEmployeeId
+        ? assignedIds.includes(Number(options.currentEmployeeId))
+        : false);
 
     if (!shouldIncludeAddon) continue;
 
-    for (const moduleKey of getAddonModuleAliases(addon.module_key, addon.name, addon.description)) {
+    for (const moduleKey of getAddonModuleAliases(
+      addon.module_key,
+      addon.name,
+      addon.description,
+    )) {
       modules.add(moduleKey);
     }
   }
 
-  return modules;
+  return applyCompanyEntitlements(modules);
 };

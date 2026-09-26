@@ -1,3 +1,4 @@
+import { AddonIllustration } from "@/components/AddonIllustration";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -38,12 +39,41 @@ interface SubscriptionPlan {
   updated_at: string;
 }
 
+interface SubscriptionAddon {
+  id: number;
+  name: string;
+  module_key?: string;
+  description?: string;
+  price_upto5?: number;
+  price_upto10?: number;
+  price_upto15?: number;
+  price_upto25?: number;
+  price_upto50?: number;
+  price_above50?: number;
+  is_active?: boolean | number;
+}
+
 const formatPrice = (price: number): string => {
   return `₹${price.toLocaleString("en-IN")}`;
 };
 
 const formatCurrency = (price: number): string => {
   return `\u20B9${price.toLocaleString("en-IN")}`;
+};
+
+const getAddonPrice = (addon: SubscriptionAddon, users: number): number => {
+  if (users <= 5) return Number(addon.price_upto5 ?? addon.price_upto25 ?? 0);
+  if (users <= 10)
+    return Number(
+      addon.price_upto10 ?? addon.price_upto50 ?? addon.price_upto5 ?? 0,
+    );
+  return Number(
+    addon.price_upto15 ??
+      addon.price_above50 ??
+      addon.price_upto50 ??
+      addon.price_upto10 ??
+      0,
+  );
 };
 
 const getPricingSummary = (
@@ -71,6 +101,7 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const hideRegistration = isCordovaIOS();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [addons, setAddons] = useState<SubscriptionAddon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState(25);
@@ -120,9 +151,336 @@ const PricingPage = () => {
     fetchPlans();
   }, []);
 
+  useEffect(() => {
+    const fetchAddons = async () => {
+      try {
+        const response = await ENDPOINTS.getPublicSubscriptionAddons();
+        const activeAddons = Array.isArray(response?.data?.data)
+          ? response.data.data.filter(
+              (addon: SubscriptionAddon) =>
+                addon.is_active !== false &&
+                addon.is_active !== 0 &&
+                !`${addon.module_key || ""} ${addon.name || ""}`
+                  .toLowerCase()
+                  .includes("kpi"),
+            )
+          : [];
+        setAddons(activeAddons);
+      } catch (err) {
+        console.error("Error fetching public subscription add-ons:", err);
+        setAddons([]);
+      }
+    };
+
+    fetchAddons();
+  }, []);
+
   const handleSignupAction = () => {
     navigate(hideRegistration ? "/login" : "/signup");
   };
+
+  return (
+    <div className="min-h-screen bg-[#fffdfd] text-black">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <a href="/">
+            <img
+              src={logo}
+              alt="HRMS Logo"
+              className="h-14 w-14 object-contain"
+            />
+          </a>
+          <nav className="hidden items-center gap-9 text-base font-semibold text-black md:flex">
+            <a href="/">Home</a>
+            <a href="/features">Features</a>
+            <a href="/pricing" className="font-bold text-black">
+              Pricing
+            </a>
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+          </nav>
+          <Button
+            onClick={() => navigate("/login")}
+            className="rounded-full bg-[#17c491] px-7 py-2.5 text-sm font-semibold hover:bg-[#139f78]"
+          >
+            Sign In
+          </Button>
+        </div>
+      </header>
+      <main>
+        <section className="px-5 pb-8 pt-12 text-center sm:pt-16">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-black">
+            Pricing plans
+          </p>
+          <h1 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-black sm:text-4xl">
+            Simple pricing that grows with you
+          </h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-black">
+            Choose the perfect plan for your business needs. No hidden fees, no
+            surprises.
+          </p>
+          <div className="mx-auto mt-8 max-w-4xl rounded-3xl border-2 border-[#17c491] bg-[#effff9] p-4 shadow-sm sm:p-7">
+            <div className="rounded-2xl bg-white px-4 py-5 sm:px-8">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-2xl text-black sm:text-3xl">
+                <span>Get instant estimate for</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={selectedUsersInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedUsersInput(value);
+                    if (value)
+                      setSelectedUsers(Math.max(1, parseInt(value, 10) || 1));
+                  }}
+                  onBlur={() => {
+                    const value = Math.max(
+                      1,
+                      parseInt(selectedUsersInput, 10) || 1,
+                    );
+                    setSelectedUsers(value);
+                    setSelectedUsersInput(String(value));
+                  }}
+                  className="w-28 rounded-xl border border-[#17c491] bg-[#effff9] px-2 py-1 text-center text-2xl font-bold text-black outline-none focus:ring-2 focus:ring-[#17c491]/20"
+                />
+                <span>employees</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="3000"
+                step="10"
+                value={Math.min(3000, Math.max(10, selectedUsers))}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  setSelectedUsers(value);
+                  setSelectedUsersInput(String(value));
+                }}
+                aria-label="Number of employees"
+                className="mt-6 h-2 w-full cursor-pointer accent-[#17c491]"
+                style={{ accentColor: "#17c491" }}
+              />
+              <div className="mt-2 flex justify-between text-xs font-medium text-black">
+                <span>10</span>
+                <span>500</span>
+                <span>1,000</span>
+                <span>2,000</span>
+                <span>3,000+</span>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 sm:flex-row">
+              <label className="flex items-center gap-2 text-xs font-semibold text-black">
+                Billing cycle
+              </label>
+              <div className="flex rounded-full bg-slate-100 p-1 text-sm font-semibold">
+                {(["monthly", "yearly"] as const).map((cycle) => (
+                  <button
+                    key={cycle}
+                    type="button"
+                    onClick={() => setSelectedBillingCycle(cycle)}
+                    className={`rounded-full px-5 py-2 capitalize transition ${selectedBillingCycle === cycle ? "bg-[#17c491] text-white shadow-sm" : "text-black"}`}
+                  >
+                    {cycle}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="px-5 pb-14">
+          <div className="mx-auto max-w-6xl">
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-7 w-7 animate-spin text-black" />
+              </div>
+            ) : error ? (
+              <div className="py-12 text-center text-black">{error}</div>
+            ) : plans.length > 0 ? (
+              <div className="grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {plans.map((plan) => {
+                  const isMostPopular = plan.name.toLowerCase() === "standard";
+                  const pricing = getPricingSummary(
+                    plan,
+                    selectedUsers,
+                    selectedBillingCycle,
+                  );
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-white p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:p-8 ${isMostPopular ? "border-[#17c491] bg-gradient-to-b from-[#effff9] to-white shadow-md shadow-emerald-100" : "border-slate-200 hover:border-slate-300"}`}
+                    >
+                      <div className={`absolute inset-x-0 top-0 h-1.5 ${isMostPopular ? "bg-gradient-to-r from-[#17c491] to-teal-400" : "bg-gradient-to-r from-slate-200 to-slate-300"}`} />
+                      {isMostPopular && (
+                        <div className="absolute right-4 top-4 rounded-full bg-[#17c491] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white">
+                          Most Popular
+                        </div>
+                      )}
+                      <h3 className="mb-3 mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                        {plan.name}
+                      </h3>
+                      <p className="mb-6 min-h-12 border-b border-slate-200/70 pb-6 text-base leading-6 text-slate-600">
+                        {plan.description.split("\n")[0]}
+                      </p>
+                      <div className={`mb-5 rounded-xl border p-4 ${isMostPopular ? "border-emerald-100 bg-white/80" : "border-slate-100 bg-slate-50/70"}`}>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                            {formatCurrency(pricing.effectivePerUser)}
+                          </span>
+                          <span className="text-sm font-semibold text-slate-500">
+                            /month
+                          </span>
+                        </div>
+                        <span className="mt-3 block border-t border-slate-100 pt-3 text-sm font-medium text-slate-600">
+                          Total {selectedBillingCycle}:{" "}
+                          {formatCurrency(pricing.totalPrice)} for{" "}
+                          {selectedUsers} users
+                        </span>
+                      </div>
+                      <div className="mb-7 flex-1 space-y-1.5">
+                        {plan.description
+                          .split("\n")
+                          .filter(Boolean)
+                          .map((item, index) => {
+                            const isAddon = item.toLowerCase().includes("add-on");
+                            return (
+                            <div
+                              key={index}
+                              className={`flex items-start gap-3 rounded-lg px-2.5 py-2.5 transition-colors ${isAddon ? "bg-amber-50/70" : "hover:bg-slate-50"}`}
+                            >
+                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isAddon ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                {isAddon ? <span className="text-sm font-bold">+</span> : <Check className="h-3.5 w-3.5" />}
+                              </span>
+                              <span className="flex-1 text-sm leading-6 text-slate-700">
+                                {item.replace(/\s*\(add-on\)/i, "")}
+                                {isAddon && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-800">Add-on</span>}
+                              </span>
+                            </div>
+                          );})}
+                      </div>
+                      <Button
+                        className={`w-full rounded-full py-3 text-sm font-semibold ${isMostPopular ? "bg-[#17c491] text-white hover:bg-[#139f78]" : "border border-[#17c491] bg-white text-black hover:bg-[#effff9]"}`}
+                        onClick={handleSignupAction}
+                      >
+                        {hideRegistration ? "Sign In" : "Try Everything Free!"}
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
+                      <p className="mt-4 text-center text-xs text-black">
+                        Billed {selectedBillingCycle}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-black">
+                No subscription plans available at the moment.
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-7 text-center">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-black">
+                Extend your workspace
+              </p>
+              <h2 className="text-2xl font-bold text-black">
+                Power up with add-ons
+              </h2>
+              <p className="mt-2 text-xs text-black">
+                Add the tools your team needs as you grow.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-stretch justify-center gap-4">
+              {addons.map((addon) => (
+                <div
+                  key={addon.id}
+                  className="relative flex w-full max-w-[280px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                >
+                  {addon.id === addons[0]?.id && (
+                    <span className="absolute right-3 top-3 rounded-full bg-[#ffe5a8] px-2 py-1 text-[10px] font-semibold text-black">
+                      NEW
+                    </span>
+                  )}
+                  <AddonIllustration
+                    moduleKey={addon.module_key}
+                    className="mb-2 !h-20 !w-32"
+                  />
+                  <h3 className="break-words text-sm font-bold text-black">
+                    {addon.name}
+                  </h3>
+                  <p className="mt-1 flex-1 break-words text-xs leading-5 text-black">
+                    {addon.description ||
+                      "Extend your HR workspace with this add-on module."}
+                  </p>
+                  <div className="mt-3 border-l-4 border-[#17c491] pl-3">
+                    <p className="text-xl font-bold text-black">
+                      {formatCurrency(getAddonPrice(addon, selectedUsers))}{" "}
+                      <span className="text-xs font-normal text-black">
+                        /user/month
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-black">
+                      For {selectedUsers} employees
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleSignupAction}
+                    className="mt-3 h-9 w-full rounded-lg border border-[#17c491] bg-white px-3 py-2 text-xs text-black hover:bg-[#17c491] hover:text-white"
+                  >
+                    Explore add-on
+                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="bg-[#17c491] px-5 py-14 text-center text-white">
+          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/80">
+            From cost to value
+          </p>
+          <h2 className="text-2xl font-bold">Try everything free</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-white/90">
+            No credit card required. Cancel anytime and keep your team moving
+            forward.
+          </p>
+          <Button
+            onClick={handleSignupAction}
+            className="mt-7 rounded-full bg-white px-7 text-sm text-black hover:bg-[#effff9]"
+          >
+            {hideRegistration ? "Sign In" : "Start Free Trial"}
+          </Button>
+        </section>
+        <section className="bg-[#fff6df] px-5 py-10">
+          <div className="mx-auto max-w-4xl text-center">
+            <h2 className="text-2xl font-bold text-black">
+              Frequently Asked Questions
+            </h2>
+            <div className="mt-6 grid gap-2 text-left md:grid-cols-2">
+              {[
+                "Can I change my plan later?",
+                "Is there a free trial?",
+                "What payment methods do you accept?",
+                "Do you offer yearly billing?",
+                "Can I cancel anytime?",
+                "What support is included?",
+              ].map((question) => (
+                <div
+                  key={question}
+                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 text-xs font-semibold text-black shadow-sm"
+                >
+                  <span>{question}</span>
+                  <ChevronRight className="h-4 w-4 rotate-90 text-black" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -137,38 +495,38 @@ const PricingPage = () => {
             <nav className="hidden md:flex items-center space-x-8">
               <a
                 href="/"
-                className="text-gray-600 hover:text-green-600 transition-colors"
+                className="text-black hover:text-black transition-colors"
               >
                 Home
               </a>
               <a
                 href="/features"
-                className="text-gray-600 hover:text-green-600 transition-colors"
+                className="text-black hover:text-black transition-colors"
               >
                 Features
               </a>
               <a
                 href="/pricing"
-                className="font-medium text-green-600 border-b-2 border-green-600 pb-1"
+                className="font-medium text-black border-b-2 border-green-600 pb-1"
               >
                 Pricing
               </a>
               <a
                 href="/about"
-                className="text-gray-600 hover:text-green-600 transition-colors"
+                className="text-black hover:text-black transition-colors"
               >
                 About
               </a>
               <a
                 href="/contact"
-                className="text-gray-600 hover:text-green-600 transition-colors"
+                className="text-black hover:text-black transition-colors"
               >
                 Contact
               </a>
             </nav>
             <Button
               variant="outline"
-              className="border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 transition-colors"
+              className="border-green-600 text-black hover:bg-green-50 hover:text-black transition-colors"
               onClick={() => navigate("/login")}
             >
               Sign In
@@ -220,7 +578,7 @@ const PricingPage = () => {
           </p>
           <Button
             size="lg"
-            className="bg-white text-green-700 hover:bg-gray-100 px-8 py-3 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+            className="bg-white text-black hover:bg-gray-100 px-8 py-3 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
             onClick={handleSignupAction}
           >
             {hideRegistration ? "Sign In" : "Start Free Trial"}
@@ -236,7 +594,7 @@ const PricingPage = () => {
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-gray-700 font-medium">
+                  <label className="text-black font-medium">
                     Number of Users
                   </label>
                   <input
@@ -267,7 +625,7 @@ const PricingPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-gray-700 font-medium">
+                  <label className="text-black font-medium">
                     Billing Cycle
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -278,8 +636,8 @@ const PricingPage = () => {
                         onClick={() => setSelectedBillingCycle(cycle)}
                         className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
                           selectedBillingCycle === cycle
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                            ? "border-green-600 bg-green-50 text-black"
+                            : "border-gray-300 text-black hover:bg-gray-50"
                         }`}
                       >
                         {cycle === "monthly" ? "Monthly" : "Yearly"}
@@ -298,15 +656,15 @@ const PricingPage = () => {
           >
             {loading ? (
               <div className="col-span-3 flex justify-center items-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-                <span className="ml-2 text-gray-600">Loading plans...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-black" />
+                <span className="ml-2 text-black">Loading plans...</span>
               </div>
             ) : error ? (
               <div className="col-span-3 text-center py-12">
-                <p className="text-red-500">{error}</p>
+                <p className="text-black">{error}</p>
                 <Button
                   variant="outline"
-                  className="mt-4 border-green-600 text-green-600 hover:bg-green-50"
+                  className="mt-4 border-green-600 text-black hover:bg-green-50"
                   onClick={() => window.location.reload()}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
@@ -326,53 +684,54 @@ const PricingPage = () => {
                   return (
                     <div
                       key={plan.id}
-                      className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-105 ${
+                      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
                         isMostPopular
-                          ? "border-2 border-orange-400 ring-4 ring-orange-100"
-                          : "border border-gray-200"
+                          ? "ring-emerald-300 hover:shadow-emerald-100"
+                          : "ring-slate-200 hover:shadow-slate-200"
                       }`}
                     >
+                      <div className={`h-1.5 w-full ${isMostPopular ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-slate-200 to-slate-300"}`} />
                       {isMostPopular && (
-                        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
-                          Most Popular
+                        <div className="bg-emerald-50 text-emerald-800 text-center py-2 text-xs font-bold uppercase tracking-widest">
+                          Most Popular · Recommended
                         </div>
                       )}
 
                       <div
-                        className={`p-8 ${isMostPopular ? "pt-12" : "pt-8"}`}
+                        className="flex flex-1 flex-col p-6 sm:p-7"
                       >
                         {/* User Icon */}
-                        <div className="flex justify-center mb-6">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                            <Users className="w-8 h-8 text-gray-600" />
+                        <div className="mb-4 flex justify-center">
+                          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${isMostPopular ? "bg-emerald-100" : "bg-slate-100"}`}>
+                            <Users className={`h-7 w-7 ${isMostPopular ? "text-emerald-700" : "text-slate-600"}`} />
                           </div>
                         </div>
 
                         {/* Plan Name */}
-                        <h3 className="text-2xl font-bold text-center text-gray-900 mb-4">
+                        <h3 className="mb-4 text-center text-2xl font-bold tracking-tight text-slate-900">
                           {plan.name}
                         </h3>
 
                         {/* Price */}
-                        <div className="text-center mb-6">
+                        <div className={`mb-6 rounded-2xl border p-4 text-center ${isMostPopular ? "border-emerald-100 bg-emerald-50/60" : "border-slate-100 bg-slate-50/70"}`}>
                           <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-5xl font-bold text-green-700">
+                            <span className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
                               {formatCurrency(pricing.effectivePerUser)}
                             </span>
-                            <span className="text-green-600 font-semibold text-xl">
+                            <span className="text-slate-500 font-medium text-lg">
                               /month
                             </span>
                           </div>
-                          <span className="text-gray-500 text-sm mt-2 block">
+                          <span className="mt-2 block text-sm text-slate-500">
                             Monthly: {formatCurrency(pricing.monthlyPerUser)}
                             {selectedBillingCycle === "yearly"
                               ? ` • Yearly: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month`
                               : ""}
                           </span>
                           {selectedBillingCycle === "yearly" && (
-                            <span className="text-green-600 text-sm block"></span>
+                            <span className="text-black text-sm block"></span>
                           )}
-                          <span className="text-gray-500 text-sm mt-2 block">
+                          <span className="mt-3 block border-t border-slate-200/80 pt-3 text-sm font-medium text-slate-700">
                             Total {selectedBillingCycle}:{" "}
                             {formatCurrency(pricing.totalPrice)} for{" "}
                             {selectedUsers} users
@@ -382,30 +741,31 @@ const PricingPage = () => {
                         {/* User/Storage Details removed */}
 
                         {/* Plan Description with Bullet Points */}
-                        <div className="space-y-3 mb-8">
-                          {plan.description.split("\n").map((item, index) => (
+                        <div className="mb-8 flex-1">
+                          <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">Included modules <span className="h-px flex-1 bg-slate-100" /></p>
+                          <div className="space-y-1.5">
+                          {plan.description.split("\n").filter(Boolean).map((item, index) => {
+                            const isAddon = item.toLowerCase().includes("add-on");
+                            return (
                             <div
                               key={index}
-                              className="flex items-center justify-between py-2"
+                              className={`flex items-start gap-3 rounded-lg px-2.5 py-2.5 text-sm transition-colors ${isAddon ? "bg-amber-50/70" : "hover:bg-slate-50"}`}
                             >
-                              <span className="text-gray-700 text-sm flex-1">
-                                {item}
-                              </span>
-                              <div className="flex items-center justify-center w-6 h-6">
-                                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <Check className="w-3 h-3 text-white" />
-                                </div>
+                              <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isAddon ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                {isAddon ? <span className="text-sm font-bold">+</span> : <Check className="h-3 w-3" />}
                               </div>
+                              <span className="flex-1 leading-5 text-slate-700">{item.replace(/\s*\(add-on\)/i, "")}{isAddon && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-800">Add-on</span>}</span>
                             </div>
-                          ))}
+                          );})}
+                          </div>
                         </div>
 
                         {/* CTA Button */}
                         <Button
                           className={`w-full py-3 font-semibold transition-all duration-200 ${
                             isMostPopular
-                              ? "bg-orange-500 hover:bg-orange-600 text-white"
-                              : "bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+                              ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                              : "border border-slate-200 bg-white text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
                           }`}
                           onClick={handleSignupAction}
                         >
@@ -417,10 +777,10 @@ const PricingPage = () => {
 
                         {/* Trial Information */}
                         <div className="text-center mt-4">
-                          {/* <p className="text-gray-600 text-sm">
+                          {/* <p className="text-black text-sm">
                             {plan.trial_days} days free trial
                           </p> */}
-                          <p className="text-gray-500 text-xs mt-1">
+                          <p className="text-black text-xs mt-1">
                             Billed {selectedBillingCycle}
                           </p>
                         </div>
@@ -432,12 +792,12 @@ const PricingPage = () => {
             ) : (
               <div className="col-span-3 text-center py-12">
                 <div className="bg-white/80 backdrop-blur-sm p-8 rounded-xl shadow-lg inline-block">
-                  <p className="text-gray-600">
+                  <p className="text-black">
                     No subscription plans available at the moment.
                   </p>
                   <Button
                     variant="outline"
-                    className="mt-4 border-green-600 text-green-600 hover:bg-green-50"
+                    className="mt-4 border-green-600 text-black hover:bg-green-50"
                     onClick={() => window.location.reload()}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
@@ -454,10 +814,10 @@ const PricingPage = () => {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">
               Frequently Asked Questions
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-black max-w-2xl mx-auto">
               Everything you need to know about our pricing and plans. Can't
               find the answer you're looking for?
             </p>
@@ -494,22 +854,22 @@ const PricingPage = () => {
                 key={index}
                 className="group bg-white border border-gray-100 rounded-xl p-6 hover:shadow-lg transition-shadow duration-300"
               >
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
-                  <span className="bg-green-100 text-green-600 rounded-full p-1.5 mr-3">
+                <h3 className="text-lg font-semibold text-black mb-2 flex items-center">
+                  <span className="bg-green-100 text-black rounded-full p-1.5 mr-3">
                     <HelpCircle className="h-4 w-4" />
                   </span>
                   {faq.q}
                 </h3>
-                <p className="text-gray-600 pl-9">{faq.a}</p>
+                <p className="text-black pl-9">{faq.a}</p>
               </div>
             ))}
           </div>
 
           <div className="mt-12 text-center">
-            <p className="text-gray-600 mb-6">Still have questions?</p>
+            <p className="text-black mb-6">Still have questions?</p>
             <Button
               variant="outline"
-              className="border-green-600 text-green-600 hover:bg-green-50"
+              className="border-green-600 text-black hover:bg-green-50"
               onClick={() => navigate("/contact")}
             >
               <MessageSquareText className="h-4 w-4 mr-2" />
@@ -538,7 +898,7 @@ const PricingPage = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              className="bg-white text-green-700 hover:bg-gray-100 px-8 py-6 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-white text-black hover:bg-gray-100 px-8 py-6 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
               onClick={() => navigate("/login")}
             >
               <Zap className="h-5 w-5 mr-2" />

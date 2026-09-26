@@ -97,6 +97,159 @@ const AboutPage = () => {
   ];
 
   return (
+    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <a href="/">
+            <img
+              src={logo}
+              alt="Procease HRMS Logo"
+              className="h-14 w-14 object-contain"
+            />
+          </a>
+          <nav className="hidden items-center gap-9 text-base font-semibold text-slate-700 md:flex">
+            <a href="/">Home</a>
+            <a href="/features">Features</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/about" className="font-bold text-[#17c491]">
+              About
+            </a>
+            <a href="/contact">Contact</a>
+          </nav>
+          <Button
+            onClick={() => navigate("/login")}
+            className="rounded-full bg-[#17c491] px-7 py-2.5 text-sm font-semibold hover:bg-[#139f78]"
+          >
+            Sign In
+          </Button>
+        </div>
+      </header>
+      <main>
+        <section className="px-5 pb-14 pt-14 sm:pt-20">
+          <div className="mx-auto max-w-5xl">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+              Process-driven HR management
+            </p>
+            <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl">
+              About Procease HRMS
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-500">
+              A process-driven Human Resource Management platform created to
+              help growing Indian SMEs build disciplined, scalable
+              organizations.
+            </p>
+            <Button
+              onClick={() => navigate("/login")}
+              className="mt-8 rounded-full bg-[#17c491] px-7 text-sm shadow-lg shadow-emerald-200 hover:bg-[#139f78]"
+            >
+              Get started today
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </section>
+        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-14">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-start">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+                  Why we exist
+                </p>
+                <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                  We solve a fundamental problem
+                </h2>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-white p-7 shadow-sm">
+                <p className="text-xl font-semibold leading-8 text-slate-900">
+                  HR depends too much on people and too little on systems.
+                </p>
+                <p className="mt-4 text-sm leading-6 text-slate-500">
+                  Procease turns clear processes into usable systems so growing
+                  teams can operate with confidence and consistency.
+                </p>
+              </div>
+            </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {philosophyPoints.map((point) => {
+                const Icon = point.icon;
+                return (
+                  <Card
+                    key={point.title}
+                    className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm"
+                  >
+                    <CardContent className="p-0">
+                      <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        {point.title}
+                      </h3>
+                      <p className="mt-2 text-xs leading-5 text-slate-500">
+                        {point.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        <section className="px-5 py-14">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-8 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+                Who we help
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                Built for organizations ready to grow
+              </h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {targetAudience.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Card
+                    key={item.title}
+                    className="rounded-2xl border-slate-200 p-6 shadow-sm"
+                  >
+                    <CardContent className="p-0">
+                      <Icon className="h-6 w-6 text-[#17c491]" />
+                      <h3 className="mt-5 text-base font-bold text-slate-900">
+                        {item.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {item.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+        <section className="bg-[#17c491] px-5 py-14 text-white">
+          <div className="mx-auto max-w-5xl">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">
+              Our approach
+            </p>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {approachSteps.map((step) => (
+                <div key={step.step} className="border-l border-white/40 pl-4">
+                  <p className="text-xs font-bold text-white/70">{step.step}</p>
+                  <h3 className="mt-2 text-base font-bold">{step.title}</h3>
+                  <p className="mt-2 text-xs leading-5 text-white/85">
+                    {step.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+
+  return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">

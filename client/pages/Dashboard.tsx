@@ -598,12 +598,12 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
   const { canPerformModuleAction, userRoles, loading: roleLoading } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(
     subscription,
     subscriptionLoading,
-    { trialEndingSoonDays: 2 },
+    { trialEndingSoonDays: 2, kpiFreeUntil },
   );
   const hasConfiguredRoles = userRoles.length > 0;
 
@@ -1860,11 +1860,11 @@ const EmployeeDashboard = ({
     }
   };
 
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
   const allowedModules = getAllowedModulesFromSubscription(
     subscription,
     subscriptionLoading,
-    { trialEndingSoonDays: 2 },
+    { trialEndingSoonDays: 2, kpiFreeUntil },
   );
   const moduleCards: DashboardModuleCard[] = filterDashboardModuleCards(
     getCommonDashboardModuleCards(),
@@ -2271,11 +2271,11 @@ const ManagerDashboard = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { canPerformModuleAction } = useRole();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
   const allowedModules = getAllowedModulesFromSubscription(
     subscription,
     subscriptionLoading,
-    { trialEndingSoonDays: 2 },
+    { trialEndingSoonDays: 2, kpiFreeUntil },
   );
 
   useEffect(() => {
@@ -2468,12 +2468,12 @@ const HRDashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
   const { canPerformModuleAction } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(
     subscription,
     subscriptionLoading,
-    { trialEndingSoonDays: 2 },
+    { trialEndingSoonDays: 2, kpiFreeUntil },
   );
 
   useEffect(() => {
@@ -2595,12 +2595,12 @@ const FinanceDashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
   const { canPerformModuleAction } = useRole();
   const allowedModules = getAllowedModulesFromSubscription(
     subscription,
     subscriptionLoading,
-    { trialEndingSoonDays: 2 },
+    { trialEndingSoonDays: 2, kpiFreeUntil },
   );
 
   useEffect(() => {

@@ -16,6 +16,11 @@ import {
   Receipt,
   Scan,
   Zap,
+  Fingerprint,
+  MapPin,
+  BriefcaseBusiness,
+  Package,
+  Headphones,
 } from "lucide-react";
 import Footer from "@/components/Footer";
 import image from "../assets/image.png";
@@ -28,6 +33,195 @@ const LandingPage = () => {
   const handleGetStarted = () => {
     navigate("/login");
   };
+
+  return (
+    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <Link to="/">
+            <img
+              src={logo}
+              alt="HRMS Logo"
+              className="h-14 w-14 object-contain"
+            />
+          </Link>
+          <nav className="hidden items-center gap-9 text-base font-semibold text-slate-700 md:flex">
+            <Link to="/" className="font-bold text-[#17c491]">
+              Home
+            </Link>
+            <Link to="/features">Features</Link>
+            <Link to="/pricing">Pricing</Link>
+            <Link to="/about">About</Link>
+            <Link to="/contact">Contact</Link>
+          </nav>
+          <Button
+            onClick={handleGetStarted}
+            className="rounded-full bg-[#17c491] px-7 py-2.5 text-sm font-semibold hover:bg-[#139f78]"
+          >
+            Sign In
+          </Button>
+        </div>
+      </header>
+      <main>
+        <section className="overflow-hidden px-5 pb-16 pt-14 sm:pt-20">
+          <div className="mx-auto max-w-6xl text-center">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+              Procease HRMS · connected people operations
+            </p>
+            <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl">
+              One HR platform. Every essential workflow.
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-500">
+              Manage your people, attendance, payroll, expenses, and field teams
+              from one connected workspace—built around the way your business
+              works.
+            </p>
+            <Button
+              onClick={() => navigate("/features")}
+              className="mt-8 rounded-full bg-[#17c491] px-7 py-3 text-sm shadow-lg shadow-emerald-200 hover:bg-[#139f78]"
+            >
+                Explore the modules
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <div className="relative mx-auto mt-12 max-w-5xl">
+              <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-[0_24px_70px_rgba(23,196,145,0.18)]">
+                <img
+                  src={image}
+                  alt="HRMS Dashboard Preview"
+                  className="aspect-[2/1] w-full rounded-xl bg-[#f1fffb] object-contain"
+                />
+              </div>
+              <div className="absolute -bottom-5 left-1/2 h-10 w-40 -translate-x-1/2 rounded-full bg-[#17c491]/20 blur-xl" />
+            </div>
+          </div>
+        </section>
+        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-8 text-center">
+              <h2 className="text-2xl font-bold text-slate-900">
+                Less manual work. More connected HR.
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Practical tools for the everyday work of HR and operations
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { icon: Scan, title: "Expense Auto Scan", value: "Scan. Review. Submit." },
+                { icon: Fingerprint, title: "ESSL Setup", value: "Devices & employee mapping" },
+                { icon: Clock, title: "Attendance", value: "Time and shift workflows" },
+                { icon: DollarSign, title: "Payroll", value: "People and pay in sync" },
+              ].map((item) => (
+                <Card
+                  key={item.title}
+                  className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                >
+                  <CardContent className="p-0">
+                    <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
+                      <item.icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">{item.title}</h3>
+                    <p className="mt-2 text-sm text-slate-500">{item.value}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="px-5 py-16">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+                Made for real HR work
+              </p>
+              <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">
+                The modules your teams use, working together
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500">
+                Bring core HR, finance, and workforce operations into one clear
+                flow, with modules that fit your organization.
+              </p>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { icon: Scan, title: "Expense Auto Scan", description: "Capture receipt details with a scan, review the extracted information, and submit expense claims with less typing.", accent: "bg-amber-50 text-amber-700" },
+                { icon: Fingerprint, title: "ESSL Setup", description: "Keep biometric device details and employee ID mappings organized for attendance administration.", accent: "bg-emerald-50 text-emerald-700" },
+                { icon: Clock, title: "Attendance & Shifts", description: "Manage check-ins, attendance records, shifts, rosters, and leave workflows from one place.", accent: "bg-sky-50 text-sky-700" },
+                { icon: DollarSign, title: "Payroll Management", description: "Bring employee pay details, payroll processing, payslips, and audit history into a connected workflow.", accent: "bg-violet-50 text-violet-700" },
+                { icon: UserCheck, title: "Field Attendance", description: "Record client-site attendance and give field teams a clear way to manage their daily work.", accent: "bg-rose-50 text-rose-700" },
+                { icon: MapPin, title: "Live Tracking", description: "View field-team location and attendance activity to coordinate work across locations.", accent: "bg-blue-50 text-blue-700" },
+                { icon: BriefcaseBusiness, title: "Recruitment & Onboarding", description: "Organize hiring requirements, candidates, offer letters, and onboarding steps alongside employee records.", accent: "bg-indigo-50 text-indigo-700" },
+                { icon: Package, title: "Asset Management", description: "Track company assets and keep assignment details accessible to your HR and operations teams.", accent: "bg-orange-50 text-orange-700" },
+                { icon: Headphones, title: "HR Helpdesk", description: "Give employees and HR teams a shared place to raise and follow up on workplace requests.", accent: "bg-teal-50 text-teal-700" },
+                { icon: BarChart, title: "Reports & Insights", description: "Turn workforce information into useful reports for attendance, leave, payroll, and people operations.", accent: "bg-cyan-50 text-cyan-700" },
+              ].map((feature) => (
+                <Card key={feature.title} className="rounded-2xl border-slate-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                  <CardContent className="p-0">
+                    <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${feature.accent}`}>
+                      <feature.icon className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <div className="mt-9 text-center">
+              <Button
+                onClick={() => navigate("/features")}
+                className="rounded-full border border-[#17c491] bg-white px-6 text-[#0b946c] hover:bg-[#effff9]"
+              >
+                View all features <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </section>
+        <section className="overflow-hidden bg-[#f1fffb] px-5 py-16">
+          <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+                Live Tracking
+              </p>
+              <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">
+                Keep field work in view
+              </h2>
+              <p className="mt-4 text-base leading-7 text-slate-600">
+                Check field-team location and attendance activity in one place,
+                so managers can coordinate work across client sites and respond
+                with better context.
+              </p>
+              <Button
+                onClick={() => navigate("/features")}
+                className="mt-6 rounded-full bg-[#17c491] px-6 text-white hover:bg-[#139f78]"
+              >
+                Explore Live Tracking <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+            <div className="overflow-hidden rounded-2xl bg-[#39005b] p-2 shadow-xl">
+              <img
+                src={liveDelivery}
+                alt="Live Tracking and field team activity preview"
+                className="aspect-video w-full rounded-xl object-cover"
+              />
+            </div>
+          </div>
+        </section>
+        <section className="bg-[#17c491] px-5 py-14 text-center text-white">
+          <h2 className="text-2xl font-bold">Ready to make HR simpler?</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-white/90">
+            Start building disciplined, scalable people operations today.
+          </p>
+          <Button
+            onClick={handleGetStarted}
+            className="mt-7 rounded-full bg-white px-7 text-sm text-[#17c491] hover:bg-[#effff9]"
+          >
+            Get started
+          </Button>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
 
   return (
     <>

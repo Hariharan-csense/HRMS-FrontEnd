@@ -294,13 +294,22 @@ export default function AttendanceFacialRecognition() {
     } catch (error: any) {
       if (error?.code === "ERR_CANCELED" || !mountedRef.current) return;
       console.error("Facial attendance error:", error);
-      if (error?.response?.status === 503) {
+      const responseCode = error?.response?.data?.code;
+      const setupBlocked =
+        error?.response?.status === 503 ||
+        responseCode === "NO_ENROLLED_FACE" ||
+        responseCode === "FACE_TEMPLATE_SCHEMA_MISSING";
+      if (setupBlocked) {
         scannerPausedRef.current = true;
         if (scanTimerRef.current) {
           window.clearInterval(scanTimerRef.current);
           scanTimerRef.current = null;
         }
-        setScannerStatus("Face service unavailable");
+        setScannerStatus(
+          responseCode === "NO_ENROLLED_FACE"
+            ? "Face enrollment required"
+            : "Face service unavailable",
+        );
       } else {
         setScannerStatus("Recognition failed");
       }

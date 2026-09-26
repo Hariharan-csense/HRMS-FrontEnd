@@ -31,6 +31,7 @@ interface CompanySubscription {
   trial_hours_remaining?: number;
   trial_minutes_remaining?: number;
   is_internal_company?: boolean;
+  kpi_free_until?: string | null;
   addons?: Array<{
     id: number;
     addon_id: number;
@@ -44,6 +45,7 @@ interface CompanySubscription {
 
 interface SubscriptionContextType {
   subscription: CompanySubscription | null;
+  kpiFreeUntil: string | null;
   loading: boolean;
   error: string | null;
   checkSubscriptionStatus: () => Promise<void>;
@@ -77,6 +79,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
   const [subscription, setSubscription] = useState<CompanySubscription | null>(
     null,
   );
+  const [kpiFreeUntil, setKpiFreeUntil] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTrialExpirationModal, setShowTrialExpirationModal] =
@@ -100,6 +103,9 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
       if (response.data.success) {
         const subscriptionData = response.data.data;
         setSubscription(subscriptionData);
+        setKpiFreeUntil(
+          response.data.kpi_free_until || subscriptionData?.kpi_free_until || null,
+        );
 
         // Check if trial has expired - don't show modal automatically
         if (
@@ -178,6 +184,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
     if (!isAuthenticated) {
       setShowTrialExpirationModal(false);
       setSubscription(null);
+      setKpiFreeUntil(null);
       setError(null);
       setCurrentEmployeeCount(0);
       setLoading(false);
@@ -210,6 +217,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({
 
   const value: SubscriptionContextType = {
     subscription,
+    kpiFreeUntil,
     loading,
     error,
     checkSubscriptionStatus,

@@ -175,6 +175,100 @@ const FeaturesPage = () => {
   ];
 
   return (
+    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <a href="/">
+            <img
+              src={logo}
+              alt="HRMS Logo"
+              className="h-14 w-14 object-contain"
+            />
+          </a>
+          <nav className="hidden items-center gap-9 text-base font-semibold text-slate-700 md:flex">
+            <a href="/">Home</a>
+            <a href="/features" className="font-bold text-[#17c491]">
+              Features
+            </a>
+            <a href="/pricing">Pricing</a>
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+          </nav>
+          <Button
+            onClick={() => navigate("/login")}
+            className="rounded-full bg-[#17c491] px-7 py-2.5 text-sm font-semibold hover:bg-[#139f78]"
+          >
+            Sign In
+          </Button>
+        </div>
+      </header>
+      <main>
+        <section className="px-5 pb-12 pt-14 text-center sm:pt-20">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+            Everything in one system
+          </p>
+          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+            Tools that keep your people operations moving
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500">
+            Powerful HR capabilities designed for growing teams, without the
+            clutter.
+          </p>
+        </section>
+        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <Card
+                  key={feature.title}
+                  className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                >
+                  <CardContent className="p-0">
+                    <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h2 className="text-base font-bold text-slate-900">
+                      {feature.title}
+                    </h2>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {feature.description}
+                    </p>
+                    <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
+                      {feature.benefits.map((benefit) => (
+                        <div
+                          key={benefit}
+                          className="flex items-center gap-2 text-xs text-slate-600"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#17c491]" />
+                          {benefit}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+        <section className="bg-[#17c491] px-5 py-14 text-center text-white">
+          <h2 className="text-2xl font-bold">See what your team can do</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-white/90">
+            Bring every important HR workflow into one dependable place.
+          </p>
+          <Button
+            onClick={() => navigate(hideRegistration ? "/login" : "/signup")}
+            className="mt-7 rounded-full bg-white px-7 text-sm text-[#17c491] hover:bg-[#effff9]"
+          >
+            Get started
+          </Button>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+
+  return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">

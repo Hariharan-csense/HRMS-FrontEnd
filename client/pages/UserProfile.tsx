@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { departmentApi, Department } from "@/components/helper/department/department";
+import { designationApi, Designation } from "@/components/helper/designation/designation";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +70,8 @@ export default function UserProfile() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [activities, setActivities] = useState<ActivityData[]>([]);
   const [documents, setDocuments] = useState<DocumentData[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [designations, setDesignations] = useState<Designation[]>([]);
   const [formData, setFormData] = useState({
     first_name: user?.name || "",
     last_name: "",
@@ -111,8 +116,8 @@ export default function UserProfile() {
           mobile: profileData.mobile || "+91 98765 43210",
           employee_id: profileData.employee_id || "", // Add employee_id from API
           company_id: profileData.company_id || "", // Add company_id from API
-          department_id: profileData.department_id || "",
-          designation_id: profileData.designation_id || "",
+          department_id: String(profileData.department_id ?? ""),
+          designation_id: String(profileData.designation_id ?? ""),
           department_name: profileData.department_name || "",
           designation_name: profileData.designation_name || "",
           location: profileData.location_office || "",
@@ -178,6 +183,24 @@ export default function UserProfile() {
       loadDocuments();
     }
   }, [user?.id, setUser]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    let cancelled = false;
+    const loadOptions = async () => {
+      const [departmentResult, designationResult] = await Promise.all([
+        departmentApi.getdepartment(),
+        designationApi.getDesignations(),
+      ]);
+      if (cancelled) return;
+      setDepartments(departmentResult.data || []);
+      setDesignations(designationResult.data || []);
+      if (departmentResult.error) toast.error(departmentResult.error);
+      if (designationResult.error) toast.error(designationResult.error);
+    };
+    void loadOptions();
+    return () => { cancelled = true; };
+  }, [isEditing, user?.id]);
 
   if (!user) {
     return null;
@@ -803,13 +826,30 @@ export default function UserProfile() {
                       Department
                     </Label>
                     {isEditing ? (
-                      <Input
+                      <Select
                         value={formData.department_id}
-                        onChange={(e) =>
-                          handleFieldChange("department_id", e.target.value)
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            department_id: value,
+                            department_name: departments.find((item) => item.id === value)?.name || "",
+                          }))
                         }
-                        className="mt-1"
-                      />
+                      >
+                        <SelectTrigger className="mt-1" aria-label="Department">
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.department_id && !departments.some((item) => item.id === formData.department_id) && (
+                            <SelectItem value={formData.department_id}>
+                              {formData.department_name || "Not specified"}
+                            </SelectItem>
+                          )}
+                          {departments.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <p className="text-lg font-medium mt-1">
                         {formData.department_name || "Not specified"}
@@ -822,13 +862,30 @@ export default function UserProfile() {
                       Designation
                     </Label>
                     {isEditing ? (
-                      <Input
+                      <Select
                         value={formData.designation_id}
-                        onChange={(e) =>
-                          handleFieldChange("designation_id", e.target.value)
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            designation_id: value,
+                            designation_name: designations.find((item) => item.id === value)?.name || "",
+                          }))
                         }
-                        className="mt-1"
-                      />
+                      >
+                        <SelectTrigger className="mt-1" aria-label="Designation">
+                          <SelectValue placeholder="Select designation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.designation_id && !designations.some((item) => item.id === formData.designation_id) && (
+                            <SelectItem value={formData.designation_id}>
+                              {formData.designation_name || "Not specified"}
+                            </SelectItem>
+                          )}
+                          {designations.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <p className="text-lg font-medium mt-1">
                         {formData.designation_name || "Not specified"}

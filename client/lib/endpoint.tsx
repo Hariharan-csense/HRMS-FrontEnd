@@ -7,7 +7,7 @@ import { isCordovaIOS } from "./platform";
 
 // // //Export the base URL for use in other components
 
-// export const BASE_URL = "http://192.168.1.4:3000/backend";
+// export const BASE_URL = "http://192.168.1.9:8000/backend";
 export const BASE_URL="https://hrms.procease.co/backend";
 
 export const resolveFileUrl = (path?: string | null): string | undefined => {
@@ -723,6 +723,15 @@ const ENDPOINTS = {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+    }),
+
+  facialVerificationAttendance: (
+    data: FormData,
+    config?: { signal?: AbortSignal },
+  ) =>
+    api.post("/attendance/facial-verification", data, {
+      ...config,
+      headers: { "Content-Type": "multipart/form-data" },
     }),
 
   facialRecognitionDescriptorAttendance: (
@@ -1452,6 +1461,8 @@ const ENDPOINTS = {
     api.patch(`/subscription/plans/${planId}`, data),
 
   getSubscriptionAddons: () => api.get("/subscription/addons"),
+
+  getPublicSubscriptionAddons: () => api.get("/subscription/addons/public"),
 
   getAvailableSubscriptionAddons: () =>
     api.get("/subscription/addons/available"),

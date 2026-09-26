@@ -1,3 +1,5 @@
+import { AddonIllustration } from "@/components/AddonIllustration";
+import { PricingTier, tierRate } from "@/utils/subscriptionTiers";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -30,7 +32,6 @@ import {
   Crown,
   ChevronRight,
   Check,
-  PackagePlus,
   ChevronDown,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -51,6 +52,7 @@ interface SubscriptionPlan {
   name: string;
   description: string;
   price: number;
+  pricing_tiers?: PricingTier[];
   yearly_price?: number;
   max_users: number;
   storage_gb?: number;
@@ -109,6 +111,7 @@ interface SubscriptionSeatPool {
 }
 
 interface SubscriptionAddon {
+  pricing_tiers?: PricingTier[];
   id: number;
   name: string;
   description?: string;
@@ -209,13 +212,16 @@ const getStorageForPlan = (plan: SubscriptionPlan): string => {
 const getPricingSummary = (
   plan: {
     price?: number;
+    pricing_tiers?: PricingTier[];
     yearly_price?: number;
   },
   usersCount: number,
   billingCycle: "monthly" | "yearly",
 ) => {
-  const monthlyPerUser = Number(plan.price || 0);
-  const yearlyPerUserMonthly = Number(plan.yearly_price || 0);
+  const monthlyPerUser =
+    tierRate(plan, usersCount, "monthly") ?? Number(plan.price || 0);
+  const yearlyPerUserMonthly =
+    tierRate(plan, usersCount, "yearly") ?? Number(plan.yearly_price || 0);
   const effectivePerUser =
     billingCycle === "yearly" ? yearlyPerUserMonthly : monthlyPerUser;
   const totalPrice =
@@ -235,12 +241,21 @@ const getPricingSummary = (
 };
 
 const getMixedPricingSummary = (
-  plan: { price?: number; yearly_price?: number },
+  plan: {
+    price?: number;
+    yearly_price?: number;
+    pricing_tiers?: PricingTier[];
+  },
   monthlyUsers: number,
   yearlyUsers: number,
 ) => {
-  const monthlyAmount = Number(plan.price || 0) * monthlyUsers;
-  const yearlyAmount = Number(plan.yearly_price || 0) * yearlyUsers * 12;
+  const monthlyAmount =
+    (tierRate(plan, monthlyUsers, "monthly") ?? Number(plan.price || 0)) *
+    monthlyUsers;
+  const yearlyAmount =
+    (tierRate(plan, yearlyUsers, "yearly") ?? Number(plan.yearly_price || 0)) *
+    yearlyUsers *
+    12;
   const totalPrice = monthlyAmount + yearlyAmount;
   const gstAmount = Number((totalPrice * 0.18).toFixed(2));
   return {
@@ -265,7 +280,12 @@ const getAddonPricingSummary = (
     addon.price_upto15 ?? addon.price_above50 ?? priceUpto10,
   );
   const pricePerUser =
-    usersCount <= 5 ? priceUpto5 : usersCount <= 10 ? priceUpto10 : priceUpto15;
+    tierRate(addon, usersCount, "monthly") ??
+    (usersCount <= 5
+      ? priceUpto5
+      : usersCount <= 10
+        ? priceUpto10
+        : priceUpto15);
   const totalPrice =
     pricePerUser * usersCount * (billingCycle === "yearly" ? 12 : 1);
 
@@ -320,7 +340,9 @@ const SubscriptionManagement: React.FC = () => {
   const [selectedUsersInput, setSelectedUsersInput] = useState("25");
   const [monthlyUsersInput, setMonthlyUsersInput] = useState("0");
   const [yearlyUsersInput, setYearlyUsersInput] = useState("25");
-  const [renewalCycle, setRenewalCycle] = useState<"monthly" | "yearly" | null>(null);
+  const [renewalCycle, setRenewalCycle] = useState<"monthly" | "yearly" | null>(
+    null,
+  );
   const [selectedAddonUsers, setSelectedAddonUsers] = useState(8);
   const [selectedAddonUsersInput, setSelectedAddonUsersInput] = useState("8");
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<
@@ -354,12 +376,7 @@ const SubscriptionManagement: React.FC = () => {
       // });
 
       setPlans(plansRes.data?.data || []);
-      setAddons(
-        (addonsRes.data?.data || []).filter(
-          (addon: SubscriptionAddon) =>
-            String(addon.module_key || "").toLowerCase() !== "kpi",
-        ),
-      );
+      setAddons(addonsRes.data?.data || []);
       if (!selectedPlan && (plansRes.data?.data || []).length > 0) {
         setSelectedPlan((plansRes.data?.data || [])[0]);
       }
@@ -431,13 +448,16 @@ const SubscriptionManagement: React.FC = () => {
   };
 
   const expiredSeatPools = (currentSubscription?.seat_pool_status || []).filter(
-    (pool) => !pool.is_active && pool.status === "expired" && pool.max_users > 0,
+    (pool) =>
+      !pool.is_active && pool.status === "expired" && pool.max_users > 0,
   );
 
   const openSeatPoolRenewal = (pool: SubscriptionSeatPool) => {
     const renewalPlan =
       plans.find((plan) => Number(plan.id) === Number(pool.plan_id)) ||
-      plans.find((plan) => Number(plan.id) === Number(currentSubscription?.plan_id)) ||
+      plans.find(
+        (plan) => Number(plan.id) === Number(currentSubscription?.plan_id),
+      ) ||
       plans[0];
     if (!renewalPlan) {
       showToast.error("Subscription plan is not available for renewal");
@@ -446,8 +466,12 @@ const SubscriptionManagement: React.FC = () => {
 
     setSelectedPlan(renewalPlan);
     setRenewalCycle(pool.billing_cycle);
-    setMonthlyUsersInput(pool.billing_cycle === "monthly" ? String(pool.max_users) : "0");
-    setYearlyUsersInput(pool.billing_cycle === "yearly" ? String(pool.max_users) : "0");
+    setMonthlyUsersInput(
+      pool.billing_cycle === "monthly" ? String(pool.max_users) : "0",
+    );
+    setYearlyUsersInput(
+      pool.billing_cycle === "yearly" ? String(pool.max_users) : "0",
+    );
     setShowPaymentModal(true);
   };
 
@@ -482,7 +506,10 @@ const SubscriptionManagement: React.FC = () => {
   const handleUpgrade = async () => {
     if (!selectedPlan) return;
 
-    const monthlyUsers = Math.max(0, Number.parseInt(monthlyUsersInput, 10) || 0);
+    const monthlyUsers = Math.max(
+      0,
+      Number.parseInt(monthlyUsersInput, 10) || 0,
+    );
     const yearlyUsers = Math.max(0, Number.parseInt(yearlyUsersInput, 10) || 0);
     if (monthlyUsers + yearlyUsers <= 0) {
       showToast.error("Enter at least one monthly or yearly user");
@@ -712,17 +739,17 @@ const SubscriptionManagement: React.FC = () => {
       name.includes("free package") ||
       (name.includes("free") && !name.includes("trial"))
     ) {
-      return <Star className="w-8 h-8 text-emerald-500" />;
+      return <Star className="w-8 h-8 text-black" />;
     }
     if (name.includes("basic") || name.includes("starter")) {
-      return <Shield className="w-8 h-8 text-blue-500" />;
+      return <Shield className="w-8 h-8 text-black" />;
     }
     if (
       name.includes("standard") ||
       name.includes("pro") ||
       name.includes("professional")
     ) {
-      return <Zap className="w-8 h-8 text-purple-500" />;
+      return <Zap className="w-8 h-8 text-black" />;
     }
     if (
       name.includes("advanced") ||
@@ -730,9 +757,9 @@ const SubscriptionManagement: React.FC = () => {
       name.includes("enterprise") ||
       name.includes("premium")
     ) {
-      return <Crown className="w-8 h-8 text-amber-500" />;
+      return <Crown className="w-8 h-8 text-black" />;
     }
-    return <Star className="w-8 h-8 text-green-500" />;
+    return <Star className="w-8 h-8 text-black" />;
   };
 
   const getPlanGradient = (planName: string) => {
@@ -740,7 +767,7 @@ const SubscriptionManagement: React.FC = () => {
   };
 
   const getPlanAccentText = (planName: string) => {
-    return "text-[#17c491]";
+    return "text-black";
   };
 
   const getButtonVariant = (planName: string, isUpgrade: boolean = false) => {
@@ -753,7 +780,7 @@ const SubscriptionManagement: React.FC = () => {
     ) {
       return isUpgrade
         ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-        : "border-amber-500 text-amber-600 hover:bg-amber-50";
+        : "border-amber-500 text-black hover:bg-amber-50";
     }
     if (
       name.includes("standard") ||
@@ -762,29 +789,29 @@ const SubscriptionManagement: React.FC = () => {
     ) {
       return isUpgrade
         ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-        : "border-purple-500 text-purple-600 hover:bg-purple-50";
+        : "border-purple-500 text-black hover:bg-purple-50";
     }
     return isUpgrade
       ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
-      : "border-blue-500 text-blue-600 hover:bg-blue-50";
+      : "border-blue-500 text-black hover:bg-blue-50";
   };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { color: string; icon: React.ReactNode }> = {
       trial: {
-        color: "bg-blue-100 text-blue-800",
+        color: "bg-blue-100 text-black",
         icon: <Clock className="w-4 h-4" />,
       },
       active: {
-        color: "bg-green-100 text-green-800",
+        color: "bg-green-100 text-black",
         icon: <CheckCircle className="w-4 h-4" />,
       },
       expired: {
-        color: "bg-red-100 text-red-800",
+        color: "bg-red-100 text-black",
         icon: <AlertCircle className="w-4 h-4" />,
       },
       cancelled: {
-        color: "bg-gray-100 text-gray-800",
+        color: "bg-gray-100 text-black",
         icon: <AlertCircle className="w-4 h-4" />,
       },
     };
@@ -817,30 +844,33 @@ const SubscriptionManagement: React.FC = () => {
   // During an active trial, keep plans selectable so the user can compare/upgrade freely.
   return (
     <Layout>
-      <div className="p-6 space-y-6 bg-gradient-to-br from-[#e6fbf4] via-white to-white rounded-3xl">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-[#17c491]">
-            Subscription Management
+      <div className="w-full min-w-0 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-xl font-bold tracking-tight text-black sm:text-2xl">
+            Plans & subscriptions
           </h1>
+          <p className="text-sm text-black">
+            Flexible plans for your growing team.
+          </p>
         </div>
 
         {/* Current Subscription Status */}
         {currentSubscription && (
-          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">
-            <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl py-4">
-              <CardTitle className="flex items-center justify-between text-white text-lg">
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <CardHeader className="border-b border-slate-100 px-4 py-2.5">
+              <CardTitle className="flex items-center justify-between gap-3 text-black text-sm">
                 <span>Current Subscription</span>
                 {getStatusBadge(currentSubscription.status)}
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4">
+            <CardContent className="p-4 pt-3">
               {currentSubscription.status === "trial" &&
                 currentSubscription.is_trial_active && (
                   <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-800 font-medium">
+                    <p className="text-black font-medium">
                       🎉 Welcome! Your free trial is active
                     </p>
-                    <p className="text-green-700 text-sm mt-1">
+                    <p className="text-black text-sm mt-1">
                       Enjoy full access to all features during your trial
                       period. Choose a plan below to upgrade anytime and
                       continue using service without interruption.
@@ -850,10 +880,10 @@ const SubscriptionManagement: React.FC = () => {
 
               {isTrialExpired && (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-800 font-medium">
+                  <p className="text-black font-medium">
                     ⚠️ Your free trial has ended
                   </p>
-                  <p className="text-red-700 text-sm mt-1">
+                  <p className="text-black text-sm mt-1">
                     Your trial period has ended. Choose a plan below to
                     subscribe and continue using all features without
                     interruption.
@@ -867,11 +897,14 @@ const SubscriptionManagement: React.FC = () => {
                   className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-semibold text-amber-900">
-                      {pool.billing_cycle === "monthly" ? "Monthly" : "Yearly"} user subscription expired
+                    <p className="font-semibold text-black">
+                      {pool.billing_cycle === "monthly" ? "Monthly" : "Yearly"}{" "}
+                      user subscription expired
                     </p>
-                    <p className="mt-1 text-sm text-amber-800">
-                      Renew {pool.max_users} {pool.billing_cycle} user seat{pool.max_users === 1 ? "" : "s"}. Other active seat pools will not be charged or changed.
+                    <p className="mt-1 text-sm text-black">
+                      Renew {pool.max_users} {pool.billing_cycle} user seat
+                      {pool.max_users === 1 ? "" : "s"}. Other active seat pools
+                      will not be charged or changed.
                     </p>
                   </div>
                   <Button
@@ -879,18 +912,19 @@ const SubscriptionManagement: React.FC = () => {
                     onClick={() => openSeatPoolRenewal(pool)}
                     className="shrink-0 bg-amber-600 text-white hover:bg-amber-700"
                   >
-                    Renew {pool.billing_cycle === "monthly" ? "Monthly" : "Yearly"}
+                    Renew{" "}
+                    {pool.billing_cycle === "monthly" ? "Monthly" : "Yearly"}
                   </Button>
                 </div>
               ))}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Plan</p>
+                  <p className="text-sm text-black">Plan</p>
                   <p className="font-semibold">
                     {currentSubscription.plan_name}
                   </p>
-                  <ul className="mt-2 list-disc pl-4 text-sm text-gray-500 space-y-1">
+                  <ul className="mt-1 list-disc pl-4 text-xs text-black space-y-1">
                     {(currentSubscription.plan_description || "")
                       .split(/,|\n/)
                       .map((item) => item.trim())
@@ -901,7 +935,7 @@ const SubscriptionManagement: React.FC = () => {
                   </ul>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Users</p>
+                  <p className="text-sm text-black">Users</p>
                   <p className="font-semibold flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     {currentSubscription.max_users ||
@@ -911,7 +945,7 @@ const SubscriptionManagement: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Storage</p>
+                  <p className="text-sm text-black">Storage</p>
                   <p className="font-semibold flex items-center gap-2">
                     <CreditCard className="w-4 h-4" />
                     {currentSubscription.used_storage_mb
@@ -936,22 +970,25 @@ const SubscriptionManagement: React.FC = () => {
                           }}
                         ></div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-black mt-1">
                         {currentSubscription.storage_usage_percentage}% used
                       </p>
                     </div>
                   )}
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Duration</p>
+                  <p className="text-sm text-black">Duration</p>
                   <p className="font-semibold flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    {currentSubscription.is_free_plan
+                    {currentSubscription.is_free_plan ||
+                    currentSubscription.is_internal_company
                       ? "No expiry"
                       : currentSubscription.status === "trial" &&
-                    currentSubscription.is_trial_active
-                      ? `${formatTrialTimeRemaining(currentSubscription)} remaining`
-                      : `${currentSubscription.days_remaining} days remaining`}
+                          currentSubscription.is_trial_active
+                        ? `${formatTrialTimeRemaining(currentSubscription)} remaining`
+                        : currentSubscription.days_remaining != null
+                          ? `${currentSubscription.days_remaining} days remaining`
+                          : "Not available"}
                   </p>
                 </div>
               </div>
@@ -959,14 +996,14 @@ const SubscriptionManagement: React.FC = () => {
               {currentSubscription.addons &&
                 currentSubscription.addons.length > 0 && (
                   <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                    <p className="text-sm font-semibold text-emerald-900">
+                    <p className="text-sm font-semibold text-black">
                       Active Add-ons
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {currentSubscription.addons.map((addon) => (
                         <span
                           key={addon.id}
-                          className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-200"
+                          className="rounded-full bg-white px-3 py-1 text-xs font-medium text-black border border-emerald-200"
                         >
                           {addon.name} - {addon.users_count} seats
                         </span>
@@ -995,16 +1032,16 @@ const SubscriptionManagement: React.FC = () => {
                                   }
                                 >
                                   <span>
-                                    <span className="block text-sm font-semibold text-gray-900">
+                                    <span className="block text-sm font-semibold text-black">
                                       {addon.name}
                                     </span>
-                                    <span className="block text-xs text-gray-500">
+                                    <span className="block text-xs text-black">
                                       {selectedIds.length}/{addon.users_count}{" "}
                                       users assigned
                                     </span>
                                   </span>
                                   <ChevronDown
-                                    className={`h-4 w-4 text-gray-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                    className={`h-4 w-4 text-black transition-transform ${isExpanded ? "rotate-180" : ""}`}
                                   />
                                 </button>
                                 {isExpanded && (
@@ -1051,10 +1088,10 @@ const SubscriptionManagement: React.FC = () => {
                                           }
                                         />
                                         <span>
-                                          <span className="block font-medium text-gray-900">
+                                          <span className="block font-medium text-black">
                                             {getEmployeeDisplayName(employee)}
                                           </span>
-                                          <span className="block text-xs text-gray-500">
+                                          <span className="block text-xs text-black">
                                             {employee.employee_id ||
                                               employee.email ||
                                               "-"}
@@ -1065,7 +1102,7 @@ const SubscriptionManagement: React.FC = () => {
                                   })}
                                 </div>
                               ) : isExpanded ? (
-                                <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                                <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-black">
                                   Employee list is not available for this login.
                                   Please use an admin/HR account to assign
                                   add-on users.
@@ -1081,9 +1118,10 @@ const SubscriptionManagement: React.FC = () => {
 
               {currentSubscription.is_trial_active && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                  <p className="text-sm text-black">
                     <Clock className="inline w-4 h-4 mr-1" />
-                    Trial ends in {formatTrialTimeRemaining(currentSubscription)}
+                    Trial ends in{" "}
+                    {formatTrialTimeRemaining(currentSubscription)}
                   </p>
                 </div>
               )}
@@ -1101,8 +1139,8 @@ const SubscriptionManagement: React.FC = () => {
                     <p
                       className={`font-medium ${
                         currentSubscription.storage_usage_percentage > 95
-                          ? "text-red-800"
-                          : "text-yellow-800"
+                          ? "text-black"
+                          : "text-black"
                       }`}
                     >
                       {currentSubscription.storage_usage_percentage > 95
@@ -1112,8 +1150,8 @@ const SubscriptionManagement: React.FC = () => {
                     <p
                       className={`text-sm mt-1 ${
                         currentSubscription.storage_usage_percentage > 95
-                          ? "text-red-700"
-                          : "text-yellow-700"
+                          ? "text-black"
+                          : "text-black"
                       }`}
                     >
                       You're using{" "}
@@ -1155,645 +1193,703 @@ const SubscriptionManagement: React.FC = () => {
           </Card>
         )}
 
-        {/* Available Plans */}
-        <div>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Choose Your Perfect Plan
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto mb-6">
-              Select the plan that best fits your business needs. All plans
-              include core features with different limits and capabilities.
-            </p>
+        <div className="space-y-6">
+          {/* Available Plans */}
+          <div>
+            <div className="mb-3 text-center">
+              <h2 className="text-base font-semibold text-black">
+                Choose your plan
+              </h2>
+              <p className="mt-1 text-sm text-black">
+                Pick the features your team needs.
+              </p>
 
-            {/* Try Everything Free Banner */}
-            {!currentSubscription && (
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 py-6 px-4 rounded-xl mb-8">
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Try Everything Free
-                </h3>
-                <p className="text-green-100 mb-4">
-                  No credit card required • Cancel anytime
-                </p>
-                <Button
-                  className="bg-white text-green-700 hover:bg-gray-100 px-6 py-2 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                  onClick={() =>
-                    navigate(hideRegistration ? "/login" : "/signup")
-                  }
-                >
-                  {hideRegistration ? "Sign In" : "Start Free Trial"}
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <Card className="border border-gray-200 shadow-sm mb-8">
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-gray-700 font-medium">
-                    Number of Users
-                  </Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={selectedUsersInput}
-                    onChange={(e) => {
-                      const rawValue = e.target.value;
-                      setSelectedUsersInput(rawValue);
-
-                      if (rawValue === "") return;
-
-                      const nextValue = parseInt(rawValue, 10);
-                      if (!Number.isNaN(nextValue)) {
-                        setSelectedUsers(Math.max(1, nextValue));
-                      }
-                    }}
-                    onBlur={() => {
-                      const nextValue = parseInt(selectedUsersInput, 10);
-                      const normalizedValue = Number.isNaN(nextValue)
-                        ? 1
-                        : Math.max(1, nextValue);
-
-                      setSelectedUsers(normalizedValue);
-                      setSelectedUsersInput(String(normalizedValue));
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-700 font-medium">
-                    Billing Cycle
-                  </Label>
-                  <Select
-                    value={selectedBillingCycle}
-                    onValueChange={(value) =>
-                      setSelectedBillingCycle(value as "monthly" | "yearly")
+              {/* Try Everything Free Banner */}
+              {!currentSubscription && (
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 py-6 px-4 rounded-xl mb-8">
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    Try Everything Free
+                  </h3>
+                  <p className="text-green-100 mb-4">
+                    No credit card required • Cancel anytime
+                  </p>
+                  <Button
+                    className="bg-white text-black hover:bg-gray-100 px-6 py-2 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                    onClick={() =>
+                      navigate(hideRegistration ? "/login" : "/signup")
                     }
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select billing cycle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    {hideRegistration ? "Sign In" : "Start Free Trial"}
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          {plans && plans.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {plans.map((plan) => {
-                const isMostPopular = plan.name.toLowerCase() === "standard";
-                const isFreePlan =
-                  Number(plan.price || 0) === 0 &&
-                  Number(plan.yearly_price || 0) === 0;
-                const isCurrentPlan =
-                  !!currentSubscription &&
-                  (currentSubscription.plan_id === plan.id ||
-                    currentSubscription.plan_name?.toLowerCase() ===
-                      plan.name.toLowerCase());
-                // A company may own seats from multiple packages, and may add
-                // more seats to a package it already owns.
-                const isLockedCurrentPlan = false;
-                const isLowerPlan = false;
-
-                return (
-                  <div
-                    key={plan.id}
-                    className={`relative bg-gradient-to-br ${getPlanGradient(plan.name)} rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
-                      isLockedCurrentPlan || isLowerPlan
-                        ? "opacity-80 hover:shadow-lg"
-                        : "hover:shadow-xl hover:scale-105"
-                    } ${
-                      isMostPopular
-                        ? "border-2 border-orange-400 ring-4 ring-orange-100"
-                        : "border border-gray-200"
-                    }`}
-                  >
-                    {isMostPopular && (
-                      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
-                        Most Popular
-                      </div>
-                    )}
-
-                    {isLockedCurrentPlan && (
-                      <div className="absolute top-4 right-4 z-10">
-                        <Badge className="bg-gray-900 text-white">
-                          Current Plan
-                        </Badge>
-                      </div>
-                    )}
-
-                    <div
-                      className={`${isLockedCurrentPlan ? "blur-[1px]" : ""}`}
-                    >
-                      <div
-                        className={`p-6 sm:p-8 ${isMostPopular ? "pt-10 sm:pt-12" : "pt-6 sm:pt-8"}`}
-                      >
-                        {/* User Icon */}
-                        <div className="flex justify-center mb-6">
-                          <div className="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center shadow-md">
-                            {getPlanIcon(plan.name)}
-                          </div>
-                        </div>
-
-                        {/* Plan Name */}
-                        <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-4">
-                          {plan.name}
-                        </h3>
-
-                        {/* Price */}
-                        {(() => {
-                          const pricing = getPricingSummary(
-                            plan,
-                            selectedUsers,
-                            selectedBillingCycle,
-                          );
-                          return (
-                            <div className="text-center mb-6">
-                              <div className="flex items-baseline justify-center gap-1">
-                                <span
-                                  className={`text-4xl sm:text-5xl font-bold ${getPlanAccentText(plan.name)}`}
-                                >
-                                  {formatCurrency(pricing.effectivePerUser)}
-                                </span>
-                                <span className="text-gray-600 text-lg">
-                                  /user/month
-                                </span>
-                              </div>
-                              <span className="text-gray-500 text-sm block mt-2">
-                                Per user monthly:{" "}
-                                {formatCurrency(pricing.monthlyPerUser)}
-                                {selectedBillingCycle === "yearly"
-                                  ? ` • Per user yearly billing: ${formatCurrency(pricing.yearlyPerUserMonthly)} / month`
-                                  : ""}
-                              </span>
-                              {selectedBillingCycle === "yearly" && (
-                                <span className="text-emerald-600 text-sm block">
-                                  Yearly price configured for this package:{" "}
-                                  {formatCurrency(pricing.yearlyPerUserMonthly)}{" "}
-                                  / month
-                                </span>
-                              )}
-                              <span className="text-gray-500 text-sm block">
-                                Total {selectedBillingCycle}:{" "}
-                                {formatCurrency(pricing.totalPrice)} for{" "}
-                                {selectedUsers} users
-                              </span>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Plan Description with Bullet Points */}
-                        <div className="space-y-3 mb-8">
-                          {plan.description.split("\n").map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between py-2"
-                            >
-                              <span className="text-gray-700 text-sm flex-1">
-                                {item}
-                              </span>
-                              <div className="flex items-center justify-center w-6 h-6">
-                                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <Check className="w-3 h-3 text-white" />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* CTA Button */}
-                        {isLockedCurrentPlan ? (
-                          <Button
-                            className="w-full py-3 px-4 font-semibold text-sm sm:text-base whitespace-normal text-center bg-gray-200 text-gray-700 cursor-not-allowed"
-                            disabled
-                          >
-                            <span className="flex items-center justify-center">
-                              Current Plan
-                            </span>
-                          </Button>
-                        ) : isLowerPlan ? (
-                          <Button
-                            className="w-full cursor-not-allowed border-2 border-gray-200 bg-gray-100 px-4 py-3 text-center text-sm font-semibold text-gray-500 sm:text-base"
-                            disabled
-                          >
-                            <span className="flex items-center justify-center">
-                              Lower Plan
-                            </span>
-                          </Button>
-                        ) : isFreePlan && (!currentSubscription || isTrialExpired) ? (
-                          <Button
-                            className="w-full border-2 border-emerald-500 bg-emerald-500 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600 sm:text-base"
-                            onClick={() => handleStartTrial(plan.id, "monthly")}
-                          >
-                            <span className="flex items-center justify-center">
-                              Use Free Plan
-                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                            </span>
-                          </Button>
-                        ) : !currentSubscription ? (
-                          <Button
-                            className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                              isMostPopular
-                                ? "bg-orange-500 hover:bg-orange-600 text-white"
-                                : "bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
-                            onClick={() => handleStartTrial(plan.id)}
-                          >
-                            <span className="flex items-center justify-center">
-                              Try Everything Free!
-                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                            </span>
-                          </Button>
-                        ) : currentSubscription.status === "trial" &&
-                          currentSubscription.is_trial_active ? (
-                          <Button
-                            className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                              isMostPopular
-                                ? "bg-orange-500 hover:bg-orange-600 text-white"
-                                : "bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
-                            onClick={() => {
-                              setSelectedPlan(plan);
-                              setShowPaymentModal(true);
-                            }}
-                          >
-                            <span className="flex items-center justify-center">
-                              Upgrade Now
-                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                            </span>
-                          </Button>
-                        ) : isTrialExpired ? (
-                          <Button
-                            className={`w-full py-3 px-4 font-semibold transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                              isMostPopular
-                                ? "bg-red-500 hover:bg-red-600 text-white"
-                                : "bg-red-500 hover:bg-red-600 text-white"
-                            }`}
-                            onClick={() => {
-                              setSelectedPlan(plan);
-                              setShowPaymentModal(true);
-                            }}
-                          >
-                            <span className="flex items-center justify-center">
-                              Subscribe Now
-                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                            </span>
-                          </Button>
-                        ) : (
-                          <Button
-                            className={`w-full py-3 px-4 font-semibold border-2 transition-all duration-200 text-sm sm:text-base whitespace-normal text-center ${
-                              isMostPopular
-                                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
-                                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedPlan(plan);
-                              setShowPaymentModal(true);
-                            }}
-                          >
-                            <span className="flex items-center justify-center">
-                              {isCurrentPlan ? `Add ${plan.name} Seats` : `Buy ${plan.name}`}
-                              <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                            </span>
-                          </Button>
-                        )}
-
-                        {/* Trial Information */}
-                        {!currentSubscription && (
-                          <div className="text-center mt-4">
-                            <p className="text-gray-600 text-sm">
-                              {plan.trial_days} days free trial
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Card className="text-center py-12">
-              <CardContent>
-                <div className="max-w-md mx-auto">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    No Plans Available
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    No subscription plans are available at the moment.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Please contact our support team for assistance with custom
-                    plans.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {currentSubscription && addons.length > 0 && (
-          <div>
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Add-on Packages
-              </h2>
-              <p className="text-gray-600 max-w-2xl mx-auto">
-                Buy only the extra modules you need on top of your current plan.
-              </p>
+              )}
             </div>
 
-            <Card className="border border-gray-200 shadow-sm mb-8">
-              <CardContent className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="mx-auto mb-4 w-full rounded-xl border border-emerald-200 bg-emerald-50/60 shadow-none sm:w-fit">
+              <CardContent className="p-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[160px_260px] sm:gap-4">
                   <div className="space-y-2">
-                    <Label className="text-gray-700 font-medium">
-                      Add-on Seats
+                    <Label
+                      htmlFor="plan-users"
+                      className="text-black font-medium"
+                    >
+                      Number of Users
                     </Label>
                     <Input
+                      id="plan-users"
+                      className="h-9 rounded-lg border-emerald-200 bg-white"
                       type="number"
                       min="1"
-                      value={selectedAddonUsersInput}
+                      value={selectedUsersInput}
                       onChange={(e) => {
                         const rawValue = e.target.value;
-                        setSelectedAddonUsersInput(rawValue);
+                        setSelectedUsersInput(rawValue);
 
                         if (rawValue === "") return;
 
                         const nextValue = parseInt(rawValue, 10);
                         if (!Number.isNaN(nextValue)) {
-                          setSelectedAddonUsers(Math.max(1, nextValue));
+                          setSelectedUsers(Math.max(1, nextValue));
                         }
                       }}
                       onBlur={() => {
-                        const nextValue = parseInt(selectedAddonUsersInput, 10);
+                        const nextValue = parseInt(selectedUsersInput, 10);
                         const normalizedValue = Number.isNaN(nextValue)
                           ? 1
                           : Math.max(1, nextValue);
 
-                        setSelectedAddonUsers(normalizedValue);
-                        setSelectedAddonUsersInput(String(normalizedValue));
+                        setSelectedUsers(normalizedValue);
+                        setSelectedUsersInput(String(normalizedValue));
                       }}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-gray-700 font-medium">
-                      Add-on Billing Cycle
+                    <Label className="text-black font-medium">
+                      Billing Cycle
                     </Label>
-                    <Select
-                      value={selectedAddonBillingCycle}
-                      onValueChange={(value) =>
-                        setSelectedAddonBillingCycle(
-                          value as "monthly" | "yearly",
-                        )
-                      }
+                    <div
+                      role="group"
+                      aria-label="Plan billing cycle"
+                      className="flex rounded-xl bg-white p-1 ring-1 ring-emerald-200"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select billing cycle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {(["monthly", "yearly"] as const).map((cycle) => (
+                        <button
+                          key={cycle}
+                          type="button"
+                          aria-pressed={selectedBillingCycle === cycle}
+                          onClick={() => setSelectedBillingCycle(cycle)}
+                          className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selectedBillingCycle === cycle ? "bg-emerald-600 text-white shadow-sm" : "text-black hover:bg-emerald-50"}`}
+                        >
+                          {cycle}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+            {plans && plans.length > 0 ? (
+              <div className="flex flex-wrap items-stretch justify-center gap-4 [&>div]:w-full [&>div]:max-w-[360px] sm:[&>div]:w-[calc((100%-1rem)/2)] lg:[&>div]:w-[calc((100%-2rem)/3)] xl:[&>div]:w-[calc((100%-3rem)/4)]">
+                {plans.map((plan) => {
+                  const isMostPopular = plan.name.toLowerCase() === "standard";
+                  const isFreePlan =
+                    Number(plan.price || 0) === 0 &&
+                    Number(plan.yearly_price || 0) === 0;
+                  const isCurrentPlan =
+                    !!currentSubscription &&
+                    (currentSubscription.plan_id === plan.id ||
+                      currentSubscription.plan_name?.toLowerCase() ===
+                        plan.name.toLowerCase());
+                  // A company may own seats from multiple packages, and may add
+                  // more seats to a package it already owns.
+                  const isLockedCurrentPlan = false;
+                  const isLowerPlan = false;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {addons.map((addon) => {
-                const pricing = getAddonPricingSummary(
-                  addon,
-                  selectedAddonUsers,
-                  selectedAddonBillingCycle,
-                );
-                const activeAssignment = addonAssignments.find(
-                  (assignment) =>
-                    assignment.addon_id === addon.id ||
-                    assignment.module_key === addon.module_key ||
-                    assignment.name?.toLowerCase() === addon.name.toLowerCase(),
-                );
-                const alreadyActive = currentSubscription.addons?.some(
-                  (activeAddon) =>
-                    activeAddon.addon_id === addon.id ||
-                    activeAddon.module_key === addon.module_key ||
-                    activeAddon.name?.toLowerCase() ===
-                      addon.name.toLowerCase(),
-                );
-
-                return (
-                  <div
-                    key={addon.id}
-                    className={`relative rounded-2xl border bg-white shadow-lg overflow-hidden transition-all duration-300 ${
-                      alreadyActive
-                        ? "border-emerald-300 bg-emerald-50/40"
-                        : "border-gray-200 hover:shadow-xl hover:scale-105"
-                    }`}
-                  >
-                    {alreadyActive && (
-                      <div className="absolute top-4 right-4 z-10">
-                        <Badge className="bg-emerald-600 text-white">
-                          Active Add-on
-                        </Badge>
-                      </div>
-                    )}
-
-                    <div className="p-6 sm:p-8">
-                      <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center shadow-md">
-                          <PackagePlus className="w-8 h-8 text-[#17c491]" />
-                        </div>
-                      </div>
-
-                      <h3 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-2">
-                        {addon.name}
-                      </h3>
-                      <p className="text-center text-xs font-medium uppercase text-gray-500 mb-5">
-                        {addon.module_key || "module add-on"}
-                      </p>
-
-                      <div className="text-center mb-6">
-                        <div className="flex items-baseline justify-center gap-1">
-                          <span className="text-4xl sm:text-5xl font-bold text-[#17c491]">
-                            {formatCurrency(pricing.pricePerUser)}
-                          </span>
-                          <span className="text-gray-600 text-lg">
-                            /user/month
-                          </span>
-                        </div>
-                        <span className="text-gray-500 text-sm block mt-2">
-                          Total {selectedAddonBillingCycle}:{" "}
-                          {formatCurrency(pricing.totalPrice)} for{" "}
-                          {selectedAddonUsers} seats
-                        </span>
-                      </div>
-
-                      {addon.description && (
-                        <div className="flex items-center justify-between py-2 mb-6">
-                          <span className="text-gray-700 text-sm flex-1">
-                            {addon.description}
-                          </span>
-                          <div className="flex items-center justify-center w-6 h-6">
-                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                              <Check className="w-3 h-3 text-white" />
-                            </div>
-                          </div>
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative flex w-full min-w-0 flex-col bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-200 ${
+                        isLockedCurrentPlan || isLowerPlan
+                          ? "opacity-80 hover:shadow-lg"
+                          : "hover:shadow-lg hover:border-emerald-300"
+                      } ${
+                        isMostPopular
+                          ? "border-2 border-emerald-500 ring-4 ring-emerald-50"
+                          : "border border-gray-200"
+                      }`}
+                    >
+                      {isMostPopular && (
+                        <div className="absolute top-0 left-0 right-0 bg-emerald-600 text-white text-center py-1.5 text-xs font-semibold">
+                          Most Popular
                         </div>
                       )}
 
-                      <Button
-                        className={`w-full py-3 px-4 font-semibold text-sm sm:text-base whitespace-normal text-center ${
-                          alreadyActive
-                            ? "bg-gray-200 text-gray-700 cursor-not-allowed"
-                            : "bg-[#17c491] hover:bg-[#0fa372] text-white"
-                        }`}
-                        disabled={alreadyActive}
-                        onClick={() => {
-                          setSelectedAddon(addon);
-                          setShowAddonPaymentModal(true);
-                        }}
-                      >
-                        {alreadyActive ? "Already Active" : "Buy Add-on"}
-                        {!alreadyActive && (
-                          <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
-                        )}
-                      </Button>
+                      {isLockedCurrentPlan && (
+                        <div className="absolute top-4 right-4 z-10">
+                          <Badge className="bg-gray-900 text-white">
+                            Current Plan
+                          </Badge>
+                        </div>
+                      )}
 
-                      {alreadyActive && activeAssignment && (
-                        <div className="mt-5 rounded-lg border border-emerald-200 bg-white p-4 text-left">
+                      <div
+                        className={`flex flex-1 flex-col ${isLockedCurrentPlan ? "blur-[1px]" : ""}`}
+                      >
+                        <div
+                          className={`flex flex-1 flex-col p-5 ${isMostPopular ? "pt-12" : "pt-5"}`}
+                        >
+                          {/* User Icon */}
+                          <div className="flex justify-start mb-3">
+                            <div className="w-10 h-10 [&>svg]:h-5 [&>svg]:w-5 bg-emerald-50 rounded-xl flex items-center justify-center">
+                              {getPlanIcon(plan.name)}
+                            </div>
+                          </div>
+
+                          {/* Plan Name */}
+                          <h3 className="text-lg font-bold text-black mb-4">
+                            {plan.name}
+                          </h3>
+
+                          {/* Price */}
                           {(() => {
-                            const selectedIds =
-                              assignmentSelections[activeAssignment.id] || [];
-                            const isExpanded = Boolean(
-                              expandedAddonAssignments[activeAssignment.id],
+                            const pricing = getPricingSummary(
+                              plan,
+                              selectedUsers,
+                              selectedBillingCycle,
                             );
                             return (
-                              <>
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                  <button
-                                    type="button"
-                                    className="flex flex-1 items-center justify-between gap-3 text-left"
-                                    onClick={() =>
-                                      toggleAddonAssignmentPanel(
-                                        activeAssignment.id,
-                                      )
-                                    }
-                                  >
-                                    <span>
-                                      <span className="block text-sm font-semibold text-gray-900">
-                                        Assign Employees
-                                      </span>
-                                      <span className="block text-xs text-gray-500">
-                                        {selectedIds.length}/
-                                        {activeAssignment.users_count} users
-                                        assigned
-                                      </span>
+                              <div className="border-b border-slate-100 pb-4 mb-4">
+                                <div className="flex flex-wrap items-baseline gap-1">
+                                  <span className="text-3xl font-bold tracking-tight text-black">
+                                    {formatCurrency(pricing.effectivePerUser)}
+                                  </span>
+                                  <span className="text-black text-xs">
+                                    /user/month
+                                  </span>
+                                </div>
+                                <p className="mt-3 text-sm text-black">
+                                  Billed{" "}
+                                  {selectedBillingCycle === "yearly"
+                                    ? "annually"
+                                    : "monthly"}
+                                </p>
+                                {selectedBillingCycle === "yearly" &&
+                                  pricing.savingsPerUser > 0 && (
+                                    <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-black">
+                                      Save{" "}
+                                      {formatCurrency(
+                                        pricing.savingsPerUser *
+                                          selectedUsers *
+                                          12,
+                                      )}{" "}
+                                      per year
                                     </span>
-                                    <ChevronDown
-                                      className={`h-4 w-4 text-gray-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                                    />
-                                  </button>
-                                  {isExpanded && (
-                                    <Button
-                                      size="sm"
-                                      className="bg-[#17c491] hover:bg-[#0fa372]"
-                                      disabled={
-                                        savingAssignmentId ===
-                                        activeAssignment.id
-                                      }
+                                  )}
+                                <span className="text-black text-sm block">
+                                  Total {selectedBillingCycle}:{" "}
+                                  {formatCurrency(pricing.totalPrice)} for{" "}
+                                  {selectedUsers} users
+                                </span>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Plan Description with Bullet Points */}
+                          <div className="flex-1 space-y-2 mb-5">
+                            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-black">
+                              What's included
+                            </p>
+                            {(plan.description || "")
+                              .split(/,|\n/)
+                              .map((item) => item.trim())
+                              .filter(Boolean)
+                              .map((item, index) => (
+                                <div
+                                  key={index}
+                                  className="flex flex-row-reverse items-center gap-3 py-1"
+                                >
+                                  <span className="text-black text-sm flex-1">
+                                    {item}
+                                  </span>
+                                  <div className="flex items-center justify-center w-6 h-6">
+                                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                      <Check className="w-3 h-3 text-white" />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+
+                          {/* CTA Button */}
+                          {isLockedCurrentPlan ? (
+                            <Button
+                              className="w-full min-h-9 rounded-lg py-2 px-3 font-semibold text-sm whitespace-normal text-center bg-gray-200 text-black cursor-not-allowed"
+                              disabled
+                            >
+                              <span className="flex items-center justify-center">
+                                Current Plan
+                              </span>
+                            </Button>
+                          ) : isLowerPlan ? (
+                            <Button
+                              className="w-full cursor-not-allowed border-2 border-gray-200 bg-gray-100 px-4 py-3 text-center text-sm font-semibold text-black sm:text-base"
+                              disabled
+                            >
+                              <span className="flex items-center justify-center">
+                                Lower Plan
+                              </span>
+                            </Button>
+                          ) : isFreePlan &&
+                            (!currentSubscription || isTrialExpired) ? (
+                            <Button
+                              className="w-full border-2 border-emerald-500 bg-emerald-500 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-600 sm:text-base"
+                              onClick={() =>
+                                handleStartTrial(plan.id, "monthly")
+                              }
+                            >
+                              <span className="flex items-center justify-center">
+                                Use Free Plan
+                                <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                              </span>
+                            </Button>
+                          ) : !currentSubscription ? (
+                            <Button
+                              className={`w-full min-h-9 rounded-lg py-2 px-3 font-semibold transition-all duration-200 text-sm whitespace-normal text-center ${
+                                isMostPopular
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  : "bg-white border-2 border-gray-300 text-black hover:bg-gray-50"
+                              }`}
+                              onClick={() => handleStartTrial(plan.id)}
+                            >
+                              <span className="flex items-center justify-center">
+                                Try Everything Free!
+                                <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                              </span>
+                            </Button>
+                          ) : currentSubscription.status === "trial" &&
+                            currentSubscription.is_trial_active ? (
+                            <Button
+                              className={`w-full min-h-9 rounded-lg py-2 px-3 font-semibold transition-all duration-200 text-sm whitespace-normal text-center ${
+                                isMostPopular
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  : "bg-white border-2 border-gray-300 text-black hover:bg-gray-50"
+                              }`}
+                              onClick={() => {
+                                setSelectedPlan(plan);
+                                setMonthlyUsersInput(
+                                  selectedBillingCycle === "monthly"
+                                    ? String(selectedUsers)
+                                    : "0",
+                                );
+                                setYearlyUsersInput(
+                                  selectedBillingCycle === "yearly"
+                                    ? String(selectedUsers)
+                                    : "0",
+                                );
+                                setShowPaymentModal(true);
+                              }}
+                            >
+                              <span className="flex items-center justify-center">
+                                Upgrade Now
+                                <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                              </span>
+                            </Button>
+                          ) : isTrialExpired ? (
+                            <Button
+                              className={`w-full min-h-9 rounded-lg py-2 px-3 font-semibold transition-all duration-200 text-sm whitespace-normal text-center ${
+                                isMostPopular
+                                  ? "bg-red-500 hover:bg-red-600 text-white"
+                                  : "bg-red-500 hover:bg-red-600 text-white"
+                              }`}
+                              onClick={() => {
+                                setSelectedPlan(plan);
+                                setMonthlyUsersInput(
+                                  selectedBillingCycle === "monthly"
+                                    ? String(selectedUsers)
+                                    : "0",
+                                );
+                                setYearlyUsersInput(
+                                  selectedBillingCycle === "yearly"
+                                    ? String(selectedUsers)
+                                    : "0",
+                                );
+                                setShowPaymentModal(true);
+                              }}
+                            >
+                              <span className="flex items-center justify-center">
+                                Subscribe Now
+                                <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                              </span>
+                            </Button>
+                          ) : (
+                            <Button
+                              className={`w-full min-h-9 rounded-lg py-2 px-3 font-semibold border-2 transition-all duration-200 text-sm whitespace-normal text-center ${
+                                isMostPopular
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                                  : "bg-white border-emerald-200 text-black hover:bg-emerald-50"
+                              }`}
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedPlan(plan);
+                                setMonthlyUsersInput(
+                                  selectedBillingCycle === "monthly"
+                                    ? String(selectedUsers)
+                                    : "0",
+                                );
+                                setYearlyUsersInput(
+                                  selectedBillingCycle === "yearly"
+                                    ? String(selectedUsers)
+                                    : "0",
+                                );
+                                setShowPaymentModal(true);
+                              }}
+                            >
+                              <span className="flex items-center justify-center">
+                                {isCurrentPlan
+                                  ? `Add ${plan.name} Seats`
+                                  : `Buy ${plan.name}`}
+                                <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                              </span>
+                            </Button>
+                          )}
+
+                          {/* Trial Information */}
+                          {!currentSubscription && (
+                            <div className="text-center mt-4">
+                              <p className="text-black text-sm">
+                                {plan.trial_days} days free trial
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <div className="max-w-md mx-auto">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <AlertCircle className="w-8 h-8 text-black" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-black mb-2">
+                      No Plans Available
+                    </h3>
+                    <p className="text-black mb-4">
+                      No subscription plans are available at the moment.
+                    </p>
+                    <p className="text-sm text-black">
+                      Please contact our support team for assistance with custom
+                      plans.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {currentSubscription && addons.length > 0 && (
+            <div>
+              <div className="mb-3 text-center">
+                <h2 className="text-base font-semibold text-black">
+                  Add-on packages
+                </h2>
+                <p className="mt-1 text-sm text-black">
+                  Add extra modules to your plan.
+                </p>
+              </div>
+
+              <Card className="mx-auto mb-4 w-full rounded-xl border border-emerald-100 shadow-none sm:w-fit">
+                <CardContent className="p-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[160px_260px] sm:gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-black font-medium">
+                        Add-on Seats
+                      </Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={selectedAddonUsersInput}
+                        onChange={(e) => {
+                          const rawValue = e.target.value;
+                          setSelectedAddonUsersInput(rawValue);
+
+                          if (rawValue === "") return;
+
+                          const nextValue = parseInt(rawValue, 10);
+                          if (!Number.isNaN(nextValue)) {
+                            setSelectedAddonUsers(Math.max(1, nextValue));
+                          }
+                        }}
+                        onBlur={() => {
+                          const nextValue = parseInt(
+                            selectedAddonUsersInput,
+                            10,
+                          );
+                          const normalizedValue = Number.isNaN(nextValue)
+                            ? 1
+                            : Math.max(1, nextValue);
+
+                          setSelectedAddonUsers(normalizedValue);
+                          setSelectedAddonUsersInput(String(normalizedValue));
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-black font-medium">
+                        Add-on Billing Cycle
+                      </Label>
+                      <Select
+                        value={selectedAddonBillingCycle}
+                        onValueChange={(value) =>
+                          setSelectedAddonBillingCycle(
+                            value as "monthly" | "yearly",
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select billing cycle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex flex-wrap items-stretch justify-center gap-4 [&>div]:w-full [&>div]:max-w-[280px] sm:[&>div]:w-[calc((100%-1rem)/2)] lg:[&>div]:w-[calc((100%-2rem)/3)] xl:[&>div]:w-[calc((100%-3rem)/4)]">
+                {addons.map((addon) => {
+                  const pricing = getAddonPricingSummary(
+                    addon,
+                    selectedAddonUsers,
+                    selectedAddonBillingCycle,
+                  );
+                  const activeAssignment = addonAssignments.find(
+                    (assignment) =>
+                      assignment.addon_id === addon.id ||
+                      assignment.module_key === addon.module_key ||
+                      assignment.name?.toLowerCase() ===
+                        addon.name.toLowerCase(),
+                  );
+                  const alreadyActive = currentSubscription.addons?.some(
+                    (activeAddon) =>
+                      activeAddon.addon_id === addon.id ||
+                      activeAddon.module_key === addon.module_key ||
+                      activeAddon.name?.toLowerCase() ===
+                        addon.name.toLowerCase(),
+                  );
+
+                  return (
+                    <div
+                      key={addon.id}
+                      className={`relative flex w-full min-w-0 flex-col rounded-2xl border bg-white shadow-sm overflow-hidden transition-all duration-200 ${
+                        alreadyActive
+                          ? "border-emerald-300 bg-emerald-50/40"
+                          : "border-gray-200 hover:border-emerald-300 hover:shadow-md"
+                      }`}
+                    >
+                      {alreadyActive && (
+                        <div className="flex justify-end px-4 pt-2">
+                          <Badge className="bg-emerald-600 text-white">
+                            Active Add-on
+                          </Badge>
+                        </div>
+                      )}
+
+                      <div className="flex flex-1 flex-col p-4">
+                        <AddonIllustration
+                          moduleKey={addon.module_key}
+                          className="mx-auto mb-2 !h-20 !w-32"
+                        />
+
+                        <h3 className="text-base font-bold text-center text-black mb-1 break-words">
+                          {addon.name}
+                        </h3>
+                        <p className="text-center text-[11px] font-medium uppercase text-black mb-2 break-words">
+                          {addon.module_key || "module add-on"}
+                        </p>
+
+                        <div className="text-center mb-3">
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-2xl font-bold text-black">
+                              {formatCurrency(pricing.pricePerUser)}
+                            </span>
+                            <span className="text-black text-xs">
+                              /user/month
+                            </span>
+                          </div>
+                          <span className="text-black text-xs block mt-1">
+                            Total {selectedAddonBillingCycle}:{" "}
+                            {formatCurrency(pricing.totalPrice)} for{" "}
+                            {selectedAddonUsers} seats
+                          </span>
+                        </div>
+
+                        {addon.description && (
+                          <div className="flex items-center justify-between gap-2 py-1 mb-3 break-words">
+                            <span className="text-black text-xs leading-5 flex-1">
+                              {addon.description}
+                            </span>
+                            <div className="flex items-center justify-center w-6 h-6">
+                              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <Button
+                          className={`mt-auto w-full min-h-9 rounded-lg py-2 px-3 font-semibold text-sm whitespace-normal text-center ${
+                            alreadyActive
+                              ? "bg-gray-200 text-black cursor-not-allowed"
+                              : "bg-[#17c491] hover:bg-[#0fa372] text-white"
+                          }`}
+                          disabled={alreadyActive}
+                          onClick={() => {
+                            setSelectedAddon(addon);
+                            setShowAddonPaymentModal(true);
+                          }}
+                        >
+                          {alreadyActive ? "Already Active" : "Buy Add-on"}
+                          {!alreadyActive && (
+                            <ChevronRight className="ml-2 h-4 w-4 flex-shrink-0" />
+                          )}
+                        </Button>
+
+                        {alreadyActive && activeAssignment && (
+                          <div className="mt-5 rounded-lg border border-emerald-200 bg-white p-4 text-left">
+                            {(() => {
+                              const selectedIds =
+                                assignmentSelections[activeAssignment.id] || [];
+                              const isExpanded = Boolean(
+                                expandedAddonAssignments[activeAssignment.id],
+                              );
+                              return (
+                                <>
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <button
+                                      type="button"
+                                      className="flex flex-1 items-center justify-between gap-3 text-left"
                                       onClick={() =>
-                                        handleSaveAddonUsers(
+                                        toggleAddonAssignmentPanel(
                                           activeAssignment.id,
                                         )
                                       }
                                     >
-                                      {savingAssignmentId ===
-                                      activeAssignment.id
-                                        ? "Saving..."
-                                        : "Save Users"}
-                                    </Button>
-                                  )}
-                                </div>
+                                      <span>
+                                        <span className="block text-sm font-semibold text-black">
+                                          Assign Employees
+                                        </span>
+                                        <span className="block text-xs text-black">
+                                          {selectedIds.length}/
+                                          {activeAssignment.users_count} users
+                                          assigned
+                                        </span>
+                                      </span>
+                                      <ChevronDown
+                                        className={`h-4 w-4 text-black transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                      />
+                                    </button>
+                                    {isExpanded && (
+                                      <Button
+                                        size="sm"
+                                        className="bg-[#17c491] hover:bg-[#0fa372]"
+                                        disabled={
+                                          savingAssignmentId ===
+                                          activeAssignment.id
+                                        }
+                                        onClick={() =>
+                                          handleSaveAddonUsers(
+                                            activeAssignment.id,
+                                          )
+                                        }
+                                      >
+                                        {savingAssignmentId ===
+                                        activeAssignment.id
+                                          ? "Saving..."
+                                          : "Save Users"}
+                                      </Button>
+                                    )}
+                                  </div>
 
-                                {isExpanded && employees.length > 0 ? (
-                                  <div className="mt-3 grid max-h-56 grid-cols-1 gap-2 overflow-y-auto pr-1">
-                                    {employees.map((employee) => {
-                                      const employeeId = Number(employee.id);
-                                      const checked =
-                                        selectedIds.includes(employeeId);
-                                      return (
-                                        <label
-                                          key={employee.id}
-                                          className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${
-                                            checked
-                                              ? "border-emerald-300 bg-emerald-50"
-                                              : "border-gray-200 bg-white"
-                                          }`}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            className="mt-1"
-                                            checked={checked}
-                                            onChange={() =>
-                                              toggleAddonEmployee(
-                                                activeAssignment.id,
-                                                employeeId,
-                                                activeAssignment.users_count,
-                                              )
-                                            }
-                                          />
-                                          <span>
-                                            <span className="block font-medium text-gray-900">
-                                              {getEmployeeDisplayName(employee)}
+                                  {isExpanded && employees.length > 0 ? (
+                                    <div className="mt-3 grid max-h-56 grid-cols-1 gap-2 overflow-y-auto pr-1">
+                                      {employees.map((employee) => {
+                                        const employeeId = Number(employee.id);
+                                        const checked =
+                                          selectedIds.includes(employeeId);
+                                        return (
+                                          <label
+                                            key={employee.id}
+                                            className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm ${
+                                              checked
+                                                ? "border-emerald-300 bg-emerald-50"
+                                                : "border-gray-200 bg-white"
+                                            }`}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              className="mt-1"
+                                              checked={checked}
+                                              onChange={() =>
+                                                toggleAddonEmployee(
+                                                  activeAssignment.id,
+                                                  employeeId,
+                                                  activeAssignment.users_count,
+                                                )
+                                              }
+                                            />
+                                            <span>
+                                              <span className="block font-medium text-black">
+                                                {getEmployeeDisplayName(
+                                                  employee,
+                                                )}
+                                              </span>
+                                              <span className="block text-xs text-black">
+                                                {employee.employee_id ||
+                                                  employee.email ||
+                                                  "-"}
+                                              </span>
                                             </span>
-                                            <span className="block text-xs text-gray-500">
-                                              {employee.employee_id ||
-                                                employee.email ||
-                                                "-"}
-                                            </span>
-                                          </span>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                ) : isExpanded ? (
-                                  <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-                                    Employee list is not available. Login as
-                                    admin/HR to assign users.
-                                  </div>
-                                ) : null}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : isExpanded ? (
+                                    <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-black">
+                                      Employee list is not available. Login as
+                                      admin/HR to assign users.
+                                    </div>
+                                  ) : null}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Payment History */}
         {payments && payments.length > 0 && (
           <Card className="border-0 shadow-xl bg-white/90">
-            <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl">
+            {/* <CardHeader className="bg-gradient-to-r from-[#17c491] to-[#0fa372] text-white rounded-t-xl">
               <CardTitle className="text-white">Payment History</CardTitle>
-            </CardHeader>
+            </CardHeader> */}
             <CardContent>
               {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b">
@@ -1819,10 +1915,10 @@ const SubscriptionManagement: React.FC = () => {
                           <Badge
                             className={
                               payment.status === "completed"
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-green-100 text-black"
                                 : payment.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
+                                  ? "bg-yellow-100 text-black"
+                                  : "bg-red-100 text-black"
                             }
                           >
                             {payment.status}
@@ -1832,7 +1928,7 @@ const SubscriptionManagement: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div> */}
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
@@ -1840,20 +1936,20 @@ const SubscriptionManagement: React.FC = () => {
                   <Card key={payment.id} className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-semibold text-gray-900">
+                        <p className="font-semibold text-black">
                           ₹{payment.amount.toLocaleString()}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-black">
                           {new Date(payment.payment_date).toLocaleDateString()}
                         </p>
                       </div>
                       <Badge
                         className={
                           payment.status === "completed"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-green-100 text-black"
                             : payment.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
+                              ? "bg-yellow-100 text-black"
+                              : "bg-red-100 text-black"
                         }
                       >
                         {payment.status}
@@ -1861,13 +1957,13 @@ const SubscriptionManagement: React.FC = () => {
                     </div>
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Method:</span>
+                        <span className="text-black">Method:</span>
                         <span className="font-medium">
                           {payment.payment_method}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Transaction ID:</span>
+                        <span className="text-black">Transaction ID:</span>
                         <span className="font-medium text-xs break-all">
                           {payment.transaction_id}
                         </span>
@@ -1882,52 +1978,63 @@ const SubscriptionManagement: React.FC = () => {
 
         {/* Payment Modal */}
         {showPaymentModal && selectedPlan && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md">
+          <div className="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
               <CardHeader>
                 <CardTitle>
                   {renewalCycle
                     ? `Renew ${renewalCycle === "monthly" ? "Monthly" : "Yearly"} Subscription`
                     : "Complete Payment"}
                 </CardTitle>
-                <p className="text-sm text-gray-600">
-                  {renewalCycle ? "Renew" : "Upgrade to"} {selectedPlan.name} plan
+                <p className="text-sm text-black">
+                  {renewalCycle ? "Renew" : "Upgrade to"} {selectedPlan.name}{" "}
+                  plan
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className={`grid gap-3 rounded-lg border p-3 ${renewalCycle ? "grid-cols-1" : "grid-cols-2"}`}>
-                  {renewalCycle !== "yearly" && <div className="space-y-2">
-                    <Label htmlFor="monthlyUsersCount">Monthly Users</Label>
-                    <Input
-                      id="monthlyUsersCount"
-                      type="number"
-                      min="0"
-                      value={monthlyUsersInput}
-                      disabled={isPaying}
-                      onChange={(event) => setMonthlyUsersInput(event.target.value)}
-                    />
-                  </div>}
-                  {renewalCycle !== "monthly" && <div className="space-y-2">
-                    <Label htmlFor="yearlyUsersCount">Yearly Users</Label>
-                    <Input
-                      id="yearlyUsersCount"
-                      type="number"
-                      min="0"
-                      value={yearlyUsersInput}
-                      disabled={isPaying}
-                      onChange={(event) => setYearlyUsersInput(event.target.value)}
-                    />
-                  </div>}
+                <div
+                  className={`grid gap-3 rounded-lg border p-3 ${renewalCycle ? "grid-cols-1" : "grid-cols-2"}`}
+                >
+                  {renewalCycle !== "yearly" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="monthlyUsersCount">Monthly Users</Label>
+                      <Input
+                        id="monthlyUsersCount"
+                        type="number"
+                        min="0"
+                        value={monthlyUsersInput}
+                        disabled={isPaying}
+                        onChange={(event) =>
+                          setMonthlyUsersInput(event.target.value)
+                        }
+                      />
+                    </div>
+                  )}
+                  {renewalCycle !== "monthly" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="yearlyUsersCount">Yearly Users</Label>
+                      <Input
+                        id="yearlyUsersCount"
+                        type="number"
+                        min="0"
+                        value={yearlyUsersInput}
+                        disabled={isPaying}
+                        onChange={(event) =>
+                          setYearlyUsersInput(event.target.value)
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-semibold">{selectedPlan.name}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-black">
                     {renewalCycle
                       ? `${renewalCycle === "monthly" ? Number(monthlyUsersInput) || 0 : Number(yearlyUsersInput) || 0} ${renewalCycle} users.`
                       : `${(Number(monthlyUsersInput) || 0) + (Number(yearlyUsersInput) || 0)} total users: ${Number(monthlyUsersInput) || 0} monthly + ${Number(yearlyUsersInput) || 0} yearly.`}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-black">
                     {getStorageForPlan(selectedPlan)} storage
                   </p>
                 </div>
@@ -1940,14 +2047,18 @@ const SubscriptionManagement: React.FC = () => {
                   );
                   return (
                     <div className="space-y-2 rounded-lg border p-3">
-                      {renewalCycle !== "yearly" && <div className="flex justify-between text-sm">
-                        <span>Monthly users amount</span>
-                        <span>{formatCurrency(pricing.monthlyAmount)}</span>
-                      </div>}
-                      {renewalCycle !== "monthly" && <div className="flex justify-between text-sm">
-                        <span>Yearly users amount</span>
-                        <span>{formatCurrency(pricing.yearlyAmount)}</span>
-                      </div>}
+                      {renewalCycle !== "yearly" && (
+                        <div className="flex justify-between text-sm">
+                          <span>Monthly users amount</span>
+                          <span>{formatCurrency(pricing.monthlyAmount)}</span>
+                        </div>
+                      )}
+                      {renewalCycle !== "monthly" && (
+                        <div className="flex justify-between text-sm">
+                          <span>Yearly users amount</span>
+                          <span>{formatCurrency(pricing.yearlyAmount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between border-t pt-2 text-sm">
                         <span>Subscription amount</span>
                         <span>{formatCurrency(pricing.totalPrice)}</span>
@@ -1960,7 +2071,7 @@ const SubscriptionManagement: React.FC = () => {
                         <span>Total payable</span>
                         <span>{formatCurrency(pricing.totalWithGst)}</span>
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-black">
                         {formatCurrency(pricing.totalPrice)} + 18% GST
                       </p>
                     </div>
@@ -1993,13 +2104,11 @@ const SubscriptionManagement: React.FC = () => {
         )}
 
         {showAddonPaymentModal && selectedAddon && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md">
+          <div className="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
               <CardHeader>
                 <CardTitle>Complete Add-on Payment</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Buy {selectedAddon.name}
-                </p>
+                <p className="text-sm text-black">Buy {selectedAddon.name}</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -2012,12 +2121,13 @@ const SubscriptionManagement: React.FC = () => {
                         selectedAddonBillingCycle,
                       );
                       return (
-                        <>
+
+<>
                           <span className="text-2xl font-bold">
                             {formatCurrency(pricing.pricePerUser)}
                           </span>
-                          <span className="text-gray-600">/user/month</span>
-                          <span className="text-sm text-gray-500 ml-auto">
+                          <span className="text-black">/user/month</span>
+                          <span className="text-sm text-black ml-auto">
                             Total {selectedAddonBillingCycle}:{" "}
                             {formatCurrency(pricing.totalPrice)}
                           </span>
@@ -2025,11 +2135,11 @@ const SubscriptionManagement: React.FC = () => {
                       );
                     })()}
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-black">
                     {selectedAddonUsers} add-on seats for this module.
                   </p>
                   {selectedAddon.description && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-black">
                       {selectedAddon.description}
                     </p>
                   )}

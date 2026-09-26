@@ -153,6 +153,187 @@ const ContactPage = () => {
   ];
 
   return (
+    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <a href="/">
+            <img
+              src={logo}
+              alt="HRMS Logo"
+              className="h-14 w-14 object-contain"
+            />
+          </a>
+          <nav className="hidden items-center gap-9 text-base font-semibold text-slate-700 md:flex">
+            <a href="/">Home</a>
+            <a href="/features">Features</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/about">About</a>
+            <a href="/contact" className="font-bold text-[#17c491]">
+              Contact
+            </a>
+          </nav>
+          <Button
+            onClick={() => navigate("/login")}
+            className="rounded-full bg-[#17c491] px-7 py-2.5 text-sm font-semibold hover:bg-[#139f78]"
+          >
+            Sign In
+          </Button>
+        </div>
+      </header>
+      <main>
+        <section className="px-5 pb-12 pt-14 text-center sm:pt-20">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+            We are here to help
+          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+            Get in touch
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-slate-500">
+            We're here to help you transform your HR operations. Reach out to us
+            anytime.
+          </p>
+        </section>
+        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+          <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-3">
+            {contactInfo.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Card
+                  key={item.title}
+                  className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm"
+                >
+                  <CardContent className="p-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h2 className="mt-5 text-sm font-bold text-slate-900">
+                      {item.title}
+                    </h2>
+                    {item.details.filter(Boolean).map((detail) => (
+                      <p key={detail} className="mt-1 text-xs text-slate-600">
+                        {detail}
+                      </p>
+                    ))}
+                    <p className="mt-3 text-xs text-slate-400">
+                      {item.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+        <section className="px-5 py-14">
+          <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_0.8fr]">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+                Send a message
+              </p>
+              <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                Let's start a conversation
+              </h2>
+              <p className="mt-3 max-w-lg text-sm leading-6 text-slate-500">
+                Tell us what you need and our team will get back to you soon.
+              </p>
+              <form
+                onSubmit={handleSubmit}
+                className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="company">Company</Label>
+                    <Input
+                      id="company"
+                      name="company"
+                      value={formData.company}
+                      onChange={handleInputChange}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="message">Message *</Label>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    className="mt-1 min-h-32"
+                    required
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-full bg-[#17c491] text-sm hover:bg-[#139f78]"
+                >
+                  {isSubmitting ? "Sending..." : "Send message"}
+                  <Send className="ml-2 h-4 w-4" />
+                </Button>
+              </form>
+            </div>
+            <div className="rounded-2xl bg-[#17c491] p-7 text-white">
+              <MessageSquare className="h-7 w-7" />
+              <h2 className="mt-6 text-2xl font-bold">
+                Frequently asked questions
+              </h2>
+              <div className="mt-7 space-y-3">
+                {faqs.map((faq) => (
+                  <div
+                    key={faq.question}
+                    className="border-b border-white/30 pb-3"
+                  >
+                    <h3 className="text-sm font-semibold">{faq.question}</h3>
+                    <p className="mt-2 text-xs leading-5 text-white/85">
+                      {faq.answer}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+
+  return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">

@@ -210,6 +210,13 @@ export default function DeletionDrafts() {
                     Restored by {row.restored_by_name}
                   </p>
                 )}
+                {row.status === "deleted" &&
+                  row.review_note ===
+                    "Deleted directly by Superadmin; CEO approval is not required." && (
+                    <p className="text-sm text-muted-foreground">
+                      Deleted directly by Superadmin. Restore is disabled.
+                    </p>
+                  )}
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
@@ -219,7 +226,10 @@ export default function DeletionDrafts() {
                       ...(row.status === "pending" && canRestore
                         ? ["cancel"]
                         : []),
-                      ...(row.status === "deleted" && canRestore
+                      ...(row.status === "deleted" &&
+                      canRestore &&
+                      row.review_note !==
+                        "Deleted directly by Superadmin; CEO approval is not required."
                         ? ["restore"]
                         : []),
                     ] as Action[]

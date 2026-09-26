@@ -1,21 +1,31 @@
+import { AddonIllustration } from "@/components/AddonIllustration";
+import { PackageModuleSelect } from "@/components/PackageModuleSelect";
+import { SubscriptionTierEditor } from "@/components/SubscriptionTierEditor";
+import { PricingTier, readTiers, tierRate } from "@/utils/subscriptionTiers";
 import { notifyDeletionPending } from "@/lib/deletionDrafts";
-import React, { useEffect, useMemo, useState } from 'react';
-import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { Plus, Save, Trash2, Edit, X, PackagePlus } from 'lucide-react';
-import ENDPOINTS from '../lib/endpoint';
-import { showToast } from '@/utils/toast';
-import { FREEPLAN_MODULES } from '@/utils/subscriptionModules';
+import React, { useEffect, useMemo, useState } from "react";
+import { Layout } from "@/components/Layout";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { Plus, Save, Trash2, Edit, X, PackagePlus } from "lucide-react";
+import ENDPOINTS from "../lib/endpoint";
+import { showToast } from "@/utils/toast";
+import { FREEPLAN_MODULES } from "@/utils/subscriptionModules";
 
 const formatPrice = (price: number): string => {
-  return `\u20B9${price.toLocaleString('en-IN')}`;
+  return `\u20B9${price.toLocaleString("en-IN")}`;
 };
 
 interface SubscriptionPlan {
+  pricing_tiers?: PricingTier[];
   id: number;
   name: string;
   description: string;
@@ -28,6 +38,7 @@ interface SubscriptionPlan {
 }
 
 interface SubscriptionAddon {
+  pricing_tiers?: PricingTier[];
   id: number;
   name: string;
   description?: string;
@@ -45,20 +56,27 @@ interface CompanyOption {
 }
 
 const moduleOptions = [
-  { value: 'live_tracking', label: 'Live Tracking' },
-  { value: 'client_attendance', label: 'Field Attendance' },
-  { value: 'shift_roster', label: 'Shift/Roster Planner' },
-  { value: 'expenses', label: 'Expenses' },
-  { value: 'hr_helpdesk', label: 'HR Helpdesk' },
-  { value: 'ai_assistant', label: 'AI Assistant' },
-  { value: 'assets', label: 'Assets' },
-  { value: 'payroll', label: 'Payroll' },
-  { value: 'payroll_audit', label: 'Payroll Audit Trail' },
-  { value: 'hr_management', label: 'RMS & Recruitment' },
-  { value: 'exit', label: 'Exit & Offboarding' },
+  { value: "live_tracking", label: "Live Tracking" },
+  { value: "client_attendance", label: "Field Attendance" },
+  { value: "shift_roster", label: "Shift/Roster Planner" },
+  { value: "expenses", label: "Expenses" },
+  { value: "hr_helpdesk", label: "HR Helpdesk" },
+  { value: "ai_assistant", label: "AI Assistant" },
+  { value: "assets", label: "Assets" },
+  { value: "payroll", label: "Payroll" },
+  { value: "payroll_audit", label: "Payroll Audit Trail" },
+  { value: "hr_management", label: "RMS & Recruitment" },
+  { value: "exit", label: "Exit & Offboarding" },
+  { value: "essl_setup", label: "ESSL Setup" },
+  { value: "kpi", label: "KPI Management" },
 ];
 
-export type PlanCategory = 'freeplan' | 'basic' | 'standard' | 'advanced' | 'custom';
+export type PlanCategory =
+  | "freeplan"
+  | "basic"
+  | "standard"
+  | "advanced"
+  | "custom";
 
 const PLAN_CATEGORIES: Array<{
   id: PlanCategory;
@@ -67,107 +85,128 @@ const PLAN_CATEGORIES: Array<{
   defaultModules: string[];
 }> = [
   {
-    id: 'freeplan',
-    label: 'Free Plan',
-    description: 'Organization setup, roles, employees, surveys, and KPI management',
+    id: "freeplan",
+    label: "Free Plan",
+    description:
+      "Organization setup, roles, employees, and surveys",
     defaultModules: [
-      'Organization Setup',
-      'Role & Permissions',
-      'Employee Management',
-      'Employee Surveys',
-      'KPI Management',
+      "Organization Setup",
+      "Role & Permissions",
+      "Employee Management",
+      "Employee Surveys",
     ],
   },
   {
-    id: 'basic',
-    label: 'Basic',
-    description: 'Free modules plus attendance, leave, and reports',
+    id: "basic",
+    label: "Basic",
+    description: "Free modules plus attendance, leave, and reports",
     defaultModules: [
-      'Organization Setup',
-      'Role & Permissions',
-      'Employee Management',
-      'Employee Surveys',
-      'Attendance',
-      'Leave',
-      'Reports',
+      "Organization Setup",
+      "Role & Permissions",
+      "Employee Management",
+      "Employee Surveys",
+      "Attendance",
+      "Leave",
+      "Reports",
     ],
   },
   {
-    id: 'standard',
-    label: 'Standard',
-    description: 'Basic plus payroll, expenses, assets, and field tools',
+    id: "standard",
+    label: "Standard",
+    description: "Basic plus payroll, expenses, assets, and field tools",
     defaultModules: [
-      'All in Basic',
-      'Payroll',
-      'Expenses',
-      'Assets',
-      'Client Attendance',
-      'Live Tracking',
-      'HR Helpdesk',
-      'Shift/Roster Planner',
-      'Payroll Audit Trail',
+      "All in Basic",
+      "Payroll",
+      "Expenses",
+      "Assets",
+      "Client Attendance",
+      "Live Tracking",
+      "HR Helpdesk",
+      "Shift/Roster Planner",
+      "Payroll Audit Trail",
     ],
   },
   {
-    id: 'advanced',
-    label: 'Advanced',
-    description: 'Standard plus HR, recruitment, and exit management',
+    id: "advanced",
+    label: "Advanced",
+    description: "Standard plus HR, recruitment, and exit management",
     defaultModules: [
-      'All in Standard',
-      'HR Management',
-      'Recruitment (RMS)',
-      'Exit & Offboarding',
+      "All in Standard",
+      "HR Management",
+      "Recruitment (RMS)",
+      "Exit & Offboarding",
     ],
   },
   {
-    id: 'custom',
-    label: 'Custom',
-    description: 'Define your own module list',
+    id: "custom",
+    label: "Custom",
+    description: "Define your own module list",
     defaultModules: [],
   },
 ];
 
 const inferPlanCategory = (planName?: string | null): PlanCategory => {
-  const normalized = String(planName || '').toLowerCase().replace(/[\s_-]+/g, '');
-  if (!normalized) return 'custom';
-  if (normalized.includes('freeplan') || normalized.includes('freepackage') || (normalized.includes('free') && !normalized.includes('trial'))) {
-    return 'freeplan';
+  const normalized = String(planName || "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+  if (!normalized) return "custom";
+  if (
+    normalized.includes("freeplan") ||
+    normalized.includes("freepackage") ||
+    (normalized.includes("free") && !normalized.includes("trial"))
+  ) {
+    return "freeplan";
   }
-  if (normalized.includes('basic')) return 'basic';
-  if (normalized.includes('standard') || normalized.includes('professional')) return 'standard';
-  if (normalized.includes('advanced') || normalized.includes('advance') || normalized.includes('enterprise')) {
-    return 'advanced';
+  if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("standard") || normalized.includes("professional"))
+    return "standard";
+  if (
+    normalized.includes("advanced") ||
+    normalized.includes("advance") ||
+    normalized.includes("enterprise")
+  ) {
+    return "advanced";
   }
-  return 'custom';
+  return "custom";
 };
 
 const createPlanFormForCategory = (category: PlanCategory) => {
-  const preset = PLAN_CATEGORIES.find((item) => item.id === category) || PLAN_CATEGORIES[0];
+  const preset =
+    PLAN_CATEGORIES.find((item) => item.id === category) || PLAN_CATEGORIES[0];
   const nameByCategory: Record<PlanCategory, string> = {
-    freeplan: 'Free Plan',
-    basic: 'Basic Plan',
-    standard: 'Standard Plan',
-    advanced: 'Advanced Plan',
-    custom: '',
+    freeplan: "Free Plan",
+    basic: "Basic Plan",
+    standard: "Standard Plan",
+    advanced: "Advanced Plan",
+    custom: "",
   };
 
   return {
+    pricing_tiers: [
+      { min_users: 1, max_users: 49, price: 0, yearly_price: 0 },
+      { min_users: 50, max_users: 100, price: 0, yearly_price: 0 },
+      { min_users: 101, max_users: null, price: 0, yearly_price: 0 },
+    ] as PricingTier[],
     category,
     name: nameByCategory[category],
-    description: preset.defaultModules.join('\n'),
-    price: '',
-    yearly_price: '',
-    storage_gb: '',
-    trial_days: '',
+    description: preset.defaultModules.join("\n"),
+    price: "",
+    yearly_price: "",
+    storage_gb: "",
+    trial_days: "",
     is_active: true,
   };
 };
 
-const createFreePackageForm = () => createPlanFormForCategory('freeplan');
+const createFreePackageForm = () => createPlanFormForCategory("freeplan");
 
 const SubscriptionPlansManagement: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewUsers, setPreviewUsers] = useState(75);
+  const [previewCycle, setPreviewCycle] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const [error, setError] = useState<string | null>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
@@ -175,7 +214,9 @@ const SubscriptionPlansManagement: React.FC = () => {
   const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [addons, setAddons] = useState<SubscriptionAddon[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
-  const [editingAddon, setEditingAddon] = useState<SubscriptionAddon | null>(null);
+  const [editingAddon, setEditingAddon] = useState<SubscriptionAddon | null>(
+    null,
+  );
   const [isCreatingAddon, setIsCreatingAddon] = useState(false);
   const [isSavingAddon, setIsSavingAddon] = useState(false);
   const [isAssigningAddon, setIsAssigningAddon] = useState(false);
@@ -185,20 +226,25 @@ const SubscriptionPlansManagement: React.FC = () => {
   });
 
   const [addonForm, setAddonForm] = useState({
-    name: '',
-    description: '',
-    module_key: 'live_tracking',
-    price_upto5: '100',
-    price_upto10: '100',
-    price_upto15: '100',
-    is_active: true
+    name: "",
+    description: "",
+    pricing_tiers: [
+      { min_users: 1, max_users: 49, price: 100, yearly_price: 100 },
+      { min_users: 50, max_users: 100, price: 100, yearly_price: 100 },
+      { min_users: 101, max_users: null, price: 100, yearly_price: 100 },
+    ] as PricingTier[],
+    module_key: "live_tracking",
+    price_upto5: "100",
+    price_upto10: "100",
+    price_upto15: "100",
+    is_active: true,
   });
 
   const [assignmentForm, setAssignmentForm] = useState({
-    company_id: '',
-    addon_id: '',
-    users_count: '8',
-    billing_cycle: 'monthly'
+    company_id: "",
+    addon_id: "",
+    users_count: "8",
+    billing_cycle: "monthly",
   });
 
   useEffect(() => {
@@ -213,16 +259,22 @@ const SubscriptionPlansManagement: React.FC = () => {
       const fetchedPlans = (response.data?.data || []).map((plan: any) => ({
         ...plan,
         price: Number(plan.price || 0),
-        yearly_price: plan.yearly_price !== undefined && plan.yearly_price !== null
-          ? Number(plan.yearly_price)
-          : undefined,
-        storage_gb: plan.storage_gb !== undefined && plan.storage_gb !== null ? Number(plan.storage_gb) : undefined,
+        yearly_price:
+          plan.yearly_price !== undefined && plan.yearly_price !== null
+            ? Number(plan.yearly_price)
+            : undefined,
+        storage_gb:
+          plan.storage_gb !== undefined && plan.storage_gb !== null
+            ? Number(plan.storage_gb)
+            : undefined,
         trial_days: Number(plan.trial_days || 0),
       }));
       setPlans(fetchedPlans);
+      setError(null);
     } catch (fetchError: any) {
-      console.error('Error fetching plans:', fetchError);
-      const message = fetchError.response?.data?.message || 'Failed to fetch plans';
+      console.error("Error fetching plans:", fetchError);
+      const message =
+        fetchError.response?.data?.message || "Failed to fetch plans";
       setError(message);
       showToast.error(message);
     } finally {
@@ -231,12 +283,12 @@ const SubscriptionPlansManagement: React.FC = () => {
   };
 
   const resetPlanForm = () => {
-    setPlanForm(createPlanFormForCategory('custom'));
+    setPlanForm(createPlanFormForCategory("custom"));
     setEditingPlan(null);
     setIsCreatingPlan(false);
   };
 
-  const startCreatePlan = (category: PlanCategory = 'freeplan') => {
+  const startCreatePlan = (category: PlanCategory = "freeplan") => {
     setEditorSessionKey((prev) => prev + 1);
     setEditingPlan(null);
     setPlanForm(createPlanFormForCategory(category));
@@ -248,13 +300,23 @@ const SubscriptionPlansManagement: React.FC = () => {
     setEditingPlan(plan);
     setIsCreatingPlan(false);
     setPlanForm({
+      pricing_tiers: readTiers(plan.pricing_tiers).length
+        ? readTiers(plan.pricing_tiers)
+        : [
+            {
+              min_users: 1,
+              max_users: null,
+              price: Number(plan.price || 0),
+              yearly_price: Number(plan.yearly_price || 0),
+            },
+          ],
       category: inferPlanCategory(plan.name),
-      name: plan.name || '',
-      description: plan.description || '',
-      price: plan.price?.toString() || '',
-      yearly_price: plan.yearly_price?.toString() || '',
-      storage_gb: plan.storage_gb?.toString() || '',
-      trial_days: plan.trial_days?.toString() || '',
+      name: plan.name || "",
+      description: plan.description || "",
+      price: plan.price?.toString() || "",
+      yearly_price: plan.yearly_price?.toString() || "",
+      storage_gb: plan.storage_gb?.toString() || "",
+      trial_days: plan.trial_days?.toString() || "",
       is_active: plan.is_active,
     });
   };
@@ -264,12 +326,16 @@ const SubscriptionPlansManagement: React.FC = () => {
     setPlanForm((prev) => ({
       ...prev,
       category,
-      name: prev.name.trim() ? prev.name : createPlanFormForCategory(category).name,
-      description: preset?.defaultModules.length ? preset.defaultModules.join('\n') : prev.description,
+      name: prev.name.trim()
+        ? prev.name
+        : createPlanFormForCategory(category).name,
+      description: preset?.defaultModules.length
+        ? preset.defaultModules.join("\n")
+        : prev.description,
     }));
   };
 
-  const isFreePlanForm = planForm.category === 'freeplan';
+  const isFreePlanForm = planForm.category === "freeplan";
 
   const groupedPlans = useMemo(() => {
     const groups: Record<PlanCategory, SubscriptionPlan[]> = {
@@ -287,11 +353,17 @@ const SubscriptionPlansManagement: React.FC = () => {
     return PLAN_CATEGORIES.map((category) => ({
       ...category,
       plans: groups[category.id],
-    })).filter((group) => group.plans.length > 0 || group.id === 'freeplan');
+    })).filter((group) => group.plans.length > 0 || group.id === "freeplan");
   }, [plans]);
 
   const sortedPlans = useMemo(() => {
-    const categoryOrder: PlanCategory[] = ['freeplan', 'basic', 'standard', 'advanced', 'custom'];
+    const categoryOrder: PlanCategory[] = [
+      "freeplan",
+      "basic",
+      "standard",
+      "advanced",
+      "custom",
+    ];
     return [...plans].sort(
       (a, b) =>
         categoryOrder.indexOf(inferPlanCategory(a.name)) -
@@ -303,21 +375,23 @@ const SubscriptionPlansManagement: React.FC = () => {
     try {
       const response = await ENDPOINTS.getSubscriptionAddons();
       setAddons(
-        (response.data?.data || [])
-          .filter(
-            (addon: any) =>
-              String(addon.module_key || "").toLowerCase() !== "kpi",
-          )
-          .map((addon: any) => ({
+        (response.data?.data || []).map((addon: any) => ({
             ...addon,
             price_upto5: Number(addon.price_upto5 ?? addon.price_upto25 ?? 0),
             price_upto10: Number(addon.price_upto10 ?? addon.price_upto50 ?? 0),
-            price_upto15: Number(addon.price_upto15 ?? addon.price_above15 ?? addon.price_above50 ?? 0),
+            price_upto15: Number(
+              addon.price_upto15 ??
+                addon.price_above15 ??
+                addon.price_above50 ??
+                0,
+            ),
           })),
       );
     } catch (fetchError: any) {
-      console.error('Error fetching add-ons:', fetchError);
-      showToast.error(fetchError.response?.data?.message || 'Failed to fetch add-ons');
+      console.error("Error fetching add-ons:", fetchError);
+      showToast.error(
+        fetchError.response?.data?.message || "Failed to fetch add-ons",
+      );
     }
   };
 
@@ -326,7 +400,7 @@ const SubscriptionPlansManagement: React.FC = () => {
       const response = await ENDPOINTS.getSuperAdminCompanies();
       setCompanies(response.data?.data || []);
     } catch (fetchError: any) {
-      console.error('Error fetching companies:', fetchError);
+      console.error("Error fetching companies:", fetchError);
     }
   };
 
@@ -335,20 +409,28 @@ const SubscriptionPlansManagement: React.FC = () => {
     setIsSavingPlan(true);
     try {
       const normalizedName =
-        planForm.category === 'freeplan' && !String(planForm.name || '').toLowerCase().includes('free')
-          ? 'Free Plan'
+        planForm.category === "freeplan" &&
+        !String(planForm.name || "")
+          .toLowerCase()
+          .includes("free")
+          ? "Free Plan"
           : planForm.name;
 
       const isFreePlan =
-        isFreePlanForm || inferPlanCategory(normalizedName) === 'freeplan';
+        isFreePlanForm || inferPlanCategory(normalizedName) === "freeplan";
 
       const payload = {
-        name: String(normalizedName || '').trim(),
+        name: String(normalizedName || "").trim(),
+        pricing_tiers: isFreePlan ? [] : planForm.pricing_tiers,
         description: planForm.description,
-        price: isFreePlan ? 0 : Number(planForm.price),
-        yearly_price: isFreePlan ? 0 : Number(planForm.yearly_price),
+        price: isFreePlan ? 0 : planForm.pricing_tiers[0].price,
+        yearly_price: isFreePlan ? 0 : planForm.pricing_tiers[0].yearly_price,
         max_users: 0,
-        storage_gb: isFreePlan ? undefined : planForm.storage_gb ? Number(planForm.storage_gb) : undefined,
+        storage_gb: isFreePlan
+          ? undefined
+          : planForm.storage_gb
+            ? Number(planForm.storage_gb)
+            : undefined,
         trial_days: isFreePlan ? 0 : Number(planForm.trial_days),
         is_active: planForm.is_active,
       };
@@ -359,39 +441,51 @@ const SubscriptionPlansManagement: React.FC = () => {
         await ENDPOINTS.createSubscriptionPlan(payload);
       }
 
-      showToast.success('Package saved');
+      showToast.success("Package saved");
       resetPlanForm();
       fetchPlans();
     } catch (saveError: any) {
-      console.error('Error saving plan:', saveError);
-      showToast.error(saveError.response?.data?.message || 'Failed to save package');
+      console.error("Error saving plan:", saveError);
+      showToast.error(
+        saveError.response?.data?.message || "Failed to save package",
+      );
     } finally {
       setIsSavingPlan(false);
     }
   };
 
   const handleDeletePlan = async (planId: number) => {
-    if (!confirm('Are you sure you want to delete this package?')) return;
+    if (!confirm("Are you sure you want to delete this package?")) return;
     try {
       const response = await ENDPOINTS.deleteSubscriptionPlan(planId);
       if (notifyDeletionPending(response)) return;
-      showToast.success(response.data?.message || 'Package deleted');
-      fetchPlans();
+      showToast.success(response.data?.message || "Package deleted");
+      setPlans((currentPlans) =>
+        currentPlans.filter((plan) => plan.id !== planId),
+      );
+      await fetchPlans();
     } catch (deleteError: any) {
-      console.error('Error deleting plan:', deleteError);
-      showToast.error(deleteError.response?.data?.message || 'Failed to delete package');
+      console.error("Error deleting plan:", deleteError);
+      showToast.error(
+        deleteError.response?.data?.message || "Failed to delete package",
+      );
     }
   };
 
   const resetAddonForm = () => {
     setAddonForm({
-      name: '',
-      description: '',
-      module_key: 'live_tracking',
-      price_upto5: '100',
-      price_upto10  : '100',
-      price_upto15: '100',
-      is_active: true
+      name: "",
+      description: "",
+      pricing_tiers: [
+        { min_users: 1, max_users: 49, price: 100, yearly_price: 100 },
+        { min_users: 50, max_users: 100, price: 100, yearly_price: 100 },
+        { min_users: 101, max_users: null, price: 100, yearly_price: 100 },
+      ] as PricingTier[],
+      module_key: "live_tracking",
+      price_upto5: "100",
+      price_upto10: "100",
+      price_upto15: "100",
+      is_active: true,
     });
     setEditingAddon(null);
     setIsCreatingAddon(false);
@@ -401,13 +495,35 @@ const SubscriptionPlansManagement: React.FC = () => {
     setEditingAddon(addon);
     setIsCreatingAddon(false);
     setAddonForm({
-      name: addon.name || '',
-      description: addon.description || '',
-      module_key: addon.module_key || 'live_tracking',
+      name: addon.name || "",
+      description: addon.description || "",
+      pricing_tiers: readTiers(addon.pricing_tiers).length
+        ? readTiers(addon.pricing_tiers)
+        : [
+            {
+              min_users: 1,
+              max_users: 5,
+              price: addon.price_upto5,
+              yearly_price: addon.price_upto5,
+            },
+            {
+              min_users: 6,
+              max_users: 10,
+              price: addon.price_upto10,
+              yearly_price: addon.price_upto10,
+            },
+            {
+              min_users: 11,
+              max_users: null,
+              price: addon.price_upto15,
+              yearly_price: addon.price_upto15,
+            },
+          ],
+      module_key: addon.module_key || "live_tracking",
       price_upto5: String(addon.price_upto5 || 0),
       price_upto10: String(addon.price_upto10 || 0),
       price_upto15: String(addon.price_upto15 || 0),
-      is_active: addon.is_active
+      is_active: addon.is_active,
     });
   };
 
@@ -417,12 +533,16 @@ const SubscriptionPlansManagement: React.FC = () => {
     try {
       const payload = {
         name: addonForm.name,
+        pricing_tiers: addonForm.pricing_tiers,
         description: addonForm.description,
         module_key: addonForm.module_key,
-        price_upto5: Number(addonForm.price_upto5),
-        price_upto10: Number(addonForm.price_upto10),
-        price_upto15: Number(addonForm.price_upto15),
-        is_active: addonForm.is_active
+        price_upto5:
+          tierRate(addonForm, 5, "monthly") ?? Number(addonForm.price_upto5),
+        price_upto10:
+          tierRate(addonForm, 10, "monthly") ?? Number(addonForm.price_upto10),
+        price_upto15:
+          tierRate(addonForm, 11, "monthly") ?? Number(addonForm.price_upto15),
+        is_active: addonForm.is_active,
       };
 
       if (editingAddon) {
@@ -431,27 +551,32 @@ const SubscriptionPlansManagement: React.FC = () => {
         await ENDPOINTS.createSubscriptionAddon(payload);
       }
 
-      showToast.success('Add-on saved');
+      showToast.success("Add-on saved");
       resetAddonForm();
       fetchAddons();
     } catch (saveError: any) {
-      console.error('Error saving add-on:', saveError);
-      showToast.error(saveError.response?.data?.message || 'Failed to save add-on');
+      console.error("Error saving add-on:", saveError);
+      showToast.error(
+        saveError.response?.data?.message || "Failed to save add-on",
+      );
     } finally {
       setIsSavingAddon(false);
     }
   };
 
   const handleDeleteAddon = async (addonId: number) => {
-    if (!confirm('Are you sure you want to delete this add-on package?')) return;
+    if (!confirm("Are you sure you want to delete this add-on package?"))
+      return;
     try {
       const response = await ENDPOINTS.deleteSubscriptionAddon(addonId);
       if (notifyDeletionPending(response)) return;
-      showToast.success(response.data?.message || 'Add-on deleted');
+      showToast.success(response.data?.message || "Add-on deleted");
       fetchAddons();
     } catch (deleteError: any) {
-      console.error('Error deleting add-on:', deleteError);
-      showToast.error(deleteError.response?.data?.message || 'Failed to delete add-on');
+      console.error("Error deleting add-on:", deleteError);
+      showToast.error(
+        deleteError.response?.data?.message || "Failed to delete add-on",
+      );
     }
   };
 
@@ -463,87 +588,153 @@ const SubscriptionPlansManagement: React.FC = () => {
         company_id: Number(assignmentForm.company_id),
         addon_id: Number(assignmentForm.addon_id),
         users_count: Number(assignmentForm.users_count),
-        billing_cycle: assignmentForm.billing_cycle
+        billing_cycle: assignmentForm.billing_cycle,
       });
-      showToast.success('Add-on assigned to organization');
-      setAssignmentForm({ company_id: '', addon_id: '', users_count: '8', billing_cycle: 'monthly' });
+      showToast.success("Add-on assigned to organization");
+      setAssignmentForm({
+        company_id: "",
+        addon_id: "",
+        users_count: "8",
+        billing_cycle: "monthly",
+      });
     } catch (assignError: any) {
-      console.error('Error assigning add-on:', assignError);
-      showToast.error(assignError.response?.data?.message || 'Failed to assign add-on');
+      console.error("Error assigning add-on:", assignError);
+      showToast.error(
+        assignError.response?.data?.message || "Failed to assign add-on",
+      );
     } finally {
       setIsAssigningAddon(false);
     }
   };
 
   const renderPlanCard = (plan: SubscriptionPlan) => {
-    const isPopular = plan.name?.toLowerCase?.().includes('standard');
+    const isPopular = plan.name?.toLowerCase?.().includes("standard");
     const category = inferPlanCategory(plan.name);
+    const rate =
+      tierRate(plan, previewUsers, previewCycle) ??
+      Number(previewCycle === "monthly" ? plan.price : plan.yearly_price || 0);
 
     return (
       <div
         key={plan.id}
-        className={`relative flex h-full min-w-0 flex-col bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl ${
-          isPopular ? 'border-2 border-orange-400 ring-4 ring-orange-100' : 'border border-gray-200'
+        className={`group relative flex h-full min-w-0 flex-col rounded-2xl bg-white shadow-sm ring-1 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+          isPopular
+            ? "ring-emerald-300 hover:shadow-emerald-100"
+            : category === "advanced"
+              ? "ring-purple-200 hover:shadow-purple-100"
+              : "ring-slate-200 hover:shadow-slate-200"
         }`}
       >
+        <div className={`h-1.5 w-full ${isPopular ? "bg-gradient-to-r from-emerald-400 to-teal-500" : category === "advanced" ? "bg-gradient-to-r from-violet-500 to-fuchsia-500" : "bg-gradient-to-r from-slate-300 to-slate-400"}`} />
         {isPopular && (
-          <div className="bg-gradient-to-r from-orange-400 to-orange-500 text-white text-center py-2 text-sm font-semibold">
-            Most Popular
+          <div className="bg-emerald-50 text-emerald-800 text-center py-2 text-xs font-bold uppercase tracking-wider">
+            Recommended
           </div>
         )}
 
-        <div className={`flex flex-1 flex-col p-6 ${isPopular ? '' : ''}`}>
+        <div className="flex flex-1 flex-col p-6 sm:p-7">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <span className="inline-flex text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                {PLAN_CATEGORIES.find((item) => item.id === category)?.label || 'Custom'}
+              <span className={`inline-flex text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${category === "advanced" ? "bg-violet-100 text-violet-800" : isPopular ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
+                {PLAN_CATEGORIES.find((item) => item.id === category)?.label ||
+                  "Custom"}
               </span>
-              <h4 className="mt-2 text-xl font-bold text-gray-900 break-words">{plan.name}</h4>
+              <h4 className="mt-2 text-xl font-bold text-black break-words">
+                {plan.name}
+              </h4>
             </div>
             <span
               className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                plan.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                plan.is_active
+                  ? "bg-green-100 text-black"
+                  : "bg-gray-200 text-black"
               }`}
             >
-              {plan.is_active ? 'Active' : 'Inactive'}
+              {plan.is_active ? "Active" : "Inactive"}
             </span>
           </div>
 
-          {category === 'freeplan' ? (
+          {category === "freeplan" ? (
             <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
-              <p className="text-sm font-semibold text-emerald-800">Free forever</p>
-              <p className="mt-1 text-xs text-emerald-700">No pricing, storage limits, or trial period</p>
+              <p className="text-sm font-semibold text-black">Free forever</p>
+              <p className="mt-1 text-xs text-black">
+                No pricing, storage limits, or trial period
+              </p>
             </div>
           ) : (
             <>
-              <div className="mt-6 grid grid-cols-2 gap-3 text-center">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-[10px] uppercase text-gray-500">Monthly</p>
-                  <p className="text-lg font-semibold text-gray-900">{formatPrice(plan.price || 0)}</p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-[10px] uppercase text-gray-500">Yearly</p>
-                  <p className="text-lg font-semibold text-emerald-700">{formatPrice(plan.yearly_price || 0)}</p>
-                </div>
+              <div className={`mt-6 rounded-xl border p-4 ${category === "advanced" ? "border-violet-100 bg-violet-50/60" : isPopular ? "border-emerald-100 bg-emerald-50/60" : "border-slate-100 bg-slate-50/70"}`}>
+                <p className="text-3xl font-bold tracking-tight text-black">
+                  {formatPrice(rate)}
+                  <span className="ml-1 text-xs font-normal text-black">
+                    / employee / month
+                  </span>
+                </p>
+                <p className="mt-2 text-sm text-black">
+                  {formatPrice(
+                    rate * previewUsers * (previewCycle === "yearly" ? 12 : 1),
+                  )}{" "}
+                  / {previewCycle === "yearly" ? "year" : "month"} for{" "}
+                  {previewUsers} employees
+                </p>
+                <p className="mt-1 text-xs text-black">
+                  Excluding GST
+                  {previewCycle === "yearly" ? " · billed annually" : ""}
+                </p>
               </div>
 
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-                <span>Storage: {plan.storage_gb ? `${plan.storage_gb}GB` : '-'}</span>
+              <div className="mt-4 flex items-center justify-between text-xs text-black">
+                <span>
+                  Storage: {plan.storage_gb ? `${plan.storage_gb}GB` : "-"}
+                </span>
                 <span>Trial: {plan.trial_days} days</span>
               </div>
             </>
           )}
 
-          <div className="mt-6 flex-1 space-y-2">
-            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Modules</p>
-            <div className="flex flex-wrap gap-2">
-              {plan.description
-                .split('\n')
+          {readTiers(plan.pricing_tiers).length > 0 && (
+            <div className="mt-5 space-y-2 border-t border-emerald-200 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide">
+                Employee ranges - per user / month
+              </p>
+              {readTiers(plan.pricing_tiers).map((tier, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between gap-2 rounded-lg bg-white/80 p-2 text-sm"
+                >
+                  <span>
+                    {tier.min_users}{" "}
+                    {tier.max_users === null ? "+" : "- " + tier.max_users}{" "}
+                    employees
+                  </span>
+                  <span className="font-semibold text-black">
+                    {formatPrice(tier.price)}{" "}
+                    <span className="text-xs font-normal text-black">
+                      / {formatPrice(tier.yearly_price)} annual
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-6 flex-1 space-y-3">
+            <p className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Modules
+              <span className="h-px flex-1 bg-slate-100" />
+            </p>
+            <div className="space-y-2">
+              {(plan.description || "")
+                .split("\n")
                 .filter(Boolean)
-                .slice(0, 8)
                 .map((item, index) => (
-                  <span key={index} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                    {item}
+                  <span
+                    key={index}
+                    className={`flex items-start gap-3 rounded-lg px-2.5 py-2 text-sm leading-5 transition-colors ${item.toLowerCase().includes("add-on") ? "bg-amber-50/70 text-slate-700" : "text-slate-700 hover:bg-slate-50"}`}
+                  >
+                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${item.toLowerCase().includes("add-on") ? "bg-amber-100 text-amber-700" : category === "advanced" ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"}`}>
+                      {item.toLowerCase().includes("add-on") ? "+" : "\u2713"}
+                    </span>
+                    <span>{item.replace(/\s*\(add-on\)/i, "")}{item.toLowerCase().includes("add-on") && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Add-on</span>}</span>
                   </span>
                 ))}
             </div>
@@ -553,7 +744,7 @@ const SubscriptionPlansManagement: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="border-blue-500 text-blue-600 hover:bg-blue-50 flex-1"
+              className="border-blue-500 text-black hover:bg-blue-50 flex-1"
               onClick={() => handleEditPlan(plan)}
             >
               <Edit className="w-4 h-4 mr-1" />
@@ -562,7 +753,7 @@ const SubscriptionPlansManagement: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="border-red-500 text-red-600 hover:bg-red-50 flex-1"
+              className="border-red-500 text-black hover:bg-red-50 flex-1"
               onClick={() => handleDeletePlan(plan.id)}
             >
               <Trash2 className="w-4 h-4 mr-1" />
@@ -587,7 +778,7 @@ const SubscriptionPlansManagement: React.FC = () => {
   return (
     <Layout>
       <div className="-m-4 sm:-m-6 lg:-m-6 min-h-[calc(100vh-4rem)] w-full bg-gradient-to-br from-gray-50 to-gray-100">
-        <section className="relative w-full overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600">
+        <section className="relative w-full overflow-hidden bg-gradient-to-r from-slate-950 via-emerald-950 to-emerald-800">
           <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIzIi8+PC9nPjwvZz48L3N2Zz4=')]"></div>
           <div className="relative w-full max-w-[1600px] mx-auto px-4 py-10 sm:px-8 sm:py-12 lg:px-10">
             <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -595,16 +786,19 @@ const SubscriptionPlansManagement: React.FC = () => {
                 <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                   Pricing Management
                 </span>
-                <h1 className="mt-3 text-3xl sm:text-4xl font-bold text-white">Subscription Plans</h1>
+                <h1 className="mt-3 text-3xl sm:text-4xl font-bold text-white">
+                  Subscription Plans
+                </h1>
                 <p className="mt-2 text-green-100 text-sm sm:text-base">
-                  Create and manage package names, monthly pricing, yearly pricing, storage, and trial days.
+                  Flexible packages. Employee-based rates. Add-ons that grow
+                  with your team.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  className="bg-white text-green-700 hover:bg-gray-100 px-5 py-2.5 font-semibold shadow-md"
-                  onClick={() => startCreatePlan('freeplan')}
+                  className="bg-white text-black hover:bg-gray-100 px-5 py-2.5 font-semibold shadow-md"
+                  onClick={() => startCreatePlan("freeplan")}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Free Plan
@@ -613,7 +807,7 @@ const SubscriptionPlansManagement: React.FC = () => {
                   type="button"
                   variant="outline"
                   className="border-white/80 bg-white/10 text-white hover:bg-white/20 px-5 py-2.5 font-semibold"
-                  onClick={() => startCreatePlan('custom')}
+                  onClick={() => startCreatePlan("custom")}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Custom Package
@@ -627,7 +821,7 @@ const SubscriptionPlansManagement: React.FC = () => {
           {error && (
             <Card className="border border-red-200 bg-red-50">
               <CardContent className="p-4">
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-sm text-black">{error}</p>
               </CardContent>
             </Card>
           )}
@@ -636,35 +830,97 @@ const SubscriptionPlansManagement: React.FC = () => {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl font-bold text-gray-900">Packages</CardTitle>
-                  <p className="text-sm text-gray-600">Manage package names, monthly pricing, yearly pricing, storage, and trial days.</p>
+                  <CardTitle className="text-2xl font-bold text-black">
+                    Packages
+                  </CardTitle>
+                  <p className="text-sm text-black">
+                    Build your packages, define employee ranges, and compare
+                    included features.
+                  </p>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="w-full space-y-6">
+              <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mr-auto">
+                  <p className="font-semibold text-black">
+                    Preview package pricing
+                  </p>
+                  <p className="text-xs text-black">
+                    Change the team size to compare rates. Each billing cycle
+                    uses its own seat count.
+                  </p>
+                </div>
+                <label className="space-y-1 text-xs font-medium text-black">
+                  Employees
+                  <Input
+                    aria-label="Preview employee count"
+                    className="w-28 bg-white"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={previewUsers}
+                    onChange={(e) =>
+                      setPreviewUsers(
+                        Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                      )
+                    }
+                  />
+                </label>
+                <div className="flex rounded-lg border bg-white p-1">
+                  {(["monthly", "yearly"] as const).map((cycle) => (
+                    <Button
+                      key={cycle}
+                      type="button"
+                      size="sm"
+                      variant={previewCycle === cycle ? "default" : "ghost"}
+                      aria-pressed={previewCycle === cycle}
+                      onClick={() => setPreviewCycle(cycle)}
+                    >
+                      {cycle === "monthly" ? "Monthly" : "Annual"}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               {(isCreatingPlan || editingPlan) && (
                 <Card className="border border-dashed border-gray-300 bg-white">
                   <CardContent className="p-6">
                     <form
-                      key={editingPlan ? `edit-${editingPlan.id}-${editorSessionKey}` : `create-plan-${editorSessionKey}`}
+                      key={
+                        editingPlan
+                          ? `edit-${editingPlan.id}-${editorSessionKey}`
+                          : `create-plan-${editorSessionKey}`
+                      }
                       onSubmit={handleSavePlan}
                       className="space-y-6"
                       autoComplete="off"
                     >
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {editingPlan ? `Edit ${editingPlan.name}` : 'Create Package'}
+                        <h3 className="text-lg font-semibold text-black">
+                          {editingPlan
+                            ? `Edit ${editingPlan.name}`
+                            : "Create Package"}
                         </h3>
-                        <Button type="button" variant="ghost" onClick={resetPlanForm}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={resetPlanForm}
+                        >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-2 md:col-span-2">
-                          <Label className="text-gray-700 font-medium">Plan Category</Label>
+                          <Label className="text-black font-medium">
+                            Plan Category
+                          </Label>
                           <select
                             value={planForm.category}
-                            onChange={(e) => handlePlanCategoryChange(e.target.value as PlanCategory)}
+                            onChange={(e) =>
+                              handlePlanCategoryChange(
+                                e.target.value as PlanCategory,
+                              )
+                            }
                             className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           >
                             {PLAN_CATEGORIES.map((category) => (
@@ -673,22 +929,35 @@ const SubscriptionPlansManagement: React.FC = () => {
                               </option>
                             ))}
                           </select>
-                          <p className="text-xs text-gray-500">
-                            {PLAN_CATEGORIES.find((item) => item.id === planForm.category)?.description}
+                          <p className="text-xs text-black">
+                            {
+                              PLAN_CATEGORIES.find(
+                                (item) => item.id === planForm.category,
+                              )?.description
+                            }
                           </p>
-                          {planForm.category === 'freeplan' && (
-                            <p className="text-xs text-emerald-700">
-                              Unlocks: {FREEPLAN_MODULES.filter((key) => key !== 'subscription').join(', ')}
+                          {planForm.category === "freeplan" && (
+                            <p className="text-xs text-black">
+                              Unlocks:{" "}
+                              {FREEPLAN_MODULES.filter(
+                                (key) => key !== "subscription",
+                              ).join(", ")}
                             </p>
                           )}
                         </div>
-                        <div className={`space-y-2 ${isFreePlanForm ? 'md:col-span-2' : ''}`}>
-                          <Label className="text-gray-700 font-medium">Package Name</Label>
+                        <div
+                          className={`space-y-2 ${isFreePlanForm ? "md:col-span-2" : ""}`}
+                        >
+                          <Label className="text-black font-medium">
+                            Package Name
+                          </Label>
                           <Input
                             name="plan_name"
                             autoComplete="off"
                             value={planForm.name}
-                            onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                            onChange={(e) =>
+                              setPlanForm({ ...planForm, name: e.target.value })
+                            }
                             className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                             required
                           />
@@ -696,52 +965,40 @@ const SubscriptionPlansManagement: React.FC = () => {
                         {!isFreePlanForm && (
                           <>
                             <div className="space-y-2">
-                              <Label className="text-gray-700 font-medium">Monthly Price</Label>
-                              <Input
-                                type="number"
-                                name="monthly_price"
-                                autoComplete="off"
-                                min="0"
-                                value={planForm.price}
-                                onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
-                                className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-gray-700 font-medium">Yearly Price</Label>
-                              <Input
-                                type="number"
-                                name="yearly_price"
-                                autoComplete="off"
-                                min="0"
-                                value={planForm.yearly_price}
-                                onChange={(e) => setPlanForm({ ...planForm, yearly_price: e.target.value })}
-                                className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-gray-700 font-medium">Storage (GB)</Label>
+                              <Label className="text-black font-medium">
+                                Storage (GB)
+                              </Label>
                               <Input
                                 type="number"
                                 name="storage_gb"
                                 autoComplete="off"
                                 min="0"
                                 value={planForm.storage_gb}
-                                onChange={(e) => setPlanForm({ ...planForm, storage_gb: e.target.value })}
+                                onChange={(e) =>
+                                  setPlanForm({
+                                    ...planForm,
+                                    storage_gb: e.target.value,
+                                  })
+                                }
                                 className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-gray-700 font-medium">Trial Days</Label>
+                              <Label className="text-black font-medium">
+                                Trial Days
+                              </Label>
                               <Input
                                 type="number"
                                 name="trial_days"
                                 autoComplete="off"
                                 min="0"
                                 value={planForm.trial_days}
-                                onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })}
+                                onChange={(e) =>
+                                  setPlanForm({
+                                    ...planForm,
+                                    trial_days: e.target.value,
+                                  })
+                                }
                                 className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                                 required
                               />
@@ -753,27 +1010,59 @@ const SubscriptionPlansManagement: React.FC = () => {
                             id="plan-active"
                             type="checkbox"
                             checked={planForm.is_active}
-                            onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })}
+                            onChange={(e) =>
+                              setPlanForm({
+                                ...planForm,
+                                is_active: e.target.checked,
+                              })
+                            }
                           />
                           <Label htmlFor="plan-active">Active</Label>
                         </div>
                       </div>
+                      {!isFreePlanForm && (
+                        <SubscriptionTierEditor
+                          value={planForm.pricing_tiers}
+                          onChange={(pricing_tiers) =>
+                            setPlanForm({ ...planForm, pricing_tiers })
+                          }
+                        />
+                      )}
                       <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">Package Modules</Label>
-                        <Textarea
-                          name="plan_description"
-                          autoComplete="off"
+                        <Label className="text-black font-medium">
+                          Package Modules
+                        </Label>
+                        <PackageModuleSelect
                           value={planForm.description}
-                          onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                          rows={4}
-                          className="bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                          placeholder="Enter each module on a new line"
+                          options={Array.from(
+                            new Set([
+                              ...PLAN_CATEGORIES.flatMap(
+                                (category) => category.defaultModules,
+                              ),
+                              ...moduleOptions
+                                .filter(
+                                  (module) =>
+                                    planForm.category !== "freeplan" ||
+                                    module.value !== "kpi",
+                                )
+                                .map((module) => module.label),
+                              "Reports",
+                              "Employee Surveys",
+                            ]),
+                          )}
+                          onChange={(description) =>
+                            setPlanForm({ ...planForm, description })
+                          }
                         />
                       </div>
                       <div className="flex justify-end">
-                        <Button type="submit" disabled={isSavingPlan} className="bg-green-600 hover:bg-green-700 shadow-sm">
+                        <Button
+                          type="submit"
+                          disabled={isSavingPlan}
+                          className="bg-green-600 hover:bg-green-700 shadow-sm"
+                        >
                           <Save className="w-4 h-4 mr-2" />
-                          {isSavingPlan ? 'Saving...' : 'Save Package'}
+                          {isSavingPlan ? "Saving..." : "Save Package"}
                         </Button>
                       </div>
                     </form>
@@ -783,24 +1072,34 @@ const SubscriptionPlansManagement: React.FC = () => {
 
               {plans.length > 0 ? (
                 <div className="space-y-10 w-full">
-                  <div className="grid w-full gap-6 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
+                  <div className="grid w-full gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                     {sortedPlans.map((plan) => renderPlanCard(plan))}
                   </div>
 
                   {groupedPlans
-                    .filter((group) => group.plans.length === 0 && group.id === 'freeplan')
+                    .filter(
+                      (group) =>
+                        group.plans.length === 0 && group.id === "freeplan",
+                    )
                     .map((group) => (
-                      <Card key={group.id} className="border border-dashed border-gray-200 bg-gray-50/80">
+                      <Card
+                        key={group.id}
+                        className="border border-dashed border-gray-200 bg-gray-50/80"
+                      >
                         <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{group.label}</h3>
-                            <p className="text-sm text-gray-600">{group.description}</p>
+                            <h3 className="text-lg font-semibold text-black">
+                              {group.label}
+                            </h3>
+                            <p className="text-sm text-black">
+                              {group.description}
+                            </p>
                           </div>
                           <Button
                             type="button"
                             variant="outline"
-                            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
-                            onClick={() => startCreatePlan('freeplan')}
+                            className="border-emerald-600 text-black hover:bg-emerald-50"
+                            onClick={() => startCreatePlan("freeplan")}
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Create Free Plan
@@ -812,11 +1111,11 @@ const SubscriptionPlansManagement: React.FC = () => {
               ) : (
                 <Card className="border border-dashed border-gray-200 bg-white/80 backdrop-blur-sm">
                   <CardContent className="p-8 text-center">
-                    <p className="text-gray-600">No packages created yet.</p>
+                    <p className="text-black">No packages created yet.</p>
                     <Button
                       variant="outline"
-                      className="mt-4 border-green-600 text-green-600 hover:bg-green-50"
-                      onClick={() => startCreatePlan('freeplan')}
+                      className="mt-4 border-green-600 text-black hover:bg-green-50"
+                      onClick={() => startCreatePlan("freeplan")}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Create Free Plan
@@ -831,9 +1130,12 @@ const SubscriptionPlansManagement: React.FC = () => {
             <CardHeader className="pb-2">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-2xl font-bold text-gray-900">Add-on Packages</CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Sell selected modules on top of an organization's base plan with a separate seat count.
+                  <CardTitle className="text-2xl font-bold text-black">
+                    Add-on Packages
+                  </CardTitle>
+                  <p className="text-sm text-black">
+                    Sell selected modules on top of an organization's base plan
+                    with a separate seat count.
                   </p>
                 </div>
                 <Button
@@ -853,31 +1155,62 @@ const SubscriptionPlansManagement: React.FC = () => {
               {(isCreatingAddon || editingAddon) && (
                 <Card className="border border-dashed border-gray-300 bg-white">
                   <CardContent className="p-6">
-                    <form onSubmit={handleSaveAddon} className="space-y-6" autoComplete="off">
+                    <form
+                      onSubmit={handleSaveAddon}
+                      className="space-y-6"
+                      autoComplete="off"
+                    >
+                      <SubscriptionTierEditor
+                        addon
+                        value={addonForm.pricing_tiers}
+                        onChange={(pricing_tiers) =>
+                          setAddonForm({ ...addonForm, pricing_tiers })
+                        }
+                      />
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {editingAddon ? `Edit ${editingAddon.name}` : 'Create Add-on Package'}
+                        <h3 className="text-lg font-semibold text-black">
+                          {editingAddon
+                            ? `Edit ${editingAddon.name}`
+                            : "Create Add-on Package"}
                         </h3>
-                        <Button type="button" variant="ghost" onClick={resetAddonForm}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={resetAddonForm}
+                        >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Add-on Name</Label>
+                          <Label className="text-black font-medium">
+                            Add-on Name
+                          </Label>
                           <Input
                             value={addonForm.name}
-                            onChange={(e) => setAddonForm({ ...addonForm, name: e.target.value })}
+                            onChange={(e) =>
+                              setAddonForm({
+                                ...addonForm,
+                                name: e.target.value,
+                              })
+                            }
                             placeholder="Tracking Management"
                             required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Module</Label>
+                          <Label className="text-black font-medium">
+                            Module
+                          </Label>
                           <select
                             value={addonForm.module_key}
-                            onChange={(e) => setAddonForm({ ...addonForm, module_key: e.target.value })}
+                            onChange={(e) =>
+                              setAddonForm({
+                                ...addonForm,
+                                module_key: e.target.value,
+                              })
+                            }
                             className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             required
                           >
@@ -888,61 +1221,56 @@ const SubscriptionPlansManagement: React.FC = () => {
                             ))}
                           </select>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price/User up to 5</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={addonForm.price_upto5}
-                            onChange={(e) => setAddonForm({ ...addonForm, price_upto5: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price/User up to 10</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={addonForm.price_upto10}
-                            onChange={(e) => setAddonForm({ ...addonForm, price_upto10: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-gray-700 font-medium">Price/User above 15</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={addonForm.price_upto15}
-                            onChange={(e) => setAddonForm({ ...addonForm, price_upto15: e.target.value })}
-                            required
-                          />
+                        <div className="flex items-center gap-4 rounded-xl border border-emerald-100 bg-white p-3 md:col-span-2">
+                          <AddonIllustration moduleKey={addonForm.module_key} />
+                          <div className="text-sm text-black">
+                            <p className="font-semibold">Add-on illustration</p>
+                            <p className="mt-1">
+                              Automatically matched to the selected module.
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <input
                             id="addon-active"
                             type="checkbox"
                             checked={addonForm.is_active}
-                            onChange={(e) => setAddonForm({ ...addonForm, is_active: e.target.checked })}
+                            onChange={(e) =>
+                              setAddonForm({
+                                ...addonForm,
+                                is_active: e.target.checked,
+                              })
+                            }
                           />
                           <Label htmlFor="addon-active">Active</Label>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">Description</Label>
+                        <Label className="text-black font-medium">
+                          Description
+                        </Label>
                         <Textarea
                           value={addonForm.description}
-                          onChange={(e) => setAddonForm({ ...addonForm, description: e.target.value })}
+                          onChange={(e) =>
+                            setAddonForm({
+                              ...addonForm,
+                              description: e.target.value,
+                            })
+                          }
                           rows={3}
                           placeholder="Live tracking management for selected field employees"
                         />
                       </div>
 
                       <div className="flex justify-end">
-                        <Button type="submit" disabled={isSavingAddon} className="bg-green-600 hover:bg-green-700">
+                        <Button
+                          type="submit"
+                          disabled={isSavingAddon}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
                           <Save className="w-4 h-4 mr-2" />
-                          {isSavingAddon ? 'Saving...' : 'Save Add-on'}
+                          {isSavingAddon ? "Saving..." : "Save Add-on"}
                         </Button>
                       </div>
                     </form>
@@ -950,27 +1278,39 @@ const SubscriptionPlansManagement: React.FC = () => {
                 </Card>
               )}
 
-              <Card className="border border-gray-200">
+              {/* <Card className="border border-gray-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">Assign Add-on to Organization</CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Example: Basic plan organization + Tracking Management add-on for 8 users.
+                  <CardTitle className="text-lg">
+                    Assign Add-on to Organization
+                  </CardTitle>
+                  <p className="text-sm text-black">
+                    Example: Basic plan organization + Tracking Management
+                    add-on for 8 users.
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleAssignAddon} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <form
+                    onSubmit={handleAssignAddon}
+                    className="grid grid-cols-1 md:grid-cols-5 gap-4"
+                  >
                     <div className="space-y-2 md:col-span-2">
                       <Label>Organization</Label>
                       <select
                         value={assignmentForm.company_id}
-                        onChange={(e) => setAssignmentForm({ ...assignmentForm, company_id: e.target.value })}
+                        onChange={(e) =>
+                          setAssignmentForm({
+                            ...assignmentForm,
+                            company_id: e.target.value,
+                          })
+                        }
                         className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         required
                       >
                         <option value="">Select organization</option>
                         {companies.map((company) => (
                           <option key={company.id} value={company.id}>
-                            {company.company_name} ({company.user_count || 0} users)
+                            {company.company_name} ({company.user_count || 0}{" "}
+                            users)
                           </option>
                         ))}
                       </select>
@@ -979,16 +1319,23 @@ const SubscriptionPlansManagement: React.FC = () => {
                       <Label>Add-on</Label>
                       <select
                         value={assignmentForm.addon_id}
-                        onChange={(e) => setAssignmentForm({ ...assignmentForm, addon_id: e.target.value })}
+                        onChange={(e) =>
+                          setAssignmentForm({
+                            ...assignmentForm,
+                            addon_id: e.target.value,
+                          })
+                        }
                         className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         required
                       >
                         <option value="">Select add-on</option>
-                        {addons.filter((addon) => addon.is_active).map((addon) => (
-                          <option key={addon.id} value={addon.id}>
-                            {addon.name}
-                          </option>
-                        ))}
+                        {addons
+                          .filter((addon) => addon.is_active)
+                          .map((addon) => (
+                            <option key={addon.id} value={addon.id}>
+                              {addon.name}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     <div className="space-y-2">
@@ -997,7 +1344,12 @@ const SubscriptionPlansManagement: React.FC = () => {
                         type="number"
                         min="1"
                         value={assignmentForm.users_count}
-                        onChange={(e) => setAssignmentForm({ ...assignmentForm, users_count: e.target.value })}
+                        onChange={(e) =>
+                          setAssignmentForm({
+                            ...assignmentForm,
+                            users_count: e.target.value,
+                          })
+                        }
                         required
                       />
                     </div>
@@ -1005,7 +1357,12 @@ const SubscriptionPlansManagement: React.FC = () => {
                       <Label>Billing</Label>
                       <select
                         value={assignmentForm.billing_cycle}
-                        onChange={(e) => setAssignmentForm({ ...assignmentForm, billing_cycle: e.target.value })}
+                        onChange={(e) =>
+                          setAssignmentForm({
+                            ...assignmentForm,
+                            billing_cycle: e.target.value,
+                          })
+                        }
                         className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
                         <option value="monthly">Monthly</option>
@@ -1013,53 +1370,117 @@ const SubscriptionPlansManagement: React.FC = () => {
                       </select>
                     </div>
                     <div className="md:col-span-5 flex justify-end">
-                      <Button type="submit" disabled={isAssigningAddon} className="bg-green-600 hover:bg-green-700">
-                        {isAssigningAddon ? 'Assigning...' : 'Assign Add-on'}
+                      <Button
+                        type="submit"
+                        disabled={isAssigningAddon}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {isAssigningAddon ? "Assigning..." : "Assign Add-on"}
                       </Button>
                     </div>
                   </form>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               {addons.length > 0 ? (
-                <div className="grid w-full gap-6 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
+                <div className="grid w-full gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                   {addons.map((addon) => (
-                    <div key={addon.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div
+                      key={addon.id}
+                      className="rounded-2xl border border-gray-200 border-t-8 border-t-emerald-100 bg-white p-6 shadow-sm"
+                    >
+                      <AddonIllustration
+                        moduleKey={addon.module_key}
+                        className="mb-3"
+                      />
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <h4 className="text-lg font-semibold text-gray-900">{addon.name}</h4>
-                          <p className="mt-1 text-xs font-medium uppercase text-gray-500">{addon.module_key}</p>
+                          <h4 className="text-lg font-semibold text-black">
+                            {addon.name}
+                          </h4>
+                          <p className="mt-1 text-xs font-medium uppercase text-black">
+                            {addon.module_key}
+                          </p>
                         </div>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${addon.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                          {addon.is_active ? 'Active' : 'Inactive'}
+                        <span
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full ${addon.is_active ? "bg-green-100 text-black" : "bg-gray-200 text-black"}`}
+                        >
+                          {addon.is_active ? "Active" : "Inactive"}
                         </span>
                       </div>
                       {addon.description && (
-                        <p className="mt-3 text-sm text-gray-600">{addon.description}</p>
+                        <p className="mt-3 text-sm text-black">
+                          {addon.description}
+                        </p>
                       )}
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                      {readTiers(addon.pricing_tiers).length > 0 && (
+                        <div className="mt-4 space-y-2 border-l-4 border-emerald-300 pl-4">
+                          {readTiers(addon.pricing_tiers).map((tier, i) => (
+                            <div
+                              key={i}
+                              className="flex justify-between text-sm"
+                            >
+                              <span>
+                                {tier.min_users}
+                                {tier.max_users === null
+                                  ? "+"
+                                  : "-" + tier.max_users}{" "}
+                                employees
+                              </span>
+                              <strong className="text-black">
+                                {formatPrice(tier.price)}
+                              </strong>
+                            </div>
+                          ))}
+                          <p className="text-xs text-black">Per user / month</p>
+                        </div>
+                      )}
+                      <div
+                        className={
+                          readTiers(addon.pricing_tiers).length
+                            ? "hidden"
+                            : "mt-4 grid grid-cols-3 gap-2 text-center"
+                        }
+                      >
                         <div className="rounded-lg bg-gray-50 p-3">
-                          <p className="text-[10px] uppercase text-gray-500">&lt;5</p>
-                          <p className="font-semibold">{formatPrice(addon.price_upto5)}</p>
+                          <p className="text-[10px] uppercase text-black">
+                            1-5
+                          </p>
+                          <p className="font-semibold">
+                            {formatPrice(addon.price_upto5)}
+                          </p>
                         </div>
                         <div className="rounded-lg bg-gray-50 p-3">
-                          <p className="text-[10px] uppercase text-gray-500">&lt;10</p>
-                          <p className="font-semibold">{formatPrice(addon.price_upto10)}</p>
+                          <p className="text-[10px] uppercase text-black">
+                            6-10
+                          </p>
+                          <p className="font-semibold">
+                            {formatPrice(addon.price_upto10)}
+                          </p>
                         </div>
                         <div className="rounded-lg bg-gray-50 p-3">
-                          <p className="text-[10px] uppercase text-gray-500">&gt;15</p>
-                          <p className="font-semibold">{formatPrice(addon.price_upto15)}</p>
+                          <p className="text-[10px] uppercase text-black">
+                            11+
+                          </p>
+                          <p className="font-semibold">
+                            {formatPrice(addon.price_upto15)}
+                          </p>
                         </div>
                       </div>
                       <div className="mt-5 flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditAddon(addon)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleEditAddon(addon)}
+                        >
                           <Edit className="w-4 h-4 mr-1" />
                           Edit
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
+                          className="flex-1 border-red-500 text-black hover:bg-red-50"
                           onClick={() => handleDeleteAddon(addon.id)}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
@@ -1072,7 +1493,9 @@ const SubscriptionPlansManagement: React.FC = () => {
               ) : (
                 <Card className="border border-dashed border-gray-200 bg-white">
                   <CardContent className="p-8 text-center">
-                    <p className="text-gray-600">No add-on packages created yet.</p>
+                    <p className="text-black">
+                      No add-on packages created yet.
+                    </p>
                   </CardContent>
                 </Card>
               )}

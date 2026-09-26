@@ -31,7 +31,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     loading: roleLoading,
     userRoleNames,
   } = useRole();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, kpiFreeUntil, loading: subscriptionLoading } = useSubscription();
 
   const inferSubmoduleFromPath = (moduleName?: string, pathname?: string): string | undefined => {
     const normalizedModule = String(moduleName || "").toLowerCase();
@@ -180,11 +180,16 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
           trialEndingSoonDays: 2,
           currentEmployeeId,
           addonAdminBypass: isAdminOrCeo,
+          companyId: user.company_id,
+          kpiFreeUntil,
         });
+    const planModule = location.pathname.toLowerCase().startsWith("/attendance/setup")
+      ? "essl_setup"
+      : requiredModule;
     const blockedByPlan =
       !isSuperAdmin &&
       allowedModulesForPlan !== null &&
-      !allowedModulesForPlan.has(requiredModule);
+      !allowedModulesForPlan.has(planModule);
 
     if (blockedByPlan) {
       return fallbackPath ? <Navigate to={fallbackPath} replace /> : (

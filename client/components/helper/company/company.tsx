@@ -18,9 +18,6 @@ export interface Company {
   signatureFile?: File;
   removeLogo?: boolean;
   removeSignature?: boolean;
-  esslEnabled?: boolean;
-  esslApiKey?: string;
-  esslApiKeyConfigured?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -48,8 +45,6 @@ export const companyApi = {
             timezone: companyData.timezone,
             logo: companyData.logo_url,
             signature: companyData.signature_url,
-            esslEnabled: Boolean(companyData.essl_enabled),
-            esslApiKeyConfigured: Boolean(companyData.essl_api_key_configured),
             createdAt: companyData.created_at,
             updatedAt: companyData.updated_at
           }
@@ -78,8 +73,6 @@ export const companyApi = {
       if (payload.payrollStartDay !== undefined) formData.append('payrollStartDay', String(payload.payrollStartDay));
       if (payload.payrollEndDay !== undefined) formData.append('payrollEndDay', String(payload.payrollEndDay));
       if (payload.address !== undefined) formData.append('address', payload.address);
-      if (payload.esslApiKey !== undefined) formData.append('esslApiKey', payload.esslApiKey);
-      if (payload.esslEnabled !== undefined) formData.append('esslEnabled', String(payload.esslEnabled));
       if (payload.removeLogo !== undefined) formData.append('removeLogo', String(payload.removeLogo));
       if (payload.removeSignature !== undefined) formData.append('removeSignature', String(payload.removeSignature));
 
@@ -112,8 +105,6 @@ export const companyApi = {
             timezone: companyData.timezone,
             logo: companyData.logo_url,
             signature: companyData.signature_url,
-            esslEnabled: Boolean(companyData.essl_enabled),
-            esslApiKeyConfigured: Boolean(companyData.essl_api_key_configured),
             createdAt: companyData.created_at,
             updatedAt: companyData.updated_at
           }
