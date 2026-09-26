@@ -1117,7 +1117,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         addonAdminBypass: isAdmin || isCeo,
         companyId: user.company_id,
         kpiFreeUntil,
-       
       },
     );
   }, [

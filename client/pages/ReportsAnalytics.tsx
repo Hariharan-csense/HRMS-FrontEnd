@@ -2432,7 +2432,7 @@ export default function ReportsAnalytics() {
                       Attendance Trend
                     </CardTitle>
                     <CardDescription className="text-sm text-slate-600 mt-1">
-                      Monthly attendance metrics and patterns
+                      Monthly present, absent, and half-day rates as a percentage of employee workdays
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6">
@@ -2494,6 +2494,8 @@ export default function ReportsAnalytics() {
                           stroke="#94a3b8"
                           fontSize={12}
                           fontWeight={500}
+                          domain={[0, 100]}
+                          tickFormatter={(value) => `${value}%`}
                         />
                         <Tooltip
                           contentStyle={{
@@ -2504,7 +2506,10 @@ export default function ReportsAnalytics() {
                             padding: "12px 16px",
                           }}
                           labelStyle={{ color: "#f1f5f9", fontWeight: "bold" }}
-                          formatter={(value) => [`${value}`, ""]}
+                          formatter={(value, name) => [
+                            `${Number(value ?? 0).toFixed(1)}%`,
+                            name,
+                          ]}
                         />
                         <Line
                           type="natural"
