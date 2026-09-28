@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -153,7 +154,7 @@ const ContactPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+    <div className="min-h-screen bg-white text-slate-800">
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <a href="/">
@@ -181,7 +182,7 @@ const ContactPage = () => {
         </div>
       </header>
       <main>
-        <section className="px-5 pb-12 pt-14 text-center sm:pt-20">
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="px-5 pb-12 pt-14 text-center sm:pt-20">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
             We are here to help
           </p>
@@ -192,16 +193,21 @@ const ContactPage = () => {
             We're here to help you transform your HR operations. Reach out to us
             anytime.
           </p>
-        </section>
-        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+        </motion.section>
+        <section className="border-y border-emerald-100 bg-white px-5 py-12">
           <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-3">
-            {contactInfo.map((item) => {
+            {contactInfo.map((item, index) => {
               const Icon = item.icon;
               return (
-                <Card
+                <motion.div
                   key={item.title}
-                  className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm"
+                  initial={{ opacity: 0, y: 24, rotate: index % 2 ? 1 : -1 }}
+                  whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ delay: index * 0.12, duration: 0.5 }}
+                  whileHover={{ y: -7, scale: 1.02 }}
                 >
+                <Card className="h-full rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-xl">
                   <CardContent className="p-0">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
                       <Icon className="h-5 w-5" />
@@ -219,13 +225,14 @@ const ContactPage = () => {
                     </p>
                   </CardContent>
                 </Card>
+                </motion.div>
               );
             })}
           </div>
         </section>
         <section className="px-5 py-14">
           <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_0.8fr]">
-            <div>
+            <motion.div initial={{ opacity: 0, x: -25 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.15 }} transition={{ duration: 0.6 }}>
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
                 Send a message
               </p>
@@ -235,9 +242,10 @@ const ContactPage = () => {
               <p className="mt-3 max-w-lg text-sm leading-6 text-slate-500">
                 Tell us what you need and our team will get back to you soon.
               </p>
-              <form
+              <motion.form
                 onSubmit={handleSubmit}
                 className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                whileHover={{ y: -3, boxShadow: "0 20px 45px rgba(15, 23, 42, 0.08)" }}
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
@@ -305,27 +313,31 @@ const ContactPage = () => {
                   {isSubmitting ? "Sending..." : "Send message"}
                   <Send className="ml-2 h-4 w-4" />
                 </Button>
-              </form>
-            </div>
-            <div className="rounded-2xl bg-[#17c491] p-7 text-white">
-              <MessageSquare className="h-7 w-7" />
+              </motion.form>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 25 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.15 }} transition={{ delay: 0.12, duration: 0.65 }} whileHover={{ y: -4 }} className="rounded-2xl border border-emerald-100 bg-white p-7 text-slate-900 shadow-sm">
+              <motion.div animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.06, 1] }} transition={{ duration: 4, repeat: Infinity }} className="w-fit text-[#17c491]"><MessageSquare className="h-7 w-7" /></motion.div>
               <h2 className="mt-6 text-2xl font-bold">
                 Frequently asked questions
               </h2>
               <div className="mt-7 space-y-3">
                 {faqs.map((faq) => (
-                  <div
+                  <motion.div
                     key={faq.question}
-                    className="border-b border-white/30 pb-3"
+                    className="border-b border-emerald-100 pb-3"
+                    initial={{ opacity: 0, y: 12 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.35 }}
                   >
                     <h3 className="text-sm font-semibold">{faq.question}</h3>
-                    <p className="mt-2 text-xs leading-5 text-white/85">
+                    <p className="mt-2 text-xs leading-5 text-slate-600">
                       {faq.answer}
                     </p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
       </main>

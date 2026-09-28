@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -175,7 +176,7 @@ const FeaturesPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+    <div className="min-h-screen bg-white text-slate-800">
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <a href="/">
@@ -203,27 +204,32 @@ const FeaturesPage = () => {
         </div>
       </header>
       <main>
-        <section className="px-5 pb-12 pt-14 text-center sm:pt-20">
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7 }} className="px-5 pb-12 pt-14 text-center sm:pt-20">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
             Everything in one system
           </p>
-          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+          <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12, duration: 0.6 }} className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
             Tools that keep your people operations moving
-          </h1>
+          </motion.h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500">
             Powerful HR capabilities designed for growing teams, without the
             clutter.
           </p>
-        </section>
-        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+        </motion.section>
+        <section className="border-y border-emerald-100 bg-white px-5 py-12">
           <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => {
+            {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <Card
+                <motion.div
                   key={feature.title}
-                  className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  initial={{ opacity: 0, y: 26, scale: 0.98 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, amount: 0.15 }}
+                  transition={{ delay: (index % 3) * 0.07, duration: 0.5 }}
+                  whileHover={{ y: -8, scale: 1.015 }}
                 >
+                <Card className="h-full rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-xl">
                   <CardContent className="p-0">
                     <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
                       <Icon className="h-5 w-5" />
@@ -247,22 +253,23 @@ const FeaturesPage = () => {
                     </div>
                   </CardContent>
                 </Card>
+                </motion.div>
               );
             })}
           </div>
         </section>
-        <section className="bg-[#17c491] px-5 py-14 text-center text-white">
-          <h2 className="text-2xl font-bold">See what your team can do</h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-white/90">
+        <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="bg-white px-5 py-14 text-center text-slate-900">
+          <motion.h2 animate={{ y: [0, -3, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="text-2xl font-bold">See what your team can do</motion.h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-slate-600">
             Bring every important HR workflow into one dependable place.
           </p>
           <Button
             onClick={() => navigate(hideRegistration ? "/login" : "/signup")}
-            className="mt-7 rounded-full bg-white px-7 text-sm text-[#17c491] hover:bg-[#effff9]"
+            className="mt-7 rounded-full bg-[#17c491] px-7 text-sm text-white hover:bg-[#139f78]"
           >
             Get started
           </Button>
-        </section>
+        </motion.section>
       </main>
       <Footer />
     </div>

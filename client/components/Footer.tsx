@@ -40,7 +40,7 @@ const socialLinks = [
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-200 text-gray-800 py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
+    <footer className="border-t border-gray-100 bg-white text-gray-800 py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
       <style>{`
         @keyframes fadeIn {
           from {

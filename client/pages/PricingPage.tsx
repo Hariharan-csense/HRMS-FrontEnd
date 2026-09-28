@@ -1,5 +1,6 @@
 import { AddonIllustration } from "@/components/AddonIllustration";
 import React, { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -180,7 +181,7 @@ const PricingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fffdfd] text-black">
+    <div className="min-h-screen bg-white text-black">
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <a href="/">
@@ -209,83 +210,166 @@ const PricingPage = () => {
       </header>
       <main>
         <section className="px-5 pb-8 pt-12 text-center sm:pt-16">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-black">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-black">
             Pricing plans
           </p>
-          <h1 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-black sm:text-4xl">
+          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-black sm:text-5xl">
             Simple pricing that grows with you
           </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-black">
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-black">
             Choose the perfect plan for your business needs. No hidden fees, no
             surprises.
           </p>
-          <div className="mx-auto mt-8 max-w-4xl rounded-3xl border-2 border-[#17c491] bg-[#effff9] p-4 shadow-sm sm:p-7">
-            <div className="rounded-2xl bg-white px-4 py-5 sm:px-8">
-              <div className="flex flex-wrap items-center justify-center gap-2 text-2xl text-black sm:text-3xl">
-                <span>Get instant estimate for</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={selectedUsersInput}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectedUsersInput(value);
-                    if (value)
-                      setSelectedUsers(Math.max(1, parseInt(value, 10) || 1));
-                  }}
-                  onBlur={() => {
-                    const value = Math.max(
-                      1,
-                      parseInt(selectedUsersInput, 10) || 1,
-                    );
-                    setSelectedUsers(value);
-                    setSelectedUsersInput(String(value));
-                  }}
-                  className="w-28 rounded-xl border border-[#17c491] bg-[#effff9] px-2 py-1 text-center text-2xl font-bold text-black outline-none focus:ring-2 focus:ring-[#17c491]/20"
-                />
-                <span>employees</span>
+          <motion.div
+            initial={{ opacity: 0, y: 28, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className="relative mx-auto mt-9 max-w-5xl overflow-hidden rounded-[2rem] border border-emerald-100 bg-white p-5 text-left shadow-[0_24px_80px_-38px_rgba(16,185,129,0.35)] sm:p-9"
+          >
+            <motion.div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-emerald-50 blur-3xl"
+              animate={{ x: [0, -18, 0], y: [0, 16, 0], scale: [1, 1.08, 1] }}
+              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <div className="relative grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-12">
+              <div>
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-800">
+                  <motion.span
+                    className="h-2 w-2 rounded-full bg-[#17c491]"
+                    animate={{ scale: [1, 1.45, 1], opacity: [1, 0.65, 1] }}
+                    transition={{ duration: 1.8, repeat: Infinity }}
+                  />
+                  Live price estimator
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
+                  Built around your team.
+                </h2>
+                <p className="mt-3 max-w-md text-base leading-7 text-black/70">
+                  Set your team size and billing cycle. Plan prices update as you go.
+                </p>
+                <div className="mt-6 hidden items-center gap-3 rounded-2xl bg-[#f7fbf9] p-4 lg:flex">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#0aa878] shadow-sm">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-black/60">Your estimate</div>
+                    <div className="text-base font-semibold text-black">Updates instantly</div>
+                  </div>
+                  <motion.div
+                    className="ml-auto h-2 w-2 rounded-full bg-[#17c491]"
+                    animate={{ opacity: [0.35, 1, 0.35], scale: [0.85, 1.2, 0.85] }}
+                    transition={{ duration: 1.6, repeat: Infinity }}
+                  />
+                </div>
               </div>
-              <input
-                type="range"
-                min="10"
-                max="3000"
-                step="10"
-                value={Math.min(3000, Math.max(10, selectedUsers))}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  setSelectedUsers(value);
-                  setSelectedUsersInput(String(value));
-                }}
-                aria-label="Number of employees"
-                className="mt-6 h-2 w-full cursor-pointer accent-[#17c491]"
-                style={{ accentColor: "#17c491" }}
-              />
-              <div className="mt-2 flex justify-between text-xs font-medium text-black">
-                <span>10</span>
-                <span>500</span>
-                <span>1,000</span>
-                <span>2,000</span>
-                <span>3,000+</span>
+
+              <div className="rounded-[1.6rem] border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <label htmlFor="pricing-employee-count" className="text-sm font-medium text-black/60">
+                      Number of employees
+                    </label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.span
+                          key={selectedUsers}
+                          initial={{ y: 12, opacity: 0, filter: "blur(4px)" }}
+                          animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+                          exit={{ y: -10, opacity: 0, filter: "blur(3px)" }}
+                          transition={{ duration: 0.2 }}
+                          className="text-5xl font-semibold tracking-tight text-black tabular-nums sm:text-6xl"
+                        >
+                          {selectedUsers.toLocaleString("en-IN")}
+                        </motion.span>
+                      </AnimatePresence>
+                      <span className="pb-1 text-base text-black/65">employees</span>
+                    </div>
+                  </div>
+                  <input
+                    id="pricing-employee-count"
+                    type="number"
+                    min="1"
+                    max="3000"
+                    value={selectedUsersInput}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedUsersInput(value);
+                      if (value)
+                        setSelectedUsers(Math.min(3000, Math.max(1, parseInt(value, 10) || 1)));
+                    }}
+                    onBlur={() => {
+                      const value = Math.min(3000, Math.max(1, parseInt(selectedUsersInput, 10) || 1));
+                      setSelectedUsers(value);
+                      setSelectedUsersInput(String(value));
+                    }}
+                    aria-label="Enter number of employees"
+                    className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-lg font-semibold text-black outline-none transition focus:border-[#17c491] focus:ring-4 focus:ring-[#17c491]/10"
+                  />
+                </div>
+
+                <div className="mt-7 px-1">
+                  <input
+                    type="range"
+                    min="10"
+                    max="3000"
+                    step="10"
+                    value={Math.min(3000, Math.max(10, selectedUsers))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setSelectedUsers(value);
+                      setSelectedUsersInput(String(value));
+                    }}
+                    aria-label="Adjust number of employees"
+                    className="h-2 w-full cursor-pointer appearance-none rounded-full bg-transparent outline-none focus-visible:ring-4 focus-visible:ring-[#17c491]/15 [&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-[#17c491] [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:-mt-1.5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-[#17c491] [&::-webkit-slider-thumb]:shadow-md"
+                    style={{
+                      background: `linear-gradient(to right, #17c491 ${((Math.min(3000, Math.max(10, selectedUsers)) - 10) / 2990) * 100}%, #e8eeeb ${((Math.min(3000, Math.max(10, selectedUsers)) - 10) / 2990) * 100}%)`,
+                    }}
+                  />
+                  <div className="mt-3 flex justify-between text-xs font-medium text-black/55 sm:text-sm">
+                    <span>10</span><span>500</span><span>1,000</span><span>2,000</span><span>3,000+</span>
+                  </div>
+                </div>
+
+                <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-black">Choose billing cycle</div>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div
+                        key={selectedBillingCycle}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.16 }}
+                        className="mt-1 text-xs text-black/55"
+                      >
+                        {selectedBillingCycle === "yearly" ? "Yearly plan rates applied" : "Pay month by month"}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                  <div className="relative flex w-full rounded-full bg-slate-100 p-1 sm:w-auto">
+                    {(["monthly", "yearly"] as const).map((cycle) => (
+                      <button
+                        key={cycle}
+                        type="button"
+                        onClick={() => setSelectedBillingCycle(cycle)}
+                        className={`relative z-10 min-w-28 rounded-full px-5 py-2.5 text-sm font-semibold capitalize transition-colors ${selectedBillingCycle === cycle ? "text-white" : "text-black/65 hover:text-black"}`}
+                      >
+                        {selectedBillingCycle === cycle && (
+                          <motion.span
+                            layoutId="pricing-billing-pill"
+                            className="absolute inset-0 -z-10 rounded-full bg-[#17c491] shadow-[0_5px_14px_rgba(23,196,145,0.25)]"
+                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          />
+                        )}
+                        {cycle}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 sm:flex-row">
-              <label className="flex items-center gap-2 text-xs font-semibold text-black">
-                Billing cycle
-              </label>
-              <div className="flex rounded-full bg-slate-100 p-1 text-sm font-semibold">
-                {(["monthly", "yearly"] as const).map((cycle) => (
-                  <button
-                    key={cycle}
-                    type="button"
-                    onClick={() => setSelectedBillingCycle(cycle)}
-                    className={`rounded-full px-5 py-2 capitalize transition ${selectedBillingCycle === cycle ? "bg-[#17c491] text-white shadow-sm" : "text-black"}`}
-                  >
-                    {cycle}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          </motion.div>
         </section>
         <section className="px-5 pb-14">
           <div className="mx-auto max-w-6xl">
@@ -315,22 +399,22 @@ const PricingPage = () => {
                           Most Popular
                         </div>
                       )}
-                      <h3 className="mb-3 mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                      <h3 className="mb-3 mt-2 text-3xl font-semibold tracking-tight text-black">
                         {plan.name}
                       </h3>
-                      <p className="mb-6 min-h-12 border-b border-slate-200/70 pb-6 text-base leading-6 text-slate-600">
+                      <p className="mb-6 min-h-12 border-b border-slate-200/70 pb-6 text-lg leading-7 text-black">
                         {plan.description.split("\n")[0]}
                       </p>
                       <div className={`mb-5 rounded-xl border p-4 ${isMostPopular ? "border-emerald-100 bg-white/80" : "border-slate-100 bg-slate-50/70"}`}>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                          <span className="text-4xl font-semibold tracking-tight text-black sm:text-5xl">
                             {formatCurrency(pricing.effectivePerUser)}
                           </span>
-                          <span className="text-sm font-semibold text-slate-500">
+                          <span className="text-base font-semibold text-black">
                             /month
                           </span>
                         </div>
-                        <span className="mt-3 block border-t border-slate-100 pt-3 text-sm font-medium text-slate-600">
+                        <span className="mt-3 block border-t border-slate-100 pt-3 text-base font-medium text-black">
                           Total {selectedBillingCycle}:{" "}
                           {formatCurrency(pricing.totalPrice)} for{" "}
                           {selectedUsers} users
@@ -350,21 +434,21 @@ const PricingPage = () => {
                               <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isAddon ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
                                 {isAddon ? <span className="text-sm font-bold">+</span> : <Check className="h-3.5 w-3.5" />}
                               </span>
-                              <span className="flex-1 text-sm leading-6 text-slate-700">
+                              <span className="flex-1 text-lg leading-7 text-black">
                                 {item.replace(/\s*\(add-on\)/i, "")}
-                                {isAddon && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-800">Add-on</span>}
+                                {isAddon && <span className="ml-1.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold uppercase tracking-wide text-black">Add-on</span>}
                               </span>
                             </div>
                           );})}
                       </div>
                       <Button
-                        className={`w-full rounded-full py-3 text-sm font-semibold ${isMostPopular ? "bg-[#17c491] text-white hover:bg-[#139f78]" : "border border-[#17c491] bg-white text-black hover:bg-[#effff9]"}`}
+                        className={`w-full rounded-full py-3 text-base font-semibold ${isMostPopular ? "bg-[#17c491] text-white hover:bg-[#139f78]" : "border border-[#17c491] bg-white text-black hover:bg-[#effff9]"}`}
                         onClick={handleSignupAction}
                       >
                         {hideRegistration ? "Sign In" : "Try Everything Free!"}
                         <ChevronRight className="ml-2 h-4 w-4" />
                       </Button>
-                      <p className="mt-4 text-center text-xs text-black">
+                      <p className="mt-4 text-center text-sm text-black">
                         Billed {selectedBillingCycle}
                       </p>
                     </div>
@@ -378,7 +462,7 @@ const PricingPage = () => {
             )}
           </div>
         </section>
-        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+        <section className="border-y border-emerald-100 bg-white px-5 py-12">
           <div className="mx-auto max-w-6xl">
             <div className="mb-7 text-center">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-black">
@@ -387,7 +471,7 @@ const PricingPage = () => {
               <h2 className="text-2xl font-bold text-black">
                 Power up with add-ons
               </h2>
-              <p className="mt-2 text-xs text-black">
+              <p className="mt-2 text-base text-black">
                 Add the tools your team needs as you grow.
               </p>
             </div>
@@ -395,7 +479,7 @@ const PricingPage = () => {
               {addons.map((addon) => (
                 <div
                   key={addon.id}
-                  className="relative flex w-full max-w-[280px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                  className="relative flex w-full max-w-[320px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
                 >
                   {addon.id === addons[0]?.id && (
                     <span className="absolute right-3 top-3 rounded-full bg-[#ffe5a8] px-2 py-1 text-[10px] font-semibold text-black">
@@ -406,27 +490,27 @@ const PricingPage = () => {
                     moduleKey={addon.module_key}
                     className="mb-2 !h-20 !w-32"
                   />
-                  <h3 className="break-words text-sm font-bold text-black">
+                  <h3 className="break-words text-lg font-bold text-black">
                     {addon.name}
                   </h3>
-                  <p className="mt-1 flex-1 break-words text-xs leading-5 text-black">
+                  <p className="mt-2 flex-1 break-words text-base leading-6 text-black">
                     {addon.description ||
                       "Extend your HR workspace with this add-on module."}
                   </p>
                   <div className="mt-3 border-l-4 border-[#17c491] pl-3">
                     <p className="text-xl font-bold text-black">
                       {formatCurrency(getAddonPrice(addon, selectedUsers))}{" "}
-                      <span className="text-xs font-normal text-black">
+                      <span className="text-sm font-normal text-black">
                         /user/month
                       </span>
                     </p>
-                    <p className="text-[10px] text-black">
+                    <p className="text-sm text-black">
                       For {selectedUsers} employees
                     </p>
                   </div>
                   <Button
                     onClick={handleSignupAction}
-                    className="mt-3 h-9 w-full rounded-lg border border-[#17c491] bg-white px-3 py-2 text-xs text-black hover:bg-[#17c491] hover:text-white"
+                    className="mt-3 h-10 w-full rounded-lg border border-[#17c491] bg-white px-3 py-2 text-sm text-black hover:bg-[#17c491] hover:text-white"
                   >
                     Explore add-on
                     <ChevronRight className="ml-1 h-3.5 w-3.5" />
@@ -436,23 +520,23 @@ const PricingPage = () => {
             </div>
           </div>
         </section>
-        <section className="bg-[#17c491] px-5 py-14 text-center text-white">
-          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/80">
+        <section className="bg-white px-5 py-14 text-center text-black">
+          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-black">
             From cost to value
           </p>
           <h2 className="text-2xl font-bold">Try everything free</h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-white/90">
+          <p className="mx-auto mt-3 max-w-2xl text-lg leading-7 text-black">
             No credit card required. Cancel anytime and keep your team moving
             forward.
           </p>
           <Button
             onClick={handleSignupAction}
-            className="mt-7 rounded-full bg-white px-7 text-sm text-black hover:bg-[#effff9]"
+            className="mt-7 rounded-full bg-[#17c491] px-7 text-base text-white hover:bg-[#139f78]"
           >
             {hideRegistration ? "Sign In" : "Start Free Trial"}
           </Button>
         </section>
-        <section className="bg-[#fff6df] px-5 py-10">
+        <section className="bg-white px-5 py-10">
           <div className="mx-auto max-w-4xl text-center">
             <h2 className="text-2xl font-bold text-black">
               Frequently Asked Questions
@@ -468,7 +552,7 @@ const PricingPage = () => {
               ].map((question) => (
                 <div
                   key={question}
-                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 text-xs font-semibold text-black shadow-sm"
+                  className="flex items-center justify-between rounded-lg bg-white px-4 py-4 text-base font-semibold text-black shadow-sm"
                 >
                   <span>{question}</span>
                   <ChevronRight className="h-4 w-4 rotate-90 text-black" />

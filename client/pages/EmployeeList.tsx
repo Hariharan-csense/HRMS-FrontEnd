@@ -126,7 +126,7 @@ type FormData = Omit<Employee, "id" | "createdAt" | "updatedAt"> & {
   monthlySalary?: number;
   hourlyRate?: number;
   overtimeHourlyRate?: number;
-  subscriptionBillingCycle: "monthly" | "yearly";
+  subscriptionBillingCycle: "monthly" | "yearly" | "";
   subscriptionPlanId: string;
 };
 
@@ -160,7 +160,7 @@ const initialFormData: FormData = {
   monthlySalary: 0,
   hourlyRate: 0,
   overtimeHourlyRate: 0,
-  subscriptionBillingCycle: "monthly",
+  subscriptionBillingCycle: "",
   subscriptionPlanId: "",
   aadhaar: "",
   pan: "",
@@ -1070,16 +1070,8 @@ export default function EmployeeList() {
       setEditingId(null);
       setActiveTab("personal");
       setNewEmployeeId(`EMP${String(employees.length + 1).padStart(3, "0")}`);
-      const firstAvailablePool = subscriptionSeatPools.find(
-        (pool) => pool.available_users > 0,
-      );
       setFormData({
         ...initialFormData,
-        subscriptionPlanId: firstAvailablePool
-          ? String(firstAvailablePool.plan_id)
-          : "",
-        subscriptionBillingCycle:
-          firstAvailablePool?.billing_cycle || "monthly",
       });
       setUploadedFiles({});
       setUploadedFileObjects({});
@@ -1444,10 +1436,6 @@ export default function EmployeeList() {
   // };
 
   const handleSave = async (bypassLoginWarning = false) => {
-    if (!formData.subscriptionPlanId) {
-      showToast.error("Please select a purchased package for this employee");
-      return;
-    }
     if (!formData.firstName?.trim()) {
       showToast.error("First Name is required!");
       return;
@@ -1543,11 +1531,15 @@ export default function EmployeeList() {
       // console.log("Sending DOJ:", dojToSend); // Debug
 
       formDataToSend.append("employment_type", formData.employmentType);
-      formDataToSend.append(
-        "subscription_billing_cycle",
-        formData.subscriptionBillingCycle,
-      );
-      formDataToSend.append("subscription_plan_id", formData.subscriptionPlanId);
+      if (formData.subscriptionBillingCycle) {
+        formDataToSend.append(
+          "subscription_billing_cycle",
+          formData.subscriptionBillingCycle,
+        );
+      }
+      if (formData.subscriptionPlanId) {
+        formDataToSend.append("subscription_plan_id", formData.subscriptionPlanId);
+      }
       formDataToSend.append("status", formData.status);
 
       // Optional fields
@@ -3573,13 +3565,28 @@ export default function EmployeeList() {
                 </div>
                 <div>
                   <Label htmlFor="subscriptionPlanId">
-                    Employee Package *
+                    Employee Package
                   </Label>
                   <Select
-                    value={formData.subscriptionPlanId}
-                    onValueChange={(value) =>
-                      handleFormChange("subscriptionPlanId", value)
+                    value={
+                      formData.subscriptionPlanId && formData.subscriptionBillingCycle
+                        ? `${formData.subscriptionPlanId}:${formData.subscriptionBillingCycle}`
+                        : ""
                     }
+                    onValueChange={(value) => {
+                      const [planId, billingCycle] = value.split(":");
+                      const selectedPool = subscriptionSeatPools.find(
+                        (pool) =>
+                          String(pool.plan_id) === planId &&
+                          pool.billing_cycle === billingCycle,
+                      );
+                      setFormData((previous) => ({
+                        ...previous,
+                        subscriptionPlanId: planId,
+                        subscriptionBillingCycle:
+                          selectedPool?.billing_cycle || previous.subscriptionBillingCycle,
+                      }));
+                    }}
                   >
                     <SelectTrigger id="subscriptionPlanId" className="mt-2">
                       <SelectValue placeholder="Select purchased package" />
@@ -3588,13 +3595,13 @@ export default function EmployeeList() {
                       {subscriptionSeatPools
                         .filter(
                           (pool) =>
-                            pool.billing_cycle ===
-                            formData.subscriptionBillingCycle,
+                            !formData.subscriptionBillingCycle ||
+                            pool.billing_cycle === formData.subscriptionBillingCycle,
                         )
                         .map((pool) => (
                           <SelectItem
                             key={`${pool.plan_id}-${pool.billing_cycle}`}
-                            value={String(pool.plan_id)}
+                            value={`${pool.plan_id}:${pool.billing_cycle}`}
                             disabled={
                               pool.available_users <= 0 &&
                               String(pool.plan_id) !== formData.subscriptionPlanId
@@ -3611,22 +3618,14 @@ export default function EmployeeList() {
                 </div>
                 <div>
                   <Label htmlFor="subscriptionBillingCycle">
-                    Subscription Billing Cycle *
+                    Subscription Billing Cycle
                   </Label>
                   <Select
                     value={formData.subscriptionBillingCycle}
                     onValueChange={(value: "monthly" | "yearly") => {
-                      const matchingPool = subscriptionSeatPools.find(
-                        (pool) =>
-                          pool.billing_cycle === value &&
-                          pool.available_users > 0,
-                      );
                       setFormData((previous) => ({
                         ...previous,
                         subscriptionBillingCycle: value,
-                        subscriptionPlanId: matchingPool
-                          ? String(matchingPool.plan_id)
-                          : "",
                       }));
                     }}
                   >
@@ -3634,7 +3633,7 @@ export default function EmployeeList() {
                       id="subscriptionBillingCycle"
                       className="mt-2"
                     >
-                      <SelectValue />
+                      <SelectValue placeholder="No billing cycle" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="monthly">Monthly Subscription</SelectItem>

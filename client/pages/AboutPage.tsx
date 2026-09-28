@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,7 +98,7 @@ const AboutPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+    <div className="min-h-screen bg-white text-slate-800">
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <a href="/">
@@ -125,8 +126,8 @@ const AboutPage = () => {
         </div>
       </header>
       <main>
-        <section className="px-5 pb-14 pt-14 sm:pt-20">
-          <div className="mx-auto max-w-5xl">
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7 }} className="px-5 pb-14 pt-14 sm:pt-20">
+          <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} className="mx-auto max-w-5xl">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
               Process-driven HR management
             </p>
@@ -145,9 +146,9 @@ const AboutPage = () => {
               Get started today
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </div>
-        </section>
-        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-14">
+          </motion.div>
+        </motion.section>
+        <section className="border-y border-emerald-100 bg-white px-5 py-14">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-start">
               <div>
@@ -169,13 +170,18 @@ const AboutPage = () => {
               </div>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {philosophyPoints.map((point) => {
+              {philosophyPoints.map((point, index) => {
                 const Icon = point.icon;
                 return (
-                  <Card
+                  <motion.div
                     key={point.title}
-                    className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm"
+                    initial={{ opacity: 0, y: 22 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ delay: index * 0.09, duration: 0.5 }}
+                    whileHover={{ y: -6, scale: 1.02 }}
                   >
+                  <Card className="h-full rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-lg">
                     <CardContent className="p-0">
                       <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
                         <Icon className="h-5 w-5" />
@@ -188,6 +194,7 @@ const AboutPage = () => {
                       </p>
                     </CardContent>
                   </Card>
+                  </motion.div>
                 );
               })}
             </div>
@@ -204,13 +211,18 @@ const AboutPage = () => {
               </h2>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {targetAudience.map((item) => {
+              {targetAudience.map((item, index) => {
                 const Icon = item.icon;
                 return (
-                  <Card
+                  <motion.div
                     key={item.title}
-                    className="rounded-2xl border-slate-200 p-6 shadow-sm"
+                    initial={{ opacity: 0, y: 24, rotate: index % 2 ? 1 : -1 }}
+                    whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+                    viewport={{ once: true, amount: 0.25 }}
+                    transition={{ delay: index * 0.1, duration: 0.55 }}
+                    whileHover={{ y: -7 }}
                   >
+                  <Card className="h-full rounded-2xl border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-xl">
                     <CardContent className="p-0">
                       <Icon className="h-6 w-6 text-[#17c491]" />
                       <h3 className="mt-5 text-base font-bold text-slate-900">
@@ -221,29 +233,30 @@ const AboutPage = () => {
                       </p>
                     </CardContent>
                   </Card>
+                  </motion.div>
                 );
               })}
             </div>
           </div>
         </section>
-        <section className="bg-[#17c491] px-5 py-14 text-white">
+        <motion.section initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }} className="border-y border-emerald-100 bg-white px-5 py-14 text-slate-900">
           <div className="mx-auto max-w-5xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#0b946c]">
               Our approach
             </p>
             <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {approachSteps.map((step) => (
-                <div key={step.step} className="border-l border-white/40 pl-4">
-                  <p className="text-xs font-bold text-white/70">{step.step}</p>
+              {approachSteps.map((step, index) => (
+                <motion.div key={step.step} variants={{ hidden: { opacity: 0, x: 18 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.45 }} whileHover={{ x: 5 }} className="border-l border-emerald-200 pl-4">
+                  <p className="text-xs font-bold text-[#0b946c]">{step.step}</p>
                   <h3 className="mt-2 text-base font-bold">{step.title}</h3>
-                  <p className="mt-2 text-xs leading-5 text-white/85">
+                  <p className="mt-2 text-xs leading-5 text-slate-600">
                     {step.description}
                   </p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
-        </section>
+        </motion.section>
       </main>
       <Footer />
     </div>

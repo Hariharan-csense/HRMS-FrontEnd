@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +36,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fffdfd] text-slate-800">
+    <div className="min-h-screen bg-white text-slate-800">
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link to="/">
@@ -64,18 +65,38 @@ const LandingPage = () => {
       </header>
       <main>
         <section className="overflow-hidden px-5 pb-16 pt-14 sm:pt-20">
-          <div className="mx-auto max-w-6xl text-center">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="mx-auto max-w-6xl text-center"
+          >
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12, duration: 0.5 }}
+              className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]"
+            >
               Procease HRMS · connected people operations
-            </p>
-            <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl">
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.65 }}
+              className="mx-auto max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl"
+            >
               One HR platform. Every essential workflow.
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-500">
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.38, duration: 0.7 }}
+              className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-500"
+            >
               Manage your people, attendance, payroll, expenses, and field teams
               from one connected workspace—built around the way your business
               works.
-            </p>
+            </motion.p>
             <Button
               onClick={() => navigate("/features")}
               className="mt-8 rounded-full bg-[#17c491] px-7 py-3 text-sm shadow-lg shadow-emerald-200 hover:bg-[#139f78]"
@@ -84,18 +105,24 @@ const LandingPage = () => {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <div className="relative mx-auto mt-12 max-w-5xl">
-              <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-[0_24px_70px_rgba(23,196,145,0.18)]">
+              <motion.div
+                initial={{ opacity: 0, y: 36, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: 0.42, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                whileHover={{ y: -5, rotateX: 1, rotateY: -1 }}
+                className="overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-[0_24px_70px_rgba(23,196,145,0.18)]"
+              >
                 <img
                   src={image}
                   alt="HRMS Dashboard Preview"
-                  className="aspect-[2/1] w-full rounded-xl bg-[#f1fffb] object-contain"
+                  className="aspect-[2/1] w-full rounded-xl bg-white object-contain"
                 />
-              </div>
+              </motion.div>
               <div className="absolute -bottom-5 left-1/2 h-10 w-40 -translate-x-1/2 rounded-full bg-[#17c491]/20 blur-xl" />
             </div>
-          </div>
+          </motion.div>
         </section>
-        <section className="border-y border-emerald-100 bg-[#f1fffb] px-5 py-12">
+        <section className="border-y border-emerald-100 bg-white px-5 py-12">
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 text-center">
               <h2 className="text-2xl font-bold text-slate-900">
@@ -111,19 +138,28 @@ const LandingPage = () => {
                 { icon: Fingerprint, title: "ESSL Setup", value: "Devices & employee mapping" },
                 { icon: Clock, title: "Attendance", value: "Time and shift workflows" },
                 { icon: DollarSign, title: "Payroll", value: "People and pay in sync" },
-              ].map((item) => (
-                <Card
+              ].map((item, index) => (
+                <motion.div
                   key={item.title}
-                  className="rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, amount: 0.25 }}
+                  transition={{ delay: index * 0.09, duration: 0.5 }}
+                  whileHover={{ y: -7, scale: 1.02 }}
                 >
-                  <CardContent className="p-0">
-                    <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]">
-                      <item.icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900">{item.title}</h3>
-                    <p className="mt-2 text-sm text-slate-500">{item.value}</p>
-                  </CardContent>
-                </Card>
+                  <Card className="h-full rounded-2xl border-emerald-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-lg">
+                    <CardContent className="p-0">
+                      <motion.div
+                        whileHover={{ rotate: [0, -8, 8, 0], scale: 1.08 }}
+                        className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#17c491]/10 text-[#17c491]"
+                      >
+                        <item.icon className="h-5 w-5" />
+                      </motion.div>
+                      <h3 className="text-base font-bold text-slate-900">{item.title}</h3>
+                      <p className="mt-2 text-sm text-slate-500">{item.value}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -154,8 +190,16 @@ const LandingPage = () => {
                 { icon: Package, title: "Asset Management", description: "Track company assets and keep assignment details accessible to your HR and operations teams.", accent: "bg-orange-50 text-orange-700" },
                 { icon: Headphones, title: "HR Helpdesk", description: "Give employees and HR teams a shared place to raise and follow up on workplace requests.", accent: "bg-teal-50 text-teal-700" },
                 { icon: BarChart, title: "Reports & Insights", description: "Turn workforce information into useful reports for attendance, leave, payroll, and people operations.", accent: "bg-cyan-50 text-cyan-700" },
-              ].map((feature) => (
-                <Card key={feature.title} className="rounded-2xl border-slate-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              ].map((feature, index) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 28 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.15 }}
+                  transition={{ delay: (index % 3) * 0.08, duration: 0.5 }}
+                  whileHover={{ y: -8, scale: 1.015 }}
+                >
+                <Card className="h-full rounded-2xl border-slate-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-xl">
                   <CardContent className="p-0">
                     <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${feature.accent}`}>
                       <feature.icon className="h-6 w-6" />
@@ -164,6 +208,7 @@ const LandingPage = () => {
                     <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
                   </CardContent>
                 </Card>
+                </motion.div>
               ))}
             </div>
             <div className="mt-9 text-center">
@@ -176,9 +221,15 @@ const LandingPage = () => {
             </div>
           </div>
         </section>
-        <section className="overflow-hidden bg-[#f1fffb] px-5 py-16">
-          <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2">
-            <div>
+        <section className="overflow-hidden bg-white px-5 py-16">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.16 } } }}
+            className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2"
+          >
+            <motion.div variants={{ hidden: { opacity: 0, x: -30 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.6 }}>
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#17c491]">
                 Live Tracking
               </p>
@@ -196,24 +247,24 @@ const LandingPage = () => {
               >
                 Explore Live Tracking <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            </div>
-            <div className="overflow-hidden rounded-2xl bg-[#39005b] p-2 shadow-xl">
+            </motion.div>
+            <motion.div variants={{ hidden: { opacity: 0, x: 30, scale: 0.96 }, visible: { opacity: 1, x: 0, scale: 1 } }} transition={{ duration: 0.7 }} whileHover={{ y: -6 }} className="overflow-hidden rounded-2xl bg-[#39005b] p-2 shadow-xl">
               <img
                 src={liveDelivery}
                 alt="Live Tracking and field team activity preview"
                 className="aspect-video w-full rounded-xl object-cover"
               />
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </section>
-        <section className="bg-[#17c491] px-5 py-14 text-center text-white">
+        <section className="bg-white px-5 py-14 text-center text-slate-900">
           <h2 className="text-2xl font-bold">Ready to make HR simpler?</h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-white/90">
+          <p className="mx-auto mt-3 max-w-lg text-sm text-slate-600">
             Start building disciplined, scalable people operations today.
           </p>
           <Button
             onClick={handleGetStarted}
-            className="mt-7 rounded-full bg-white px-7 text-sm text-[#17c491] hover:bg-[#effff9]"
+            className="mt-7 rounded-full bg-[#17c491] px-7 text-sm text-white hover:bg-[#139f78]"
           >
             Get started
           </Button>
