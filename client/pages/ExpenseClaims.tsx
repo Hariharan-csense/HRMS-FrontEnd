@@ -1377,7 +1377,9 @@ export default function ExpenseClaims() {
           0,
         );
         const notificationService = NotificationTriggerService.getInstance();
-        await notificationService.triggerExpenseApplied({
+        // Notifications are best-effort. Do not keep the expense form in its
+        // saving state while the separate notification service responds.
+        void notificationService.triggerExpenseApplied({
           employeeId: user?.id || "",
           employeeName: user?.name || "Unknown Employee",
           amount: totalAmount,
@@ -1385,6 +1387,8 @@ export default function ExpenseClaims() {
           description: `Submitted ${payloadRows.length} expense(s)`,
           managerId: "",
           hrId: "",
+        }).catch((notificationError) => {
+          console.error("Error notifying about expense submission:", notificationError);
         });
 
         await refreshExpenses();
